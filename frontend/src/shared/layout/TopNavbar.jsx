@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom'
-import { GraduationCap, Search, Bell, LogOut, Menu } from 'lucide-react'
+import { GraduationCap, Search, LogOut, Menu } from 'lucide-react'
 import { useAuth } from '../auth/useAuth.js'
 import Avatar from '../components/Avatar.jsx'
 import Badge from '../components/Badge.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
+import NotificationDropdown from '../components/NotificationDropdown.jsx'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,15 +64,7 @@ export default function TopNavbar({ onToggleMobileMenu }) {
       <div className="flex items-center gap-2">
         <ThemeToggle />
 
-        <ShadcnButton
-          variant="ghost"
-          size="icon"
-          className="relative h-9 w-9 text-muted-foreground hover:text-foreground"
-          aria-label="Notifications"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
-        </ShadcnButton>
+        <NotificationDropdown />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

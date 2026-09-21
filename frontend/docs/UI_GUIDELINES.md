@@ -245,7 +245,65 @@ AI coding assistants (Antigravity, Copilot, Cursor, Claude Code) can search and 
 
 ---
 
-## 10. Pre-commit Verification Checklist
+---
+
+## 10. Global Notification System & Toast Architecture
+
+EduFlow features a unified notification ecosystem built with **shadcn Popover** and **Sonner**:
+
+### 1. Notification Center Dropdown (`NotificationDropdown.jsx`)
+Located in `TopNavbar.jsx` beside the theme toggle:
+- **Badge Indicator**: Displays a pulsing indicator and live unread counter whenever unread notifications are present.
+- **Filter Tabs**: Toggle smoothly between **All** and **Unread** notifications.
+- **Notification Cards**: Include contextual category icons (calendar/milestones, supervisor feedback, AI methodology scans, and system maintenance), timestamp, unread indicator dot, and hover-to-dismiss actions.
+- **Bulk Actions**: One-click **Mark all read** (updates status and fires a confirmation toast) and **Clear all**.
+- **Interactive Sandbox**: Includes a **Simulate New Notification** button for immediate testing of both the dropdown and global toasts.
+
+### 2. Global Notification Toast (`showToast` & Sonner)
+The toast system is mounted globally in `App.jsx` via `<Toaster />` and automatically syncs with the active theme (`light` or `dark`).
+
+#### Design Rules for Black & White Themes:
+- **Light Theme**: Crisp pure white card surface (`bg-card`), high-contrast dark text (`text-card-foreground`), subtle border (`border-border`), and deep diffused shadow.
+- **Dark Theme**: Pitch-black / charcoal elevated card (`bg-card`), luminous 12% border (`border-border`), stark white typography, and subtle glowing icon badges.
+- **Micro-Interactions**: Smooth spring enter/exit, swipe-to-dismiss, tactile action buttons, and automatic theme adaptation without jarring neon colors.
+
+#### Developer Usage: Simple & Consistent
+Import `showToast` from `@/shared/utils/toast.jsx`:
+
+```jsx
+import { showToast } from '@/shared/utils/toast.jsx'
+
+// ✅ Success (e.g. after form submission, project save, grade publish)
+showToast.success('Project Saved', {
+  description: 'Your milestone changes have been safely synchronized.'
+})
+
+// ✅ Error (e.g. validation failure, network disconnect)
+showToast.error('Submission Failed', {
+  description: 'Unable to reach the server. Please check your connection.'
+})
+
+// ✅ Info / Neutral (e.g. navigation hint, status notice)
+showToast.info('Defense Schedule Updated', {
+  description: 'Review the new time slot assigned to your group.'
+})
+
+// ✅ AI Copilot Notification
+showToast.ai('AI Analysis Ready', {
+  description: 'Methodology citation scan finished with 0 discrepancies.'
+})
+
+// ✅ Async Promises (automatically handles loading, success, and error)
+showToast.promise(apiCall(), {
+  loading: 'Uploading file...',
+  success: 'File uploaded successfully!',
+  error: 'Upload failed. Please try again.'
+})
+```
+
+---
+
+## 11. Pre-commit Verification Checklist
 
 Before pushing code or opening a pull request, you MUST verify:
 
@@ -262,3 +320,4 @@ Verify these UX criteria manually:
 - [ ] Interactive elements feature tactile active press (`active:scale-[0.98]`).
 - [ ] Layout transitions fluidly when the AI Copilot is opened/closed.
 - [ ] Scrollbars are slim and styled cleanly without default OS scrollbar artifacts.
+- [ ] Notifications dropdown and toasts adapt cleanly to Black & White themes with crisp typography.
