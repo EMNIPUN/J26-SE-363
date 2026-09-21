@@ -14,7 +14,7 @@ const PORTAL_LABEL = {
   admin: 'Admin Portal',
 }
 
-const AI_PANEL_STORAGE_KEY = 'eduflow-ai-panel-open'
+const AI_PANEL_STORAGE_KEY = 'mentor-ai-panel-open'
 
 export default function DashboardShell() {
   const { user } = useAuth()
@@ -23,7 +23,9 @@ export default function DashboardShell() {
   const [mobileAiOpen, setMobileAiOpen] = useState(false)
   const [aiPanelOpen, setAiPanelOpen] = useState(() => {
     try {
-      const saved = localStorage.getItem(AI_PANEL_STORAGE_KEY)
+      const saved =
+        localStorage.getItem(AI_PANEL_STORAGE_KEY) ??
+        localStorage.getItem('eduflow-ai-panel-open')
       return saved !== null ? saved === 'true' : true
     } catch {
       return true
@@ -126,7 +128,7 @@ export default function DashboardShell() {
           className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer group"
         >
           <Sparkles className="h-4 w-4 text-amber-300 group-hover:rotate-12 transition-transform duration-200 shrink-0" />
-          <span className="text-xs font-semibold tracking-tight">AI Copilot</span>
+          <span className="text-xs font-semibold tracking-tight">MENTOR AI</span>
           <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
         </button>
       </div>

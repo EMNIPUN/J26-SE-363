@@ -191,7 +191,7 @@ export default function CommandPalette({ open, onOpenChange }) {
             <kbd className="px-1 py-0.5 rounded border border-border bg-muted text-[10px]">↵</kbd>
           </div>
           <div className="flex items-center gap-1">
-            <span>EduFlow Command Palette</span>
+            <span>MENTOR Command Palette</span>
           </div>
         </div>
       </DialogContent>

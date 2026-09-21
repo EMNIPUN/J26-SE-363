@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './shared/theme/ThemeProvider.jsx'
 import { Toaster } from './components/ui/sonner.jsx'
 import { ModalProvider } from './shared/context/ModalContext.jsx'
+import SplashScreen from './shared/components/SplashScreen.jsx'
 import { AuthProvider } from './shared/auth/AuthContext.jsx'
 import { useAuth } from './shared/auth/useAuth.js'
 import RequireAuth from './shared/auth/RequireAuth.jsx'
@@ -24,7 +25,8 @@ function RootRedirect() {
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="eduflow-theme">
+    <ThemeProvider defaultTheme="system" storageKey="mentor-theme">
+      <SplashScreen />
       <ModalProvider>
         <Toaster />
         <AuthProvider>

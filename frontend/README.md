@@ -1,6 +1,8 @@
-# EduFlow Frontend
+# MENTOR Frontend
 
-The unified frontend for the **EduFlow** capstone learning platform, integrating project requirements planning, student performance analytics, an adaptive AI tutor, and automated security assessment.
+The unified frontend for **MENTOR** (**M**ulti-agent **E**ngineering **N**etwork for **T**ask **O**rchestration & **R**eview).
+
+> **MENTOR is a multi-agent engineering system that orchestrates software project tasks, evaluates student contributions, provides adaptive learning support, and performs security review.**
 
 ---
 

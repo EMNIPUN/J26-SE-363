@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GraduationCap, Search, LogOut, Menu } from 'lucide-react'
+import { Search, LogOut, Menu } from 'lucide-react'
 import { useAuth } from '../auth/useAuth.js'
 import Avatar from '../components/Avatar.jsx'
 import Badge from '../components/Badge.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 import NotificationDropdown from '../components/NotificationDropdown.jsx'
 import CommandPalette from '../components/CommandPalette.jsx'
+import MentorLogo from '../components/MentorLogo.jsx'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,12 +45,7 @@ export default function TopNavbar({ onToggleMobileMenu }) {
           </ShadcnButton>
         )}
 
-        <div className="flex items-center gap-2 font-bold text-foreground">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-            <GraduationCap className="h-5 w-5" />
-          </div>
-          <span className="text-lg tracking-tight font-semibold">EduFlow</span>
-        </div>
+        <MentorLogo size={32} showText={true} />
       </div>
 
       <div className="hidden md:flex items-center flex-1 max-w-md mx-6">

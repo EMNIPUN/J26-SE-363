@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GraduationCap, BookOpen, BarChart3, Bot, ShieldCheck, AlertCircle } from 'lucide-react'
+import { AlertCircle, Layers, BarChart3, Bot, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../auth/useAuth.js'
 import { DEMO_ACCOUNTS, findAccount } from '../auth/credentials.js'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import MentorLogo from '../components/MentorLogo.jsx'
 
 export default function Login() {
   const { login } = useAuth()
@@ -36,46 +37,49 @@ export default function Login() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background">
       {/* Brand Panel */}
-      <section className="lg:w-1/2 bg-primary/5 p-8 sm:p-12 lg:p-16 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-border">
+      <section className="lg:w-1/2 bg-muted/20 p-8 sm:p-12 lg:p-16 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-border">
         <div>
-          <div className="flex items-center gap-2.5 font-bold text-foreground mb-8">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <GraduationCap className="h-6 w-6" />
-            </div>
-            <span className="text-xl tracking-tight font-bold">EduFlow</span>
+          <div className="mb-8">
+            <MentorLogo size={42} showText={true} textClassName="text-xl" />
           </div>
+
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold mb-4">
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Multi-Agent Engineering Network</span>
+          </div>
+
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground max-w-lg leading-tight">
-            One learning platform for the whole capstone team.
+            Task Orchestration, Learning &amp; Review.
           </h1>
           <p className="mt-4 text-base text-muted-foreground max-w-md leading-relaxed">
-            Requirements planning, performance tracking, an AI tutor, and automated security review — built by four teammates as one consistent product.
+            MENTOR is a multi-agent engineering system that orchestrates software project tasks, evaluates student contributions, provides adaptive learning support, and performs security review.
           </p>
         </div>
 
-        <ul className="mt-8 space-y-3.5 text-sm text-foreground/85 font-medium">
+        <ul className="mt-8 space-y-3.5 text-sm text-foreground/90 font-medium">
           <li className="flex items-center gap-3">
             <div className="p-1.5 rounded-md bg-primary/10 text-primary">
-              <BookOpen className="h-4 w-4" />
+              <Layers className="h-4 w-4" />
             </div>
-            Project Planning &amp; Requirements
+            <span><strong>Task Orchestration</strong> — Requirements &amp; project structuring</span>
           </li>
           <li className="flex items-center gap-3">
             <div className="p-1.5 rounded-md bg-primary/10 text-primary">
               <BarChart3 className="h-4 w-4" />
             </div>
-            Performance Assessment
+            <span><strong>Evaluation</strong> — Student contributions &amp; performance</span>
           </li>
           <li className="flex items-center gap-3">
             <div className="p-1.5 rounded-md bg-primary/10 text-primary">
               <Bot className="h-4 w-4" />
             </div>
-            Adaptive AI Tutor
+            <span><strong>Adaptive Learning</strong> — Intelligent AI Mentor assistance</span>
           </li>
           <li className="flex items-center gap-3">
             <div className="p-1.5 rounded-md bg-primary/10 text-primary">
               <ShieldCheck className="h-4 w-4" />
             </div>
-            AEGIS Security Review
+            <span><strong>Review</strong> — Automated software &amp; security review</span>
           </li>
         </ul>
       </section>

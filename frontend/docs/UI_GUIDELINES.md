@@ -1,6 +1,6 @@
-# Frontend UI, Theming & Motion System Guide
+# MENTOR Frontend UI, Theming & Motion System Guide
 
-This document is the **single source of truth** for all developers contributing to the EduFlow frontend. It details how to build UI components, maintain design and surface hierarchy, follow the global theme across light and dark modes, adhere to the motion system, and leverage **shadcn/ui** and the **shadcn MCP server**.
+This document is the **single source of truth** for all developers contributing to the **MENTOR** (**M**ulti-agent **E**ngineering **N**etwork for **T**ask **O**rchestration & **R**eview) frontend. It details how to build UI components, maintain design and surface hierarchy, follow the global theme across light and dark modes, adhere to the motion system, and leverage **shadcn/ui** and the **shadcn MCP server**.
 
 ---
 
@@ -20,7 +20,7 @@ To keep the entire frontend maintainable, visually unified, and responsive witho
 
 A common pitfall in web dashboards is placing white cards on pure white backgrounds, or flat dark cards on flat dark backgrounds, which creates a washed-out, clinical look with zero contrast.
 
-EduFlow employs the **3-layer surface hierarchy** used by industry benchmarks like **Stripe**, **Linear**, **Vercel**, and **GitHub**:
+MENTOR employs the **3-layer surface hierarchy** used by industry benchmarks like **Stripe**, **Linear**, **Vercel**, and **GitHub**:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐

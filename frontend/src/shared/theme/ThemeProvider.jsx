@@ -4,10 +4,13 @@ import { ThemeContext } from './context.js'
 export function ThemeProvider({
   children,
   defaultTheme = 'system',
-  storageKey = 'eduflow-theme',
+  storageKey = 'mentor-theme',
 }) {
   const [theme, setTheme] = useState(
-    () => localStorage.getItem(storageKey) || defaultTheme,
+    () =>
+      localStorage.getItem(storageKey) ||
+      localStorage.getItem('eduflow-theme') ||
+      defaultTheme,
   )
   const [resolvedTheme, setResolvedTheme] = useState('light')
 

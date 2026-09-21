@@ -27,7 +27,7 @@ const INITIAL_MESSAGES = [
   {
     id: 'msg-welcome-1',
     role: 'assistant',
-    content: "👋 Hello! I'm your EduFlow Academic & Research Copilot. How can I assist with your projects, grading, or milestone tracking today?",
+    content: "👋 Hello! I am MENTOR, your Multi-Agent Engineering Copilot. I orchestrate project tasks, provide adaptive learning support, evaluate contributions, and perform automated code reviews. How can I assist you today?",
     time: 'Just now'
   }
 ]
@@ -99,12 +99,12 @@ export default function AiChatPanel({ onClose }) {
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-semibold tracking-tight text-foreground">AI Copilot</span>
+              <span className="text-sm font-semibold tracking-tight text-foreground">MENTOR AI</span>
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal">
-                Beta
+                Multi-Agent
               </Badge>
             </div>
-            <span className="text-[11px] text-muted-foreground">EduFlow Assistant</span>
+            <span className="text-[11px] text-muted-foreground">Engineering Copilot</span>
           </div>
         </div>
 
@@ -230,7 +230,7 @@ export default function AiChatPanel({ onClose }) {
           </Button>
         </form>
         <p className="text-[10px] text-muted-foreground text-center mt-1.5 flex items-center justify-center gap-1">
-          <span>EduFlow Copilot is experimental.</span>
+          <span>MENTOR AI Orchestration Engine is experimental.</span>
           <span className="underline cursor-pointer hover:text-foreground inline-flex items-center gap-0.5">
             Privacy info <ExternalLink className="h-2.5 w-2.5" />
           </span>
