@@ -1,26 +1,25 @@
-import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GraduationCap, Search, Bell, LogOut, ChevronDown } from 'lucide-react'
+import { GraduationCap, Search, Bell, LogOut, Menu, Sparkles } from 'lucide-react'
 import { useAuth } from '../auth/useAuth.js'
 import Avatar from '../components/Avatar.jsx'
 import Badge from '../components/Badge.jsx'
-import './TopNavbar.css'
+import ThemeToggle from '../components/ThemeToggle.jsx'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import { Button as ShadcnButton } from '@/components/ui/button'
 
 const ROLE_TONE = { student: 'primary', instructor: 'success', admin: 'warning' }
 
-export default function TopNavbar() {
+export default function TopNavbar({ onToggleMobileMenu, aiPanelOpen = false, onToggleAiPanel }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef(null)
-
-  useEffect(() => {
-    function onClickOutside(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false)
-    }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [])
 
   function handleLogout() {
     logout()
@@ -28,43 +27,101 @@ export default function TopNavbar() {
   }
 
   return (
-    <header className="top-navbar">
-      <div className="top-navbar__brand">
-        <GraduationCap size={22} strokeWidth={2.2} />
-        <span>EduFlow</span>
-      </div>
+    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-border bg-background/95 px-4 sm:px-6 backdrop-blur">
+      <div className="flex items-center gap-3">
+        {onToggleMobileMenu && (
+          <ShadcnButton
+            variant="ghost"
+            size="icon"
+            className="md:hidden h-9 w-9"
+            onClick={onToggleMobileMenu}
+            aria-label="Toggle navigation"
+          >
+            <Menu className="h-5 w-5" />
+          </ShadcnButton>
+        )}
 
-      <div className="top-navbar__search">
-        <Search size={16} strokeWidth={2} />
-        <input type="text" placeholder="Search projects, students, requirements..." />
-      </div>
-
-      <div className="top-navbar__right">
-        <button type="button" className="top-navbar__icon-btn" aria-label="Notifications">
-          <Bell size={18} strokeWidth={2} />
-          <span className="top-navbar__dot" />
-        </button>
-
-        <div className="top-navbar__menu" ref={menuRef}>
-          <button type="button" className="top-navbar__user" onClick={() => setMenuOpen((o) => !o)}>
-            <Avatar name={user?.name} size={32} />
-            <div className="top-navbar__user-info">
-              <span className="top-navbar__user-name">{user?.name}</span>
-              <Badge tone={ROLE_TONE[user?.role] ?? 'neutral'}>{user?.role}</Badge>
-            </div>
-            <ChevronDown size={15} strokeWidth={2} />
-          </button>
-
-          {menuOpen && (
-            <div className="top-navbar__dropdown">
-              <button type="button" className="top-navbar__dropdown-item" onClick={handleLogout}>
-                <LogOut size={16} strokeWidth={2} />
-                Log out
-              </button>
-            </div>
-          )}
+        <div className="flex items-center gap-2 font-bold text-foreground">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <GraduationCap className="h-5 w-5" />
+          </div>
+          <span className="text-lg tracking-tight font-semibold">EduFlow</span>
         </div>
+      </div>
+
+      <div className="hidden md:flex items-center flex-1 max-w-md mx-6">
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search projects, students, requirements..."
+            className="pl-9 h-9 bg-muted/40 text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {onToggleAiPanel && (
+          <ShadcnButton
+            variant={aiPanelOpen ? 'default' : 'outline'}
+            size="sm"
+            onClick={onToggleAiPanel}
+            className={`h-9 px-3 gap-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-colors ${
+              aiPanelOpen
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'text-foreground border-border hover:bg-muted/80'
+            }`}
+            title={aiPanelOpen ? 'Hide AI Copilot (2 Columns)' : 'Show AI Copilot (3 Columns)'}
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-400 dark:text-amber-300 shrink-0" />
+            <span className="hidden sm:inline">AI Copilot</span>
+          </ShadcnButton>
+        )}
+
+        <ThemeToggle />
+
+        <ShadcnButton
+          variant="ghost"
+          size="icon"
+          className="relative h-9 w-9 text-muted-foreground hover:text-foreground"
+          aria-label="Notifications"
+        >
+          <Bell className="h-4 w-4" />
+          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+        </ShadcnButton>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-2.5 rounded-full p-1 pl-1.5 hover:bg-muted/60 transition-colors cursor-pointer outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Avatar name={user?.name} size={32} />
+              <div className="hidden sm:flex flex-col items-start text-left text-xs leading-tight mr-1">
+                <span className="font-semibold text-foreground">{user?.name}</span>
+                <span className="text-muted-foreground capitalize text-[11px]">{user?.role}</span>
+              </div>
+              <Badge tone={ROLE_TONE[user?.role] ?? 'neutral'} className="hidden sm:inline-flex capitalize">
+                {user?.role}
+              </Badge>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user?.name}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   )
 }
+

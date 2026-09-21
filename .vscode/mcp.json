@@ -1,0 +1,8 @@
+﻿{
+  "servers": {
+    "shadcn": {
+      "command": "cmd.exe",
+      "args": ["/c", "npx", "shadcn@latest", "mcp"]
+    }
+  }
+}

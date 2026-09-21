@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { ThemeProvider } from './shared/theme/ThemeProvider.jsx'
 import { AuthProvider } from './shared/auth/AuthContext.jsx'
 import { useAuth } from './shared/auth/useAuth.js'
 import RequireAuth from './shared/auth/RequireAuth.jsx'
@@ -21,9 +22,10 @@ function RootRedirect() {
 
 function App() {
   return (
-    <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<Login />} />
+    <ThemeProvider defaultTheme="system" storageKey="eduflow-theme">
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
 
         <Route element={<RequireAuth />}>
           <Route element={<DashboardShell />}>
@@ -42,6 +44,7 @@ function App() {
         <Route path="/" element={<RootRedirect />} />
       </Routes>
     </AuthProvider>
+    </ThemeProvider>
   )
 }
 
