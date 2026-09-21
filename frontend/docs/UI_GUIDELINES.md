@@ -201,6 +201,24 @@ The app supports **Light**, **Dark / Black** (deep OLED dark mode), and **System
   ```
 - **Designing for Both Themes**: Because you use semantic classes (`bg-card`, `border-border`, `text-foreground`), components will look balanced in both themes automatically. If you ever need theme-specific styling, use Tailwind's `dark:` modifier (e.g. `dark:bg-emerald-950/40 dark:text-emerald-400`).
 
+### 3. Browser Autofill Theme Preservation
+Browsers (Chrome, Edge, Safari) inject default user-agent yellow, blue, or gray backgrounds when credentials or form fields are autofilled (`:-webkit-autofill`).
+In EduFlow, this is globally neutralized in `src/index.css`:
+```css
+input:-webkit-autofill,
+input:autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px var(--card) inset !important;
+  box-shadow: 0 0 0 1000px var(--card) inset !important;
+  -webkit-text-fill-color: var(--foreground) !important;
+  color: var(--foreground) !important;
+  caret-color: var(--foreground) !important;
+  transition: background-color 5000000s ease-in-out 0s;
+}
+```
+All inputs automatically retain crisp white card surfaces in Light mode and matching dark charcoal surfaces in Dark mode with zero gray/blue disfigurement.
+
 ---
 
 ## 8. Adding & Using shadcn Primitives

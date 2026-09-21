@@ -147,6 +147,27 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  /* Universal Browser Autofill Override (Eliminates ugly browser-injected gray/blue backgrounds) */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active,
+  input:autofill,
+  input:autofill:hover,
+  input:autofill:focus,
+  input:autofill:active,
+  textarea:-webkit-autofill,
+  textarea:autofill,
+  select:-webkit-autofill,
+  select:autofill {
+    -webkit-box-shadow: 0 0 0 1000px var(--card) inset !important;
+    box-shadow: 0 0 0 1000px var(--card) inset !important;
+    -webkit-text-fill-color: var(--foreground) !important;
+    color: var(--foreground) !important;
+    caret-color: var(--foreground) !important;
+    transition: background-color 5000000s ease-in-out 0s;
+  }
 }
 
 /* Professional Custom Scrollbar (Webkit) */
