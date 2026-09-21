@@ -94,7 +94,7 @@ export default function TopNavbar({ onToggleMobileMenu, aiPanelOpen = false, onT
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="flex items-center gap-2.5 rounded-full p-1 pl-1.5 hover:bg-muted/60 transition-colors cursor-pointer outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex items-center gap-2.5 rounded-full p-1 pl-1.5 hover:bg-muted/60 transition-all duration-150 active:scale-[0.98] cursor-pointer outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Avatar name={user?.name} size={32} />
               <div className="hidden sm:flex flex-col items-start text-left text-xs leading-tight mr-1">
@@ -106,7 +106,7 @@ export default function TopNavbar({ onToggleMobileMenu, aiPanelOpen = false, onT
               </Badge>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="w-56 animate-scale-in">
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">{user?.name}</p>

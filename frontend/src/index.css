@@ -170,9 +170,84 @@
   display: none;
 }
 
+/* Signature Smooth Motion System (Linear / Vercel / Stripe Inspired) */
+:root {
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out-quad: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes ui-fade-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ui-scale-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-rise {
+  animation: ui-fade-rise 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-scale-in {
+  animation: ui-scale-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Universal tactile press interaction */
+.interactive-press {
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+.interactive-press:active {
+  transform: scale(0.98);
+}
+
+/* Interactive card hover lift with subtle shadow */
+.card-hover-lift {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease-out;
+}
+.card-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -6px oklch(0 0 0 / 12%);
+  border-color: oklch(0 0 0 / 18%);
+}
+.dark .card-hover-lift:hover {
+  box-shadow: 0 8px 24px -6px oklch(0 0 0 / 40%);
+  border-color: oklch(1 0 0 / 22%);
+}
+
+/* Independent column scroll containment & smooth inertia */
+.column-scroll-contain {
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 #root {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
 }
+
 

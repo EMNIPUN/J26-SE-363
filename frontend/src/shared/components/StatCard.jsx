@@ -11,7 +11,7 @@ export default function StatCard({ icon: Icon, label, value, trend, tone = 'prim
   const iconColor = TONE_BG[tone] || TONE_BG.primary
 
   return (
-    <Card className="p-5 flex items-start gap-4 transition-all hover:shadow-md border-border bg-card">
+    <Card className="p-5 flex items-start gap-4 card-hover-lift border-border bg-card cursor-default">
       <div className={`p-3 rounded-lg flex items-center justify-center shrink-0 ${iconColor}`}>
         <Icon className="h-5 w-5" strokeWidth={2} />
       </div>

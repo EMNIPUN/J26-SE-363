@@ -33,7 +33,7 @@ export default function Sidebar({ sections, portalLabel, onNavigate }) {
                 end={section.to === '/student' || section.to === '/instructor' || section.to === '/admin'}
                 onClick={onNavigate}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 ease-out active:scale-[0.98] ${
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-xs'
                       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
@@ -51,7 +51,7 @@ export default function Sidebar({ sections, portalLabel, onNavigate }) {
             <div key={section.label} className="space-y-1">
               <button
                 type="button"
-                className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
+                className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 ease-out active:scale-[0.98] cursor-pointer ${
                   active && !isOpen
                     ? 'bg-accent text-accent-foreground font-semibold'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
@@ -63,19 +63,19 @@ export default function Sidebar({ sections, portalLabel, onNavigate }) {
                   <span className="truncate">{section.label}</span>
                 </div>
                 <ChevronDown
-                  className={`h-4 w-4 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                  className={`h-4 w-4 shrink-0 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${isOpen ? 'rotate-180' : ''}`}
                   strokeWidth={2}
                 />
               </button>
               {isOpen && (
-                <div className="ml-4 pl-3 border-l border-border flex flex-col space-y-1 pt-1">
+                <div className="ml-4 pl-3 border-l border-border flex flex-col space-y-1 pt-1 animate-fade-rise">
                   {section.children.map((child) => (
                     <NavLink
                       key={child.to}
                       to={child.to}
                       onClick={onNavigate}
                       className={({ isActive }) =>
-                        `flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                        `flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150 ease-out active:scale-[0.98] ${
                           isActive
                             ? 'bg-primary/10 text-primary font-semibold'
                             : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'

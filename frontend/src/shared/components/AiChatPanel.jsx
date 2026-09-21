@@ -140,11 +140,11 @@ export default function AiChatPanel({ onClose }) {
       </div>
 
       {/* Message List (ONLY this section scrolls) */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 text-xs select-text">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 text-xs select-text column-scroll-contain">
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex items-start gap-2.5 ${
+            className={`flex items-start gap-2.5 animate-fade-rise ${
               msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
             }`}
           >
@@ -180,7 +180,7 @@ export default function AiChatPanel({ onClose }) {
         ))}
 
         {isTyping && (
-          <div className="flex items-start gap-2.5">
+          <div className="flex items-start gap-2.5 animate-fade-rise">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-xs">
               <Bot className="h-4 w-4" />
             </div>
@@ -205,10 +205,10 @@ export default function AiChatPanel({ onClose }) {
                   key={prompt}
                   type="button"
                   onClick={() => handleSendMessage(prompt)}
-                  className="text-left text-[11px] px-2.5 py-1.5 rounded-md bg-muted/50 hover:bg-muted text-foreground/80 hover:text-foreground border border-border/40 transition-colors flex items-center justify-between group cursor-pointer"
+                  className="text-left text-[11px] px-2.5 py-1.5 rounded-md bg-muted/50 hover:bg-muted text-foreground/80 hover:text-foreground border border-border/40 transition-all duration-150 active:scale-[0.98] flex items-center justify-between group cursor-pointer"
                 >
                   <span className="truncate">{prompt}</span>
-                  <ChevronRight className="h-3 w-3 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+                  <ChevronRight className="h-3 w-3 text-muted-foreground group-hover:translate-x-0.5 transition-transform duration-150" />
                 </button>
               ))}
             </div>
