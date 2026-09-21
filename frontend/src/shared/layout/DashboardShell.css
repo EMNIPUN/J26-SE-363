@@ -1,0 +1,22 @@
+.dashboard-shell {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-shell__body {
+  display: flex;
+  flex: 1;
+}
+
+.dashboard-shell__content {
+  flex: 1;
+  min-width: 0;
+  padding: 28px 32px 48px;
+}
+
+@media (max-width: 780px) {
+  .dashboard-shell__body {
+    flex-direction: column;
+  }
+}
