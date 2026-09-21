@@ -120,6 +120,11 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0 0 0 / 18%) transparent;
+  }
+  .dark * {
+    scrollbar-color: oklch(1 0 0 / 18%) transparent;
   }
   body {
     @apply bg-background text-foreground;
@@ -129,8 +134,45 @@
   }
 }
 
+/* Professional Custom Scrollbar (Webkit) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(0 0 0 / 18%);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0 0 0 / 32%);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: oklch(1 0 0 / 18%);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: oklch(1 0 0 / 32%);
+}
+
+/* Scrollbar utility classes */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 #root {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
 }
+
