@@ -88,25 +88,42 @@ export default function DashboardShell() {
           </div>
         </main>
 
-        {/* Column 3: AI Chat Panel (Desktop, fixed to screen, fluid width collapse) */}
-        {aiPanelOpen && (
-          <div className="hidden lg:flex flex-col w-80 xl:w-96 shrink-0 h-full border-l border-sidebar-border bg-sidebar overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
+        {/* Column 3: AI Chat Panel (Desktop, fixed to screen, fluid width collapse with silky-smooth slide) */}
+        <div
+          aria-hidden={!aiPanelOpen}
+          className={`hidden lg:flex flex-col h-full shrink-0 bg-sidebar overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            aiPanelOpen
+              ? 'w-80 xl:w-96 border-l border-sidebar-border opacity-100'
+              : 'w-0 border-l border-transparent opacity-0 pointer-events-none'
+          }`}
+        >
+          <div
+            className={`w-80 xl:w-96 h-full flex flex-col shrink-0 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+              aiPanelOpen ? 'translate-x-0' : 'translate-x-6'
+            }`}
+          >
             <AiChatPanel onClose={handleToggleAi} />
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Floating AI Copilot Trigger (Appears in bottom-right corner when 3rd column is closed) */}
+      {/* Floating AI Copilot Trigger (Smoothly scales & glides in/out when 3rd column opens/closes) */}
       <div
-        className={`fixed bottom-6 right-6 z-50 ${
-          aiPanelOpen ? 'lg:hidden' : ''
-        } ${mobileAiOpen ? 'hidden' : ''}`}
+        className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          aiPanelOpen
+            ? 'lg:opacity-0 lg:scale-75 lg:translate-y-4 lg:pointer-events-none'
+            : 'lg:opacity-100 lg:scale-100 lg:translate-y-0 lg:pointer-events-auto'
+        } ${
+          mobileAiOpen
+            ? 'opacity-0 scale-75 translate-y-4 pointer-events-none'
+            : 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
+        }`}
       >
         <button
           type="button"
           onClick={handleToggleAi}
           aria-label="Open AI Copilot"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer group animate-scale-in"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer group"
         >
           <Sparkles className="h-4 w-4 text-amber-300 group-hover:rotate-12 transition-transform duration-200 shrink-0" />
           <span className="text-xs font-semibold tracking-tight">AI Copilot</span>

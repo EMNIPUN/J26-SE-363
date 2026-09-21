@@ -83,11 +83,14 @@ The application layout is built into `src/shared/layout/DashboardShell.jsx`.
    - **Fixed to Screen Height**: The panel itself is completely rigid (`h-full overflow-hidden`).
    - **Isolated Chat Scrolling**: The header (title, controls) and footer (prompt input) are pinned in place (`shrink-0`). **Only the chat messages list (`overflow-y-auto min-h-0`) can be scrolled**.
    - **Default Visible**: Defaults to open on initial load.
-   - **Persistent State**: The open/closed state is automatically saved in `localStorage` under the key `'eduflow-ai-panel-open'`.
+   - **Silky-Smooth Motion Choreography**:
+     - **No Sudden DOM Unmounting**: Column 3 remains in the layout tree and uses continuous CSS width interpolation (`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]`) between `w-0` and `w-80 xl:w-96`.
+     - **Content Sliding Parallax**: The inner panel content smoothly translates (`translate-x-6` to `translate-x-0`) while fading in (`opacity-0` to `opacity-100`), preventing text wrapping or squishing while gliding into place.
+     - **Automatic Canvas Reflow**: Column 2 (`main`) smoothly and dynamically adapts its width to accommodate the panel with zero layout popping.
    - **User Toggle**:
-     - When the 3rd column is **closed**: A sleek, pill-shaped **Floating Action Button (FAB)** appears in the bottom-right corner (`fixed bottom-6 right-6 z-50 animate-scale-in`) with an active pulse indicator to launch the copilot.
-     - When the 3rd column is **open**: The floating button is smoothly hidden, and the panel is dismissed using the `X` close button on the panel's header.
-     - *(Note: The top navbar remains clean and distraction-free with search, role badges, theme toggle, notifications, and profile).*
+     - When the 3rd column is **closed**: A sleek, pill-shaped **Floating Action Button (FAB)** floats in the bottom-right corner (`fixed bottom-6 right-6 z-50`) with an active pulse indicator.
+     - When clicked: The FAB smoothly scales down, drops slightly, and fades out (`opacity-0 scale-75 translate-y-4`) as Column 3 glides open in perfect synchrony.
+     - When Column 3 is closed via the `X` button: The column slides shut into the right edge, and the FAB smoothly scales and glides up into position (`opacity-100 scale-100 translate-y-0`).
    - On screens `< 1024px`, the copilot automatically transitions to a slide-over `Sheet` drawer.
 
 ---
