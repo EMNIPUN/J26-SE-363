@@ -27,7 +27,7 @@ export default function TopNavbar({ onToggleMobileMenu, aiPanelOpen = false, onT
   }
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-border bg-background/95 px-4 sm:px-6 backdrop-blur">
+    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-border bg-card/95 px-4 sm:px-6 backdrop-blur">
       <div className="flex items-center gap-3">
         {onToggleMobileMenu && (
           <ShadcnButton

@@ -80,12 +80,12 @@ export default function DashboardShell() {
       {/* 3-Column Dashboard Body: fills entire viewport below navbar */}
       <div className="flex-1 flex w-full min-h-0 overflow-hidden">
         {/* Column 1: Left Navigation Sidebar (Desktop) - fixed to screen */}
-        <div className="hidden md:block w-64 shrink-0 border-r border-border bg-card h-full overflow-y-auto column-scroll-contain">
+        <div className="hidden md:block w-64 shrink-0 border-r border-sidebar-border bg-sidebar h-full overflow-y-auto column-scroll-contain">
           <Sidebar sections={sections} portalLabel={PORTAL_LABEL[user.role]} />
         </div>
 
-        {/* Column 2: Content Area (Independently scrollable with fluid fade-rise tab entrance) */}
-        <main className="flex-1 min-w-0 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 column-scroll-contain transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
+        {/* Column 2: Content Area (Independently scrollable with fluid fade-rise tab entrance & shaded canvas) */}
+        <main className="flex-1 min-w-0 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 bg-background column-scroll-contain transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
           <div key={location.pathname} className="max-w-7xl mx-auto animate-fade-rise">
             <Outlet />
           </div>
@@ -93,7 +93,7 @@ export default function DashboardShell() {
 
         {/* Column 3: AI Chat Panel (Desktop, fixed to screen, fluid width collapse) */}
         {aiPanelOpen && (
-          <div className="hidden lg:flex flex-col w-80 xl:w-96 shrink-0 h-full border-l border-border bg-card overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
+          <div className="hidden lg:flex flex-col w-80 xl:w-96 shrink-0 h-full border-l border-sidebar-border bg-sidebar overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
             <AiChatPanel onClose={handleToggleAi} />
           </div>
         )}

@@ -96,9 +96,9 @@ export default function AiChatPanel({ onClose }) {
   }
 
   return (
-    <aside aria-label="AI Copilot" className="flex flex-col h-full w-full bg-card select-none overflow-hidden">
+    <aside aria-label="AI Copilot" className="flex flex-col h-full w-full bg-sidebar select-none overflow-hidden">
       {/* Header (Fixed to top of panel) */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-sidebar/80 backdrop-blur shrink-0">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
             <Sparkles className="h-4 w-4" />
@@ -221,7 +221,7 @@ export default function AiChatPanel({ onClose }) {
       <Separator className="shrink-0" />
 
       {/* Input Form (Fixed to bottom of panel) */}
-      <div className="p-3 bg-card shrink-0">
+      <div className="p-3 bg-sidebar shrink-0">
         <form
           onSubmit={(e) => {
             e.preventDefault()
