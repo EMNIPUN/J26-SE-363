@@ -7,7 +7,29 @@ const TONE_BG = {
   danger: 'bg-destructive/10 text-destructive',
 }
 
-export default function StatCard({ icon: Icon, label, value, trend, tone = 'primary' }) {
+export default function StatCard({
+  icon: Icon,
+  label,
+  value,
+  trend,
+  tone = 'primary',
+  loading = false,
+  loadingFallback,
+}) {
+  if (loading) {
+    if (loadingFallback) return loadingFallback
+    return (
+      <Card className="p-5 flex items-start gap-4 border-border bg-card animate-pulse">
+        <div className="h-11 w-11 rounded-lg bg-muted shrink-0" />
+        <div className="flex-1 space-y-2 py-0.5 min-w-0">
+          <div className="h-3 w-20 rounded bg-muted/70" />
+          <div className="h-6 w-14 rounded bg-muted" />
+          <div className="h-2.5 w-16 rounded bg-muted/50" />
+        </div>
+      </Card>
+    )
+  }
+
   const iconColor = TONE_BG[tone] || TONE_BG.primary
 
   return (

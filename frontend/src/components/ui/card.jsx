@@ -4,8 +4,51 @@ import { cn } from "cn"
 function Card({
   className,
   size = "default",
+  loading = false,
+  loadingFallback,
+  children,
   ...props
 }) {
+  if (loading) {
+    if (loadingFallback) {
+      return (
+        <div
+          data-slot="card"
+          data-size={size}
+          className={cn(
+            "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)]",
+            className
+          )}
+          {...props}
+        >
+          {loadingFallback}
+        </div>
+      )
+    }
+
+    return (
+      <div
+        data-slot="card"
+        data-size={size}
+        className={cn(
+          "group/card flex flex-col gap-3 overflow-hidden rounded-xl bg-card p-5 text-sm text-card-foreground ring-1 ring-foreground/10 animate-pulse",
+          className
+        )}
+        {...props}
+      >
+        <div className="space-y-2">
+          <div className="h-4 w-1/3 rounded bg-muted" />
+          <div className="h-3 w-1/2 rounded bg-muted/60" />
+        </div>
+        <div className="space-y-2 pt-2">
+          <div className="h-3 w-full rounded bg-muted/50" />
+          <div className="h-3 w-4/5 rounded bg-muted/50" />
+          <div className="h-3 w-3/5 rounded bg-muted/50" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       data-slot="card"
@@ -15,7 +58,9 @@ function Card({
         className
       )}
       {...props}
-    />
+    >
+      {children}
+    </div>
   )
 }
 

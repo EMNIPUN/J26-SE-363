@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GraduationCap, Search, LogOut, Menu } from 'lucide-react'
 import { useAuth } from '../auth/useAuth.js'
@@ -5,6 +6,7 @@ import Avatar from '../components/Avatar.jsx'
 import Badge from '../components/Badge.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 import NotificationDropdown from '../components/NotificationDropdown.jsx'
+import CommandPalette from '../components/CommandPalette.jsx'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,12 +15,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
 import { Button as ShadcnButton } from '@/components/ui/button'
 
 const ROLE_TONE = { student: 'primary', instructor: 'success', admin: 'warning' }
 
 export default function TopNavbar({ onToggleMobileMenu }) {
+  const [commandOpen, setCommandOpen] = useState(false)
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -51,14 +53,19 @@ export default function TopNavbar({ onToggleMobileMenu }) {
       </div>
 
       <div className="hidden md:flex items-center flex-1 max-w-md mx-6">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search projects, students, requirements..."
-            className="pl-9 h-9 bg-muted/40 text-sm"
-          />
-        </div>
+        <button
+          type="button"
+          onClick={() => setCommandOpen(true)}
+          className="relative w-full flex items-center justify-between h-9 px-3 rounded-lg border border-border bg-muted/40 hover:bg-muted/70 text-xs text-muted-foreground transition-colors cursor-pointer text-left"
+        >
+          <div className="flex items-center gap-2">
+            <Search className="h-3.5 w-3.5" />
+            <span>Search portals, projects, actions...</span>
+          </div>
+          <kbd className="inline-flex items-center gap-0.5 rounded border border-border bg-card px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shadow-2xs">
+            <span className="text-[11px]">⌘</span>K
+          </kbd>
+        </button>
       </div>
 
       <div className="flex items-center gap-2">
@@ -97,6 +104,8 @@ export default function TopNavbar({ onToggleMobileMenu }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
     </header>
   )
 }

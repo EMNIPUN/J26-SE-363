@@ -303,7 +303,187 @@ showToast.promise(apiCall(), {
 
 ---
 
-## 11. Pre-commit Verification Checklist
+---
+
+## 11. Global Popup & Modal Suite (`Dialog`, `AlertDialog`, `useConfirm`)
+
+Modals in EduFlow are designed for zero friction and strict visual harmony with Black & White themes:
+
+### 1. General Modals (`Dialog`)
+Used for custom forms, detail inspectors, evaluation rubrics, and settings:
+
+```jsx
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+
+<Dialog>
+  <DialogTrigger asChild>
+    <Button size="sm">Open Rubric</Button>
+  </DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Rubric Evaluation</DialogTitle>
+      <DialogDescription>Score student criteria according to research guidelines.</DialogDescription>
+    </DialogHeader>
+    {/* Form / Content here */}
+    <DialogFooter>
+      <Button variant="outline">Cancel</Button>
+      <Button>Save Scores</Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+```
+
+### 2. High-Stakes Confirmation Popups (`AlertDialog`)
+For destructive or irreversible actions with explicit confirmation:
+
+```jsx
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog'
+```
+
+### 3. Global 1-Line Imperative Confirmation Hook (`useConfirm`)
+**Developers never have to write local `const [open, setOpen] = useState(false)` boilerplate for confirmations!**
+Simply call `useConfirm()` anywhere in the application:
+
+```jsx
+import { useConfirm } from '@/shared/utils/useConfirm.js'
+import { showToast } from '@/shared/utils/toast.jsx'
+
+function DeleteMilestoneButton({ milestoneId }) {
+  const confirm = useConfirm()
+
+  const handleDelete = async () => {
+    // Returns a Promise that resolves to true or false:
+    const confirmed = await confirm({
+      title: 'Delete Milestone?',
+      description: 'This will permanently delete the milestone and all submitted student artifacts.',
+      confirmText: 'Delete Permanently',
+      cancelText: 'Cancel',
+      tone: 'destructive', // 'destructive' | 'default'
+    })
+
+    if (confirmed) {
+      await apiDeleteMilestone(milestoneId)
+      showToast.success('Milestone deleted')
+    }
+  }
+
+  return (
+    <Button variant="destructive" size="sm" onClick={handleDelete}>
+      Delete
+    </Button>
+  )
+}
+```
+
+---
+
+## 12. Global Command Palette (`Ctrl+K` / `Cmd+K`)
+
+EduFlow features a global Spotlight Command Menu accessible anywhere:
+- **Shortcut**: `Ctrl+K` (Windows/Linux) or `Cmd+K` (macOS).
+- **Navbar Search**: Clicking the top search bar immediately opens the command palette.
+- **Capabilities**:
+  - Direct portal jump (Student, Instructor, Admin, Planning, Performance, AI Tutor, Security).
+  - Instant Theme toggling (Light vs. Dark / Black).
+  - Triggering live alerts & AI Copilot.
+
+---
+
+## 13. Zero-Boilerplate Loading & Intelligent Auto-Skeleton System
+
+**Developers should never have to manually craft repetitive skeleton boxes for everyday components.**
+EduFlow provides automatic skeleton rendering with full override capabilities:
+
+### 1. Zero-Boilerplate `<Card loading={isLoading}>`
+Simply pass `loading={isLoading}` to any `<Card>`:
+
+```jsx
+// ✅ DO THIS: 1 prop, zero boilerplate!
+<Card loading={isLoading}>
+  <CardHeader>
+    <CardTitle>Milestone 2 Overview</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <p>Loaded project content...</p>
+  </CardContent>
+</Card>
+
+// Need a custom skeleton design for a specialized card? Just pass loadingFallback:
+<Card loading={isLoading} loadingFallback={<MyCustomChartSkeleton />}>
+  {/* Component content */}
+</Card>
+```
+
+### 2. Zero-Boilerplate `<StatCard loading={isLoading}>`
+```jsx
+<StatCard
+  loading={isLoading}
+  icon={GraduationCap}
+  label="Total Submissions"
+  value={48}
+  trend="+12% from last week"
+/>
+```
+
+### 3. Universal `<LoadingState>` Wrapper
+Wrap any data table, card grid, list, or text area with `<LoadingState>`:
+
+```jsx
+import LoadingState from '@/shared/components/LoadingState.jsx'
+
+// Renders an automatic multi-row table skeleton:
+<LoadingState loading={isLoading} variant="table">
+  <StudentSubmissionsTable data={submissions} />
+</LoadingState>
+
+// Renders a grid of 3 card skeletons:
+<LoadingState loading={isLoading} variant="card" count={3} className="grid-cols-3">
+  {projects.map(p => <ProjectCard key={p.id} project={p} />)}
+</LoadingState>
+
+// Fully overridable with custom fallback:
+<LoadingState loading={isLoading} fallback={<SpecialGraphicSkeleton />}>
+  <ComplexDashboardWidget />
+</LoadingState>
+```
+
+---
+
+## 14. Essential Dashboard Primitives Reference
+
+| Component | Import Path | Primary Use Case |
+| :--- | :--- | :--- |
+| **`Tabs`** | `@/components/ui/tabs` | Section switching (`TabsList`, `TabsTrigger`, `TabsContent`) |
+| **`Select`** | `@/components/ui/select` | Styled dropdown pickers (`SelectTrigger`, `SelectContent`, `SelectItem`) |
+| **`Checkbox`** | `@/components/ui/checkbox` | Batch table selection & rubric checklists |
+| **`Progress`** | `@/components/ui/progress` | Milestone completion percentage bars (`<Progress value={75} />`) |
+| **`Tooltip`** | `@/components/ui/tooltip` | Sleek hover micro-labels (`<Tooltip><TooltipTrigger>...<TooltipContent>...`) |
+| **`Textarea`** | `@/components/ui/textarea` | Styled multi-line input for supervisor feedback & abstracts |
+| **`Breadcrumb`** | `@/components/ui/breadcrumb` | Hierarchical navigation paths (`Home > Planning > Milestones`) |
+| **`EmptyState`** | `@/shared/components/EmptyState` | Polished placeholder when tables/lists have 0 records |
+
+---
+
+## 15. Pre-commit Verification Checklist
 
 Before pushing code or opening a pull request, you MUST verify:
 
@@ -321,3 +501,5 @@ Verify these UX criteria manually:
 - [ ] Layout transitions fluidly when the AI Copilot is opened/closed.
 - [ ] Scrollbars are slim and styled cleanly without default OS scrollbar artifacts.
 - [ ] Notifications dropdown and toasts adapt cleanly to Black & White themes with crisp typography.
+- [ ] Popups, Dialogs, and Command Palette (`Ctrl+K`) render centered with smooth backdrop blur.
+- [ ] Skeletons shimmer smoothly without causing layout shifts when loaded.
