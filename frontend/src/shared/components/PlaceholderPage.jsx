@@ -1,10 +1,13 @@
 import { getModule } from '../constants/modules'
+import PageHeader from './PageHeader.jsx'
+import Card from './Card.jsx'
 import './PlaceholderPage.css'
 
 /**
  * Generic dummy-content page. Every real page in a module starts as a thin
  * wrapper around this until the actual feature is implemented, so the
- * routing/navigation can be demoed before any real UI exists.
+ * routing/navigation and shared theme can be demoed before any real UI
+ * exists for that page.
  */
 export default function PlaceholderPage({
   moduleKey,
@@ -16,22 +19,21 @@ export default function PlaceholderPage({
   const module = getModule(moduleKey)
 
   return (
-    <article className="placeholder-page" style={{ '--module-color': module?.color }}>
-      {breadcrumb.length > 0 && (
-        <p className="placeholder-page__breadcrumb">{breadcrumb.join(' / ')}</p>
-      )}
-      <h1 className="placeholder-page__title">{title}</h1>
-      {description && <p className="placeholder-page__description">{description}</p>}
+    <div style={{ '--module-color': module?.color }}>
+      <PageHeader title={title} breadcrumb={breadcrumb} description={description} />
+
       {bullets.length > 0 && (
-        <ul className="placeholder-page__bullets">
-          {bullets.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
+        <Card className="placeholder-page__card">
+          <p className="placeholder-page__card-label">Planned for this page</p>
+          <ul className="placeholder-page__bullets">
+            {bullets.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </Card>
       )}
-      <div className="placeholder-page__stub">
-        Dummy content — real UI for this page is not implemented yet.
-      </div>
-    </article>
+
+      <div className="placeholder-page__stub">Dummy content — real UI for this page is not implemented yet.</div>
+    </div>
   )
 }
