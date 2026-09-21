@@ -1,4 +1,4 @@
-﻿# EduFlow Frontend
+# EduFlow Frontend
 
 The unified frontend for the **EduFlow** capstone learning platform, integrating project requirements planning, student performance analytics, an adaptive AI tutor, and automated security assessment.
 
@@ -55,11 +55,13 @@ Every developer contributing to this codebase must adhere to the following stand
    - Subtle fluid tab entrance: `animate-fade-rise` on page routes.
    - Card hover lift: `.card-hover-lift` on clickable cards.
    - Column scroll containment: `.column-scroll-contain` to isolate scroll physics.
-4. **Professional Custom Scrollbars**:
+4. **Automatic Fluid Typography**:
+   - Typography scales continuously with screen width using CSS `clamp()` (`--text-xs` through `--text-4xl` and root `html`). Developers simply write standard classes (e.g. `text-2xl`, `text-sm`) without needing manual responsive media query breakpoints.
+5. **Professional Custom Scrollbars**:
    - Slim 6px profile, transparent track, theme-adaptive pill thumb with hover states.
-5. **Theme Support**:
+6. **Theme Support**:
    - Native support for **Light**, **Dark / Black** (OLED deep-black), and **System** themes with `<ThemeToggle />` and `useTheme()`.
-6. **MCP Server Integration**:
+7. **MCP Server Integration**:
    - Configured in `.vscode/mcp.json` and `.mcp.json` for AI assistants (Antigravity, Copilot, Cursor) to search and install shadcn components automatically.
 
 📖 **For detailed code examples, component templates, and color tables, see:**  

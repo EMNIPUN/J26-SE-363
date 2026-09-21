@@ -141,7 +141,45 @@ EduFlow features a unified, minimalist custom scrollbar configured in `src/index
 
 ---
 
-## 6. Theme System & Dark/Black Mode
+## 6. Automatic Fluid Typography (Zero-Breakpoint Responsive Text)
+
+In EduFlow, **developers never have to manually write breakpoint font sizes** (e.g. `text-lg sm:text-xl md:text-2xl lg:text-3xl`).
+
+The entire typography scale adapts **automatically and continuously** to the user's viewport width using native CSS `clamp()` formulas:
+
+### How It Works Under the Hood
+1. **Root Scaling**: The root `html` font-size baseline scales fluidly from `14px` on mobile screens (`360px`) up to `16px` on full desktop displays (`clamp(14px, 0.85rem + 0.3vw, 16px)`). Because all `rem` values derive from this root, all typography naturally scales with screen size while fully preserving accessibility and browser zoom preferences.
+2. **Fluid Tailwind Scale**: Tailwind's text tokens (`--text-xs` through `--text-4xl`) are bound to fluid `clamp()` ranges.
+
+### Developer Usage: Simple & Clean
+Just use standard Tailwind typography classes. You never need to write manual media query variants for text:
+
+```jsx
+// ✅ DO THIS: Write clean, standard classes — the typography scale handles responsiveness automatically!
+<h1 className="text-3xl font-bold tracking-tight text-foreground">Student Portal</h1>
+<h2 className="text-xl font-semibold text-foreground">Upcoming Milestones</h2>
+<p className="text-sm text-muted-foreground">Track your project deadlines.</p>
+
+// ❌ AVOID THIS: Redundant, messy breakpoint soup is unnecessary!
+<h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">Student Portal</h1>
+```
+
+### Scale Reference
+
+| Class | Mobile (360px) | Desktop (1440px+) | Typical Semantic Role |
+| :--- | :--- | :--- | :--- |
+| `text-xs` | `0.70rem` (~10.5px) | `0.75rem` (12px) | Status badges, timestamps, table hints |
+| `text-sm` | `0.80rem` (~12px) | `0.875rem` (14px) | Table cell text, card descriptions, navigation |
+| `text-base` | `0.90rem` (~13.5px) | `1.00rem` (16px) | Body copy, card titles, form inputs |
+| `text-lg` | `1.00rem` (~15px) | `1.125rem` (18px) | Section subtitles, module card headers |
+| `text-xl` | `1.10rem` (~16.5px) | `1.25rem` (20px) | Section headings, dialog titles |
+| `text-2xl` | `1.25rem` (~18.5px) | `1.50rem` (24px) | Metric numbers, major section titles |
+| `text-3xl` | `1.50rem` (~22.5px) | `1.875rem` (30px) | Main dashboard page headers |
+| `text-4xl` | `1.75rem` (~26px) | `2.25rem` (36px) | Hero titles, landing page banners |
+
+---
+
+## 7. Theme System & Dark/Black Mode
 
 The app supports **Light**, **Dark / Black** (deep OLED dark mode), and **System**:
 
@@ -159,7 +197,7 @@ The app supports **Light**, **Dark / Black** (deep OLED dark mode), and **System
 
 ---
 
-## 7. Adding & Using shadcn Primitives
+## 8. Adding & Using shadcn Primitives
 
 Whenever you need a new primitive (e.g., `dialog`, `tabs`, `accordion`, `popover`, `select`, `tooltip`, `progress`):
 
@@ -190,7 +228,7 @@ import { cn } from '@/lib/utils'
 
 ---
 
-## 8. Using the shadcn MCP Server with AI
+## 9. Using the shadcn MCP Server with AI
 
 The repository is pre-configured with the **shadcn Model Context Protocol (MCP) server** in `.vscode/mcp.json` and `.mcp.json`.
 
@@ -201,7 +239,7 @@ AI coding assistants (Antigravity, Copilot, Cursor, Claude Code) can search and 
 
 ---
 
-## 9. Pre-commit Verification Checklist
+## 10. Pre-commit Verification Checklist
 
 Before pushing code or opening a pull request, you MUST verify:
 
