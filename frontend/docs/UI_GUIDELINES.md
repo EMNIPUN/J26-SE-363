@@ -1,4 +1,4 @@
-﻿# Frontend UI, Theming & Motion System Guide
+# Frontend UI, Theming & Motion System Guide
 
 This document is the **single source of truth** for all developers contributing to the EduFlow frontend. It details how to build UI components, maintain design and surface hierarchy, follow the global theme across light and dark modes, adhere to the motion system, and leverage **shadcn/ui** and the **shadcn MCP server**.
 
@@ -41,11 +41,11 @@ EduFlow employs the **3-layer surface hierarchy** used by industry benchmarks li
 
 | Section / Element | Role | Light Mode Value | Dark / Black Mode Value | Tailwind Class |
 | :--- | :--- | :--- | :--- | :--- |
-| **Workspace Canvas** | Recessed floor | Cool Slate-50 tint (`oklch(0.976 0.003 260)`) | Deep Matte Black (`oklch(0.06 0 0)`) | `bg-background` |
-| **Cards & Panels** | Elevated floating plate | Crisp Pure White (`oklch(1 0 0)`) | Elevated Dark Surface (`oklch(0.135 0 0)`) | `bg-card` + `shadow-xs border border-border` |
-| **Cockpit Frame** | Sidebar, Navbar, AI Panel | Framing Pure White (`oklch(1 0 0)`) | Framing Dark Surface (`oklch(0.095 0 0)`) | `bg-sidebar` + `border-sidebar-border` |
-| **Borders & Dividers** | Structural separation | Soft Slate Border (`oklch(0.91 0.003 260)`) | Luminous 12% Dark Border (`oklch(1 0 0 / 12%)`) | `border-border` |
-| **Muted Surfaces** | Secondary tags, badges | Subtle Cool Tint (`oklch(0.95 0.003 260)`) | Subtle Dark Tint (`oklch(0.16 0 0)`) | `bg-muted` / `text-muted-foreground` |
+| **Workspace Canvas** | Recessed floor | Soft Light Slate/Zinc Gray (`oklch(0.955 0.005 260)`) | Charcoal / Zinc Gray (`oklch(0.12 0.005 260)`) | `bg-background` |
+| **Cards & Panels** | Elevated floating plate | Crisp Pure White (`oklch(1 0 0)`) | Elevated Dark Surface (`oklch(0.165 0.005 260)`) | `bg-card` + `shadow-xs border border-border` |
+| **Cockpit Frame** | Sidebar, Navbar, AI Panel | Framing Pure White (`oklch(1 0 0)`) | Deep Black Frame (`oklch(0.07 0 0)`) | `bg-sidebar` + `border-sidebar-border` |
+| **Borders & Dividers** | Structural separation | Crisp Defining Border (`oklch(0.89 0.005 260)`) | Luminous 12% Dark Border (`oklch(1 0 0 / 12%)`) | `border-border` |
+| **Muted Surfaces** | Secondary tags, badges | Subtle Cool Tint (`oklch(0.935 0.005 260)`) | Subtle Dark Tint (`oklch(0.18 0.005 260)`) | `bg-muted` / `text-muted-foreground` |
 
 ### ❌ Anti-Patterns vs. ✅ Best Practices
 
