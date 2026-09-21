@@ -5,7 +5,6 @@ import {
   Send,
   X,
   Bot,
-  RotateCcw,
   ExternalLink,
   ChevronRight,
   MessageSquare
@@ -90,11 +89,6 @@ export default function AiChatPanel({ onClose }) {
     }, 800)
   }
 
-  const handleResetChat = () => {
-    setMessages(INITIAL_MESSAGES)
-    setIsTyping(false)
-  }
-
   return (
     <aside aria-label="AI Copilot" className="flex flex-col h-full w-full bg-sidebar select-none overflow-hidden">
       {/* Header (Fixed to top of panel) */}
@@ -115,16 +109,6 @@ export default function AiChatPanel({ onClose }) {
         </div>
 
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
-            onClick={handleResetChat}
-            title="Reset conversation"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </Button>
-
           {onClose && (
             <Button
               variant="ghost"

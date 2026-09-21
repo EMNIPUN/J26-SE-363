@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { GraduationCap, Search, Bell, LogOut, Menu, Sparkles } from 'lucide-react'
+import { GraduationCap, Search, Bell, LogOut, Menu } from 'lucide-react'
 import { useAuth } from '../auth/useAuth.js'
 import Avatar from '../components/Avatar.jsx'
 import Badge from '../components/Badge.jsx'
@@ -17,7 +17,7 @@ import { Button as ShadcnButton } from '@/components/ui/button'
 
 const ROLE_TONE = { student: 'primary', instructor: 'success', admin: 'warning' }
 
-export default function TopNavbar({ onToggleMobileMenu, aiPanelOpen = false, onToggleAiPanel }) {
+export default function TopNavbar({ onToggleMobileMenu }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -61,23 +61,6 @@ export default function TopNavbar({ onToggleMobileMenu, aiPanelOpen = false, onT
       </div>
 
       <div className="flex items-center gap-2">
-        {onToggleAiPanel && (
-          <ShadcnButton
-            variant={aiPanelOpen ? 'default' : 'outline'}
-            size="sm"
-            onClick={onToggleAiPanel}
-            className={`h-9 px-3 gap-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-colors ${
-              aiPanelOpen
-                ? 'bg-primary text-primary-foreground shadow-xs'
-                : 'text-foreground border-border hover:bg-muted/80'
-            }`}
-            title={aiPanelOpen ? 'Hide AI Copilot (2 Columns)' : 'Show AI Copilot (3 Columns)'}
-          >
-            <Sparkles className="h-3.5 w-3.5 text-amber-400 dark:text-amber-300 shrink-0" />
-            <span className="hidden sm:inline">AI Copilot</span>
-          </ShadcnButton>
-        )}
-
         <ThemeToggle />
 
         <ShadcnButton

@@ -84,7 +84,10 @@ The application layout is built into `src/shared/layout/DashboardShell.jsx`.
    - **Isolated Chat Scrolling**: The header (title, controls) and footer (prompt input) are pinned in place (`shrink-0`). **Only the chat messages list (`overflow-y-auto min-h-0`) can be scrolled**.
    - **Default Visible**: Defaults to open on initial load.
    - **Persistent State**: The open/closed state is automatically saved in `localStorage` under the key `'eduflow-ai-panel-open'`.
-   - **User Toggle**: Users can toggle or close the panel via the **AI Copilot** button in `TopNavbar` or the `X` button on the panel.
+   - **User Toggle**:
+     - When the 3rd column is **closed**: A sleek, pill-shaped **Floating Action Button (FAB)** appears in the bottom-right corner (`fixed bottom-6 right-6 z-50 animate-scale-in`) with an active pulse indicator to launch the copilot.
+     - When the 3rd column is **open**: The floating button is smoothly hidden, and the panel is dismissed using the `X` close button on the panel's header.
+     - *(Note: The top navbar remains clean and distraction-free with search, role badges, theme toggle, notifications, and profile).*
    - On screens `< 1024px`, the copilot automatically transitions to a slide-over `Sheet` drawer.
 
 ---

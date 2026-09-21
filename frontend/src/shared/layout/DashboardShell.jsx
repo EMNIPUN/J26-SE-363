@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
+import { Sparkles } from 'lucide-react'
 import TopNavbar from './TopNavbar.jsx'
 import Sidebar from './Sidebar.jsx'
 import AiChatPanel from '../components/AiChatPanel.jsx'
@@ -49,11 +50,7 @@ export default function DashboardShell() {
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
-      <TopNavbar
-        onToggleMobileMenu={() => setMobileNavOpen(true)}
-        aiPanelOpen={aiPanelOpen}
-        onToggleAiPanel={handleToggleAi}
-      />
+      <TopNavbar onToggleMobileMenu={() => setMobileNavOpen(true)} />
 
       {/* Mobile Nav Drawer */}
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
@@ -97,6 +94,24 @@ export default function DashboardShell() {
             <AiChatPanel onClose={handleToggleAi} />
           </div>
         )}
+      </div>
+
+      {/* Floating AI Copilot Trigger (Appears in bottom-right corner when 3rd column is closed) */}
+      <div
+        className={`fixed bottom-6 right-6 z-50 ${
+          aiPanelOpen ? 'lg:hidden' : ''
+        } ${mobileAiOpen ? 'hidden' : ''}`}
+      >
+        <button
+          type="button"
+          onClick={handleToggleAi}
+          aria-label="Open AI Copilot"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer group animate-scale-in"
+        >
+          <Sparkles className="h-4 w-4 text-amber-300 group-hover:rotate-12 transition-transform duration-200 shrink-0" />
+          <span className="text-xs font-semibold tracking-tight">AI Copilot</span>
+          <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+        </button>
       </div>
     </div>
   )
