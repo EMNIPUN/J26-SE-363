@@ -190,15 +190,15 @@ export default function SplashScreen({ onComplete }) {
             <FlippingMentor isComplete={isReady} />
           </h1>
 
-          {/* Glowing Animated AI Badge */}
+          {/* Animated AI Badge */}
           <div
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-black text-xs sm:text-sm tracking-wider uppercase shadow-xs transition-all duration-500 ${
               isReady
-                ? 'bg-blue-500/15 border-blue-500/40 text-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.3)] scale-105'
+                ? 'bg-primary/15 border-primary/40 text-primary scale-105 opacity-100'
                 : 'bg-primary/10 border-primary/20 text-primary opacity-60'
             }`}
           >
-            <Sparkles className={`w-3.5 h-3.5 ${isReady ? 'animate-bounce text-blue-500' : 'text-primary'}`} />
+            <Sparkles className={`w-3.5 h-3.5 ${isReady ? 'animate-pulse text-primary' : 'text-primary'}`} />
             <span>AI</span>
           </div>
         </div>
