@@ -31,7 +31,7 @@ export default function TopNavbar({ onToggleMobileMenu }) {
   }
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-border bg-card/95 px-4 sm:px-6 backdrop-blur">
+    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-topbar-border bg-topbar/95 text-topbar-foreground px-4 sm:px-6 backdrop-blur shadow-2xs">
       <div className="flex items-center gap-3">
         {onToggleMobileMenu && (
           <ShadcnButton
@@ -52,13 +52,13 @@ export default function TopNavbar({ onToggleMobileMenu }) {
         <button
           type="button"
           onClick={() => setCommandOpen(true)}
-          className="relative w-full flex items-center justify-between h-9 px-3 rounded-lg border border-border bg-muted/40 hover:bg-muted/70 text-xs text-muted-foreground transition-colors cursor-pointer text-left"
+          className="relative w-full flex items-center justify-between h-9 px-3 rounded-lg border border-border bg-card/85 hover:bg-card text-xs text-muted-foreground transition-all duration-150 cursor-pointer text-left shadow-2xs"
         >
           <div className="flex items-center gap-2">
             <Search className="h-3.5 w-3.5" />
             <span>Search portals, projects, actions...</span>
           </div>
-          <kbd className="inline-flex items-center gap-0.5 rounded border border-border bg-card px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shadow-2xs">
+          <kbd className="inline-flex items-center gap-0.5 rounded border border-border bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shadow-2xs">
             <span className="text-[11px]">⌘</span>K
           </kbd>
         </button>
