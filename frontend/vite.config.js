@@ -11,4 +11,15 @@ export default defineConfig({
       '@': path.resolve(import.meta.dirname, './src'),
     },
   },
+  server: {
+    proxy: {
+      // Zero-domain local development reverse proxy:
+      // Maps /api/* calls directly to the local backend server without CORS issues or hardcoded URLs
+      '/api': {
+        target: process.env.VITE_BACKEND_TARGET || 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 })

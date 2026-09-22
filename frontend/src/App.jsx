@@ -1,4 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
+import queryClient from './shared/api/queryClient.js'
 import { ThemeProvider } from './shared/theme/ThemeProvider.jsx'
 import { Toaster } from './components/ui/sonner.jsx'
 import { ModalProvider } from './shared/context/ModalContext.jsx'
@@ -25,33 +27,35 @@ function RootRedirect() {
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="mentor-theme">
-      <SplashScreen />
-      <ModalProvider>
-        <Toaster />
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="system" storageKey="mentor-theme">
+        <SplashScreen />
+        <ModalProvider>
+          <Toaster />
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
 
-        <Route element={<RequireAuth />}>
-          <Route element={<DashboardShell />}>
-            <Route path="/student" element={<StudentHome />} />
-            <Route path="/instructor" element={<InstructorHome />} />
-            <Route path="/admin" element={<AdminHome />} />
-            <Route path="/admin/*" element={<AdminRoutes />} />
-            <Route path="/planning/*" element={<PlanningRoutes />} />
-            <Route path="/performance/*" element={<PerformanceRoutes />} />
-            <Route path="/tutor/*" element={<TutorRoutes />} />
-            <Route path="/security/*" element={<SecurityRoutes />} />
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Route>
+              <Route element={<RequireAuth />}>
+                <Route element={<DashboardShell />}>
+                  <Route path="/student" element={<StudentHome />} />
+                  <Route path="/instructor" element={<InstructorHome />} />
+                  <Route path="/admin" element={<AdminHome />} />
+                  <Route path="/admin/*" element={<AdminRoutes />} />
+                  <Route path="/planning/*" element={<PlanningRoutes />} />
+                  <Route path="/performance/*" element={<PerformanceRoutes />} />
+                  <Route path="/tutor/*" element={<TutorRoutes />} />
+                  <Route path="/security/*" element={<SecurityRoutes />} />
+                  <Route path="*" element={<NotFound />} />
+                </Route>
+              </Route>
 
-        <Route path="/" element={<RootRedirect />} />
-      </Routes>
-    </AuthProvider>
-    </ModalProvider>
-    </ThemeProvider>
+              <Route path="/" element={<RootRedirect />} />
+            </Routes>
+          </AuthProvider>
+        </ModalProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   )
 }
 
