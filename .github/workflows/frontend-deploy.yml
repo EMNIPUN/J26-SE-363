@@ -44,7 +44,7 @@ jobs:
             echo "PROJECT_ID=${{ secrets.VERCEL_PROJECT_ID_PROD }}" >> $GITHUB_OUTPUT
             echo "PROJECT_LABEL=Production (Main)" >> $GITHUB_OUTPUT
           else
-            echo "ENV_NAME=testing" >> $GITHUB_OUTPUT
+            echo "ENV_NAME=production" >> $GITHUB_OUTPUT
             echo "IS_PROD=--prod" >> $GITHUB_OUTPUT
             echo "PROJECT_ID=${{ secrets.VERCEL_PROJECT_ID_TESTING }}" >> $GITHUB_OUTPUT
             echo "PROJECT_LABEL=Testing (Dev)" >> $GITHUB_OUTPUT
