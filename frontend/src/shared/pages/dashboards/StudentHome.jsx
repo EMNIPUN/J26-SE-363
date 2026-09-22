@@ -80,7 +80,7 @@ export default function StudentHome() {
             </li>
             <li className="flex items-center gap-3 text-sm">
               <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
-              <span className="text-foreground">Review traceability gaps</span>
+              <span className="text-foreground">Review open DART arbitration flags</span>
             </li>
             <li className="flex items-center gap-3 text-sm">
               <span className="h-2 w-2 rounded-full bg-primary shrink-0" />

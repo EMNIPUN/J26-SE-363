@@ -20,11 +20,10 @@ export function getNavForRole(role) {
         color: '#2563eb',
         children: [
           { label: 'Dashboard', to: '/planning/dashboard' },
-          { label: 'Blackboard', to: '/planning/blackboard' },
-          { label: 'Traceability', to: '/planning/requirements/traceability' },
-          { label: 'Estimation', to: '/planning/requirements/estimation' },
           { label: 'SRS Quality', to: '/planning/requirements/srs-quality' },
           { label: 'Decomposition', to: '/planning/requirements/decomposition' },
+          { label: 'Effort Estimation', to: '/planning/requirements/estimation' },
+          { label: 'Sprint Management', to: '/planning/sprint-management' },
         ],
       },
       {
@@ -67,6 +66,7 @@ export function getNavForRole(role) {
           { label: 'Dashboard', to: '/planning/instructor/dashboard' },
           { label: 'Projects', to: '/planning/instructor/projects' },
           { label: 'Groups', to: '/planning/instructor/groups' },
+          { label: 'Arbitration Oversight', to: '/planning/instructor/arbitration' },
         ],
       },
       {
