@@ -1,11 +1,20 @@
-import './Button.css'
+import { Button as ShadcnButton } from '@/components/ui/button'
 
-/**
- * The one button every component should use, so a "primary action" looks the
- * same whether it's rendered from the planning module or the admin module.
- */
+const VARIANT_MAP = {
+  primary: 'default',
+  secondary: 'secondary',
+  outline: 'outline',
+  ghost: 'ghost',
+  danger: 'destructive',
+}
+
+const SIZE_MAP = {
+  sm: 'sm',
+  md: 'default',
+  lg: 'lg',
+}
+
 export default function Button({
-  as: Component = 'button',
   variant = 'primary',
   size = 'md',
   icon: Icon,
@@ -13,11 +22,19 @@ export default function Button({
   children,
   ...props
 }) {
-  const classes = ['btn', `btn--${variant}`, `btn--${size}`, className].filter(Boolean).join(' ')
+  const mappedVariant = VARIANT_MAP[variant] || 'default'
+  const mappedSize = SIZE_MAP[size] || 'default'
+
   return (
-    <Component className={classes} {...props}>
-      {Icon && <Icon size={16} strokeWidth={2} />}
+    <ShadcnButton
+      variant={mappedVariant}
+      size={mappedSize}
+      className={`font-medium ${className}`}
+      {...props}
+    >
+      {Icon && <Icon className="mr-1.5 h-4 w-4" />}
       {children}
-    </Component>
+    </ShadcnButton>
   )
 }
+
