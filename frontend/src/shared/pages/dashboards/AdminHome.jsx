@@ -4,8 +4,14 @@ import { getModule } from '../../constants/modules.js'
 import StatCard from '../../components/StatCard.jsx'
 import ComponentLinkGrid from '../../components/ComponentLinkGrid.jsx'
 import Card from '../../components/Card.jsx'
-import '../../styles/table.css'
-import './DashboardHome.css'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 const quickLinks = [
   { ...getModule('planning'), to: '/planning/instructor/dashboard' },
@@ -18,58 +24,59 @@ export default function AdminHome() {
   const { user } = useAuth()
 
   return (
-    <div>
-      <div className="dash-home__welcome">
-        <div>
-          <h1>Welcome back, {user.name} 👋</h1>
-          <p className="dash-home__date">System-wide overview across every component.</p>
-        </div>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          Welcome back, {user.name} 👋
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">System-wide overview across every component.</p>
       </div>
 
-      <div className="dash-home__stats">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Users} label="Total Users" value="342" tone="primary" />
         <StatCard icon={FolderKanban} label="Active Projects" value="28" tone="primary" />
         <StatCard icon={ShieldAlert} label="Open Security Issues" value="19" tone="danger" />
         <StatCard icon={Activity} label="System Uptime" value="99.9%" tone="success" />
       </div>
 
-      <div className="dash-home__section">
-        <div className="dash-home__section-head">
-          <h2>Components</h2>
-          <p>Read-only oversight into each teammate's component</p>
+      <div>
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Components</h2>
+          <p className="text-xs text-muted-foreground">Read-only oversight into each teammate's component</p>
         </div>
         <ComponentLinkGrid items={quickLinks} />
       </div>
 
-      <Card className="dash-home__panel">
-        <h3>Recently added users</h3>
-        <table className="table" style={{ marginTop: 14 }}>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Role</th>
-              <th>Joined</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Kasun Fernando</td>
-              <td>Student</td>
-              <td>2 days ago</td>
-            </tr>
-            <tr>
-              <td>Dr. Ishara Weerasinghe</td>
-              <td>Instructor</td>
-              <td>5 days ago</td>
-            </tr>
-            <tr>
-              <td>Tharindu Jayasuriya</td>
-              <td>Student</td>
-              <td>1 week ago</td>
-            </tr>
-          </tbody>
-        </table>
+      <Card>
+        <h3 className="text-base font-semibold text-foreground mb-4">Recently added users</h3>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead className="w-[140px]">Joined</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow>
+              <TableCell className="font-medium">Kasun Fernando</TableCell>
+              <TableCell>Student</TableCell>
+              <TableCell className="text-muted-foreground">2 days ago</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell className="font-medium">Dr. Ishara Weerasinghe</TableCell>
+              <TableCell>Instructor</TableCell>
+              <TableCell className="text-muted-foreground">5 days ago</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell className="font-medium">Tharindu Jayasuriya</TableCell>
+              <TableCell>Student</TableCell>
+              <TableCell className="text-muted-foreground">1 week ago</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </Card>
     </div>
   )
 }
+

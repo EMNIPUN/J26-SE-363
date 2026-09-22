@@ -1,4 +1,4 @@
-import './Avatar.css'
+import { Avatar as ShadcnAvatar, AvatarFallback } from '@/components/ui/avatar'
 
 function getInitials(name = '') {
   return name
@@ -9,10 +9,16 @@ function getInitials(name = '') {
     .join('')
 }
 
-export default function Avatar({ name, size = 36 }) {
+export default function Avatar({ name = '', size = 36, className = '' }) {
   return (
-    <div className="avatar" style={{ width: size, height: size, fontSize: size * 0.4 }}>
-      {getInitials(name)}
-    </div>
+    <ShadcnAvatar
+      className={`inline-flex items-center justify-center font-medium bg-primary/10 text-primary border border-border shrink-0 ${className}`}
+      style={{ width: size, height: size, fontSize: size * 0.38 }}
+    >
+      <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
+        {getInitials(name)}
+      </AvatarFallback>
+    </ShadcnAvatar>
   )
 }
+

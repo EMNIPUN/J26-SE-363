@@ -1,26 +1,29 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GraduationCap, Search, Bell, LogOut, ChevronDown } from 'lucide-react'
+import { Search, LogOut, Menu } from 'lucide-react'
 import { useAuth } from '../auth/useAuth.js'
 import Avatar from '../components/Avatar.jsx'
 import Badge from '../components/Badge.jsx'
-import './TopNavbar.css'
+import ThemeToggle from '../components/ThemeToggle.jsx'
+import NotificationDropdown from '../components/NotificationDropdown.jsx'
+import CommandPalette from '../components/CommandPalette.jsx'
+import MentorLogo from '../components/MentorLogo.jsx'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Button as ShadcnButton } from '@/components/ui/button'
 
 const ROLE_TONE = { student: 'primary', instructor: 'success', admin: 'warning' }
 
-export default function TopNavbar() {
+export default function TopNavbar({ onToggleMobileMenu }) {
+  const [commandOpen, setCommandOpen] = useState(false)
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef(null)
-
-  useEffect(() => {
-    function onClickOutside(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false)
-    }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [])
 
   function handleLogout() {
     logout()
@@ -28,43 +31,78 @@ export default function TopNavbar() {
   }
 
   return (
-    <header className="top-navbar">
-      <div className="top-navbar__brand">
-        <GraduationCap size={22} strokeWidth={2.2} />
-        <span>EduFlow</span>
+    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-border bg-card/95 px-4 sm:px-6 backdrop-blur">
+      <div className="flex items-center gap-3">
+        {onToggleMobileMenu && (
+          <ShadcnButton
+            variant="ghost"
+            size="icon"
+            className="md:hidden h-9 w-9"
+            onClick={onToggleMobileMenu}
+            aria-label="Toggle navigation"
+          >
+            <Menu className="h-5 w-5" />
+          </ShadcnButton>
+        )}
+
+        <MentorLogo size={32} showText={true} />
       </div>
 
-      <div className="top-navbar__search">
-        <Search size={16} strokeWidth={2} />
-        <input type="text" placeholder="Search projects, students, requirements..." />
-      </div>
-
-      <div className="top-navbar__right">
-        <button type="button" className="top-navbar__icon-btn" aria-label="Notifications">
-          <Bell size={18} strokeWidth={2} />
-          <span className="top-navbar__dot" />
+      <div className="hidden md:flex items-center flex-1 max-w-md mx-6">
+        <button
+          type="button"
+          onClick={() => setCommandOpen(true)}
+          className="relative w-full flex items-center justify-between h-9 px-3 rounded-lg border border-border bg-muted/40 hover:bg-muted/70 text-xs text-muted-foreground transition-colors cursor-pointer text-left"
+        >
+          <div className="flex items-center gap-2">
+            <Search className="h-3.5 w-3.5" />
+            <span>Search portals, projects, actions...</span>
+          </div>
+          <kbd className="inline-flex items-center gap-0.5 rounded border border-border bg-card px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shadow-2xs">
+            <span className="text-[11px]">⌘</span>K
+          </kbd>
         </button>
-
-        <div className="top-navbar__menu" ref={menuRef}>
-          <button type="button" className="top-navbar__user" onClick={() => setMenuOpen((o) => !o)}>
-            <Avatar name={user?.name} size={32} />
-            <div className="top-navbar__user-info">
-              <span className="top-navbar__user-name">{user?.name}</span>
-              <Badge tone={ROLE_TONE[user?.role] ?? 'neutral'}>{user?.role}</Badge>
-            </div>
-            <ChevronDown size={15} strokeWidth={2} />
-          </button>
-
-          {menuOpen && (
-            <div className="top-navbar__dropdown">
-              <button type="button" className="top-navbar__dropdown-item" onClick={handleLogout}>
-                <LogOut size={16} strokeWidth={2} />
-                Log out
-              </button>
-            </div>
-          )}
-        </div>
       </div>
+
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+
+        <NotificationDropdown />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-2.5 rounded-full p-1 pl-1.5 hover:bg-muted/60 transition-all duration-150 active:scale-[0.98] cursor-pointer outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Avatar name={user?.name} size={32} />
+              <div className="hidden sm:flex flex-col items-start text-left text-xs leading-tight mr-1">
+                <span className="font-semibold text-foreground">{user?.name}</span>
+                <span className="text-muted-foreground capitalize text-[11px]">{user?.role}</span>
+              </div>
+              <Badge tone={ROLE_TONE[user?.role] ?? 'neutral'} className="hidden sm:inline-flex capitalize">
+                {user?.role}
+              </Badge>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 animate-scale-in">
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user?.name}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
     </header>
   )
 }
+

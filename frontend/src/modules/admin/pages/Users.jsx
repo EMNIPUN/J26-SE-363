@@ -4,7 +4,15 @@ import Card from '../../../shared/components/Card.jsx'
 import Badge from '../../../shared/components/Badge.jsx'
 import Avatar from '../../../shared/components/Avatar.jsx'
 import Button from '../../../shared/components/Button.jsx'
-import '../../../shared/styles/table.css'
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 const USERS = [
   { name: 'Nimal Perera', email: 'student@lms.edu', role: 'Student', status: 'Active' },
@@ -32,69 +40,52 @@ export default function Users() {
         }
       />
 
-      <Card>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border)' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              maxWidth: 320,
-              padding: '8px 12px',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-surface-muted)',
-            }}
-          >
-            <Search size={15} strokeWidth={2} color="var(--color-text-muted)" />
-            <input
+      <Card className="p-0 overflow-hidden">
+        <div className="p-4 border-b border-border bg-card">
+          <div className="relative max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
               type="text"
               placeholder="Search users..."
-              style={{
-                border: 'none',
-                background: 'transparent',
-                outline: 'none',
-                fontSize: 13.5,
-                width: '100%',
-                fontFamily: 'var(--font-sans)',
-              }}
+              className="pl-9 h-9 text-sm"
             />
           </div>
         </div>
 
-        <div style={{ padding: '4px 20px 20px' }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead className="w-[140px]">Role</TableHead>
+                <TableHead className="w-[140px]">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {USERS.map((u) => (
-                <tr key={u.email}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Avatar name={u.name} size={30} />
+                <TableRow key={u.email}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={u.name} size={34} />
                       <div>
-                        <div style={{ fontWeight: 600, color: 'var(--color-heading)' }}>{u.name}</div>
-                        <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{u.email}</div>
+                        <div className="font-semibold text-foreground text-sm">{u.name}</div>
+                        <div className="text-xs text-muted-foreground">{u.email}</div>
                       </div>
                     </div>
-                  </td>
-                  <td>
+                  </TableCell>
+                  <TableCell>
                     <Badge tone={ROLE_TONE[u.role]}>{u.role}</Badge>
-                  </td>
-                  <td>
+                  </TableCell>
+                  <TableCell>
                     <Badge tone={STATUS_TONE[u.status]}>{u.status}</Badge>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </Card>
     </div>
   )
 }
+
