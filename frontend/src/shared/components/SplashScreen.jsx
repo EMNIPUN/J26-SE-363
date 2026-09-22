@@ -12,11 +12,7 @@ function FlippingMentor({ isComplete }) {
   )
 
   useEffect(() => {
-    if (isComplete) {
-      setLockedIndex(TARGET_WORD.length)
-      setCurrentChars(TARGET_WORD)
-      return
-    }
+    if (isComplete) return
 
     const startDelay = 220
     const stepDuration = 160
@@ -46,11 +42,14 @@ function FlippingMentor({ isComplete }) {
     return () => clearInterval(interval)
   }, [isComplete])
 
+  const effectiveLockedIndex = isComplete ? TARGET_WORD.length : lockedIndex
+  const effectiveChars = isComplete ? TARGET_WORD : currentChars
+
   return (
     <div className="inline-flex items-center justify-center tracking-[0.16em] sm:tracking-[0.22em] select-none pl-[0.16em] sm:pl-[0.22em]">
       {TARGET_WORD.map((finalChar, idx) => {
-        const isLocked = idx < lockedIndex
-        const char = isLocked ? finalChar : (currentChars[idx] || finalChar)
+        const isLocked = idx < effectiveLockedIndex
+        const char = isLocked ? finalChar : (effectiveChars[idx] || finalChar)
 
         return (
           <span
