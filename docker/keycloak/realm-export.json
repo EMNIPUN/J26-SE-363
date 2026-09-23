@@ -59,6 +59,34 @@
         "profile",
         "email"
       ]
+    },
+    {
+      "clientId": "account-console",
+      "name": "Account Console",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "/realms/mentor/account/*",
+        "https://*/*"
+      ],
+      "webOrigins": [
+        "+"
+      ]
+    },
+    {
+      "clientId": "account",
+      "name": "Account",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "/realms/mentor/account/*",
+        "https://*/*"
+      ],
+      "webOrigins": [
+        "+"
+      ]
     }
   ],
   "users": [
