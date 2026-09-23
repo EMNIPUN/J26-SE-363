@@ -38,6 +38,9 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.89 0.005 260);
   --sidebar-ring: oklch(0.708 0 0);
+  --topbar: oklch(0.975 0.006 260); /* Distinct, refined cool slate tone for TopNavbar in light theme */
+  --topbar-foreground: oklch(0.145 0 0);
+  --topbar-border: oklch(0.885 0.006 260);
 }
 
 @theme inline {
@@ -51,6 +54,9 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-topbar-border: var(--topbar-border);
+  --color-topbar-foreground: var(--topbar-foreground);
+  --color-topbar: var(--topbar);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -94,37 +100,40 @@
 }
 
 .dark {
-  --background: oklch(0.12 0.005 260); /* Subtle charcoal/zinc gray canvas for Column 2 */
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.165 0.005 260); /* Elevated dark surface for cards & tables */
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.17 0.005 260);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.12 0 0);
-  --secondary: oklch(0.20 0.005 260);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.18 0.005 260);
-  --muted-foreground: oklch(0.68 0 0);
-  --accent: oklch(0.20 0.005 260);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.19 0.008 260); /* Comfortable, modern slate-charcoal canvas */
+  --foreground: oklch(0.935 0.005 260); /* Soft, readable off-white text (avoids eye strain) */
+  --card: oklch(0.235 0.008 260); /* Distinct, gently elevated card & table surface */
+  --card-foreground: oklch(0.935 0.005 260);
+  --popover: oklch(0.24 0.008 260);
+  --popover-foreground: oklch(0.935 0.005 260);
+  --primary: oklch(0.935 0.005 260);
+  --primary-foreground: oklch(0.18 0.01 260);
+  --secondary: oklch(0.25 0.008 260);
+  --secondary-foreground: oklch(0.935 0.005 260);
+  --muted: oklch(0.23 0.008 260);
+  --muted-foreground: oklch(0.70 0.01 260);
+  --accent: oklch(0.24 0.008 260);
+  --accent-foreground: oklch(0.935 0.005 260);
   --destructive: oklch(0.65 0.22 25);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 14%);
+  --border: oklch(1 0 0 / 11%);
+  --input: oklch(1 0 0 / 13%);
   --ring: oklch(0.6 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.07 0 0); /* Deep clean black frame for Sidebar & TopNavbar */
-  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar: oklch(0.165 0.008 260); /* Harmonious frame for Sidebar & TopNavbar */
+  --sidebar-foreground: oklch(0.935 0.005 260);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.14 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.22 0.008 260);
+  --sidebar-accent-foreground: oklch(0.935 0.005 260);
   --sidebar-border: oklch(1 0 0 / 9%);
   --sidebar-ring: oklch(0.556 0 0);
+  --topbar: oklch(0.225 0.008 260); /* Distinct, elevated dark slate for TopNavbar in dark theme */
+  --topbar-foreground: oklch(0.935 0.005 260);
+  --topbar-border: oklch(1 0 0 / 11%);
 }
 
 @layer base {
@@ -241,6 +250,42 @@
 
 .animate-scale-in {
   animation: ui-scale-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes letter-flip-lock {
+  0% {
+    transform: perspective(400px) rotateX(75deg) translateY(-2px);
+    opacity: 0.3;
+    filter: brightness(1.5);
+  }
+  65% {
+    transform: perspective(400px) rotateX(-8deg) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: perspective(400px) rotateX(0deg);
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+@keyframes letter-flipping {
+  0% {
+    transform: translateY(-1px);
+    opacity: 0.75;
+  }
+  100% {
+    transform: translateY(1px);
+    opacity: 0.95;
+  }
+}
+
+.animate-letter-flip {
+  animation: letter-flip-lock 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-letter-tumbling {
+  animation: letter-flipping 0.08s ease-in-out infinite alternate;
 }
 
 /* Universal tactile press interaction */

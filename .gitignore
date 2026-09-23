@@ -1,0 +1,12 @@
+﻿# Environment files
+.env
+.env.*
+.env*.local
+!.env.example
+
+# Dependencies & Build
+node_modules
+dist
+.vercel
+*.log
+.DS_Store

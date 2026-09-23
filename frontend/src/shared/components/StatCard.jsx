@@ -14,9 +14,12 @@ export default function StatCard({
   trend,
   tone = 'primary',
   loading = false,
+  query,
   loadingFallback,
 }) {
-  if (loading) {
+  const isLoading = loading || Boolean(query?.isLoading || query?.isPending)
+
+  if (isLoading) {
     if (loadingFallback) return loadingFallback
     return (
       <Card className="p-5 flex items-start gap-4 border-border bg-card animate-pulse">
