@@ -58,6 +58,7 @@ let state = {
   kanbanTasks: KANBAN_SEED,
   requirementHistory: initialHistory,
   activityLog: initialActivity,
+  decompositionEvaluations: {},
 }
 
 const listeners = new Set()
@@ -138,35 +139,47 @@ export const actions = {
   addStory(reqId, story) {
     setState({
       userStories: { ...state.userStories, [reqId]: [...(state.userStories[reqId] || []), story] },
-      activityLog: withActivity(`${story.id} written for ${reqId} — sent for AI evaluation.`, 'primary'),
+      // The story set changed, so any prior coverage/INVEST result for this
+      // requirement is stale — the agent needs to re-run its analysis.
+      decompositionEvaluations: { ...state.decompositionEvaluations, [reqId]: null },
+      activityLog: withActivity(`${story.id} written for ${reqId} — ready for decomposition analysis.`, 'primary'),
     })
   },
 
-  // Student edits after AI feedback — this resets evaluation, since the text
-  // changed and the agent hasn't reviewed the new version yet.
+  // Student edits after AI feedback — clears this story's own INVEST result
+  // and invalidates the requirement's coverage analysis, since the set changed.
   updateStoryText(reqId, storyId, patch) {
     setState({
       userStories: {
         ...state.userStories,
         [reqId]: (state.userStories[reqId] || []).map((s) =>
-          s.id === storyId ? { ...s, ...patch, evaluated: false, issues: [], status: 'Draft' } : s,
+          s.id === storyId ? { ...s, ...patch, investResult: null } : s,
         ),
       },
+      decompositionEvaluations: { ...state.decompositionEvaluations, [reqId]: null },
     })
   },
 
-  evaluateStory(reqId, storyId, issues) {
-    const status = issues.length > 0 ? 'Needs Revision' : 'Validated'
+  getDecompositionEvaluation(reqId) {
+    return state.decompositionEvaluations[reqId] || null
+  },
+
+  // Records one full coverage_analyzer -> invest_validator -> pattern_retriever
+  // -> decomposition_scorer -> reflect pass (see decompositionEngine.js) against
+  // the requirement's current story set.
+  recordDecompositionAnalysis(reqId, result) {
     setState({
       userStories: {
         ...state.userStories,
-        [reqId]: (state.userStories[reqId] || []).map((s) => (s.id === storyId ? { ...s, evaluated: true, issues, status } : s)),
+        [reqId]: (state.userStories[reqId] || []).map((s) => ({
+          ...s,
+          investResult: result.investResults[s.id] || s.investResult,
+        })),
       },
+      decompositionEvaluations: { ...state.decompositionEvaluations, [reqId]: result },
       activityLog: withActivity(
-        issues.length > 0
-          ? `Decomposition Agent found ${issues.length} issue(s) on ${storyId}.`
-          : `${storyId} passed AI evaluation with no issues.`,
-        issues.length > 0 ? 'warning' : 'success',
+        `Decomposition Agent analyzed ${reqId} — coverage ${Math.round(result.coverage * 100)}%, score ${result.score}/100 (${result.verdict}).`,
+        result.verdict === 'Validated' ? 'success' : 'warning',
       ),
     })
   },

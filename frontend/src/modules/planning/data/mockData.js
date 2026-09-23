@@ -292,16 +292,8 @@ export const USER_STORIES_SEED = {
       title: "As a student, I want to type my requirement in plain English so I don't need special syntax",
       acceptanceCriteria:
         'Given the intake form, when I submit free text, then the system stores it verbatim before parsing.',
-      evaluated: true,
-      issues: [
-        {
-          id: 'benefit',
-          dimension: 'Structure',
-          problem: 'No benefit or rationale is stated ("… so that …").',
-          suggestion: 'Add why the user wants this — the benefit is what lets the team judge if the story is worth doing.',
-        },
-      ],
-      status: 'Needs Revision',
+      investResult: null,
+      status: 'Draft',
       tasks: [],
       bugs: [],
     },
@@ -311,8 +303,15 @@ export const USER_STORIES_SEED = {
         'As the system, I want to parse free text into a structured requirement object so that it can be scored immediately',
       acceptanceCriteria:
         'Given raw text, when parsed, then priority, description and dimension scores are populated.',
-      evaluated: true,
-      issues: [],
+      investResult: {
+        independent: { pass: true, note: 'No hard dependency language found — this can plausibly be built on its own.' },
+        negotiable: { pass: true, note: 'Describes the outcome, not a fixed implementation.' },
+        valuable: { pass: true, note: 'States who wants this and why.' },
+        estimable: { pass: true, note: 'Concrete enough to size with reasonable confidence.' },
+        small: { pass: true, note: 'Scoped to a single, shippable unit of work.' },
+        testable: { pass: true, note: 'Acceptance criteria gives a concrete condition to verify against.' },
+        overallPass: true,
+      },
       status: 'Accepted',
       tasks: [
         {
@@ -337,16 +336,8 @@ export const USER_STORIES_SEED = {
       id: 'US-105-1',
       title: 'As a student, I want an effort estimate for my requirement so that I can plan my sprint',
       acceptanceCriteria: 'The system should quickly show a point estimate and a confidence interval for the requirement.',
-      evaluated: true,
-      issues: [
-        {
-          id: 'ambiguous',
-          dimension: 'Clarity',
-          problem: 'Vague wording found: "should", "quickly".',
-          suggestion: 'Replace vague words with something concrete and measurable.',
-        },
-      ],
-      status: 'Needs Revision',
+      investResult: null,
+      status: 'Draft',
       tasks: [],
       bugs: [],
     },

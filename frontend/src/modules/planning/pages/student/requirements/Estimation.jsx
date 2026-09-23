@@ -34,7 +34,7 @@ function computeAiFactors(story) {
   return [
     `${story.tasks.length} implementation task(s) identified`,
     story.tasks.length >= 3 ? 'Multiple dependent tasks increase coordination effort' : 'Small, well-scoped task set',
-    story.issues?.length > 0 ? 'Story needed a revision before it passed AI evaluation' : 'Story passed AI evaluation on the first pass',
+    story.investResult?.overallPass ? 'Story passed INVEST validation cleanly' : 'Story required revision before it passed INVEST',
   ]
 }
 
