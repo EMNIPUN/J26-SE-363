@@ -29,13 +29,15 @@ export const PROJECT_INFO = {
   sprintNumber: 5,
   totalSprints: 8,
   sprintName: 'Sprint 5',
+  sprintStartDate: '2026-09-15',
+  sprintEndDate: '2026-09-28',
 }
 
 export const TEAM_MEMBERS = [
-  { id: 'u1', name: 'Nimal Perera', initials: 'NP', role: 'You · Requirements & Planning' },
-  { id: 'u2', name: 'Ishara Fernando', initials: 'IF', role: 'Backend Engineer' },
-  { id: 'u3', name: 'Ruwan Silva', initials: 'RS', role: 'Frontend Engineer' },
-  { id: 'u4', name: 'Dilani Wickrama', initials: 'DW', role: 'QA & DevOps' },
+  { id: 'u1', name: 'Nimal Perera', initials: 'NP', role: 'You · Requirements & Planning', capacity: 20 },
+  { id: 'u2', name: 'Ishara Fernando', initials: 'IF', role: 'Backend Engineer', capacity: 20 },
+  { id: 'u3', name: 'Ruwan Silva', initials: 'RS', role: 'Frontend Engineer', capacity: 20 },
+  { id: 'u4', name: 'Dilani Wickrama', initials: 'DW', role: 'QA & DevOps', capacity: 15 },
 ]
 
 export const REQUIREMENTS = [
@@ -148,6 +150,7 @@ export const ARBITRATION_CASES = [
     id: 'DART-1001',
     requirementId: 'REQ-104',
     category: 'COMPOUND',
+    stage: 'decomposition',
     title: 'Auto-decomposition requirement bundles a scope-lock rule',
     status: 'Open',
     confidenceAgreement: 58,
@@ -180,6 +183,7 @@ export const ARBITRATION_CASES = [
     id: 'DART-1002',
     requirementId: 'REQ-107',
     category: 'AMBIGUOUS',
+    stage: 'quality',
     title: '"Logged" is interpreted differently by Quality and Decomposition agents',
     status: 'Open',
     confidenceAgreement: 64,
@@ -212,6 +216,7 @@ export const ARBITRATION_CASES = [
     id: 'DART-1003',
     requirementId: 'REQ-103',
     category: 'STRUCTURAL',
+    stage: 'quality',
     title: 'Non-measurable performance requirement conflicts with the estimation model input schema',
     status: 'Resolved',
     confidenceAgreement: 89,
@@ -241,6 +246,7 @@ export const ARBITRATION_CASES = [
     id: 'DART-1004',
     requirementId: 'REQ-106',
     category: 'NOVEL',
+    stage: 'quality',
     title: 'Full offline AI functionality has no comparable prior case',
     status: 'Open',
     confidenceAgreement: 41,
@@ -273,9 +279,11 @@ export function getArbitrationForRequirement(reqId) {
 }
 
 // ---------------------------------------------------------------------------
-// Decomposition: Requirement -> User Story -> Task -> Sub-task.
-// Only requirements that pass the quality gate are decomposable; seeded here
-// only for the requirements that already pass in REQUIREMENTS above.
+// Decomposition: Requirement -> User Story -> Task -> Sub-task / Bug.
+// Stories are student-authored — the agent only evaluates and lists issues,
+// it never rewrites. Only requirements that pass the quality gate are
+// decomposable; seeded here only for the requirements that already pass in
+// REQUIREMENTS above.
 // ---------------------------------------------------------------------------
 export const USER_STORIES_SEED = {
   'REQ-101': [
@@ -284,44 +292,28 @@ export const USER_STORIES_SEED = {
       title: "As a student, I want to type my requirement in plain English so I don't need special syntax",
       acceptanceCriteria:
         'Given the intake form, when I submit free text, then the system stores it verbatim before parsing.',
-      status: 'Draft',
-      agentSuggestion: {
-        title:
-          'As a student, I want to enter a requirement as free text and get immediate confirmation it was received',
-        acceptanceCriteria:
-          'Given the intake form, when I submit free text, then the system stores it, returns a requirement ID, and shows a confirmation within 2 seconds.',
-        rationale:
-          "Your version doesn't specify how the student knows submission succeeded. Adding a measurable confirmation makes this testable.",
-        confidence: 82,
-      },
-      tasks: [
+      evaluated: true,
+      issues: [
         {
-          id: 'T-101-1-1',
-          title: 'Build free-text intake form',
-          status: 'Done',
-          subtasks: [
-            { id: 'ST-101-1-1-1', title: 'Design form layout', done: true },
-            { id: 'ST-101-1-1-2', title: 'Add client-side validation', done: true },
-          ],
-        },
-        {
-          id: 'T-101-1-2',
-          title: 'Show confirmation on submit',
-          status: 'In Progress',
-          subtasks: [
-            { id: 'ST-101-1-2-1', title: 'Add success toast', done: true },
-            { id: 'ST-101-1-2-2', title: 'Include requirement ID in confirmation', done: false },
-          ],
+          id: 'benefit',
+          dimension: 'Structure',
+          problem: 'No benefit or rationale is stated ("… so that …").',
+          suggestion: 'Add why the user wants this — the benefit is what lets the team judge if the story is worth doing.',
         },
       ],
+      status: 'Needs Revision',
+      tasks: [],
+      bugs: [],
     },
     {
       id: 'US-101-2',
-      title: 'As the system, I want to parse free text into a structured requirement object',
+      title:
+        'As the system, I want to parse free text into a structured requirement object so that it can be scored immediately',
       acceptanceCriteria:
         'Given raw text, when parsed, then priority, description and dimension scores are populated.',
+      evaluated: true,
+      issues: [],
       status: 'Accepted',
-      agentSuggestion: null,
       tasks: [
         {
           id: 'T-101-2-1',
@@ -334,29 +326,29 @@ export const USER_STORIES_SEED = {
         },
         { id: 'T-101-2-2', title: 'Persist structured requirement', status: 'Todo', subtasks: [] },
       ],
+      bugs: [
+        { id: 'BUG-101-2-1', title: 'Confirmation toast sometimes shows a stale requirement ID', severity: 'Medium', status: 'Open' },
+      ],
     },
   ],
   'REQ-102': [],
   'REQ-105': [
     {
       id: 'US-105-1',
-      title: 'As a student, I want an effort estimate for my requirement so I can plan my sprint',
-      acceptanceCriteria:
-        'Given a requirement, when estimation runs, then story points and a confidence interval are shown.',
-      status: 'Draft',
-      agentSuggestion: {
-        title:
-          'As a student, I want an effort estimate with a visible confidence interval so I know how much to trust the number',
-        acceptanceCriteria:
-          "Given a requirement, when estimation runs, then a point estimate AND a confidence range are shown, and the range narrows as the model sees more similar historical requirements.",
-        rationale:
-          "Your version doesn't say how the interval should behave over time — the model's confidence should visibly improve with more data.",
-        confidence: 76,
-      },
-      tasks: [
-        { id: 'T-105-1-1', title: 'Compute point estimate', status: 'Done', subtasks: [] },
-        { id: 'T-105-1-2', title: 'Compute confidence interval', status: 'Done', subtasks: [] },
+      title: 'As a student, I want an effort estimate for my requirement so that I can plan my sprint',
+      acceptanceCriteria: 'The system should quickly show a point estimate and a confidence interval for the requirement.',
+      evaluated: true,
+      issues: [
+        {
+          id: 'ambiguous',
+          dimension: 'Clarity',
+          problem: 'Vague wording found: "should", "quickly".',
+          suggestion: 'Replace vague words with something concrete and measurable.',
+        },
       ],
+      status: 'Needs Revision',
+      tasks: [],
+      bugs: [],
     },
   ],
   'REQ-108': [],
@@ -364,10 +356,20 @@ export const USER_STORIES_SEED = {
 
 // ---------------------------------------------------------------------------
 // Effort estimation, keyed by user story id — only meaningful once a story has
-// been accepted in Decomposition.
-// ---------------------------------------------------------------------------
+// been accepted in Decomposition. The AI side stays blank until the student
+// submits their own estimate first (aiRevealed unlocks it) — same shape the
+// page seeds automatically for any newly-accepted story.
 export const STORY_ESTIMATIONS_SEED = {
-  'US-101-2': { points: null, aiPoints: 5, aiRationale: 'Similar parsing/structuring stories historically took 5 SP.', confirmed: false },
+  'US-101-2': {
+    studentPoints: null,
+    aiPoints: null,
+    aiConfidence: null,
+    aiFactors: null,
+    aiRevealed: false,
+    finalPoints: null,
+    reason: '',
+    confirmed: false,
+  },
 }
 
 export const STORY_POINT_SCALE = [1, 2, 3, 5, 8, 13, 21]
@@ -385,6 +387,7 @@ export const KANBAN_SEED = [
     points: 3,
     status: 'Done',
     assigneeId: 'u1',
+    dueDate: '2026-09-17',
   },
   {
     id: 'K-2',
@@ -394,6 +397,7 @@ export const KANBAN_SEED = [
     points: 8,
     status: 'In Progress',
     assigneeId: 'u3',
+    dueDate: '2026-09-23',
   },
   {
     id: 'K-3',
@@ -403,6 +407,7 @@ export const KANBAN_SEED = [
     points: 5,
     status: 'Todo',
     assigneeId: 'u2',
+    dueDate: '2026-09-25',
   },
   {
     id: 'K-4',
@@ -412,12 +417,26 @@ export const KANBAN_SEED = [
     points: 3,
     status: 'Done',
     assigneeId: 'u4',
+    dueDate: '2026-09-18',
+  },
+  {
+    id: 'K-5',
+    title: 'Send weekly digest email to supervisor',
+    requirementId: 'REQ-102',
+    storyId: null,
+    points: 3,
+    status: 'Blocked',
+    assigneeId: 'u2',
+    blockedReason: 'Depends on K-3 (Draft weekly supervisor digest job), which is still To Do.',
+    dependsOn: 'K-3',
+    dueDate: '2026-09-27',
   },
 ]
 
 export const KANBAN_COLUMNS = [
   { key: 'Todo', label: 'To Do' },
   { key: 'In Progress', label: 'In Progress' },
+  { key: 'Blocked', label: 'Blocked' },
   { key: 'Done', label: 'Done' },
 ]
 
@@ -554,4 +573,22 @@ export function getRequirement(id) {
 
 export function getGroup(id) {
   return GROUPS.find((g) => g.id === id)
+}
+
+// Builds the {requirements, userStories, estimations, kanbanTasks} shape that
+// computeStageStats() and the instructor GroupWorkspace expect, filtered down
+// to one group's requirements — from the static seed data. Group 03 is the
+// one group the student pipeline actually lives in; callers should use the
+// live usePlanningData() store for that group instead of this static view.
+export function getGroupPipelineData(group) {
+  const requirements = REQUIREMENTS.filter((r) => group.requirementIds.includes(r.id))
+  const userStories = Object.fromEntries(
+    group.requirementIds.map((id) => [id, USER_STORIES_SEED[id] || []]),
+  )
+  const storyIds = new Set(Object.values(userStories).flat().map((s) => s.id))
+  const estimations = Object.fromEntries(
+    Object.entries(STORY_ESTIMATIONS_SEED).filter(([storyId]) => storyIds.has(storyId)),
+  )
+  const kanbanTasks = KANBAN_SEED.filter((t) => group.requirementIds.includes(t.requirementId))
+  return { requirements, userStories, estimations, kanbanTasks }
 }

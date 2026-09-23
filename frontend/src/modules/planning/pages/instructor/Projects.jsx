@@ -30,6 +30,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { GROUPS as INITIAL_GROUPS } from '../../data/mockData.js'
+import { getGroupCompletion } from '../../stageStats.js'
 import { showToast } from '@/shared/utils/toast.jsx'
 
 const STATUS_TONE = {
@@ -107,25 +108,30 @@ export default function InstructorProjects() {
               <TableHead>Group</TableHead>
               <TableHead className="w-[90px]">Batch</TableHead>
               <TableHead className="w-[110px]">Quality gate</TableHead>
+              <TableHead className="w-[90px]">Pipeline</TableHead>
               <TableHead className="w-[140px]">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((p) => (
-              <TableRow
-                key={p.id}
-                className="cursor-pointer"
-                onClick={() => navigate(`/planning/instructor/groups/${p.id}`)}
-              >
-                <TableCell className="font-medium max-w-xs truncate">{p.project}</TableCell>
-                <TableCell className="text-muted-foreground">{p.name}</TableCell>
-                <TableCell>{p.batch}</TableCell>
-                <TableCell>{p.qualityGate ? `${p.qualityGate}%` : '—'}</TableCell>
-                <TableCell>
-                  <Badge tone={STATUS_TONE[p.status]}>{p.status}</Badge>
-                </TableCell>
-              </TableRow>
-            ))}
+            {filtered.map((p) => {
+              const completion = getGroupCompletion(p)
+              return (
+                <TableRow
+                  key={p.id}
+                  className="cursor-pointer"
+                  onClick={() => navigate(`/planning/instructor/groups/${p.id}`)}
+                >
+                  <TableCell className="font-medium max-w-xs truncate">{p.project}</TableCell>
+                  <TableCell className="text-muted-foreground">{p.name}</TableCell>
+                  <TableCell>{p.batch}</TableCell>
+                  <TableCell>{p.qualityGate ? `${p.qualityGate}%` : '—'}</TableCell>
+                  <TableCell>{completion != null ? `${completion}%` : 'Live'}</TableCell>
+                  <TableCell>
+                    <Badge tone={STATUS_TONE[p.status]}>{p.status}</Badge>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </Card>

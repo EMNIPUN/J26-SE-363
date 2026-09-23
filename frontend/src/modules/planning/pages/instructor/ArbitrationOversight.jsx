@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import AgentBadge from '../../components/AgentBadge.jsx'
+import DartButton from '../../components/DartButton.jsx'
 import { ARBITRATION_CASES, GROUPS } from '../../data/mockData.js'
 import { ARBITRATION_CATEGORY_TONE } from '../../utils.js'
 import { useAuth } from '../../../../shared/auth/useAuth.js'
@@ -23,6 +24,13 @@ const CATEGORIES = ['COMPOUND', 'AMBIGUOUS', 'STRUCTURAL', 'NOVEL']
 
 function groupForRequirement(reqId) {
   return GROUPS.find((g) => g.requirementIds.includes(reqId))
+}
+
+// Matches the DART decision tree's documented escalation triggers: a NOVEL
+// case always escalates, and agreement below 40% means the agents themselves
+// couldn't converge — both route to instructor review rather than auto-resolving.
+function isEscalated(c) {
+  return c.category === 'NOVEL' || c.confidenceAgreement < 40
 }
 
 function CaseRow({ item, onResolve }) {
@@ -42,6 +50,7 @@ function CaseRow({ item, onResolve }) {
             <span className="text-xs font-semibold text-muted-foreground">{item.id}</span>
             <Badge tone={ARBITRATION_CATEGORY_TONE[item.category]}>{item.category}</Badge>
             <Badge tone={item.status === 'Open' ? 'warning' : 'success'}>{item.status}</Badge>
+            {item.status === 'Open' && isEscalated(item) && <Badge tone="danger">Escalated</Badge>}
             {group && <span className="text-xs text-muted-foreground">{group.name}</span>}
           </div>
           <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
@@ -107,12 +116,18 @@ export default function ArbitrationOversight() {
   const [cases, setCases] = useState(ARBITRATION_CASES)
   const [category, setCategory] = useState('all')
   const [status, setStatus] = useState('all')
+  const [escalatedOnly, setEscalatedOnly] = useState(false)
 
-  const filtered = cases.filter((c) => {
-    if (category !== 'all' && c.category !== category) return false
-    if (status !== 'all' && c.status !== status) return false
-    return true
-  })
+  const escalatedCount = cases.filter((c) => c.status === 'Open' && isEscalated(c)).length
+
+  const filtered = cases
+    .filter((c) => {
+      if (category !== 'all' && c.category !== category) return false
+      if (status !== 'all' && c.status !== status) return false
+      if (escalatedOnly && !(c.status === 'Open' && isEscalated(c))) return false
+      return true
+    })
+    .sort((a, b) => Number(isEscalated(b) && b.status === 'Open') - Number(isEscalated(a) && a.status === 'Open'))
 
   function resolveCase(id, note) {
     setCases((prev) =>
@@ -138,6 +153,14 @@ export default function ArbitrationOversight() {
         description="Cross-group DART queue — review structured diagnostic rationales and confirm or override a resolution."
         actions={
           <>
+            <Button
+              size="sm"
+              variant={escalatedOnly ? 'default' : 'outline'}
+              onClick={() => setEscalatedOnly((v) => !v)}
+              className="active:scale-[0.98]"
+            >
+              Escalated only
+            </Button>
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Category" />
@@ -165,6 +188,19 @@ export default function ArbitrationOversight() {
         }
       />
 
+      {escalatedCount > 0 && (
+        <Card className="border-destructive/30 flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-sm text-foreground">
+            <strong>{escalatedCount}</strong> case{escalatedCount === 1 ? '' : 's'} need lecturer review — the agents couldn't resolve {escalatedCount === 1 ? 'it' : 'them'} on their own.
+          </p>
+          {!escalatedOnly && (
+            <Button size="sm" variant="outline" onClick={() => setEscalatedOnly(true)} className="active:scale-[0.98]">
+              Show escalated
+            </Button>
+          )}
+        </Card>
+      )}
+
       {filtered.length === 0 ? (
         <EmptyState title="No matching cases" description="Try a different category or status filter." />
       ) : (
@@ -174,6 +210,8 @@ export default function ArbitrationOversight() {
           ))}
         </div>
       )}
+
+      <DartButton context="cohort" />
     </div>
   )
 }

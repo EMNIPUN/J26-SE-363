@@ -11,7 +11,19 @@ import {
   STORY_ESTIMATIONS_SEED,
   KANBAN_SEED,
   QUALITY_DIMENSIONS,
+  ACTIVITY_FEED,
+  PROJECT_INFO,
 } from '../data/mockData.js'
+
+// Spreads newly-created Kanban tasks across the sprint window so they show up
+// on the instructor's Gantt timeline without asking the student to pick a date.
+function nextDueDate(existingCount) {
+  const start = new Date(PROJECT_INFO.sprintStartDate).getTime()
+  const end = new Date(PROJECT_INFO.sprintEndDate).getTime()
+  const span = Math.max(end - start, 1)
+  const slot = ((existingCount % 6) + 1) / 7
+  return new Date(start + span * slot).toISOString().slice(0, 10)
+}
 
 function statusFromScore(score) {
   if (score >= 70) return 'Passing'
@@ -25,11 +37,27 @@ function nextId(prefix) {
   return `${prefix}-${idCounter}`
 }
 
+const initialHistory = Object.fromEntries(
+  REQUIREMENTS.map((r) => [
+    r.id,
+    [{ version: 1, score: r.overallScore, status: r.status, timestamp: r.lastChecked }],
+  ]),
+)
+
+const initialActivity = ACTIVITY_FEED.map((a) => ({
+  id: nextId('ACT'),
+  text: a.text,
+  tone: a.tone,
+  timestamp: new Date().toISOString(),
+}))
+
 let state = {
   requirements: REQUIREMENTS,
   userStories: USER_STORIES_SEED,
   estimations: STORY_ESTIMATIONS_SEED,
   kanbanTasks: KANBAN_SEED,
+  requirementHistory: initialHistory,
+  activityLog: initialActivity,
 }
 
 const listeners = new Set()
@@ -37,6 +65,10 @@ const listeners = new Set()
 function setState(patch) {
   state = { ...state, ...patch }
   listeners.forEach((listener) => listener())
+}
+
+function withActivity(text, tone = 'primary') {
+  return [{ id: nextId('ACT'), text, tone, timestamp: new Date().toISOString() }, ...state.activityLog]
 }
 
 export function getSnapshot() {
@@ -50,22 +82,44 @@ export function subscribe(listener) {
 
 export const actions = {
   addRequirement(req) {
-    setState({ requirements: [...state.requirements, req] })
+    setState({
+      requirements: [...state.requirements, req],
+      requirementHistory: {
+        ...state.requirementHistory,
+        [req.id]: [{ version: 1, score: req.overallScore, status: req.status, timestamp: req.lastChecked }],
+      },
+      activityLog: withActivity(`${req.id} added and scored by the Quality Analysis agent.`, 'primary'),
+    })
   },
 
   rescoreRequirement(id, delta) {
+    const current = state.requirements.find((r) => r.id === id)
+    if (!current) return
+    const dimensionScores = Object.fromEntries(
+      Object.entries(current.dimensionScores).map(([k, v]) => [k, Math.min(100, v + delta)]),
+    )
+    const overallScore = Math.min(
+      100,
+      Math.round(Object.values(dimensionScores).reduce((a, b) => a + b, 0) / QUALITY_DIMENSIONS.length),
+    )
+    const status = statusFromScore(overallScore)
+    const prevHistory = state.requirementHistory[id] || []
+
     setState({
-      requirements: state.requirements.map((r) => {
-        if (r.id !== id) return r
-        const dimensionScores = Object.fromEntries(
-          Object.entries(r.dimensionScores).map(([k, v]) => [k, Math.min(100, v + delta)]),
-        )
-        const overallScore = Math.min(
-          100,
-          Math.round(Object.values(dimensionScores).reduce((a, b) => a + b, 0) / QUALITY_DIMENSIONS.length),
-        )
-        return { ...r, dimensionScores, overallScore, status: statusFromScore(overallScore) }
-      }),
+      requirements: state.requirements.map((r) =>
+        r.id === id ? { ...r, dimensionScores, overallScore, status } : r,
+      ),
+      requirementHistory: {
+        ...state.requirementHistory,
+        [id]: [
+          ...prevHistory,
+          { version: prevHistory.length + 1, score: overallScore, status, timestamp: new Date().toISOString() },
+        ],
+      },
+      activityLog: withActivity(
+        `Quality Gate re-scored ${id} — now ${overallScore}% (${status}).`,
+        status === 'Passing' ? 'success' : status === 'Failing' ? 'danger' : 'warning',
+      ),
     })
   },
 
@@ -73,50 +127,47 @@ export const actions = {
     setState({ requirements: state.requirements.map((r) => (r.id === id ? { ...r, ...patch } : r)) })
   },
 
+  getRequirementHistory(id) {
+    return state.requirementHistory[id] || []
+  },
+
   getStories(reqId) {
     return state.userStories[reqId] || []
   },
 
-  generateStories(reqId, stories) {
-    setState({ userStories: { ...state.userStories, [reqId]: [...(state.userStories[reqId] || []), ...stories] } })
-  },
-
   addStory(reqId, story) {
-    setState({ userStories: { ...state.userStories, [reqId]: [...(state.userStories[reqId] || []), story] } })
+    setState({
+      userStories: { ...state.userStories, [reqId]: [...(state.userStories[reqId] || []), story] },
+      activityLog: withActivity(`${story.id} written for ${reqId} — sent for AI evaluation.`, 'primary'),
+    })
   },
 
-  updateStory(reqId, storyId, patch) {
+  // Student edits after AI feedback — this resets evaluation, since the text
+  // changed and the agent hasn't reviewed the new version yet.
+  updateStoryText(reqId, storyId, patch) {
     setState({
       userStories: {
         ...state.userStories,
-        [reqId]: (state.userStories[reqId] || []).map((s) => (s.id === storyId ? { ...s, ...patch } : s)),
+        [reqId]: (state.userStories[reqId] || []).map((s) =>
+          s.id === storyId ? { ...s, ...patch, evaluated: false, issues: [], status: 'Draft' } : s,
+        ),
       },
     })
   },
 
-  applyAgentSuggestion(reqId, storyId) {
+  evaluateStory(reqId, storyId, issues) {
+    const status = issues.length > 0 ? 'Needs Revision' : 'Validated'
     setState({
       userStories: {
         ...state.userStories,
-        [reqId]: (state.userStories[reqId] || []).map((s) => {
-          if (s.id !== storyId || !s.agentSuggestion) return s
-          return {
-            ...s,
-            title: s.agentSuggestion.title,
-            acceptanceCriteria: s.agentSuggestion.acceptanceCriteria,
-            agentSuggestion: null,
-          }
-        }),
+        [reqId]: (state.userStories[reqId] || []).map((s) => (s.id === storyId ? { ...s, evaluated: true, issues, status } : s)),
       },
-    })
-  },
-
-  dismissAgentSuggestion(reqId, storyId) {
-    setState({
-      userStories: {
-        ...state.userStories,
-        [reqId]: (state.userStories[reqId] || []).map((s) => (s.id === storyId ? { ...s, agentSuggestion: null } : s)),
-      },
+      activityLog: withActivity(
+        issues.length > 0
+          ? `Decomposition Agent found ${issues.length} issue(s) on ${storyId}.`
+          : `${storyId} passed AI evaluation with no issues.`,
+        issues.length > 0 ? 'warning' : 'success',
+      ),
     })
   },
 
@@ -125,6 +176,35 @@ export const actions = {
       userStories: {
         ...state.userStories,
         [reqId]: (state.userStories[reqId] || []).map((s) => (s.id === storyId ? { ...s, status: 'Accepted' } : s)),
+      },
+      activityLog: withActivity(`${storyId} accepted — ready for effort estimation.`, 'success'),
+    })
+  },
+
+  addBug(reqId, storyId, title, severity) {
+    setState({
+      userStories: {
+        ...state.userStories,
+        [reqId]: (state.userStories[reqId] || []).map((s) =>
+          s.id === storyId
+            ? { ...s, bugs: [...(s.bugs || []), { id: nextId('BUG'), title, severity, status: 'Open' }] }
+            : s,
+        ),
+      },
+    })
+  },
+
+  toggleBugStatus(reqId, storyId, bugId) {
+    setState({
+      userStories: {
+        ...state.userStories,
+        [reqId]: (state.userStories[reqId] || []).map((s) => {
+          if (s.id !== storyId) return s
+          return {
+            ...s,
+            bugs: (s.bugs || []).map((b) => (b.id === bugId ? { ...b, status: b.status === 'Open' ? 'Fixed' : 'Open' } : b)),
+          }
+        }),
       },
     })
   },
@@ -182,18 +262,36 @@ export const actions = {
     setState({ estimations: { ...state.estimations, [storyId]: { ...(state.estimations[storyId] || {}), ...patch } } })
   },
 
-  confirmEstimation(reqId, storyId, title, points) {
+  confirmEstimation(reqId, storyId, title, finalPoints, reason) {
     setState({
-      estimations: { ...state.estimations, [storyId]: { ...state.estimations[storyId], points, confirmed: true } },
+      estimations: {
+        ...state.estimations,
+        [storyId]: { ...state.estimations[storyId], finalPoints, reason: reason || '', confirmed: true },
+      },
       kanbanTasks: [
         ...state.kanbanTasks,
-        { id: nextId('K'), title, requirementId: reqId, storyId, points, status: 'Todo', assigneeId: null },
+        {
+          id: nextId('K'),
+          title,
+          requirementId: reqId,
+          storyId,
+          points: finalPoints,
+          status: 'Todo',
+          assigneeId: null,
+          dueDate: nextDueDate(state.kanbanTasks.length),
+        },
       ],
+      activityLog: withActivity(`${storyId} estimated at ${finalPoints} SP and sent to the sprint backlog.`, 'success'),
     })
   },
 
   moveKanbanTask(taskId, status) {
-    setState({ kanbanTasks: state.kanbanTasks.map((t) => (t.id === taskId ? { ...t, status } : t)) })
+    const task = state.kanbanTasks.find((t) => t.id === taskId)
+    setState({
+      kanbanTasks: state.kanbanTasks.map((t) => (t.id === taskId ? { ...t, status } : t)),
+      activityLog:
+        status === 'Done' && task ? withActivity(`${task.id} — "${task.title}" marked Done.`, 'success') : state.activityLog,
+    })
   },
 
   assignKanbanTask(taskId, assigneeId) {
