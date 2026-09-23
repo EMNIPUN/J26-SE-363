@@ -9,7 +9,6 @@ import { AuthProvider } from './shared/auth/AuthContext.jsx'
 import { useAuth } from './shared/auth/useAuth.js'
 import RequireAuth from './shared/auth/RequireAuth.jsx'
 import DashboardShell from './shared/layout/DashboardShell.jsx'
-import Login from './shared/pages/Login.jsx'
 import NotFound from './shared/pages/NotFound.jsx'
 import StudentHome from './shared/pages/dashboards/StudentHome.jsx'
 import InstructorHome from './shared/pages/dashboards/InstructorHome.jsx'
@@ -21,8 +20,17 @@ import SecurityRoutes from './modules/security/routes.jsx'
 import AdminRoutes from './modules/admin/routes.jsx'
 
 function RootRedirect() {
-  const { user } = useAuth()
-  return <Navigate to={user ? `/${user.role}` : '/login'} replace />
+  const { user, isInitialized } = useAuth()
+
+  if (!isInitialized || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
+  return <Navigate to={`/${user.role}`} replace />
 }
 
 function App() {
@@ -34,7 +42,7 @@ function App() {
           <Toaster />
           <AuthProvider>
             <Routes>
-              <Route path="/login" element={<Login />} />
+              <Route path="/login" element={<RootRedirect />} />
 
               <Route element={<RequireAuth />}>
                 <Route element={<DashboardShell />}>

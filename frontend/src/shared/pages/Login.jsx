@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import {
   AlertCircle,
   Eye,
@@ -25,7 +25,7 @@ const ROLE_OPTIONS = [
 ]
 
 export default function Login() {
-  const { login } = useAuth()
+  const { user, isInitialized, login, loginWithKeycloak } = useAuth()
   const navigate = useNavigate()
 
   const [email, setEmail] = useState('')
@@ -60,6 +60,11 @@ export default function Login() {
     setEmail(acc.email)
     setPassword(acc.password)
     setError('')
+  }
+
+  // Redirect to role dashboard if user is already authenticated
+  if (isInitialized && user) {
+    return <Navigate to={`/${user.role}`} replace />
   }
 
   return (
@@ -142,6 +147,25 @@ export default function Login() {
             <p className="text-sm text-muted-foreground">
               Welcome back! Please enter your details to continue.
             </p>
+          </div>
+
+          {/* Keycloak SSO Action (via Kong Gateway) */}
+          <Button
+            type="button"
+            onClick={loginWithKeycloak}
+            variant="outline"
+            className="w-full h-11 flex items-center justify-center gap-2.5 font-semibold border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary hover:text-primary transition-all duration-150 cursor-pointer shadow-xs"
+          >
+            <Shield className="h-4 w-4 shrink-0 text-primary" />
+            <span>Sign in with Keycloak (SSO)</span>
+          </Button>
+
+          {/* Divider */}
+          <div className="relative flex items-center justify-center">
+            <div className="border-t border-border w-full" />
+            <span className="bg-card px-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground absolute">
+              or use prototype demo roles
+            </span>
           </div>
 
           {/* Quick Demo Role Selector */}
