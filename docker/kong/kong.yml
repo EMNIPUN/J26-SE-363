@@ -9,6 +9,7 @@ services:
         paths:
           - /auth
         strip_path: false
+        preserve_host: true
 
 plugins:
   - name: cors
