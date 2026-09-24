@@ -16,6 +16,7 @@ const keycloakConfig = {
 }
 
 const keycloak = new Keycloak(keycloakConfig)
+keycloak.logoutMethod = 'GET'
 
 let initPromise = null
 

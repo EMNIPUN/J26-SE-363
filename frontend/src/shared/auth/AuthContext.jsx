@@ -138,7 +138,7 @@ export function AuthProvider({ children }) {
     if (isKeycloak && keycloak.authenticated) {
       keycloak.logout({
         redirectUri: `${window.location.origin}/`,
-        idTokenHint: keycloak.idToken,
+        logoutMethod: 'GET',
       })
     } else {
       setIsLoggingOut(false)
