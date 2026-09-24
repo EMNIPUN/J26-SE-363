@@ -21,15 +21,15 @@ import SecurityRoutes from './modules/security/routes.jsx'
 import AdminRoutes from './modules/admin/routes.jsx'
 
 function RootRedirect() {
-  const { user, isInitialized, loginWithKeycloak } = useAuth()
+  const { user, isInitialized, isLoggingOut, loginWithKeycloak } = useAuth()
 
   useEffect(() => {
-    if (isInitialized && !user) {
+    if (isInitialized && !user && !isLoggingOut) {
       loginWithKeycloak()
     }
-  }, [isInitialized, user, loginWithKeycloak])
+  }, [isInitialized, user, isLoggingOut, loginWithKeycloak])
 
-  if (!isInitialized || !user) {
+  if (!isInitialized || !user || isLoggingOut) {
     return <div className="min-h-screen bg-background" />
   }
 

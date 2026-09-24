@@ -18,7 +18,7 @@
                     </svg>
                 </button>
 
-                <#if client.baseUrl??>
+                <#if (client.baseUrl)??>
                     <a href="${client.baseUrl}" style="display: block; text-align: center; font-size: 0.85rem; color: #71717a; text-decoration: none; padding: 0.5rem; transition: color 0.15s;" onmouseover="this.style.color='#f4f4f5'" onmouseout="this.style.color='#71717a'">
                         Cancel and return to application
                     </a>

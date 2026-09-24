@@ -133,17 +133,17 @@ export function AuthProvider({ children }) {
     } catch {
       // ignore
     }
-    setUser(null)
 
-    if (isKeycloak && keycloak.authenticated) {
+    if (keycloak.authenticated || keycloak.token || user?.isKeycloak || isKeycloak) {
       keycloak.logout({
         redirectUri: `${window.location.origin}/`,
         logoutMethod: 'GET',
       })
     } else {
+      setUser(null)
       setIsLoggingOut(false)
     }
-  }, [isKeycloak])
+  }, [user, isKeycloak])
 
   const contextValue = useMemo(
     () => ({
