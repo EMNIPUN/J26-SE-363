@@ -18,7 +18,8 @@ plugins:
         - http://localhost:5173
         - http://127.0.0.1:5173
         - http://localhost:3000
-        - /.*\.vercel\.app$/
+        - https://mentor-frontend-testing.vercel.app
+        - /.*\.vercel\.app/
       methods:
         - GET
         - POST

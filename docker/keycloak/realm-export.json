@@ -46,7 +46,9 @@
         "https://*"
       ],
       "webOrigins": [
-        "+"
+        "+",
+        "https://mentor-frontend-testing.vercel.app",
+        "*"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
