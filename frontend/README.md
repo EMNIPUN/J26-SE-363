@@ -87,6 +87,17 @@ Every developer contributing to this codebase must adhere to the following stand
 
 ---
 
+## 🗺️ Routing & Navigation Architecture (Must Read)
+
+> [!IMPORTANT]
+> **Unified App Entrypoint (`/app`)**: Authenticated users are routed to `/app`, which polymorphically renders their role-specific overview (`StudentHome`, `InstructorHome`, or `AdminHome`).
+> All research feature modules (`/planning/*`, `/performance/*`, `/tutor/*`, `/security/*`) have independent route namespaces so team members never create route collisions or git conflicts.
+
+📖 **For the routing diagram, role switcher patterns, and developer route guide, see:**  
+👉 **[Routing Architecture Guidelines](docs/ROUTING_GUIDELINES.md)**
+
+---
+
 ## Project Structure
 
 ```

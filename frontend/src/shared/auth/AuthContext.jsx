@@ -25,6 +25,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(readStoredUser)
   const [isInitialized, setIsInitialized] = useState(false)
   const [isKeycloak, setIsKeycloak] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   // Initialize Keycloak SSO on application startup
   useEffect(() => {
@@ -125,20 +126,24 @@ export function AuthProvider({ children }) {
 
   // Unified Logout
   const logout = useCallback(() => {
+    setIsLoggingOut(true)
     tokenManager.clearToken()
     try {
       localStorage.removeItem(STORAGE_KEY)
     } catch {
       // ignore
     }
-    setUser(null)
 
-    if (isKeycloak && keycloak.authenticated) {
+    if (keycloak.authenticated || keycloak.token || user?.isKeycloak || isKeycloak) {
       keycloak.logout({
         redirectUri: `${window.location.origin}/`,
+        logoutMethod: 'GET',
       })
+    } else {
+      setUser(null)
+      setIsLoggingOut(false)
     }
-  }, [isKeycloak])
+  }, [user, isKeycloak])
 
   const contextValue = useMemo(
     () => ({
@@ -146,12 +151,13 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(user),
       isInitialized,
       isKeycloak,
+      isLoggingOut,
       token: keycloak.token || tokenManager.getToken(),
       login,
       loginWithKeycloak,
       logout,
     }),
-    [user, isInitialized, isKeycloak, login, loginWithKeycloak, logout]
+    [user, isInitialized, isKeycloak, isLoggingOut, login, loginWithKeycloak, logout]
   )
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>

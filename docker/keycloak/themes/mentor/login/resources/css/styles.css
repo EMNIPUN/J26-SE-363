@@ -583,3 +583,22 @@ body {
     transform: translateY(0);
   }
 }
+
+/* --------------------------------------------------------------------------
+   Logout, Info, and Status Containers
+   -------------------------------------------------------------------------- */
+#kc-logout-confirm,
+#kc-info-wrapper,
+#kc-error-wrapper {
+  animation: fadeIn 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  width: 100%;
+}
+
+.logout-description {
+  color: #a1a1aa;
+  font-size: 0.925rem;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+

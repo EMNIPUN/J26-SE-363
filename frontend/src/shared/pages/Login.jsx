@@ -62,9 +62,9 @@ export default function Login() {
     setError('')
   }
 
-  // Redirect to role dashboard if user is already authenticated
+  // Redirect to unified app dashboard if user is already authenticated
   if (isInitialized && user) {
-    return <Navigate to={`/${user.role}`} replace />
+    return <Navigate to="/app" replace />
   }
 
   return (

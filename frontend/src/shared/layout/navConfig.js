@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   BookOpen,
   BarChart3,
-  Bot,
   ShieldCheck,
   Users,
   Settings,
@@ -13,7 +12,7 @@ import {
 export function getNavForRole(role) {
   if (role === 'student') {
     return [
-      { label: 'Overview', icon: LayoutDashboard, to: '/student' },
+      { label: 'Overview', icon: LayoutDashboard, to: '/app' },
       {
         label: 'Project Planning',
         icon: BookOpen,
@@ -31,17 +30,7 @@ export function getNavForRole(role) {
         label: 'Performance',
         icon: BarChart3,
         color: '#7c3aed',
-        to: '/performance/student/my-progress',
-      },
-      {
-        label: 'AI Tutor',
-        icon: Bot,
-        color: '#16a34a',
-        children: [
-          { label: 'Landing', to: '/tutor/landing' },
-          { label: 'Chat', to: '/tutor/chat' },
-          { label: 'Nudges', to: '/tutor/nudges' },
-        ],
+        to: '/performance/my-progress',
       },
       {
         label: 'Project Security',
@@ -58,15 +47,15 @@ export function getNavForRole(role) {
 
   if (role === 'instructor') {
     return [
-      { label: 'Overview', icon: LayoutDashboard, to: '/instructor' },
+      { label: 'Overview', icon: LayoutDashboard, to: '/app' },
       {
         label: 'Project Planning',
         icon: BookOpen,
         color: '#2563eb',
         children: [
-          { label: 'Dashboard', to: '/planning/instructor/dashboard' },
-          { label: 'Projects', to: '/planning/instructor/projects' },
-          { label: 'Groups', to: '/planning/instructor/groups' },
+          { label: 'Dashboard', to: '/planning/dashboard' },
+          { label: 'Projects', to: '/planning/projects' },
+          { label: 'Groups', to: '/planning/groups' },
         ],
       },
       {
@@ -74,20 +63,10 @@ export function getNavForRole(role) {
         icon: BarChart3,
         color: '#7c3aed',
         children: [
-          { label: 'Dashboard', to: '/performance/instructor/dashboard' },
-          { label: 'Student Detail', to: '/performance/instructor/student-detail' },
-          { label: 'Assessments', to: '/performance/instructor/assessments' },
-          { label: 'Reports', to: '/performance/instructor/reports' },
-        ],
-      },
-      {
-        label: 'AI Tutor',
-        icon: Bot,
-        color: '#16a34a',
-        children: [
-          { label: 'Landing', to: '/tutor/landing' },
-          { label: 'Chat', to: '/tutor/chat' },
-          { label: 'Nudges', to: '/tutor/nudges' },
+          { label: 'Dashboard', to: '/performance/dashboard' },
+          { label: 'Student Detail', to: '/performance/students' },
+          { label: 'Assessments', to: '/performance/assessments' },
+          { label: 'Reports', to: '/performance/reports' },
         ],
       },
       {
@@ -105,22 +84,21 @@ export function getNavForRole(role) {
 
   // admin
   return [
-    { label: 'Overview', icon: LayoutDashboard, to: '/admin' },
+    { label: 'Overview', icon: LayoutDashboard, to: '/app' },
     { label: 'Users', icon: Users, to: '/admin/users' },
     { label: 'Settings', icon: Settings, to: '/admin/settings' },
     {
       label: 'Project Planning',
       icon: BookOpen,
       color: '#2563eb',
-      to: '/planning/instructor/dashboard',
+      to: '/planning/dashboard',
     },
     {
       label: 'Performance',
       icon: BarChart3,
       color: '#7c3aed',
-      to: '/performance/instructor/dashboard',
+      to: '/performance/dashboard',
     },
-    { label: 'AI Tutor', icon: Bot, color: '#16a34a', to: '/tutor/landing' },
     { label: 'Security', icon: ShieldCheck, color: '#dc2626', to: '/security/dashboard' },
   ]
 }
