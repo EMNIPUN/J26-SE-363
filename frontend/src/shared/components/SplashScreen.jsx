@@ -81,6 +81,7 @@ export default function SplashScreen({ onComplete }) {
   const [phase, setPhase] = useState('buffering')
   const [visible, setVisible] = useState(() => {
     if (typeof window === 'undefined') return false
+    if (sessionStorage.getItem('mentor_splash_seen')) return false
     return !window.matchMedia('(prefers-reduced-motion: reduce)').matches
   })
 
@@ -93,11 +94,21 @@ export default function SplashScreen({ onComplete }) {
     const t1 = setTimeout(() => setPhase('ready'), 1350)
     const t2 = setTimeout(() => setPhase('exiting'), 1850)
     const t3 = setTimeout(() => {
+      try {
+        sessionStorage.setItem('mentor_splash_seen', 'true')
+      } catch {
+        // ignore storage errors
+      }
       setVisible(false)
       if (onComplete) onComplete()
     }, 2200)
 
     const handleKeyDown = () => {
+      try {
+        sessionStorage.setItem('mentor_splash_seen', 'true')
+      } catch {
+        // ignore storage errors
+      }
       setVisible(false)
       if (onComplete) onComplete()
     }
@@ -118,6 +129,11 @@ export default function SplashScreen({ onComplete }) {
   return (
     <div
       onClick={() => {
+        try {
+          sessionStorage.setItem('mentor_splash_seen', 'true')
+        } catch {
+          // ignore storage errors
+        }
         setVisible(false)
         if (onComplete) onComplete()
       }}

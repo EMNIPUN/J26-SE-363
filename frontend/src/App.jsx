@@ -23,11 +23,7 @@ function RootRedirect() {
   const { user, isInitialized } = useAuth()
 
   if (!isInitialized || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-      </div>
-    )
+    return <div className="min-h-screen bg-background" />
   }
 
   return <Navigate to={`/${user.role}`} replace />
