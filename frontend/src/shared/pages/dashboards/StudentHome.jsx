@@ -8,7 +8,6 @@ import Card from '../../components/Card.jsx'
 const quickLinks = [
   { ...getModule('planning'), to: '/planning/dashboard' },
   { ...getModule('performance'), to: '/performance/my-progress' },
-  { ...getModule('tutor'), to: '/tutor/landing' },
   { ...getModule('security'), to: '/security/dashboard' },
 ]
 
@@ -34,7 +33,7 @@ export default function StudentHome() {
       <div>
         <div className="flex items-baseline justify-between mb-4">
           <h2 className="text-xl font-bold tracking-tight text-foreground">Your components</h2>
-          <p className="text-xs text-muted-foreground">Jump back into any of the four project components</p>
+          <p className="text-xs text-muted-foreground">Jump back into your project components</p>
         </div>
         <ComponentLinkGrid items={quickLinks} />
       </div>

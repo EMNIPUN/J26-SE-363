@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   BookOpen,
   BarChart3,
-  Bot,
   ShieldCheck,
   Users,
   Settings,
@@ -32,16 +31,6 @@ export function getNavForRole(role) {
         icon: BarChart3,
         color: '#7c3aed',
         to: '/performance/my-progress',
-      },
-      {
-        label: 'AI Tutor',
-        icon: Bot,
-        color: '#16a34a',
-        children: [
-          { label: 'Landing', to: '/tutor/landing' },
-          { label: 'Chat', to: '/tutor/chat' },
-          { label: 'Nudges', to: '/tutor/nudges' },
-        ],
       },
       {
         label: 'Project Security',
@@ -81,16 +70,6 @@ export function getNavForRole(role) {
         ],
       },
       {
-        label: 'AI Tutor',
-        icon: Bot,
-        color: '#16a34a',
-        children: [
-          { label: 'Landing', to: '/tutor/landing' },
-          { label: 'Chat', to: '/tutor/chat' },
-          { label: 'Nudges', to: '/tutor/nudges' },
-        ],
-      },
-      {
         label: 'Security',
         icon: ShieldCheck,
         color: '#dc2626',
@@ -120,7 +99,6 @@ export function getNavForRole(role) {
       color: '#7c3aed',
       to: '/performance/dashboard',
     },
-    { label: 'AI Tutor', icon: Bot, color: '#16a34a', to: '/tutor/landing' },
     { label: 'Security', icon: ShieldCheck, color: '#dc2626', to: '/security/dashboard' },
   ]
 }
