@@ -10,16 +10,23 @@ import Reports from './pages/instructor/Reports.jsx'
 export default function PerformanceRoutes() {
   return (
     <Routes>
-      <Route index element={<Navigate to="student/my-progress" replace />} />
-      <Route path="student/my-progress" element={<MyProgress />} />
+      <Route index element={<Navigate to="my-progress" replace />} />
+      <Route path="my-progress" element={<MyProgress />} />
 
       {/* Instructor & Admin restricted routes */}
       <Route element={<RequireRole allowedRoles={['instructor', 'admin']} />}>
-        <Route path="instructor/dashboard" element={<InstructorDashboard />} />
-        <Route path="instructor/student-detail" element={<StudentDetail />} />
-        <Route path="instructor/assessments" element={<Assessments />} />
-        <Route path="instructor/reports" element={<Reports />} />
+        <Route path="dashboard" element={<InstructorDashboard />} />
+        <Route path="students" element={<StudentDetail />} />
+        <Route path="assessments" element={<Assessments />} />
+        <Route path="reports" element={<Reports />} />
       </Route>
+
+      {/* Backward compatibility redirects for legacy /student/* and /instructor/* links */}
+      <Route path="student/my-progress" element={<Navigate to="../my-progress" replace />} />
+      <Route path="instructor/dashboard" element={<Navigate to="../dashboard" replace />} />
+      <Route path="instructor/student-detail" element={<Navigate to="../students" replace />} />
+      <Route path="instructor/assessments" element={<Navigate to="../assessments" replace />} />
+      <Route path="instructor/reports" element={<Navigate to="../reports" replace />} />
     </Routes>
   )
 }

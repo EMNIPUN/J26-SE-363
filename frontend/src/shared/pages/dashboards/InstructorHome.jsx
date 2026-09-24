@@ -15,8 +15,8 @@ import {
 } from '@/components/ui/table'
 
 const quickLinks = [
-  { ...getModule('planning'), to: '/planning/instructor/dashboard' },
-  { ...getModule('performance'), to: '/performance/instructor/dashboard' },
+  { ...getModule('planning'), to: '/planning/dashboard' },
+  { ...getModule('performance'), to: '/performance/dashboard' },
   { ...getModule('tutor'), to: '/tutor/landing' },
   { ...getModule('security'), to: '/security/dashboard' },
 ]

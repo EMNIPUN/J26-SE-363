@@ -7,7 +7,7 @@ import Card from '../../components/Card.jsx'
 
 const quickLinks = [
   { ...getModule('planning'), to: '/planning/dashboard' },
-  { ...getModule('performance'), to: '/performance/student/my-progress' },
+  { ...getModule('performance'), to: '/performance/my-progress' },
   { ...getModule('tutor'), to: '/tutor/landing' },
   { ...getModule('security'), to: '/security/dashboard' },
 ]
