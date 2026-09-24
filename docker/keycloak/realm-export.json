@@ -38,6 +38,9 @@
       "rootUrl": "http://localhost:5173",
       "baseUrl": "http://localhost:5173",
       "redirectUris": [
+        "https://mentor-frontend-testing.vercel.app/*",
+        "https://mentor-frontend-testing.vercel.app/",
+        "https://mentor-frontend-testing.vercel.app",
         "http://localhost:5173/*",
         "http://localhost:5173",
         "http://localhost:*/*",
@@ -52,7 +55,7 @@
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5173/*##http://localhost:5173##http://localhost:*/*##https://*/*"
+        "post.logout.redirect.uris": "+##https://mentor-frontend-testing.vercel.app/*##https://mentor-frontend-testing.vercel.app/##https://mentor-frontend-testing.vercel.app##http://localhost:5173/*##http://localhost:5173##http://localhost:*/*##https://*/*"
       },
       "defaultClientScopes": [
         "web-origins",
