@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react'
+import PropTypes from 'prop-types'
 import MentorLogo from './MentorLogo.jsx'
 import { Sparkles } from 'lucide-react'
 
 const TARGET_WORD = ['M', 'E', 'N', 'T', 'O', 'R']
 const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 
-function FlippingMentor({ isComplete }) {
+function FlippingMentor({ isComplete, isStatic = false }) {
   const [lockedIndex, setLockedIndex] = useState(0)
   const [currentChars, setCurrentChars] = useState(() =>
     TARGET_WORD.map(() => GLYPHS[Math.floor(Math.random() * GLYPHS.length)])
   )
 
   useEffect(() => {
-    if (isComplete) return
+    if (isComplete || isStatic) return
 
     const startDelay = 220
     const stepDuration = 160
@@ -40,10 +41,10 @@ function FlippingMentor({ isComplete }) {
     }, 40)
 
     return () => clearInterval(interval)
-  }, [isComplete])
+  }, [isComplete, isStatic])
 
-  const effectiveLockedIndex = isComplete ? TARGET_WORD.length : lockedIndex
-  const effectiveChars = isComplete ? TARGET_WORD : currentChars
+  const effectiveLockedIndex = isComplete || isStatic ? TARGET_WORD.length : lockedIndex
+  const effectiveChars = isComplete || isStatic ? TARGET_WORD : currentChars
 
   return (
     <div className="inline-flex items-center justify-center tracking-[0.16em] sm:tracking-[0.22em] select-none pl-[0.16em] sm:pl-[0.22em]">
@@ -60,7 +61,9 @@ function FlippingMentor({ isComplete }) {
               key={`${idx}-${isLocked ? 'locked' : 'flipping'}`}
               className={`inline-block select-none transition-colors duration-150 ${
                 isLocked
-                  ? 'text-foreground font-black animate-letter-flip'
+                  ? isStatic
+                    ? 'text-foreground font-black'
+                    : 'text-foreground font-black animate-letter-flip'
                   : 'text-primary/70 font-mono font-bold animate-letter-tumbling'
               }`}
             >
@@ -73,54 +76,112 @@ function FlippingMentor({ isComplete }) {
   )
 }
 
-export default function SplashScreen({ onComplete }) {
-  // Animation lifecycle:
-  // 1. 'buffering' (0ms - 1350ms) : Logo border beam buffers; letters flip & sequentially lock into MENTOR
-  // 2. 'ready'     (1350ms - 1850ms): All letters locked, buffering locks into solid glow, AI badge sparkles
-  // 3. 'exiting'   (1850ms - 2200ms): Fluid dissolve into dashboard
-  const [phase, setPhase] = useState('buffering')
-  const [visible, setVisible] = useState(() => {
-    if (typeof window === 'undefined') return false
-    if (sessionStorage.getItem('mentor_splash_seen')) return false
-    return !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+FlippingMentor.propTypes = {
+  isComplete: PropTypes.bool.isRequired,
+  isStatic: PropTypes.bool,
+}
+
+export default function SplashScreen({ isBuffering = false, onComplete }) {
+  // Check if user already saw the full tumbling intro animation in this session
+  const [hasSeenIntro] = useState(() => {
+    if (typeof window === 'undefined') return true
+    try {
+      return Boolean(sessionStorage.getItem('mentor_splash_seen'))
+    } catch {
+      return false
+    }
   })
 
+  // Reduced motion preference
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  // If already seen intro or reduced motion, skip character tumbling
+  const isStatic = hasSeenIntro || prefersReducedMotion
+
+  // Visible whenever isBuffering is true, or during the initial intro animation
+  const [visible, setVisible] = useState(() => {
+    if (typeof window === 'undefined') return false
+    if (isStatic && !isBuffering) return false
+    return true
+  })
+
+  // phase: 'buffering' | 'ready' | 'exiting'
+  const [phase, setPhase] = useState(() => (isStatic ? 'ready' : 'buffering'))
+  const [introFinished, setIntroFinished] = useState(isStatic)
+
+  // Handle intro animation timing for first load
   useEffect(() => {
-    if (!visible) {
-      if (onComplete) onComplete()
+    if (isStatic) {
+      setIntroFinished(true)
       return
     }
 
     const t1 = setTimeout(() => setPhase('ready'), 1350)
-    const t2 = setTimeout(() => setPhase('exiting'), 1850)
-    const t3 = setTimeout(() => {
+    const t2 = setTimeout(() => {
       try {
         sessionStorage.setItem('mentor_splash_seen', 'true')
       } catch {
         // ignore storage errors
       }
-      setVisible(false)
-      if (onComplete) onComplete()
-    }, 2200)
-
-    const handleKeyDown = () => {
-      try {
-        sessionStorage.setItem('mentor_splash_seen', 'true')
-      } catch {
-        // ignore storage errors
-      }
-      setVisible(false)
-      if (onComplete) onComplete()
-    }
-    window.addEventListener('keydown', handleKeyDown, { once: true })
+      setIntroFinished(true)
+    }, 1850)
 
     return () => {
       clearTimeout(t1)
       clearTimeout(t2)
-      clearTimeout(t3)
-      window.removeEventListener('keydown', handleKeyDown)
     }
+  }, [isStatic])
+
+  // Dismiss splash screen once intro finished AND not buffering
+  useEffect(() => {
+    if (!visible) return
+
+    if (introFinished && !isBuffering) {
+      setPhase('exiting')
+      const tExit = setTimeout(() => {
+        setVisible(false)
+        if (onComplete) onComplete()
+      }, 350)
+      return () => clearTimeout(tExit)
+    }
+  }, [introFinished, isBuffering, visible, onComplete])
+
+  // Safety fallback: ensure splash screen dissolves eventually (max 8s) even on stuck network
+  useEffect(() => {
+    if (!visible) return
+    const fallbackTimer = setTimeout(() => {
+      setPhase('exiting')
+      setTimeout(() => {
+        setVisible(false)
+        if (onComplete) onComplete()
+      }, 350)
+    }, 8000)
+    return () => clearTimeout(fallbackTimer)
   }, [visible, onComplete])
+
+  // Allow manual skip on click or keydown if not actively buffering
+  useEffect(() => {
+    if (!visible) return
+
+    const handleKeyDown = () => {
+      if (isBuffering) return
+      try {
+        sessionStorage.setItem('mentor_splash_seen', 'true')
+      } catch {
+        // ignore storage errors
+      }
+      setPhase('exiting')
+      setTimeout(() => {
+        setVisible(false)
+        if (onComplete) onComplete()
+      }, 350)
+    }
+
+    window.addEventListener('keydown', handleKeyDown, { once: true })
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [visible, isBuffering, onComplete])
 
   if (!visible) return null
 
@@ -129,18 +190,22 @@ export default function SplashScreen({ onComplete }) {
   return (
     <div
       onClick={() => {
+        if (isBuffering) return
         try {
           sessionStorage.setItem('mentor_splash_seen', 'true')
         } catch {
           // ignore storage errors
         }
-        setVisible(false)
-        if (onComplete) onComplete()
+        setPhase('exiting')
+        setTimeout(() => {
+          setVisible(false)
+          if (onComplete) onComplete()
+        }, 350)
       }}
       className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background text-foreground select-none cursor-pointer transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] ${
         phase === 'exiting' ? 'opacity-0 scale-105 pointer-events-none' : 'opacity-100'
       }`}
-      aria-label="MENTOR AI Splash Screen - Click anywhere to skip"
+      aria-label="MENTOR AI Splash Screen"
     >
       {/* Ambient background glow */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--primary)/0.07_0%,transparent_65%)] pointer-events-none" />
@@ -186,12 +251,12 @@ export default function SplashScreen({ onComplete }) {
               <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
                 <span
                   className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                    isReady ? 'bg-blue-500' : 'bg-primary'
+                    isBuffering ? 'bg-primary' : isReady ? 'bg-blue-500' : 'bg-primary'
                   }`}
                 />
                 <span
                   className={`relative inline-flex rounded-full h-3.5 w-3.5 ${
-                    isReady ? 'bg-blue-500' : 'bg-primary'
+                    isBuffering ? 'bg-primary' : isReady ? 'bg-blue-500' : 'bg-primary'
                   }`}
                 />
               </span>
@@ -202,7 +267,7 @@ export default function SplashScreen({ onComplete }) {
         {/* ANIMATED "MENTOR" WITH "AI" */}
         <div className="flex items-center justify-center gap-2.5 sm:gap-3.5">
           <h1 className="text-4xl sm:text-5xl font-black text-foreground">
-            <FlippingMentor isComplete={isReady} />
+            <FlippingMentor isComplete={isReady} isStatic={isStatic} />
           </h1>
 
           {/* Animated AI Badge */}
@@ -220,4 +285,9 @@ export default function SplashScreen({ onComplete }) {
       </div>
     </div>
   )
+}
+
+SplashScreen.propTypes = {
+  isBuffering: PropTypes.bool,
+  onComplete: PropTypes.func,
 }

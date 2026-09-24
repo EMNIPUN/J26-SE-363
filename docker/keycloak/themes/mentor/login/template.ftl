@@ -105,8 +105,19 @@
             <!-- Centered Form Container -->
             <div class="form-container">
                 <div class="form-header">
-                    <h2 class="form-title">Sign in to MENTOR</h2>
-                    <p class="form-subtitle">Welcome back! Please enter your details to continue.</p>
+                    <#if pageId?? && pageId == "logout-confirm">
+                        <h2 class="form-title">Confirm Sign Out</h2>
+                        <p class="form-subtitle">Please confirm that you want to end your current session.</p>
+                    <#elseif pageId?? && pageId == "info">
+                        <h2 class="form-title">Session Notice</h2>
+                        <p class="form-subtitle">Status update from the identity provider.</p>
+                    <#elseif pageId?? && pageId == "error">
+                        <h2 class="form-title">Authentication Notice</h2>
+                        <p class="form-subtitle">An issue occurred during your authentication request.</p>
+                    <#else>
+                        <h2 class="form-title">Sign in to MENTOR</h2>
+                        <p class="form-subtitle">Welcome back! Please enter your details to continue.</p>
+                    </#if>
                 </div>
 
                 <!-- Error / Alert Banner -->

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import queryClient from './shared/api/queryClient.js'
@@ -20,7 +21,13 @@ import SecurityRoutes from './modules/security/routes.jsx'
 import AdminRoutes from './modules/admin/routes.jsx'
 
 function RootRedirect() {
-  const { user, isInitialized } = useAuth()
+  const { user, isInitialized, loginWithKeycloak } = useAuth()
+
+  useEffect(() => {
+    if (isInitialized && !user) {
+      loginWithKeycloak()
+    }
+  }, [isInitialized, user, loginWithKeycloak])
 
   if (!isInitialized || !user) {
     return <div className="min-h-screen bg-background" />
@@ -29,33 +36,44 @@ function RootRedirect() {
   return <Navigate to={`/${user.role}`} replace />
 }
 
+function AppContent() {
+  const { user, isInitialized, isLoggingOut } = useAuth()
+  const isBuffering = !isInitialized || !user || isLoggingOut
+
+  return (
+    <>
+      <SplashScreen isBuffering={isBuffering} />
+      <Routes>
+        <Route path="/login" element={<RootRedirect />} />
+
+        <Route element={<RequireAuth />}>
+          <Route element={<DashboardShell />}>
+            <Route path="/student" element={<StudentHome />} />
+            <Route path="/instructor" element={<InstructorHome />} />
+            <Route path="/admin" element={<AdminHome />} />
+            <Route path="/admin/*" element={<AdminRoutes />} />
+            <Route path="/planning/*" element={<PlanningRoutes />} />
+            <Route path="/performance/*" element={<PerformanceRoutes />} />
+            <Route path="/tutor/*" element={<TutorRoutes />} />
+            <Route path="/security/*" element={<SecurityRoutes />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
+        </Route>
+
+        <Route path="/" element={<RootRedirect />} />
+      </Routes>
+    </>
+  )
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system" storageKey="mentor-theme">
-        <SplashScreen />
         <ModalProvider>
           <Toaster />
           <AuthProvider>
-            <Routes>
-              <Route path="/login" element={<RootRedirect />} />
-
-              <Route element={<RequireAuth />}>
-                <Route element={<DashboardShell />}>
-                  <Route path="/student" element={<StudentHome />} />
-                  <Route path="/instructor" element={<InstructorHome />} />
-                  <Route path="/admin" element={<AdminHome />} />
-                  <Route path="/admin/*" element={<AdminRoutes />} />
-                  <Route path="/planning/*" element={<PlanningRoutes />} />
-                  <Route path="/performance/*" element={<PerformanceRoutes />} />
-                  <Route path="/tutor/*" element={<TutorRoutes />} />
-                  <Route path="/security/*" element={<SecurityRoutes />} />
-                  <Route path="*" element={<NotFound />} />
-                </Route>
-              </Route>
-
-              <Route path="/" element={<RootRedirect />} />
-            </Routes>
+            <AppContent />
           </AuthProvider>
         </ModalProvider>
       </ThemeProvider>
