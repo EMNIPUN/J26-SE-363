@@ -1,0 +1,585 @@
+/* ==========================================================================
+   MENTOR Keycloak Custom Theme Stylesheet
+   Matches exact Tailwind v4 dark design tokens & layout from React Login.jsx
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #09090b;
+  color: #f4f4f5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.login-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+@media (min-width: 1024px) {
+  .login-wrapper {
+    flex-direction: row;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   LEFT PANEL: Brand Showcase
+   -------------------------------------------------------------------------- */
+.showcase-section {
+  display: none;
+  position: relative;
+  background-color: #09090b;
+  color: #ffffff;
+  padding: 3.5rem 4rem;
+  overflow: hidden;
+  border-right: 1px solid #27272a;
+  user-select: none;
+}
+
+@media (min-width: 1024px) {
+  .showcase-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 48%;
+  }
+}
+
+@media (min-width: 1280px) {
+  .showcase-section {
+    width: 50%;
+    padding: 4rem;
+  }
+}
+
+.grid-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0.07;
+  pointer-events: none;
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.4) 1px, transparent 0);
+  background-size: 32px 32px;
+}
+
+.glow {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+.glow-top {
+  top: -8rem;
+  left: -8rem;
+  width: 24rem;
+  height: 24rem;
+  background-color: rgba(255, 255, 255, 0.12);
+  filter: blur(128px);
+}
+
+.glow-bottom {
+  bottom: -8rem;
+  right: -8rem;
+  width: 24rem;
+  height: 24rem;
+  background-color: rgba(255, 255, 255, 0.04);
+  filter: blur(128px);
+}
+
+.showcase-header {
+  position: relative;
+  z-index: 10;
+}
+
+.logo-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.logo-svg {
+  flex-shrink: 0;
+  color: #ffffff;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.brand-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.brand-name {
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  font-size: 1.125rem;
+  color: #ffffff;
+}
+
+.ai-badge {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.brand-tagline {
+  font-size: 10px;
+  opacity: 0.7;
+  font-weight: 500;
+  margin-top: 3px;
+  color: #a1a1aa;
+}
+
+.showcase-content {
+  position: relative;
+  z-index: 10;
+  max-width: 32rem;
+  margin-top: auto;
+  margin-bottom: auto;
+  padding: 2rem 0;
+}
+
+.showcase-headline {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+@media (min-width: 1280px) {
+  .showcase-headline {
+    font-size: 2.25rem;
+  }
+}
+
+.showcase-subhead {
+  font-size: 0.9375rem;
+  color: #a1a1aa;
+  line-height: 1.6;
+  font-weight: 400;
+  margin-top: 1.25rem;
+}
+
+.testimonial-card {
+  border-radius: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.25rem;
+  backdrop-filter: blur(8px);
+  margin-top: 1.75rem;
+}
+
+.testimonial-quote {
+  font-size: 0.875rem;
+  color: #d4d4d8;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.testimonial-author {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.avatar-badge {
+  height: 1.75rem;
+  width: 1.75rem;
+  border-radius: 9999px;
+  background-color: rgba(59, 130, 246, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.author-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.author-sub {
+  color: #71717a;
+  font-size: 11px;
+}
+
+.showcase-footer {
+  position: relative;
+  z-index: 10;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #71717a;
+}
+
+/* --------------------------------------------------------------------------
+   RIGHT PANEL: Authentication Area
+   -------------------------------------------------------------------------- */
+.auth-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.75rem;
+  background-color: rgba(24, 24, 27, 0.4);
+}
+
+@media (min-width: 640px) {
+  .auth-section {
+    padding: 2.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .auth-section {
+    padding: 3.5rem 4rem;
+  }
+}
+
+.mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .mobile-header {
+    display: none;
+  }
+}
+
+.form-container {
+  width: 100%;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: auto;
+  margin-bottom: auto;
+  padding: 1.5rem 0;
+}
+
+.form-header {
+  margin-bottom: 1.5rem;
+}
+
+.form-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #f4f4f5;
+  line-height: 1.2;
+}
+
+@media (min-width: 640px) {
+  .form-title {
+    font-size: 1.875rem;
+  }
+}
+
+.form-subtitle {
+  font-size: 0.875rem;
+  color: #a1a1aa;
+  margin-top: 0.375rem;
+}
+
+/* Error Alert Box */
+.alert-box {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.8125rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1.25rem;
+  animation: fadeIn 150ms ease-out;
+}
+
+.alert-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+.alert-success {
+  background-color: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  color: #4ade80;
+}
+
+.alert-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   FORM FIELDS & INPUTS
+   -------------------------------------------------------------------------- */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.field-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #f4f4f5;
+}
+
+.link-forgot {
+  font-size: 0.75rem;
+  color: #a1a1aa;
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.link-forgot:hover {
+  color: #f4f4f5;
+  text-decoration: underline;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 0.875rem;
+  width: 1rem;
+  height: 1rem;
+  color: #71717a;
+  pointer-events: none;
+}
+
+.text-input {
+  width: 100%;
+  height: 2.5rem;
+  background-color: rgba(24, 24, 27, 0.6);
+  border: 1px solid #27272a;
+  border-radius: 0.5rem;
+  padding-left: 2.5rem;
+  padding-right: 0.875rem;
+  color: #f4f4f5;
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: all 150ms ease;
+  outline: none;
+}
+
+.text-input-pass {
+  padding-right: 2.5rem;
+}
+
+.text-input::placeholder {
+  color: #71717a;
+}
+
+.text-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+  background-color: rgba(24, 24, 27, 0.9);
+}
+
+.btn-toggle-pass {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  transition: color 150ms ease;
+}
+
+.btn-toggle-pass:hover {
+  color: #f4f4f5;
+}
+
+.eye-svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Checkbox */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  color: #a1a1aa;
+}
+
+.checkbox-label:hover {
+  color: #f4f4f5;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 0.9375rem;
+  height: 0.9375rem;
+  border-radius: 0.25rem;
+  border: 1px solid #3f3f46;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+/* Submit Button */
+.btn-submit {
+  width: 100%;
+  height: 2.5rem;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 150ms ease;
+  margin-top: 0.25rem;
+}
+
+.btn-submit:hover {
+  background-color: #1d4ed8;
+}
+
+.btn-submit:active {
+  transform: scale(0.99);
+}
+
+.btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.arrow-icon {
+  width: 1rem;
+  height: 1rem;
+  transition: transform 150ms ease;
+}
+
+.btn-submit:hover .arrow-icon {
+  transform: translateX(2px);
+}
+
+/* Sign up prompt */
+.signup-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: #a1a1aa;
+  margin-top: 0.5rem;
+}
+
+.link-signup {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.link-signup:hover {
+  text-decoration: underline;
+}
+
+/* Auth Footer */
+.auth-footer {
+  width: 100%;
+  padding-top: 1rem;
+  border-top: 1px solid #27272a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #71717a;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .auth-footer {
+    flex-direction: row;
+  }
+}
+
+.footer-links {
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.footer-links:hover {
+  color: #f4f4f5;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
