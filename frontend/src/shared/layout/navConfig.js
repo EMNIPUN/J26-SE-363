@@ -13,7 +13,7 @@ import {
 export function getNavForRole(role) {
   if (role === 'student') {
     return [
-      { label: 'Overview', icon: LayoutDashboard, to: '/student' },
+      { label: 'Overview', icon: LayoutDashboard, to: '/app' },
       {
         label: 'Project Planning',
         icon: BookOpen,
@@ -58,7 +58,7 @@ export function getNavForRole(role) {
 
   if (role === 'instructor') {
     return [
-      { label: 'Overview', icon: LayoutDashboard, to: '/instructor' },
+      { label: 'Overview', icon: LayoutDashboard, to: '/app' },
       {
         label: 'Project Planning',
         icon: BookOpen,
@@ -105,7 +105,7 @@ export function getNavForRole(role) {
 
   // admin
   return [
-    { label: 'Overview', icon: LayoutDashboard, to: '/admin' },
+    { label: 'Overview', icon: LayoutDashboard, to: '/app' },
     { label: 'Users', icon: Users, to: '/admin/users' },
     { label: 'Settings', icon: Settings, to: '/admin/settings' },
     {

@@ -33,7 +33,19 @@ function RootRedirect() {
     return <div className="min-h-screen bg-background" />
   }
 
-  return <Navigate to={`/${user.role}`} replace />
+  return <Navigate to="/app" replace />
+}
+
+function RoleDashboard() {
+  const { user } = useAuth()
+
+  if (user?.role === 'admin') {
+    return <AdminHome />
+  }
+  if (user?.role === 'instructor') {
+    return <InstructorHome />
+  }
+  return <StudentHome />
 }
 
 function AppContent() {
@@ -48,9 +60,12 @@ function AppContent() {
 
         <Route element={<RequireAuth />}>
           <Route element={<DashboardShell />}>
-            <Route path="/student" element={<StudentHome />} />
-            <Route path="/instructor" element={<InstructorHome />} />
-            <Route path="/admin" element={<AdminHome />} />
+            <Route path="/app" element={<RoleDashboard />} />
+            {/* Backward compatibility redirects for legacy bookmarks */}
+            <Route path="/student" element={<Navigate to="/app" replace />} />
+            <Route path="/instructor" element={<Navigate to="/app" replace />} />
+            <Route path="/admin" element={<Navigate to="/app" replace />} />
+
             <Route path="/admin/*" element={<AdminRoutes />} />
             <Route path="/planning/*" element={<PlanningRoutes />} />
             <Route path="/performance/*" element={<PerformanceRoutes />} />

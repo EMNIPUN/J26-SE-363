@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Search, LogOut, Menu, ChevronDown } from 'lucide-react'
 import { useAuth } from '../auth/useAuth.js'
 import Avatar from '../components/Avatar.jsx'
@@ -20,7 +19,6 @@ import { Button as ShadcnButton } from '@/components/ui/button'
 export default function TopNavbar({ onToggleMobileMenu }) {
   const [commandOpen, setCommandOpen] = useState(false)
   const { user, logout } = useAuth()
-  const navigate = useNavigate()
 
   function handleLogout() {
     logout()

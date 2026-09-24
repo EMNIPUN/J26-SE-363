@@ -6,7 +6,12 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 
 function isSectionActive(section, pathname) {
   if (section.to) {
-    if (section.to === '/student' || section.to === '/instructor' || section.to === '/admin') {
+    if (
+      section.to === '/app' ||
+      section.to === '/student' ||
+      section.to === '/instructor' ||
+      section.to === '/admin'
+    ) {
       return pathname === section.to
     }
     return pathname === section.to || pathname.startsWith(section.to + '/')

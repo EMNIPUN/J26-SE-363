@@ -114,7 +114,6 @@ export default function SplashScreen({ isBuffering = false, onComplete }) {
   // Handle intro animation timing for first load
   useEffect(() => {
     if (isStatic) {
-      setIntroFinished(true)
       return
     }
 
@@ -139,12 +138,17 @@ export default function SplashScreen({ isBuffering = false, onComplete }) {
     if (!visible) return
 
     if (introFinished && !isBuffering) {
-      setPhase('exiting')
+      const tStartExit = setTimeout(() => {
+        setPhase('exiting')
+      }, 0)
       const tExit = setTimeout(() => {
         setVisible(false)
         if (onComplete) onComplete()
       }, 350)
-      return () => clearTimeout(tExit)
+      return () => {
+        clearTimeout(tStartExit)
+        clearTimeout(tExit)
+      }
     }
   }, [introFinished, isBuffering, visible, onComplete])
 
