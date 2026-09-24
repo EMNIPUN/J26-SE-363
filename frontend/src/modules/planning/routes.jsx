@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import RequireRole from '@/shared/auth/RequireRole'
 
 import Dashboard from './pages/student/Dashboard.jsx'
 import Blackboard from './pages/student/Blackboard.jsx'
@@ -20,9 +21,13 @@ export default function PlanningRoutes() {
       <Route path="requirements/estimation" element={<Estimation />} />
       <Route path="requirements/srs-quality" element={<SRSQuality />} />
       <Route path="requirements/decomposition" element={<Decomposition />} />
-      <Route path="instructor/dashboard" element={<InstructorDashboard />} />
-      <Route path="instructor/projects" element={<InstructorProjects />} />
-      <Route path="instructor/groups" element={<InstructorGroups />} />
+
+      {/* Instructor & Admin restricted routes */}
+      <Route element={<RequireRole allowedRoles={['instructor', 'admin']} />}>
+        <Route path="instructor/dashboard" element={<InstructorDashboard />} />
+        <Route path="instructor/projects" element={<InstructorProjects />} />
+        <Route path="instructor/groups" element={<InstructorGroups />} />
+      </Route>
     </Routes>
   )
 }

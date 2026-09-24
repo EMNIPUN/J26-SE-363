@@ -175,29 +175,51 @@ Do not duplicate routes. Name the feature according to its action:
 - ✅ `/performance/assessments` (Instructor grading and student evaluations)
 - ❌ `/student/performance` vs `/instructor/performance`
 
-### 2. In-Component Role Guard
-Use the `useAuth()` hook to enforce permission checks gracefully:
+### 1. Declarative Route Guard with `<RequireRole />` (Recommended)
+Wrap restricted routes in your module's `routes.jsx` with `<RequireRole allowedRoles={[...]}>`. If an unauthorized user attempts to visit the URL directly, they are immediately blocked with a clean **403 Access Denied** screen:
+
+```jsx
+// Example from src/modules/planning/routes.jsx
+import RequireRole from '@/shared/auth/RequireRole'
+
+<Routes>
+  {/* Public to all authenticated users */}
+  <Route path="blackboard" element={<Blackboard />} />
+
+  {/* Restricted to Instructors and Admins */}
+  <Route element={<RequireRole allowedRoles={['instructor', 'admin']} />}>
+    <Route path="instructor/dashboard" element={<InstructorDashboard />} />
+    <Route path="instructor/projects" element={<InstructorProjects />} />
+  </Route>
+</Routes>
+```
+
+#### Fallback Options:
+By default, `<RequireRole />` renders the [`Unauthorized.jsx`](../src/shared/pages/Unauthorized.jsx) 403 screen with a "Return to Dashboard" button. You can also pass `fallback="redirect"` to silently bounce unauthorized users back to `/app`:
+
+```jsx
+<Route element={<RequireRole allowedRoles={['admin']} fallback="redirect" />}>
+  ...
+</Route>
+```
+
+### 2. In-Component Dynamic UI
+For pages shared by multiple roles where only certain actions should appear (e.g. grading buttons or admin toggles), inspect `user.role` from `useAuth()`:
+
 ```jsx
 import { useAuth } from '@/shared/auth/useAuth'
-import { Card } from '@/components/ui/card'
-import { ShieldAlert } from 'lucide-react'
 
-export default function AssessmentsPage() {
+export default function ProjectBoard() {
   const { user } = useAuth()
 
-  if (user?.role !== 'instructor' && user?.role !== 'admin') {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 text-center">
-        <ShieldAlert className="h-12 w-12 text-destructive mb-3" />
-        <h2 className="text-xl font-bold">Access Restricted</h2>
-        <p className="text-muted-foreground text-sm max-w-md">
-          This assessment panel is only accessible to course instructors and administrators.
-        </p>
-      </div>
-    )
-  }
-
-  return <div>{/* Instructor assessment UI */}</div>
+  return (
+    <div>
+      <KanbanBoard />
+      {user.role === 'instructor' && (
+        <Button onClick={gradeSubmission}>Grade Work</Button>
+      )}
+    </div>
+  )
 }
 ```
 

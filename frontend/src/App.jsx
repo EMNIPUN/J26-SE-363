@@ -9,6 +9,7 @@ import SplashScreen from './shared/components/SplashScreen.jsx'
 import { AuthProvider } from './shared/auth/AuthContext.jsx'
 import { useAuth } from './shared/auth/useAuth.js'
 import RequireAuth from './shared/auth/RequireAuth.jsx'
+import RequireRole from './shared/auth/RequireRole.jsx'
 import DashboardShell from './shared/layout/DashboardShell.jsx'
 import NotFound from './shared/pages/NotFound.jsx'
 import StudentHome from './shared/pages/dashboards/StudentHome.jsx'
@@ -61,12 +62,16 @@ function AppContent() {
         <Route element={<RequireAuth />}>
           <Route element={<DashboardShell />}>
             <Route path="/app" element={<RoleDashboard />} />
+
             {/* Backward compatibility redirects for legacy bookmarks */}
             <Route path="/student" element={<Navigate to="/app" replace />} />
             <Route path="/instructor" element={<Navigate to="/app" replace />} />
             <Route path="/admin" element={<Navigate to="/app" replace />} />
 
-            <Route path="/admin/*" element={<AdminRoutes />} />
+            {/* Admin-only routes */}
+            <Route element={<RequireRole allowedRoles={['admin']} />}>
+              <Route path="/admin/*" element={<AdminRoutes />} />
+            </Route>
             <Route path="/planning/*" element={<PlanningRoutes />} />
             <Route path="/performance/*" element={<PerformanceRoutes />} />
             <Route path="/tutor/*" element={<TutorRoutes />} />
