@@ -98,6 +98,18 @@ Every developer contributing to this codebase must adhere to the following stand
 
 ---
 
+## 🎓 Academic Hierarchy & Global Scope (`useScope`)
+
+> [!IMPORTANT]
+> **5-Tier Global Scope**: The entire platform operates across:
+> **Batch → Specialization → Group → Team → Student**.
+> All 4 research modules consume the active academic context via the `useScope()` hook. Instructors can explore any cohort using the top `<ScopeSelector />` bar, while students are automatically locked to their enrolled group.
+
+📖 **For the hierarchy breakdown, TanStack Query integration, and API param standards, see:**  
+👉 **[Academic Scope Guidelines](docs/ACADEMIC_SCOPE_GUIDELINES.md)**
+
+---
+
 ## Project Structure
 
 ```

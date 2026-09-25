@@ -5,6 +5,7 @@ import TopNavbar from './TopNavbar.jsx'
 import Sidebar from './Sidebar.jsx'
 import AiChatPanel from '../components/AiChatPanel.jsx'
 import { useAuth } from '../auth/useAuth.js'
+import { useScope } from '../context/useScope.js'
 import { getNavForRole } from './navConfig.js'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -42,7 +43,9 @@ export default function DashboardShell() {
     }
   })
 
-  const sections = getNavForRole(user.role)
+  const { selectedGroup } = useScope()
+  const activeTeamCode = selectedGroup?.code || 'J26-SE-363'
+  const sections = getNavForRole(user.role, activeTeamCode)
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((prev) => {
