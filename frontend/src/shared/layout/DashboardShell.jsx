@@ -5,7 +5,6 @@ import TopNavbar from './TopNavbar.jsx'
 import Sidebar from './Sidebar.jsx'
 import AiChatPanel from '../components/AiChatPanel.jsx'
 import { useAuth } from '../auth/useAuth.js'
-import { useScope } from '../context/useScope.js'
 import { getNavForRole } from './navConfig.js'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -43,9 +42,7 @@ export default function DashboardShell() {
     }
   })
 
-  const { selectedGroup } = useScope()
-  const activeTeamCode = selectedGroup?.code || 'J26-SE-363'
-  const sections = getNavForRole(user.role, activeTeamCode)
+  const sections = getNavForRole(user.role)
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((prev) => {
@@ -104,9 +101,9 @@ export default function DashboardShell() {
 
       {/* 3-Column Dashboard Body: fills entire viewport below navbar */}
       <div className="flex-1 flex w-full min-h-0 overflow-hidden">
-        {/* Column 1: Left Navigation Sidebar (Desktop) - fluid width collapse, hidden on mobile/tablets */}
+        {/* Column 1: Left Navigation Sidebar (Desktop) - fluid width collapse */}
         <div
-          className={`relative hidden lg:flex flex-col shrink-0 border-r border-sidebar-border bg-sidebar h-full transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          className={`relative hidden md:flex flex-col shrink-0 border-r border-sidebar-border bg-sidebar h-full transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
             sidebarCollapsed ? 'w-[68px]' : 'w-64'
           }`}
         >
@@ -141,8 +138,8 @@ export default function DashboardShell() {
           </Tooltip>
         </div>
 
-        {/* Column 2: Content Area (Independently scrollable with container-query auto-wrapping) */}
-        <main className="flex-1 min-w-0 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 bg-background column-scroll-contain transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] workspace-container">
+        {/* Column 2: Content Area (Independently scrollable with fluid fade-rise tab entrance & shaded canvas) */}
+        <main className="flex-1 min-w-0 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 bg-background column-scroll-contain transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
           <div key={location.pathname} className="max-w-7xl mx-auto animate-fade-rise">
             <Outlet />
           </div>
