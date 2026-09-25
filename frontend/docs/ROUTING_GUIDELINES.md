@@ -16,9 +16,8 @@ In legacy or poorly-structured web apps, developers often prefix routes with use
 - **Git Merge Hell**: Multiple team members constantly editing the root router table.
 
 ### The MENTOR Routing Solution
-1. **Team-Scoped Workspaces (`/teams/:teamId/*`)**: All module workflows operate inside an active team workspace (e.g., `/teams/J26-SE-363/performance/dashboard`).
-2. **Backward-Compatible Redirects**: Unscoped routes (e.g., `/app` or `/performance/dashboard`) automatically redirect to the active team (`/teams/J26-SE-363/...`).
-3. **Domain-Driven Modules**: Each research module owns an independent URL namespace (`planning/*`, `performance/*`, `tutor/*`, `security/*`). Developers never edit other team members' route tables.
+1. **Single Entry Route (`/app`)**: All authenticated users land on `http://localhost:5173/app`. The app determines the user's role from the verified JWT token and dynamically renders the appropriate Home/Overview workspace ([`StudentHome`](../src/shared/pages/dashboards/StudentHome.jsx), [`InstructorHome`](../src/shared/pages/dashboards/InstructorHome.jsx), or [`AdminHome`](../src/shared/pages/dashboards/AdminHome.jsx)).
+2. **Domain-Driven Modules**: Each research module owns an independent URL namespace (`/planning/*`, `/performance/*`, `/tutor/*`, `/security/*`). Developers never edit other team members' route tables.
 
 ---
 

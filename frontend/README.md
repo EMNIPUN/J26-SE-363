@@ -98,18 +98,6 @@ Every developer contributing to this codebase must adhere to the following stand
 
 ---
 
-## 👥 Team-Scoped Routing & Tenancy Architecture (`useScope`)
-
-> [!IMPORTANT]
-> **Team-Scoped Workspaces (`/teams/:teamId/*`)**: The platform organizes all research module workflows by active team workspace.
-> All 4 research modules consume the active group and its student members via the `useScope()` hook.
-> Instructors can switch between supervised teams using the searchable navbar dropdown, while students are secured by a route-level tenancy guard (`TeamScopeGuard`) locked to their enrolled team.
-
-📖 **For the team scoping specification, TanStack Query integration, and tenancy isolation details, see:**  
-👉 **[Team-Scoped Architecture Guidelines](docs/ACADEMIC_SCOPE_GUIDELINES.md)**
-
----
-
 ## Project Structure
 
 ```

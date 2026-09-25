@@ -7,20 +7,10 @@ import StudentDetail from './pages/instructor/StudentDetail.jsx'
 import Assessments from './pages/instructor/Assessments.jsx'
 import Reports from './pages/instructor/Reports.jsx'
 
-import { useAuth } from '@/shared/auth/useAuth'
-
-function PerformanceIndex() {
-  const { user } = useAuth()
-  if (user?.role === 'instructor' || user?.role === 'admin') {
-    return <Navigate to="dashboard" replace />
-  }
-  return <Navigate to="my-progress" replace />
-}
-
 export default function PerformanceRoutes() {
   return (
     <Routes>
-      <Route index element={<PerformanceIndex />} />
+      <Route index element={<Navigate to="my-progress" replace />} />
       <Route path="my-progress" element={<MyProgress />} />
 
       {/* Instructor & Admin restricted routes */}
