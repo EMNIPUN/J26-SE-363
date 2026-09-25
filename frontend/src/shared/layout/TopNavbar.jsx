@@ -6,6 +6,7 @@ import ThemeToggle from '../components/ThemeToggle.jsx'
 import NotificationDropdown from '../components/NotificationDropdown.jsx'
 import CommandPalette from '../components/CommandPalette.jsx'
 import MentorLogo from '../components/MentorLogo.jsx'
+import ScopeSelector from '../components/ScopeSelector.jsx'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +32,7 @@ export default function TopNavbar({ onToggleMobileMenu }) {
           <ShadcnButton
             variant="ghost"
             size="icon"
-            className="md:hidden h-9 w-9"
+            className="lg:hidden h-9 w-9 cursor-pointer"
             onClick={onToggleMobileMenu}
             aria-label="Toggle navigation"
           >
@@ -40,6 +41,8 @@ export default function TopNavbar({ onToggleMobileMenu }) {
         )}
 
         <MentorLogo size={32} showText={true} />
+        <div className="h-5 w-px bg-border/60 mx-1.5 hidden sm:block" />
+        <ScopeSelector />
       </div>
 
       <div className="hidden md:flex items-center flex-1 max-w-md mx-6">

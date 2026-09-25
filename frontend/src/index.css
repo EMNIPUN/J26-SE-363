@@ -331,4 +331,43 @@
   flex-direction: column;
 }
 
+/* ==========================================================================
+   WORKSPACE CONTAINER QUERIES (Fluid Multi-Column Auto-Wrapping)
+   Ensures cards never get squished when the 3rd column (AI Copilot) is open.
+   Whenever Column 2 available width drops below 980px, multi-column layouts
+   automatically wrap to the next line without developers needing to do anything.
+   ========================================================================== */
+
+.workspace-container {
+  container-type: inline-size;
+}
+
+@container (max-width: 980px) {
+  /* Automatically wrap 12-column and 2-column grids into single column */
+  .workspace-container [class*="lg:grid-cols-12"],
+  .workspace-container [class*="lg:grid-cols-2"],
+  .workspace-container [class*="md:grid-cols-2"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .workspace-container [class*="lg:col-span-"],
+  .workspace-container [class*="col-span-"] {
+    grid-column: span 1 / span 1 !important;
+  }
+
+  /* Wrap 4-column KPI metric rows into an elegant 2x2 grid */
+  .workspace-container [class*="lg:grid-cols-4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@container (max-width: 560px) {
+  /* On compact mobile or very narrow column widths, wrap all KPI cards to single column */
+  .workspace-container [class*="lg:grid-cols-4"],
+  .workspace-container [class*="sm:grid-cols-2"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+
 

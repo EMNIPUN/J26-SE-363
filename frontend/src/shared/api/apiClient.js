@@ -38,6 +38,23 @@ apiClient.interceptors.request.use(
     // 2. Trace metadata
     config.headers['X-Client-Timestamp'] = new Date().toISOString()
 
+    // 3. Team Tenancy Header Injection (contract-first forward compatibility)
+    try {
+      if (typeof window !== 'undefined') {
+        const match = window.location.pathname.match(/\/teams\/([^/]+)/)
+        const teamInUrl = match ? match[1] : null
+        const savedScope = sessionStorage.getItem('mentor_academic_scope')
+        let savedGroupId = null
+        if (savedScope) {
+          savedGroupId = JSON.parse(savedScope)?.groupId
+        }
+        const activeTeam = teamInUrl || savedGroupId || 'grp-j26-se-363'
+        config.headers['X-Team-Id'] = activeTeam
+      }
+    } catch {
+      // ignore header resolution error
+    }
+
     return config
   },
   (error) => Promise.reject(ApiError.fromAxiosError(error))
