@@ -78,7 +78,7 @@ export const GROUPS = [
     code: 'J26-SE-364',
     name: 'Group 12 — TrackWise',
     projectTitle: 'Automated Agile Sprints & Smart Backlog Balancing Engine',
-    repositoryUrl: 'https://github.com/sliit-fyp/trackwise',
+    repositoryUrl: 'https://github.com/mentor-research/trackwise',
   },
   {
     id: 'grp-j26-se-365',
@@ -87,7 +87,7 @@ export const GROUPS = [
     code: 'J26-SE-365',
     name: 'Group 03 — NexaPlan',
     projectTitle: 'Graph-based Requirements Decomposition & Dependency Tracker',
-    repositoryUrl: 'https://github.com/sliit-fyp/nexaplan',
+    repositoryUrl: 'https://github.com/mentor-research/nexaplan',
   },
   {
     id: 'grp-j26-ds-101',
@@ -96,7 +96,7 @@ export const GROUPS = [
     code: 'J26-DS-101',
     name: 'Group 01 — NeuralPulse',
     projectTitle: 'Predictive Student Retention via Multi-modal Learning Analytics',
-    repositoryUrl: 'https://github.com/sliit-fyp/neuralpulse',
+    repositoryUrl: 'https://github.com/mentor-research/neuralpulse',
   },
 ]
 

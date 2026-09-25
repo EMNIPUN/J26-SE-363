@@ -57,7 +57,7 @@ export default function Reports() {
             Academic Performance Gradebook & Reports
           </h1>
           <p className="text-xs text-muted-foreground">
-            SLIIT final viva evaluation summary, AHP weighted scores, and forensic contribution records.
+            Academic final viva evaluation summary, AHP weighted scores, and forensic contribution records.
           </p>
         </div>
 
@@ -161,7 +161,7 @@ export default function Reports() {
       {/* Examiner Verification Block */}
       <Card className="p-5 bg-card border-border shadow-xs space-y-3">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          SLIIT Viva Evaluation Panel Certification
+          Academic Viva Examination Panel Certification
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 text-xs">
           <div className="p-3.5 rounded-lg border border-border/70 space-y-3 bg-muted/10">
