@@ -71,6 +71,33 @@ Every developer contributing to this codebase must adhere to the following stand
 
 ---
 
+## 🌐 API Calling & Data Synchronization Standards (Must Read)
+
+> [!IMPORTANT]
+> **Zero Hardcoded URLs Policy**: Never write hardcoded URLs or `fetch()` directly in React components.
+> All API communication follows a strict 4-layer architecture:
+> **Vite/Vercel Proxy (`/api`) → Central `apiClient` → Domain Services → TanStack Query (`useQuery` / `useMutation`)**.
+
+- **In-Memory Token Management**: Access tokens live in memory (`tokenManager.js`), preventing XSS token harvesting.
+- **Single Source of Truth**: All endpoint paths are defined in `src/shared/api/endpoints.js`.
+- **Automatic Caching & Deduplication**: Managed by `@tanstack/react-query`.
+
+📖 **For the complete developer tutorial and copy-paste examples, see:**  
+👉 **[API Architecture Guidelines](docs/API_GUIDELINES.md)**
+
+---
+
+## 🗺️ Routing & Navigation Architecture (Must Read)
+
+> [!IMPORTANT]
+> **Unified App Entrypoint (`/app`)**: Authenticated users are routed to `/app`, which polymorphically renders their role-specific overview (`StudentHome`, `InstructorHome`, or `AdminHome`).
+> All research feature modules (`/planning/*`, `/performance/*`, `/tutor/*`, `/security/*`) have independent route namespaces so team members never create route collisions or git conflicts.
+
+📖 **For the routing diagram, role switcher patterns, and developer route guide, see:**  
+👉 **[Routing Architecture Guidelines](docs/ROUTING_GUIDELINES.md)**
+
+---
+
 ## Project Structure
 
 ```

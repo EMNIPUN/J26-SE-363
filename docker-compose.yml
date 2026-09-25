@@ -1,0 +1,113 @@
+# ==============================================================================
+# DOCKER COMPOSE CONFIGURATION & PROFILE ARCHITECTURE
+# ==============================================================================
+# ⚠️ CRITICAL ARCHITECTURE RULE FOR CONTRIBUTORS & DEVELOPERS:
+# DO NOT ADD APPLICATION CONTAINERS (e.g., backend API, AI agents, workers,
+# application databases) TO THE 'infra', 'auth', OR 'gateway' PROFILES!
+#
+# REASONING:
+# 1. The 'infra' profile is strictly reserved for core cloud infrastructure
+#    (Keycloak IAM, PostgreSQL for Keycloak, Kong API Gateway) hosted on the VPS.
+# 2. Local developers connect directly to the VPS infrastructure. They must NOT
+#    be forced to download heavy (~1GB+) Keycloak/Kong Docker images.
+# 3. Application containers should run WITHOUT a profile (so they start by default
+#    with 'docker compose up') or under an 'app' profile.
+# ==============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mentor_postgres
+    restart: unless-stopped
+    # ⚠️ DO NOT add application containers to 'infra' or 'auth'.
+    # This database is strictly for Keycloak IAM internal data.
+    profiles:
+      - infra
+      - auth
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mentor-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: mentor_keycloak
+    command: start --import-realm
+    restart: unless-stopped
+    # ⚠️ DO NOT add application containers to 'infra' or 'auth'.
+    # Reserved solely for the Keycloak IAM server.
+    profiles:
+      - infra
+      - auth
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_HOSTNAME_URL: ${KEYCLOAK_HOSTNAME_URL:-${GATEWAY_PUBLIC_URL:-http://localhost:8000}/auth}
+      KC_HOSTNAME_ADMIN_URL: ${KEYCLOAK_HOSTNAME_ADMIN_URL:-${GATEWAY_PUBLIC_URL:-http://localhost:8000}/auth}
+      KC_HOSTNAME_STRICT: "${KEYCLOAK_HOSTNAME_STRICT}"
+      KC_HOSTNAME_STRICT_BACKCHANNEL: "${KEYCLOAK_HOSTNAME_STRICT_BACKCHANNEL}"
+      KC_HTTP_RELATIVE_PATH: ${KEYCLOAK_HTTP_RELATIVE_PATH}
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    volumes:
+      - ./docker/keycloak/themes:/opt/keycloak/themes:ro
+      - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mentor-net
+
+  kong:
+    image: kong:latest
+    container_name: mentor_kong
+    restart: unless-stopped
+    # ⚠️ DO NOT add application containers to 'infra' or 'gateway'.
+    # Reserved solely for the Kong API Gateway proxy.
+    profiles:
+      - infra
+      - gateway
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_TRUSTED_IPS: "0.0.0.0/0,::/0"
+      KONG_REAL_IP_HEADER: "X-Forwarded-For"
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 128k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 4 256k
+      KONG_NGINX_PROXY_PROXY_BUSY_BUFFERS_SIZE: 256k
+      KONG_NGINX_PROXY_LARGE_CLIENT_HEADER_BUFFERS: 4 64k
+    ports:
+      - "${KONG_PROXY_PORT:-8000}:8000"
+      - "${KONG_ADMIN_PORT:-8001}:8001"
+    volumes:
+      - ./docker/kong/kong.yml:/etc/kong/kong.yml:ro
+    depends_on:
+      - keycloak
+    networks:
+      - mentor-net
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  mentor-net:
+    driver: bridge
