@@ -51,9 +51,8 @@ export default function AhpRadarChart({
   return (
     <div className="relative flex flex-col items-center">
       <svg
-        width={size}
-        height={size}
-        className="overflow-visible select-none transition-all duration-300"
+        viewBox={`0 0 ${size} ${size}`}
+        className="w-full max-w-[340px] h-auto overflow-visible select-none transition-all duration-300"
       >
         {/* Concentric Polygonal Background Grid */}
         {gridLevels.map((lvl) => {

@@ -32,7 +32,7 @@ export default function TopNavbar({ onToggleMobileMenu }) {
           <ShadcnButton
             variant="ghost"
             size="icon"
-            className="md:hidden h-9 w-9"
+            className="lg:hidden h-9 w-9 cursor-pointer"
             onClick={onToggleMobileMenu}
             aria-label="Toggle navigation"
           >
