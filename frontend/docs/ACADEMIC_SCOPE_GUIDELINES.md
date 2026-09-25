@@ -1,87 +1,70 @@
-# MENTOR Academic Hierarchy & Global Scope Guidelines
+# MENTOR Team-Scoped Architecture & Guidelines
 
-This document is the **single source of truth** for all 4 module teams (**Project Planning**, **Performance Assessment**, **Adaptive AI Tutor**, and **AEGIS Security**) on how to consume and interact with the **Academic Scope Hierarchy**.
+This document is the **single source of truth** for all 4 research modules (**Project Planning**, **Performance Assessment**, **Adaptive AI Tutor**, and **AEGIS Security**) on how team scoping and tenancy isolation are structured in MENTOR.
 
 ---
 
-## 🏛️ The 5-Tier Academic Hierarchy
+## 🏛️ Conceptual Hierarchy vs Runtime Scoping
 
-Every module in MENTOR operates within the exact same 5-level educational structure:
+In the academic domain, projects belong to a batch and specialization:
+```text
+🎓 Batch (e.g. 2026 Batch — Y4S1)
+   └── 💻 Specialization (e.g. Software Engineering)
+        └── 👥 Research Group / Team (e.g. J26-SE-363 — MENTOR Platform)
+             └── 👤 Student Members (e.g. Sadeesha, Chathush, Nipun, Dilshan)
+```
+
+### The Pragmatic Architectural Decision:
+Instead of forcing users through 4 clumsy cascading dropdowns in the top header, **the entire application is scoped at the Team / Project level**:
+- The **Team** (`/teams/:teamId/...`) is the active workspace.
+- The **Students** are viewed and managed at the **Page and Tab level** (in roster tables, tabs, and detail views).
+
+---
+
+## 🌐 URL Routing Standard
+
+All four module teams mount their routes under the team prefix:
 
 ```text
-🎓 1. Batch           (e.g., "2026 — Year 4 Semester 1")
-    └── 💻 2. Specialization (e.g., "Software Engineering", "Cyber Security", "Data Science")
-         └── 👥 3. Group          (e.g., "Group 07 — J26-SE-363")
-              └── 📁 4. Team / Project (e.g., "MENTOR Platform Core")
-                   └── 👤 5. Student        (e.g., "Sadeesha Sathsara", "IT23155534")
+/teams/:teamId/app
+/teams/:teamId/planning/*
+/teams/:teamId/performance/*
+/teams/:teamId/tutor/*
+/teams/:teamId/security/*
 ```
 
----
-
-## 🎯 The Global Problem Solved
-
-### The Anti-Pattern (What we avoided)
-Without a shared hierarchy:
-- Each developer builds their own custom Batch and Group dropdowns on their pages.
-- A supervisor selecting "Group 07" on the Planning page loses their selection as soon as they navigate to Performance or Security.
-- Student vs Instructor permissions are handled inconsistently.
-
-### The MENTOR Platform Standard
-1. **Single Lightweight Context (`useScope()`)**: A shared context manages the active supervised research team/group across the platform.
-2. **Top Navbar Searchable Team Selector (`ScopeSelector.jsx`)**: Integrated directly into `TopNavbar.jsx` right beside the logo, saving vertical space and keeping the interface clean.
-3. **Role-Adaptive Experience**:
-   - **Student**: The top bar displays their **locked, enrolled team badge** (`J26-SE-363 • MENTOR Platform`). No selectors needed.
-   - **Instructor & Admin**: A sleek dropdown with an **integrated search bar** allowing instant switching between supervised groups by group code, project title, or team name.
-4. **Micro-Scope / Students Managed at the Page/Tab Level**:
-   - Students are never crowded into header dropdowns. Instead, individual students and team members are viewed on the page (in roster tables, tabs, and detail routes like `/performance/students/:id`).
-5. **Persistent State**: Selections are saved in session storage so switching modules or refreshing the browser retains the active team.
-
----
-
-## 🗺️ Visual Architecture Diagram
-
-```mermaid
-flowchart TD
-    Nav["TopNavbar.jsx"] --> ScopeBtn["Searchable Team Selector (ScopeSelector.jsx)\n[ 👥 J26-SE-363 • MENTOR Platform ▼ ]"]
-    ScopeBtn --> ScopeCtx["useScope() (Active Team, Group & Students)"]
-
-    subgraph ModuleConsumers ["All 4 Research Modules"]
-        Planning["/planning/* (Planning & Backlog)"]
-        Performance["/performance/* (AHP Scoring & Risk Prediction)"]
-        Tutor["/tutor/* (Adaptive Learning)"]
-        Security["/security/* (AEGIS Code Governance)"]
-    end
-
-    ScopeCtx ==>|selectedGroup, teamStudents, isStudent| ModuleConsumers
-```
+### Role Behavior & Tenancy Guard (`TeamScopeGuard.jsx`):
+1. **Students**:
+   - Automatically routed to their enrolled team: `/teams/J26-SE-363/...`.
+   - The top navbar displays a non-interactive badge: `[ 👥 J26-SE-363 — Group 07 ]`.
+   - **Cross-Tenancy Protection**: If a student attempts to type another team code in the URL (e.g., `/teams/J26-SE-364`), the route guard blocks them, displays an "Access Restricted" alert, and redirects them back to their authorized team.
+2. **Instructors & Admins**:
+   - Can supervise all research teams.
+   - The top navbar contains a **Searchable Team Dropdown** (`ScopeSelector.jsx`).
+   - Selecting a new team updates the active URL in real-time (e.g., `/teams/J26-SE-364/performance/dashboard`) and reloads the scoped data.
 
 ---
 
 ## 💻 Developer Guide: How to Use `useScope()` in Any Module
 
-Any developer on the team can access the active academic context in **one line of code**:
+Any developer can access the active team and its student members with **one hook**:
 
 ```jsx
 import { useScope } from '@/shared/context/useScope'
-```
 
-### 1. Basic Component Usage
-
-```jsx
-export default function GroupDashboard() {
+export default function MyModuleDashboard() {
   const {
-    isLocked,             // true for students, false for instructors
-    selectedBatch,        // { id, name, code, year, semester }
-    selectedSpecialization, // { id, name, code, color }
-    selectedGroup,        // { id, code, name, projectTitle, repositoryUrl }
-    selectedStudent,      // { id, studentId, name, email, ... } or null if "All"
+    isStudent,        // true for students, false for instructors/admins
+    selectedGroup,    // { id: 'grp-j26-se-363', code: 'J26-SE-363', name: 'Group 07', projectTitle: '...' }
+    teamStudents,     // Array of student objects belonging to the active team
+    studentProfile,   // Profile of the logged-in student (if isStudent === true)
   } = useScope()
 
   return (
     <div>
-      <h1>Active Group: {selectedGroup?.name}</h1>
-      <p>Specialization: {selectedSpecialization?.name}</p>
-      <p>Repository: {selectedGroup?.repositoryUrl}</p>
+      <h2>Active Team: {selectedGroup.name} ({selectedGroup.code})</h2>
+      <p>Project: {selectedGroup.projectTitle}</p>
+      <p>Team Size: {teamStudents.length} members</p>
     </div>
   )
 }
@@ -89,78 +72,50 @@ export default function GroupDashboard() {
 
 ---
 
-### 2. Connecting with TanStack Query (`useQuery`)
+## ⚡ Connecting with TanStack Query (`useQuery`)
 
-To ensure data automatically refetches when an instructor changes the selected group in the top bar, **always include the scope IDs in your `queryKey`**:
+Always include `selectedGroup?.code` or `selectedGroup?.id` in your query keys so cache invalidation happens automatically when an instructor switches teams:
 
 ```jsx
 import { useQuery } from '@tanstack/react-query'
 import { useScope } from '@/shared/context/useScope'
-import { performanceService } from '../services/performanceService'
+import { myService } from '../services/myService'
 
-export default function PerformanceMetrics() {
-  const { selectedBatch, selectedGroup, selectedStudent } = useScope()
+export default function ProjectBoard() {
+  const { selectedGroup } = useScope()
 
   const { data, isLoading } = useQuery({
-    // Include scope IDs in the queryKey for automatic cache invalidation
-    queryKey: [
-      'performance-overview',
-      selectedBatch?.id,
-      selectedGroup?.id,
-      selectedStudent?.id,
-    ],
-    queryFn: () =>
-      performanceService.getOverview({
-        batchId: selectedBatch?.id,
-        groupId: selectedGroup?.id,
-        studentId: selectedStudent?.id,
-      }),
+    queryKey: ['team-backlog', selectedGroup?.code],
+    queryFn: () => myService.getBacklog(selectedGroup?.id),
     enabled: Boolean(selectedGroup?.id),
   })
 
-  if (isLoading) return <LoadingSkeleton />
+  if (isLoading) return <p>Loading team backlog...</p>
 
-  return <div>{/* Render metrics scoped to selectedGroup */}</div>
+  return <div>{/* Render team backlog */}</div>
 }
 ```
 
 ---
 
-## 🌐 Standardized Backend Query Parameters
+## 📡 Backend API Contract-First Forwarding
 
-When sending HTTP requests from your frontend services to the backend APIs, use these standardized query parameters:
+Even if the backend has not yet implemented database multi-tenancy, every outgoing HTTP request made via `apiClient.js` automatically forwards the active team in the request headers:
 
-| Parameter | Type | Example Value | Description |
-| :--- | :--- | :--- | :--- |
-| `batch_id` | String | `batch-2026-y4s1` | Unique ID of the academic batch |
-| `specialization_id` | String | `spec-se` | Specialization identifier |
-| `group_id` | String | `grp-j26-se-363` | Group identifier |
-| `student_id` | String (Optional) | `std-it23155534` | Specific student ID, or omitted for whole group |
-
-Example in a module service:
-```javascript
-// src/modules/<module-name>/services/<name>Service.js
-import apiClient from '@/shared/api/apiClient'
-
-export const planningService = {
-  getSprintBacklog: ({ batchId, groupId }) => {
-    return apiClient.get('/api/planning/backlog', {
-      params: {
-        batch_id: batchId,
-        group_id: groupId,
-      },
-    })
-  },
-}
+```http
+X-Team-Id: J26-SE-363
 ```
+
+When backend services are ready to filter queries by team, developers simply inspect `req.headers['x-team-id']`. **No frontend changes will be necessary.**
 
 ---
 
-## 📋 Role Behavior Summary
+## 📋 Role Comparison Summary
 
 | Feature | Student Persona | Instructor / Admin Persona |
 | :--- | :--- | :--- |
-| **Scope Bar** | Read-only badges (`Locked`) | Interactive cascading dropdown pickers |
-| **Group Selection** | Pre-locked to their enrolled group | Freedom to switch between any group |
-| **Student Selection** | Pre-locked to themselves | Option to select "All Students" or a specific student |
-| **Persistence** | Derived from verified profile | Saved in `sessionStorage` across sessions |
+| **Top Navbar** | Read-only active team pill badge | Interactive searchable team dropdown |
+| **URL Scope** | Enforced & locked to enrolled team | Free switching between any supervised team |
+| **Tamper Attempt** | Blocked with toast alert & safe redirect | Allowed across all registered teams |
+| **Student Roster** | Views own metrics + team contribution parity | Explores full roster table & deep dive reviews |
+| **Backend Header** | Injects enrolled `X-Team-Id` | Injects currently selected `X-Team-Id` |
