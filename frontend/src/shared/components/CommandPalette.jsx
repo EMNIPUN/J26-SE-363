@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Calendar,
   BarChart3,
-  Sparkles,
   ShieldAlert,
   Settings,
   Sun,
@@ -49,12 +48,10 @@ export default function CommandPalette({ open, onOpenChange }) {
     {
       heading: 'Navigation & Portals',
       items: [
-        { id: 'nav-student', title: 'Student Portal', icon: LayoutDashboard, path: '/student' },
-        { id: 'nav-instructor', title: 'Instructor Portal', icon: LayoutDashboard, path: '/instructor' },
-        { id: 'nav-admin', title: 'Admin Console', icon: Settings, path: '/admin' },
+        { id: 'nav-overview', title: 'Dashboard Overview', icon: LayoutDashboard, path: '/app' },
+        { id: 'nav-admin', title: 'Admin Console', icon: Settings, path: '/admin/users' },
         { id: 'nav-planning', title: 'Planning & Milestones', icon: Calendar, path: '/planning' },
         { id: 'nav-perf', title: 'Performance Analytics', icon: BarChart3, path: '/performance' },
-        { id: 'nav-tutor', title: 'AI Research Tutor', icon: Sparkles, path: '/tutor' },
         { id: 'nav-sec', title: 'Security & Compliance', icon: ShieldAlert, path: '/security' },
       ],
     },

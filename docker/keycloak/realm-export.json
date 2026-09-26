@@ -1,0 +1,97 @@
+{
+  "realm": "mentor",
+  "enabled": true,
+  "displayName": "MENTOR Platform",
+  "sslRequired": "external",
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": true,
+  "loginTheme": "mentor",
+  "roles": {
+    "realm": [
+      {
+        "name": "student",
+        "description": "Student role with access to learning tasks"
+      },
+      {
+        "name": "lecturer",
+        "description": "Lecturer role with access to monitoring and analytics"
+      },
+      {
+        "name": "admin",
+        "description": "Administrator with full system access"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "mentor-frontend",
+      "name": "Mentor Web Application",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "rootUrl": "http://localhost:5173",
+      "baseUrl": "http://localhost:5173",
+      "redirectUris": [
+        "https://mentor-frontend-testing.vercel.app/*",
+        "https://mentor-frontend-testing.vercel.app/",
+        "https://mentor-frontend-testing.vercel.app",
+        "http://localhost:5173/*",
+        "http://localhost:5173",
+        "http://localhost:*/*",
+        "http://127.0.0.1:*/*",
+        "https://*/*",
+        "https://*"
+      ],
+      "webOrigins": [
+        "+",
+        "https://mentor-frontend-testing.vercel.app",
+        "*"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+##https://mentor-frontend-testing.vercel.app/*##https://mentor-frontend-testing.vercel.app/##https://mentor-frontend-testing.vercel.app##http://localhost:5173/*##http://localhost:5173##http://localhost:*/*##https://*/*"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "email"
+      ]
+    },
+    {
+      "clientId": "account-console",
+      "name": "Account Console",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "/realms/mentor/account/*",
+        "https://*/*"
+      ],
+      "webOrigins": [
+        "+"
+      ]
+    },
+    {
+      "clientId": "account",
+      "name": "Account",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "/realms/mentor/account/*",
+        "https://*/*"
+      ],
+      "webOrigins": [
+        "+"
+      ]
+    }
+  ]
+}

@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, ChevronLeft } from 'lucide-react'
 import TopNavbar from './TopNavbar.jsx'
 import Sidebar from './Sidebar.jsx'
 import AiChatPanel from '../components/AiChatPanel.jsx'
 import { useAuth } from '../auth/useAuth.js'
+import { useScope } from '../context/useScope.js'
 import { getNavForRole } from './navConfig.js'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 const PORTAL_LABEL = {
   student: 'Student Portal',
@@ -15,12 +17,21 @@ const PORTAL_LABEL = {
 }
 
 const AI_PANEL_STORAGE_KEY = 'mentor-ai-panel-open'
+const SIDEBAR_COLLAPSED_KEY = 'mentor-sidebar-collapsed'
 
 export default function DashboardShell() {
   const { user } = useAuth()
   const location = useLocation()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [mobileAiOpen, setMobileAiOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY)
+      return saved !== null ? saved === 'true' : false
+    } catch {
+      return false
+    }
+  })
   const [aiPanelOpen, setAiPanelOpen] = useState(() => {
     try {
       const saved =
@@ -32,7 +43,21 @@ export default function DashboardShell() {
     }
   })
 
-  const sections = getNavForRole(user.role)
+  const { selectedGroup } = useScope()
+  const activeTeamCode = selectedGroup?.code || 'J26-SE-363'
+  const sections = getNavForRole(user.role, activeTeamCode)
+
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next))
+      } catch {
+        // ignore localStorage errors
+      }
+      return next
+    })
+  }
 
   const handleToggleAi = () => {
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
@@ -61,6 +86,7 @@ export default function DashboardShell() {
             <Sidebar
               sections={sections}
               portalLabel={PORTAL_LABEL[user.role]}
+              collapsed={false}
               onNavigate={() => setMobileNavOpen(false)}
             />
           </div>
@@ -78,13 +104,45 @@ export default function DashboardShell() {
 
       {/* 3-Column Dashboard Body: fills entire viewport below navbar */}
       <div className="flex-1 flex w-full min-h-0 overflow-hidden">
-        {/* Column 1: Left Navigation Sidebar (Desktop) - fixed to screen */}
-        <div className="hidden md:block w-64 shrink-0 border-r border-sidebar-border bg-sidebar h-full overflow-y-auto column-scroll-contain">
-          <Sidebar sections={sections} portalLabel={PORTAL_LABEL[user.role]} />
+        {/* Column 1: Left Navigation Sidebar (Desktop) - fluid width collapse, hidden on mobile/tablets */}
+        <div
+          className={`relative hidden lg:flex flex-col shrink-0 border-r border-sidebar-border bg-sidebar h-full transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            sidebarCollapsed ? 'w-[68px]' : 'w-64'
+          }`}
+        >
+          {/* Scrollable Navigation */}
+          <div className="flex-1 min-h-0 overflow-y-auto column-scroll-contain">
+            <Sidebar
+              sections={sections}
+              portalLabel={PORTAL_LABEL[user.role]}
+              collapsed={sidebarCollapsed}
+            />
+          </div>
+
+          {/* Border Collapse Toggle Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={handleToggleSidebar}
+                aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                className="absolute -right-3 top-5 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-xs hover:bg-accent hover:text-foreground hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <ChevronLeft
+                  className={`h-3.5 w-3.5 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                    sidebarCollapsed ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={8}>
+              {sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            </TooltipContent>
+          </Tooltip>
         </div>
 
-        {/* Column 2: Content Area (Independently scrollable with fluid fade-rise tab entrance & shaded canvas) */}
-        <main className="flex-1 min-w-0 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 bg-background column-scroll-contain transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
+        {/* Column 2: Content Area (Independently scrollable with container-query auto-wrapping) */}
+        <main className="flex-1 min-w-0 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 bg-background column-scroll-contain transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] workspace-container">
           <div key={location.pathname} className="max-w-7xl mx-auto animate-fade-rise">
             <Outlet />
           </div>
