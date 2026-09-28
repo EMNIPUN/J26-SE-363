@@ -6,38 +6,44 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.955 0.005 260); /* Distinct, soft light gray/slate canvas for Column 2 */
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0); /* Pure crisp white for elevated cards & panels */
-  --card-foreground: oklch(0.145 0 0);
+  /* SELVIA enterprise-blue system — 60% light canvas, 30% navy chrome, 10% blue accent */
+  --background: oklch(0.985 0.004 250); /* near-white cool canvas (the 60%) */
+  --foreground: oklch(0.21 0.03 258); /* slate-900 text */
+  --card: oklch(1 0 0); /* crisp white cards & panels */
+  --card-foreground: oklch(0.21 0.03 258);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.935 0.005 260);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.935 0.005 260);
-  --muted-foreground: oklch(0.48 0.005 260);
-  --accent: oklch(0.935 0.005 260);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.89 0.005 260); /* Crisp defining border */
-  --input: oklch(0.89 0.005 260);
-  --ring: oklch(0.65 0 0);
-  --chart-1: oklch(0.62 0.19 260); /* blue — planning */
-  --chart-2: oklch(0.58 0.22 300); /* violet — performance */
-  --chart-3: oklch(0.65 0.16 150); /* green — tutor */
-  --chart-4: oklch(0.64 0.22 25); /* red — security */
-  --chart-5: oklch(0.75 0.16 80); /* amber — warning/neutral series */
+  --popover-foreground: oklch(0.21 0.03 258);
+  --primary: oklch(0.55 0.20 260); /* enterprise blue-600 accent (the 10%) */
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.012 255);
+  --secondary-foreground: oklch(0.30 0.04 260);
+  --muted: oklch(0.968 0.006 250);
+  --muted-foreground: oklch(0.52 0.02 258);
+  --accent: oklch(0.95 0.025 255); /* light blue hover tint */
+  --accent-foreground: oklch(0.45 0.15 262); /* blue-700 */
+  --destructive: oklch(0.58 0.22 27); /* status red */
+  --border: oklch(0.925 0.008 250);
+  --input: oklch(0.92 0.008 250);
+  --ring: oklch(0.55 0.20 260); /* blue focus ring */
+  --chart-1: oklch(0.55 0.20 260); /* blue — primary series */
+  --chart-2: oklch(0.68 0.14 250); /* light blue */
+  --chart-3: oklch(0.45 0.16 265); /* deep blue */
+  --chart-4: oklch(0.75 0.15 75); /* amber — warning series */
+  --chart-5: oklch(0.62 0.17 150); /* green — success series */
   --radius: 0.625rem;
-  --sidebar: oklch(1 0 0); /* Crisp white frame for Sidebar & TopNavbar */
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.95 0.005 260);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.89 0.005 260);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Dark navy sidebar even in light mode (the 30% structural chrome) */
+  --sidebar: oklch(0.22 0.045 265);
+  --sidebar-foreground: oklch(0.86 0.015 255);
+  --sidebar-primary: oklch(0.60 0.20 260); /* blue active pill */
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.30 0.04 264); /* lighter navy hover */
+  --sidebar-accent-foreground: oklch(0.96 0.01 255);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.60 0.20 260);
+  /* White navbar, decoupled from card color */
+  --topbar: oklch(1 0 0);
+  --topbar-foreground: oklch(0.21 0.03 258);
+  --topbar-border: oklch(0.925 0.008 250);
 }
 
 @theme inline {
@@ -51,6 +57,9 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-topbar-border: var(--topbar-border);
+  --color-topbar-foreground: var(--topbar-foreground);
+  --color-topbar: var(--topbar);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -94,37 +103,40 @@
 }
 
 .dark {
-  --background: oklch(0.12 0.005 260); /* Subtle charcoal/zinc gray canvas for Column 2 */
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.165 0.005 260); /* Elevated dark surface for cards & tables */
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.17 0.005 260);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.12 0 0);
-  --secondary: oklch(0.20 0.005 260);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.18 0.005 260);
-  --muted-foreground: oklch(0.68 0 0);
-  --accent: oklch(0.20 0.005 260);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.65 0.22 25);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.6 0 0);
-  --chart-1: oklch(0.7 0.18 260); /* blue — planning */
-  --chart-2: oklch(0.68 0.2 300); /* violet — performance */
-  --chart-3: oklch(0.72 0.16 150); /* green — tutor */
-  --chart-4: oklch(0.7 0.2 25); /* red — security */
-  --chart-5: oklch(0.8 0.15 80); /* amber — warning/neutral series */
-  --sidebar: oklch(0.07 0 0); /* Deep clean black frame for Sidebar & TopNavbar */
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.14 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 9%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.17 0.02 262); /* deep navy-slate canvas */
+  --foreground: oklch(0.95 0.006 250); /* soft off-white text */
+  --card: oklch(0.21 0.022 262); /* gently elevated card & table surface */
+  --card-foreground: oklch(0.95 0.006 250);
+  --popover: oklch(0.22 0.022 262);
+  --popover-foreground: oklch(0.95 0.006 250);
+  --primary: oklch(0.62 0.19 260); /* brighter blue for dark bg */
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.26 0.02 262);
+  --secondary-foreground: oklch(0.95 0.006 250);
+  --muted: oklch(0.23 0.02 262);
+  --muted-foreground: oklch(0.70 0.015 258);
+  --accent: oklch(0.28 0.03 262);
+  --accent-foreground: oklch(0.90 0.02 255);
+  --destructive: oklch(0.65 0.21 27);
+  --border: oklch(1 0 0 / 11%);
+  --input: oklch(1 0 0 / 13%);
+  --ring: oklch(0.62 0.19 260);
+  --chart-1: oklch(0.62 0.19 260); /* blue — primary series */
+  --chart-2: oklch(0.72 0.13 250); /* light blue */
+  --chart-3: oklch(0.55 0.16 265); /* deep blue */
+  --chart-4: oklch(0.80 0.15 75); /* amber — warning series */
+  --chart-5: oklch(0.72 0.16 150); /* green — success series */
+  --sidebar: oklch(0.14 0.02 264); /* darkest navy frame for Sidebar */
+  --sidebar-foreground: oklch(0.90 0.01 255);
+  --sidebar-primary: oklch(0.62 0.19 260); /* blue active pill */
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.24 0.025 264); /* navy hover */
+  --sidebar-accent-foreground: oklch(0.95 0.01 255);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.62 0.19 260);
+  --topbar: oklch(0.20 0.022 262); /* dark slate TopNavbar in dark theme */
+  --topbar-foreground: oklch(0.95 0.006 250);
+  --topbar-border: oklch(1 0 0 / 10%);
 }
 
 @layer base {
@@ -243,12 +255,56 @@
   animation: ui-scale-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@keyframes letter-flip-lock {
+  0% {
+    transform: perspective(400px) rotateX(75deg) translateY(-2px);
+    opacity: 0.3;
+    filter: brightness(1.5);
+  }
+  65% {
+    transform: perspective(400px) rotateX(-8deg) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: perspective(400px) rotateX(0deg);
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+@keyframes letter-flipping {
+  0% {
+    transform: translateY(-1px);
+    opacity: 0.75;
+  }
+  100% {
+    transform: translateY(1px);
+    opacity: 0.95;
+  }
+}
+
+.animate-letter-flip {
+  animation: letter-flip-lock 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-letter-tumbling {
+  animation: letter-flipping 0.08s ease-in-out infinite alternate;
+}
+
 /* Universal tactile press interaction */
 .interactive-press {
   transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 .interactive-press:active {
   transform: scale(0.98);
+}
+
+/* Card surface elevation — used instead of a visible border */
+.card-elevated {
+  box-shadow: 0 1px 2px oklch(0 0 0 / 6%), 0 4px 14px -4px oklch(0 0 0 / 10%);
+}
+.dark .card-elevated {
+  box-shadow: 0 1px 2px oklch(0 0 0 / 30%), 0 4px 16px -4px oklch(0 0 0 / 45%);
 }
 
 /* Interactive card hover lift with subtle shadow */
@@ -285,5 +341,44 @@
   display: flex;
   flex-direction: column;
 }
+
+/* ==========================================================================
+   WORKSPACE CONTAINER QUERIES (Fluid Multi-Column Auto-Wrapping)
+   Ensures cards never get squished when the 3rd column (AI Copilot) is open.
+   Whenever Column 2 available width drops below 980px, multi-column layouts
+   automatically wrap to the next line without developers needing to do anything.
+   ========================================================================== */
+
+.workspace-container {
+  container-type: inline-size;
+}
+
+@container (max-width: 980px) {
+  /* Automatically wrap 12-column and 2-column grids into single column */
+  .workspace-container [class*="lg:grid-cols-12"],
+  .workspace-container [class*="lg:grid-cols-2"],
+  .workspace-container [class*="md:grid-cols-2"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .workspace-container [class*="lg:col-span-"],
+  .workspace-container [class*="col-span-"] {
+    grid-column: span 1 / span 1 !important;
+  }
+
+  /* Wrap 4-column KPI metric rows into an elegant 2x2 grid */
+  .workspace-container [class*="lg:grid-cols-4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@container (max-width: 560px) {
+  /* On compact mobile or very narrow column widths, wrap all KPI cards to single column */
+  .workspace-container [class*="lg:grid-cols-4"],
+  .workspace-container [class*="sm:grid-cols-2"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
 
 

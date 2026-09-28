@@ -14,12 +14,15 @@ export default function StatCard({
   trend,
   tone = 'primary',
   loading = false,
+  query,
   loadingFallback,
 }) {
-  if (loading) {
+  const isLoading = loading || Boolean(query?.isLoading || query?.isPending)
+
+  if (isLoading) {
     if (loadingFallback) return loadingFallback
     return (
-      <Card className="p-5 flex items-start gap-4 border-border bg-card animate-pulse">
+      <Card className="p-5 flex items-start gap-4 card-elevated ring-0 border border-border/60 bg-card animate-pulse">
         <div className="h-11 w-11 rounded-lg bg-muted shrink-0" />
         <div className="flex-1 space-y-2 py-0.5 min-w-0">
           <div className="h-3 w-20 rounded bg-muted/70" />
@@ -33,7 +36,7 @@ export default function StatCard({
   const iconColor = TONE_BG[tone] || TONE_BG.primary
 
   return (
-    <Card className="p-5 flex items-start gap-4 card-hover-lift border-border bg-card cursor-default">
+    <Card className="p-5 flex items-start gap-4 card-hover-lift card-elevated ring-0 border border-border/60 bg-card cursor-default">
       <div className={`p-3 rounded-lg flex items-center justify-center shrink-0 ${iconColor}`}>
         <Icon className="h-5 w-5" strokeWidth={2} />
       </div>

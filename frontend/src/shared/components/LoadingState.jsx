@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export function SkeletonCard({ className = '' }) {
   return (
-    <Card className={`p-5 space-y-3 border-border bg-card animate-pulse ${className}`}>
+    <Card className={`p-5 space-y-3 card-elevated ring-0 border border-border/60 bg-card animate-pulse ${className}`}>
       <div className="space-y-2">
         <Skeleton className="h-4 w-1/3" />
         <Skeleton className="h-3 w-1/2" />
@@ -23,7 +23,7 @@ export function SkeletonCard({ className = '' }) {
 
 export function SkeletonStat({ className = '' }) {
   return (
-    <Card className={`p-5 flex items-start gap-4 border-border bg-card animate-pulse ${className}`}>
+    <Card className={`p-5 flex items-start gap-4 card-elevated ring-0 border border-border/60 bg-card animate-pulse ${className}`}>
       <Skeleton className="h-11 w-11 rounded-lg shrink-0" />
       <div className="flex-1 space-y-2 py-0.5 min-w-0">
         <Skeleton className="h-3 w-20" />
@@ -36,7 +36,7 @@ export function SkeletonStat({ className = '' }) {
 
 export function SkeletonTable({ rows = 5, cols = 4, className = '' }) {
   return (
-    <Card className={`p-0 overflow-hidden border-border bg-card animate-pulse ${className}`}>
+    <Card className={`p-0 overflow-hidden card-elevated ring-0 border border-border/60 bg-card animate-pulse ${className}`}>
       {/* Table Header Skeleton */}
       <div className="flex items-center gap-4 px-4 py-3 border-b border-border bg-muted/40">
         {Array.from({ length: cols }).map((_, c) => (

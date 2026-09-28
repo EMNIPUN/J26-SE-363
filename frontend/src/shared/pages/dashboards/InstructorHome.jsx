@@ -15,9 +15,8 @@ import {
 } from '@/components/ui/table'
 
 const quickLinks = [
-  { ...getModule('planning'), to: '/planning/instructor/dashboard' },
-  { ...getModule('performance'), to: '/performance/instructor/dashboard' },
-  { ...getModule('tutor'), to: '/tutor/landing' },
+  { ...getModule('planning'), to: '/planning/dashboard' },
+  { ...getModule('performance'), to: '/performance/dashboard' },
   { ...getModule('security'), to: '/security/dashboard' },
 ]
 
@@ -36,7 +35,7 @@ export default function InstructorHome() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-          Welcome back, {user.name.split(' ').slice(-1)[0]} 👋
+          Welcome back, {user.name.split(' ').slice(-1)[0]}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">Supervising 8 groups across 3 batches this semester.</p>
       </div>

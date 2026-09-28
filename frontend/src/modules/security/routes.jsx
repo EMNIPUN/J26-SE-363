@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Dashboard from './pages/Dashboard.jsx'
 import ScanReport from './pages/ScanReport.jsx'
 import Remediation from './pages/Remediation.jsx'
+import RemediationDetail from './pages/RemediationDetail.jsx'
 
 export default function SecurityRoutes() {
   return (
@@ -11,6 +12,7 @@ export default function SecurityRoutes() {
       <Route path="dashboard" element={<Dashboard />} />
       <Route path="scan-report" element={<ScanReport />} />
       <Route path="remediation" element={<Remediation />} />
+      <Route path="remediation/:findingId" element={<RemediationDetail />} />
     </Routes>
   )
 }

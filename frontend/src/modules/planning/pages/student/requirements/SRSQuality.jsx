@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   XCircle,
   Lock,
+  LockOpen,
   ArrowRight,
   History,
   Gavel,
@@ -153,8 +154,9 @@ export default function SRSQuality() {
         breadcrumb={['Planning', 'Requirements', 'SRS Quality']}
         description="Upload your SRS or add requirements manually. Every requirement is scored against six quality dimensions and must pass before it can be decomposed."
         actions={
-          <Badge tone={avgScore >= QUALITY_GATE_THRESHOLD ? 'success' : 'warning'} className="text-sm px-3 py-1">
-            {avgScore >= QUALITY_GATE_THRESHOLD ? '🔓' : '🔒'} Quality {avgScore}% · {passingCount}/{requirements.length} passed
+          <Badge tone={avgScore >= QUALITY_GATE_THRESHOLD ? 'success' : 'warning'} className="text-sm px-3 py-1 inline-flex items-center gap-1.5">
+            {avgScore >= QUALITY_GATE_THRESHOLD ? <LockOpen className="h-3.5 w-3.5" strokeWidth={2} /> : <Lock className="h-3.5 w-3.5" strokeWidth={2} />}
+            Quality {avgScore}% · {passingCount}/{requirements.length} passed
           </Badge>
         }
       />

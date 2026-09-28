@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ListTodo, LayoutGrid, BarChart3, GripVertical, Layers, AlertTriangle } from 'lucide-react'
+import { ListTodo, LayoutGrid, BarChart3, GripVertical, Layers, AlertTriangle, Users, Clock, CheckCircle2, Circle } from 'lucide-react'
 import {
   ResponsiveContainer,
   LineChart,
@@ -43,6 +43,13 @@ import { KANBAN_COLUMNS, BURNDOWN_SEED, VELOCITY_TREND } from '../../data/mockDa
 
 const STATUS_TONE = { Todo: 'neutral', 'In Progress': 'primary', Blocked: 'danger', Done: 'success' }
 
+const COLUMN_META = {
+  Todo: { icon: Circle, iconClass: 'text-muted-foreground', bg: 'bg-muted/30' },
+  'In Progress': { icon: null, iconClass: 'bg-primary', bg: 'bg-primary/5' },
+  Blocked: { icon: AlertTriangle, iconClass: 'text-destructive', bg: 'bg-destructive/5' },
+  Done: { icon: CheckCircle2, iconClass: 'text-emerald-500', bg: 'bg-emerald-500/5' },
+}
+
 function memberFor(teamMembers, id) {
   return teamMembers.find((m) => m.id === id) || null
 }
@@ -53,7 +60,9 @@ function KanbanCard({ task, member, onAssign, teamMembers, onOpen }) {
       draggable
       onDragStart={(e) => e.dataTransfer.setData('text/plain', task.id)}
       onClick={() => onOpen(task)}
-      className="p-3 rounded-lg border border-border bg-card shadow-xs cursor-grab active:cursor-grabbing card-hover-lift"
+      className={`p-3 rounded-lg bg-card card-elevated border border-border/60 cursor-grab active:cursor-grabbing card-hover-lift ${
+        task.status === 'Blocked' ? 'border-l-2 border-l-destructive' : ''
+      }`}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -179,6 +188,8 @@ function BoardView() {
         {KANBAN_COLUMNS.map((col) => {
           const tasks = kanbanTasks.filter((t) => t.status === col.key)
           const points = tasks.reduce((sum, t) => sum + t.points, 0)
+          const meta = COLUMN_META[col.key]
+          const Icon = meta.icon
           return (
             <div
               key={col.key}
@@ -190,12 +201,13 @@ function BoardView() {
                 if (taskId) moveKanbanTask(taskId, col.key)
                 setDragOverCol(null)
               }}
-              className={`rounded-xl border p-3 space-y-3 min-h-[420px] transition-colors ${
-                dragOverCol === col.key ? 'border-primary bg-primary/5' : 'border-border bg-muted/20'
+              className={`rounded-xl p-3 space-y-3 min-h-[420px] transition-all ${meta.bg} ${
+                dragOverCol === col.key ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
               }`}
             >
               <div className="flex items-center justify-between px-1">
-                <h3 className="text-sm font-semibold text-foreground">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  {Icon ? <Icon className={`h-3.5 w-3.5 shrink-0 ${meta.iconClass}`} /> : <span className={`h-2 w-2 rounded-full shrink-0 ${meta.iconClass}`} />}
                   {col.label} <span className="text-muted-foreground font-normal">({tasks.length})</span>
                 </h3>
                 <span className="text-xs text-muted-foreground">{points} SP</span>
@@ -440,32 +452,89 @@ function ReportsView() {
   )
 }
 
+function formatShortDate(iso) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 export default function SprintManagement() {
-  const { projectInfo } = usePlanningData()
-  const [tab, setTab] = useState('summary')
+  const { projectInfo, teamMembers, kanbanTasks } = usePlanningData()
+  const [tab, setTab] = useState('board')
+  const [today] = useState(() => Date.now())
+
+  const totalPoints = kanbanTasks.reduce((s, t) => s + t.points, 0)
+  const donePoints = kanbanTasks.filter((t) => t.status === 'Done').reduce((s, t) => s + t.points, 0)
+  const blockedCount = kanbanTasks.filter((t) => t.status === 'Blocked').length
+  const progressPercent = totalPoints ? Math.round((donePoints / totalPoints) * 100) : 0
+  const daysLeft = Math.max(0, Math.ceil((new Date(projectInfo.sprintEndDate).getTime() - today) / 86400000))
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Sprint Management"
-        breadcrumb={['Planning', 'Student', 'Sprint Management']}
-        description={`${projectInfo.sprintName} of ${projectInfo.totalSprints} — plan the backlog, run the board, and track progress.`}
-      />
+      <PageHeader title="Sprint Management" breadcrumb={['Planning', 'Student', 'Sprint Management']} />
+
+      {/* Sprint header */}
+      <Card className="p-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Active sprint</span>
+            </div>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">{projectInfo.sprintName}</h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              {formatShortDate(projectInfo.sprintStartDate)} – {formatShortDate(projectInfo.sprintEndDate)} · {projectInfo.sprintName} of {projectInfo.totalSprints}
+            </p>
+          </div>
+          <Badge tone="primary" className="text-sm px-3 py-1 shrink-0">
+            {daysLeft === 0 ? 'Ends today' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
+          </Badge>
+        </div>
+
+        <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mt-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5" /> {teamMembers.length} members
+          </span>
+          <span className="h-1 w-1 rounded-full bg-border" />
+          <span className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" /> {kanbanTasks.length} tasks · {totalPoints} SP
+          </span>
+          {blockedCount > 0 && (
+            <>
+              <span className="h-1 w-1 rounded-full bg-border" />
+              <span className="flex items-center gap-1.5 text-destructive font-medium">
+                <AlertTriangle className="h-3.5 w-3.5" /> {blockedCount} blocked
+              </span>
+            </>
+          )}
+          <div className="flex -space-x-2 ml-1">
+            {teamMembers.map((m) => (
+              <AvatarComp key={m.id} name={m.name} size={24} className="ring-2 ring-card" />
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span className="font-medium text-muted-foreground">Sprint progress</span>
+            <span className="font-semibold text-foreground">{progressPercent}%</span>
+          </div>
+          <Progress value={progressPercent} className="h-2" />
+        </div>
+      </Card>
 
       <WorkflowStepper current="sprint" />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="summary"><BarChart3 className="h-3.5 w-3.5" />Summary</TabsTrigger>
-          <TabsTrigger value="backlog"><Layers className="h-3.5 w-3.5" />Backlog</TabsTrigger>
           <TabsTrigger value="board"><LayoutGrid className="h-3.5 w-3.5" />Kanban</TabsTrigger>
           <TabsTrigger value="list"><ListTodo className="h-3.5 w-3.5" />Task List</TabsTrigger>
+          <TabsTrigger value="backlog"><Layers className="h-3.5 w-3.5" />Backlog</TabsTrigger>
+          <TabsTrigger value="summary"><BarChart3 className="h-3.5 w-3.5" />Summary</TabsTrigger>
           <TabsTrigger value="reports"><BarChart3 className="h-3.5 w-3.5" />Reports</TabsTrigger>
         </TabsList>
-        <TabsContent value="summary" className="mt-4"><SummaryView /></TabsContent>
-        <TabsContent value="backlog" className="mt-4"><BacklogView /></TabsContent>
         <TabsContent value="board" className="mt-4"><BoardView /></TabsContent>
         <TabsContent value="list" className="mt-4"><ListView /></TabsContent>
+        <TabsContent value="backlog" className="mt-4"><BacklogView /></TabsContent>
+        <TabsContent value="summary" className="mt-4"><SummaryView /></TabsContent>
         <TabsContent value="reports" className="mt-4"><ReportsView /></TabsContent>
       </Tabs>
 

@@ -48,6 +48,7 @@ const initialActivity = ACTIVITY_FEED.map((a) => ({
   id: nextId('ACT'),
   text: a.text,
   tone: a.tone,
+  category: a.category,
   timestamp: new Date().toISOString(),
 }))
 
@@ -68,8 +69,8 @@ function setState(patch) {
   listeners.forEach((listener) => listener())
 }
 
-function withActivity(text, tone = 'primary') {
-  return [{ id: nextId('ACT'), text, tone, timestamp: new Date().toISOString() }, ...state.activityLog]
+function withActivity(text, tone = 'primary', category = 'ai') {
+  return [{ id: nextId('ACT'), text, tone, category, timestamp: new Date().toISOString() }, ...state.activityLog]
 }
 
 export function getSnapshot() {
@@ -142,7 +143,7 @@ export const actions = {
       // The story set changed, so any prior coverage/INVEST result for this
       // requirement is stale — the agent needs to re-run its analysis.
       decompositionEvaluations: { ...state.decompositionEvaluations, [reqId]: null },
-      activityLog: withActivity(`${story.id} written for ${reqId} — ready for decomposition analysis.`, 'primary'),
+      activityLog: withActivity(`${story.id} written for ${reqId} — ready for decomposition analysis.`, 'primary', 'student'),
     })
   },
 
@@ -190,7 +191,7 @@ export const actions = {
         ...state.userStories,
         [reqId]: (state.userStories[reqId] || []).map((s) => (s.id === storyId ? { ...s, status: 'Accepted' } : s)),
       },
-      activityLog: withActivity(`${storyId} accepted — ready for effort estimation.`, 'success'),
+      activityLog: withActivity(`${storyId} accepted — ready for effort estimation.`, 'success', 'student'),
     })
   },
 
@@ -294,7 +295,7 @@ export const actions = {
           dueDate: nextDueDate(state.kanbanTasks.length),
         },
       ],
-      activityLog: withActivity(`${storyId} estimated at ${finalPoints} SP and sent to the sprint backlog.`, 'success'),
+      activityLog: withActivity(`${storyId} estimated at ${finalPoints} SP and sent to the sprint backlog.`, 'success', 'student'),
     })
   },
 
@@ -303,7 +304,7 @@ export const actions = {
     setState({
       kanbanTasks: state.kanbanTasks.map((t) => (t.id === taskId ? { ...t, status } : t)),
       activityLog:
-        status === 'Done' && task ? withActivity(`${task.id} — "${task.title}" marked Done.`, 'success') : state.activityLog,
+        status === 'Done' && task ? withActivity(`${task.id} — "${task.title}" marked Done.`, 'success', 'sprint') : state.activityLog,
     })
   },
 

@@ -15,8 +15,8 @@ export const QUALITY_DIMENSIONS = [
 
 export const AGENTS = {
   quality: { key: 'quality', label: 'Quality Analysis Agent', short: 'Quality', color: '#2563eb' },
-  decomposition: { key: 'decomposition', label: 'Decomposition Agent', short: 'Decomposition', color: '#7c3aed' },
-  estimation: { key: 'estimation', label: 'Estimation Agent', short: 'Estimation', color: '#0891b2' },
+  decomposition: { key: 'decomposition', label: 'Decomposition Agent', short: 'Decomposition', color: '#1d4ed8' },
+  estimation: { key: 'estimation', label: 'Estimation Agent', short: 'Estimation', color: '#3b82f6' },
 }
 
 export const QUALITY_GATE_THRESHOLD = 70
@@ -454,24 +454,28 @@ export const ACTIVITY_FEED = [
   {
     id: 1,
     tone: 'primary',
+    category: 'ai',
     text: 'SRS Quality Gate re-scored REQ-103 — still failing (41%), rewrite suggested.',
     time: '18 minutes ago',
   },
   {
     id: 2,
     tone: 'warning',
+    category: 'dart',
     text: 'DART flagged REQ-104 as a compound requirement — see SRS Quality feedback panel.',
     time: '2 hours ago',
   },
   {
     id: 3,
     tone: 'success',
+    category: 'ai',
     text: 'Estimation agent completed REQ-108 at 8 SP with a tight confidence interval.',
     time: 'Yesterday',
   },
   {
     id: 4,
     tone: 'danger',
+    category: 'dart',
     text: 'DART flagged REQ-106 as NOVEL — confidence agreement only 41%, routed to instructor review.',
     time: '2 days ago',
   },

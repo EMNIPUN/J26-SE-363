@@ -484,6 +484,42 @@ import LoadingState from '@/shared/components/LoadingState.jsx'
 </LoadingState>
 ```
 
+### 4. Fully Automated `<QueryBoundary>` (Recommended for TanStack Query)
+Eliminates all `isLoading`, `isError`, and empty checks by connecting queries directly to the global skeleton loader:
+
+```jsx
+import QueryBoundary from '@/shared/components/QueryBoundary.jsx'
+import { useProjects } from '@/modules/planning/hooks/useProjects.js'
+
+export default function ProjectsPage() {
+  const projectQuery = useProjects()
+
+  return (
+    // Automatically renders 3 card skeletons while fetching,
+    // automatically renders an error box with retry button on failure,
+    // and passes fetched data into the children function on success:
+    <QueryBoundary query={projectQuery} variant="card" count={3} className="grid-cols-3">
+      {(projects) => (
+        <div className="grid grid-cols-3 gap-4">
+          {projects.map(p => <ProjectCard key={p.id} project={p} />)}
+        </div>
+      )}
+    </QueryBoundary>
+  )
+}
+```
+
+You can also pass `query={myQuery}` directly into `<StatCard>` or `<Card>` for 100% automated skeleton triggering:
+```jsx
+// StatCard automatically shows skeleton while metricsQuery is in flight:
+<StatCard query={metricsQuery} icon={GraduationCap} label="Submissions" value={metricsQuery.data?.total} />
+
+// Card automatically shows skeleton while detailsQuery is in flight:
+<Card query={detailsQuery} loadingVariant="card">
+  <h3>{detailsQuery.data?.title}</h3>
+</Card>
+```
+
 ---
 
 ## 14. Essential Dashboard Primitives Reference

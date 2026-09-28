@@ -125,7 +125,7 @@ export default function DartButton({ context = 'dashboard' }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 left-6 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-foreground text-background shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer group"
+          className="hidden fixed bottom-6 left-6 z-40 items-center gap-2 px-4 py-2.5 rounded-full bg-foreground text-background shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer group"
         >
           <Gavel className="h-4 w-4 shrink-0" />
           <span className="text-xs font-semibold tracking-tight">DART</span>
