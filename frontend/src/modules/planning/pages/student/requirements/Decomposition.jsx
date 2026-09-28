@@ -15,11 +15,18 @@ import {
   Brain,
   SkipForward,
   RefreshCcw,
+  GraduationCap,
+  BookOpen,
+  UserCheck,
+  Check,
+  ShieldCheck,
+  FileText,
 } from 'lucide-react'
 import PageHeader from '../../../../../shared/components/PageHeader.jsx'
 import Card from '../../../../../shared/components/Card.jsx'
 import Badge from '../../../../../shared/components/Badge.jsx'
 import EmptyState from '../../../../../shared/components/EmptyState.jsx'
+import AvatarComp from '../../../../../shared/components/Avatar.jsx'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -31,11 +38,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import WorkflowStepper from '../../../components/WorkflowStepper.jsx'
 import DartButton from '../../../components/DartButton.jsx'
 import RequirementListPanel from '../../../components/RequirementListPanel.jsx'
+import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
 import { getArbitrationForRequirement } from '../../../data/mockData.js'
+import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
 import { runDecompositionAnalysis, INVEST_CRITERIA } from '../../../decompositionEngine.js'
 import { showToast } from '@/shared/utils/toast.jsx'
 
@@ -446,15 +463,138 @@ export default function Decomposition() {
     })
   }
 
+  const [investGuideOpen, setInvestGuideOpen] = useState(false)
+  const [consultOpen, setConsultOpen] = useState(false)
+
+  const passingCount = passing.length
+  const decomposedCount = passing.filter(
+    (r) => (userStories[r.id] || []).length > 0 && (userStories[r.id] || []).every((s) => s.status === 'Accepted'),
+  ).length
+  const overallDecompPercent = passingCount ? Math.round((decomposedCount / passingCount) * 100) : 0
+
   const dartCases = getArbitrationForRequirement(selectedReqId).filter((c) => c.status === 'Open')
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Requirement Decomposition"
-        breadcrumb={['Planning', 'Requirements', 'Decomposition']}
-        description="Only quality-gated requirements appear here. Write your own user stories — the agent checks coverage and INVEST, it doesn't write them for you."
-      />
+    <div className="space-y-6 pb-12">
+      {/* Top Academic Breadcrumb Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            <GraduationCap className="h-3.5 w-3.5 text-primary" />
+            <span>{COURSE_INFO.courseCode} · {COURSE_INFO.courseName}</span>
+            <span className="text-border">/</span>
+            <span className="text-foreground">Milestone M3</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+            Backlog Decomposition &amp; INVEST Story Modeling
+            <Badge tone="primary" className="text-xs font-medium">
+              INVEST Target: 100%
+            </Badge>
+          </h1>
+        </div>
+
+        {/* Action Toolbar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setInvestGuideOpen(true)}
+            className="text-xs cursor-pointer gap-1.5"
+          >
+            <BookOpen className="h-3.5 w-3.5 text-primary" /> INVEST Standards Guide
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setConsultOpen(true)}
+            className="text-xs cursor-pointer gap-1.5"
+          >
+            <UserCheck className="h-3.5 w-3.5 text-primary" /> Supervisor Advisory
+          </Button>
+          {isEligible && (
+            <Button
+              size="sm"
+              onClick={() => setShowNewStoryForm(true)}
+              className="text-xs cursor-pointer gap-1.5"
+            >
+              <Plus className="h-3.5 w-3.5" /> + Write User Story
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* LMS Project Banner Card with Round Progress Bar (no left border) */}
+      <Card className="p-5 relative overflow-hidden bg-card/90">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          <div className="space-y-2 min-w-0 max-w-2xl">
+            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+              <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                {COURSE_INFO.group.number} ({COURSE_INFO.group.code})
+              </span>
+              <span>·</span>
+              <span className="font-semibold text-foreground">{COURSE_INFO.department}</span>
+              <span>·</span>
+              <span>Methodology: <strong className="text-foreground">INVEST Agile Framework</strong></span>
+            </div>
+
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+              Backlog Decomposition &amp; Story Traceability Studio
+            </h2>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Decompose quality-gated functional requirements into atomic, testable user stories with concrete acceptance criteria (Given / When / Then). The agent validates INVEST compliance and detects unrepresented requirement scope.
+            </p>
+
+            <div className="flex items-center gap-4 flex-wrap pt-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5 font-medium text-foreground">
+                <AvatarComp name={COURSE_INFO.supervisor.name} size={20} className="ring-1 ring-border" />
+                Supervisor: {COURSE_INFO.supervisor.name}
+              </span>
+              <span className="h-1 w-1 rounded-full bg-border" />
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                {passingCount} Eligible Requirements
+              </span>
+              <span className="h-1 w-1 rounded-full bg-border" />
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                {decomposedCount} of {passingCount} Fully Decomposed
+              </span>
+            </div>
+          </div>
+
+          {/* Round Progress Bar with Percentage in Middle */}
+          <div className="flex flex-col items-center justify-center shrink-0 self-center sm:self-center px-3 py-1">
+            <div className="relative flex items-center justify-center" style={{ width: 92, height: 92 }}>
+              <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 92 92">
+                <circle
+                  cx="46"
+                  cy="46"
+                  r="38"
+                  className="stroke-muted"
+                  strokeWidth="7"
+                  fill="transparent"
+                />
+                <circle
+                  cx="46"
+                  cy="46"
+                  r="38"
+                  className="stroke-primary transition-all duration-700 ease-out"
+                  strokeWidth="7"
+                  strokeDasharray={2 * Math.PI * 38}
+                  strokeDashoffset={(2 * Math.PI * 38) * (1 - overallDecompPercent / 100)}
+                  strokeLinecap="round"
+                  fill="transparent"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-xl font-bold tracking-tight text-foreground">{overallDecompPercent}%</span>
+              </div>
+            </div>
+            <span className="text-xs font-semibold text-muted-foreground mt-1.5">Decomp. Progress</span>
+          </div>
+        </div>
+      </Card>
 
       <WorkflowStepper current="decomposition" />
 
@@ -608,6 +748,59 @@ export default function Decomposition() {
       </div>
 
       <DartButton context="decomposition" />
+
+      {/* Supervisor Consultation Modal */}
+      <SupervisorConsultationModal
+        open={consultOpen}
+        onOpenChange={setConsultOpen}
+        requirements={requirements}
+      />
+
+      {/* INVEST Standards Guide Dialog */}
+      <Dialog open={investGuideOpen} onOpenChange={setInvestGuideOpen}>
+        <DialogContent className="sm:max-w-[620px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="p-1 rounded bg-primary/10 text-primary">
+                <BookOpen className="h-4 w-4" />
+              </span>
+              <DialogTitle className="text-lg font-bold">INVEST User Story Quality Standards</DialogTitle>
+            </div>
+            <DialogDescription className="text-xs">
+              Academic guidelines used by the Decomposition Agent to validate agile user story quality.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-xs">
+            {INVEST_CRITERIA.map((crit) => (
+              <div key={crit.key} className="p-3 rounded-xl border border-border bg-card space-y-1">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-primary" /> {crit.label}
+                  </h4>
+                  <Badge tone="primary" className="text-[10px] px-1.5 py-0">INVEST Principle</Badge>
+                </div>
+                <p className="text-muted-foreground text-[11px] leading-relaxed">{crit.description}</p>
+                <div className="p-2 rounded bg-muted/40 text-[11px] text-foreground font-medium border border-border/50">
+                  <span className="text-primary font-bold">Standard: </span>
+                  {crit.key === 'independent' && 'Avoid temporal or implementation couplings to other unfinished stories.'}
+                  {crit.key === 'negotiable' && 'Describe what the user wants and why, without prescribing immutable UI/DB mechanics.'}
+                  {crit.key === 'valuable' && 'Articulate clear business or pedagogical value for students, tutors, or supervisors.'}
+                  {crit.key === 'estimable' && 'Provide enough clarity for team members to assign Fibonacci story points.'}
+                  {crit.key === 'small' && 'Scope the deliverable so it can be designed, coded, and verified within one sprint.'}
+                  {crit.key === 'testable' && 'Formulate clear Given / When / Then acceptance criteria.'}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button size="sm" onClick={() => setInvestGuideOpen(false)} className="text-xs cursor-pointer">
+              Understood
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

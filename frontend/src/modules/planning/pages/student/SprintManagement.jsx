@@ -16,6 +16,10 @@ import {
   SquareCheck,
   TrendingDown,
   Gauge,
+  GraduationCap,
+  UserCheck,
+  Sparkles,
+  BookOpen,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -29,7 +33,6 @@ import {
   Tooltip as RechartsTooltip,
   Legend,
 } from 'recharts'
-import PageHeader from '../../../../shared/components/PageHeader.jsx'
 import Card from '../../../../shared/components/Card.jsx'
 import Badge from '../../../../shared/components/Badge.jsx'
 import Button from '../../../../shared/components/Button.jsx'
@@ -56,6 +59,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import WorkflowStepper from '../../components/WorkflowStepper.jsx'
 import DartButton from '../../components/DartButton.jsx'
+import SupervisorConsultationModal from '../../components/SupervisorConsultationModal.jsx'
+import { COURSE_INFO } from '../../data/lmsAcademicData.js'
 import { usePlanningData } from '../../context/usePlanningData.js'
 import { KANBAN_COLUMNS, BURNDOWN_SEED, VELOCITY_TREND } from '../../data/mockData.js'
 import { showToast } from '@/shared/utils/toast.jsx'
@@ -759,9 +764,11 @@ function ReportsView() {
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 export default function SprintManagement() {
-  const { projectInfo, teamMembers, kanbanTasks } = usePlanningData()
+  const { projectInfo, teamMembers, kanbanTasks, requirements } = usePlanningData()
   const [tab, setTab] = useState('board')
   const [today] = useState(() => Date.now())
+  const [consultOpen, setConsultOpen] = useState(false)
+  const [scrumGuideOpen, setScrumGuideOpen] = useState(false)
 
   const totalPoints = kanbanTasks.reduce((s, t) => s + t.points, 0)
   const donePoints = kanbanTasks.filter((t) => t.status === 'Done').reduce((s, t) => s + t.points, 0)
@@ -770,56 +777,146 @@ export default function SprintManagement() {
   const daysLeft = Math.max(0, Math.ceil((new Date(projectInfo.sprintEndDate).getTime() - today) / 86400000))
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Sprint Management" breadcrumb={['Planning', 'Student', 'Sprint Management']} />
-
-      {/* Sprint header */}
-      <Card className="p-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Active sprint</span>
-            </div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">{projectInfo.sprintName}</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              {formatShortDate(projectInfo.sprintStartDate)} – {formatShortDate(projectInfo.sprintEndDate)} · {projectInfo.sprintName} of {projectInfo.totalSprints}
-            </p>
+    <div className="space-y-6 pb-12">
+      {/* Top Academic Breadcrumb Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            <GraduationCap className="h-3.5 w-3.5 text-primary" />
+            <span>{COURSE_INFO.courseCode} · {COURSE_INFO.courseName}</span>
+            <span className="text-border">/</span>
+            <span className="text-foreground">Milestone M3</span>
           </div>
-          <Badge tone="primary" className="text-sm px-3 py-1 shrink-0">
-            {daysLeft === 0 ? 'Ends today' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
-          </Badge>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+            Sprint Execution &amp; Agile Burndown
+            <Badge tone="primary" className="text-xs font-medium">
+              Sprint 1 of 4 Active
+            </Badge>
+          </h1>
         </div>
 
-        <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mt-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <Users className="h-3.5 w-3.5" /> {teamMembers.length} members
-          </span>
-          <span className="h-1 w-1 rounded-full bg-border" />
-          <span className="flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5" /> {kanbanTasks.length} tasks · {totalPoints} SP
-          </span>
-          {blockedCount > 0 && (
-            <>
-              <span className="h-1 w-1 rounded-full bg-border" />
-              <span className="flex items-center gap-1.5 text-destructive font-medium">
-                <AlertTriangle className="h-3.5 w-3.5" /> {blockedCount} blocked
+        {/* Action Toolbar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setScrumGuideOpen(true)}
+            className="text-xs cursor-pointer gap-1.5"
+          >
+            <BookOpen className="h-3.5 w-3.5 text-primary" /> Scrum Standards Guide
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setConsultOpen(true)}
+            className="text-xs cursor-pointer gap-1.5"
+          >
+            <UserCheck className="h-3.5 w-3.5 text-primary" /> Supervisor Advisory
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => showToast('Sprint completion dossier submitted for Dr. Amara Silva review', 'success')}
+            className="text-xs cursor-pointer gap-1.5"
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Complete Sprint
+          </Button>
+        </div>
+      </div>
+
+      {/* LMS Project Banner Card with Round Progress Bar (no left border) */}
+      <Card className="p-5 relative overflow-hidden bg-card/90">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          <div className="space-y-2 min-w-0 max-w-2xl">
+            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Active Sprint
               </span>
-            </>
-          )}
-          <div className="flex -space-x-2 ml-1">
-            {teamMembers.map((m) => (
-              <AvatarComp key={m.id} name={m.name} size={24} className="ring-2 ring-card" />
-            ))}
-          </div>
-        </div>
+              <span>·</span>
+              <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                {COURSE_INFO.group.number} ({COURSE_INFO.group.code})
+              </span>
+              <span>·</span>
+              <span className="font-semibold text-foreground">{COURSE_INFO.department}</span>
+              <span>·</span>
+              <span>
+                {formatShortDate(projectInfo.sprintStartDate)} – {formatShortDate(projectInfo.sprintEndDate)} · {projectInfo.sprintName} of {projectInfo.totalSprints}
+              </span>
+            </div>
 
-        <div className="mt-5">
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <span className="font-medium text-muted-foreground">Sprint progress</span>
-            <span className="font-semibold text-foreground">{progressPercent}%</span>
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+              {projectInfo.sprintName} · Agile Task Board &amp; Burndown
+            </h2>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Track real-time sprint execution across backlog user stories, subtasks, and Kanban columns. The DART audit engine monitors velocity compliance and flags blocked dependencies for academic evaluation.
+            </p>
+
+            <div className="flex items-center gap-4 flex-wrap pt-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5 font-medium text-foreground">
+                <AvatarComp name={COURSE_INFO.supervisor.name} size={20} className="ring-1 ring-border" />
+                Supervisor: {COURSE_INFO.supervisor.name}
+              </span>
+              <span className="h-1 w-1 rounded-full bg-border" />
+              <span className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 text-primary" />
+                {teamMembers.length} Members
+              </span>
+              <span className="h-1 w-1 rounded-full bg-border" />
+              <span className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-amber-500" />
+                {kanbanTasks.length} Tasks ({totalPoints} SP)
+              </span>
+              {blockedCount > 0 && (
+                <>
+                  <span className="h-1 w-1 rounded-full bg-border" />
+                  <span className="flex items-center gap-1.5 text-destructive font-medium">
+                    <AlertTriangle className="h-3.5 w-3.5" /> {blockedCount} Blocked
+                  </span>
+                </>
+              )}
+              <span className="h-1 w-1 rounded-full bg-border" />
+              <Badge tone="primary" className="text-[11px] px-2 py-0.5">
+                {daysLeft === 0 ? 'Ends today' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining`}
+              </Badge>
+              <div className="flex -space-x-2 ml-1">
+                {teamMembers.map((m) => (
+                  <AvatarComp key={m.id} name={m.name} size={22} className="ring-2 ring-card" />
+                ))}
+              </div>
+            </div>
           </div>
-          <Progress value={progressPercent} className="h-2" />
+
+          {/* Round Circular SVG Progress Bar with Percentage in Middle */}
+          <div className="flex flex-col items-center justify-center shrink-0 self-center sm:self-center px-3 py-1">
+            <div className="relative flex items-center justify-center" style={{ width: 92, height: 92 }}>
+              <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 92 92">
+                <circle
+                  cx="46"
+                  cy="46"
+                  r="38"
+                  className="stroke-muted"
+                  strokeWidth="7"
+                  fill="transparent"
+                />
+                <circle
+                  cx="46"
+                  cy="46"
+                  r="38"
+                  className="stroke-primary transition-all duration-700 ease-out"
+                  strokeWidth="7"
+                  strokeDasharray={2 * Math.PI * 38}
+                  strokeDashoffset={(2 * Math.PI * 38) * (1 - progressPercent / 100)}
+                  strokeLinecap="round"
+                  fill="transparent"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-xl font-bold tracking-tight text-foreground">{progressPercent}%</span>
+              </div>
+            </div>
+            <span className="text-xs font-semibold text-muted-foreground mt-1.5">Sprint Burned</span>
+          </div>
         </div>
       </Card>
 
@@ -852,6 +949,80 @@ export default function SprintManagement() {
       </Tabs>
 
       <DartButton context="sprint" />
+
+      {/* Supervisor Consultation Modal */}
+      <SupervisorConsultationModal
+        open={consultOpen}
+        onOpenChange={setConsultOpen}
+        requirements={requirements}
+      />
+
+      {/* Scrum Standards Guide Dialog */}
+      <Dialog open={scrumGuideOpen} onOpenChange={setScrumGuideOpen}>
+        <DialogContent className="sm:max-w-[620px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="p-1 rounded bg-primary/10 text-primary">
+                <BookOpen className="h-4 w-4" />
+              </span>
+              <DialogTitle className="text-lg font-bold">Scrum &amp; Sprint Execution Standards</DialogTitle>
+            </div>
+            <DialogDescription className="text-xs">
+              Academic guidelines used for Milestone M3 sprint evaluation and agile ceremony compliance.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-xs">
+            <div className="p-3 rounded-xl border border-border bg-card space-y-1">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Definition of Done (DoD)
+                </h4>
+                <Badge tone="primary" className="text-[10px] px-1.5 py-0">Criterion 1</Badge>
+              </div>
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                A user story or task is only marked Done when code is reviewed, unit/integration tests pass, and INVEST acceptance criteria (Given/When/Then) are confirmed.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl border border-border bg-card space-y-1">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Work-In-Progress (WIP) Limits
+                </h4>
+                <Badge tone="primary" className="text-[10px] px-1.5 py-0">Criterion 2</Badge>
+              </div>
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                Limit active tasks in &apos;In Progress&apos; per team member to prevent context switching and bottlenecks during sprint execution.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl border border-border bg-card space-y-1">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Impediment &amp; Blocked Escalation
+                </h4>
+                <Badge tone="primary" className="text-[10px] px-1.5 py-0">Criterion 3</Badge>
+              </div>
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                Tasks blocked for more than 24 hours must be annotated with a clear reason and escalated to Dr. Amara Silva or DART arbitration.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl border border-border bg-card space-y-1">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Velocity Consistency &amp; Burndown
+                </h4>
+                <Badge tone="primary" className="text-[10px] px-1.5 py-0">Criterion 4</Badge>
+              </div>
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                Burndown should track reasonably close to the ideal guideline. Sudden drop-offs at sprint end without steady progression will be flagged.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

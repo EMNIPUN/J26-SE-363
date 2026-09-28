@@ -1,10 +1,24 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ChevronDown, CheckCircle2, Sparkles, Lock, ArrowRight, Gauge } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import {
+  ChevronDown,
+  CheckCircle2,
+  Sparkles,
+  Lock,
+  ArrowRight,
+  Gauge,
+  GraduationCap,
+  BookOpen,
+  UserCheck,
+  Check,
+  FileText,
+  KanbanSquare,
+} from 'lucide-react'
 import PageHeader from '../../../../../shared/components/PageHeader.jsx'
 import Card from '../../../../../shared/components/Card.jsx'
 import Badge from '../../../../../shared/components/Badge.jsx'
 import EmptyState from '../../../../../shared/components/EmptyState.jsx'
+import AvatarComp from '../../../../../shared/components/Avatar.jsx'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -14,11 +28,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import WorkflowStepper from '../../../components/WorkflowStepper.jsx'
 import DartButton from '../../../components/DartButton.jsx'
 import RequirementListPanel from '../../../components/RequirementListPanel.jsx'
+import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
 import { STORY_POINT_SCALE } from '../../../data/mockData.js'
+import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
 import { showToast } from '@/shared/utils/toast.jsx'
 
 const CONFIDENCE_TONE = { High: 'success', Medium: 'primary', Low: 'warning' }
@@ -225,6 +249,14 @@ export default function Estimation() {
   const reqPending = reqAccepted.filter(({ story }) => !estimations[story.id]?.confirmed)
   const reqDone = reqAccepted.filter(({ story }) => estimations[story.id]?.confirmed)
 
+  const [consultOpen, setConsultOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
+  const navigate = useNavigate()
+
+  const estimationProgressPercent = acceptedStories.length
+    ? Math.round((estimatedCount / acceptedStories.length) * 100)
+    : 0
+
   function getEstimationMeta(r) {
     if (r.status !== 'Passing') return { percent: 0, tone: 'neutral', locked: true }
     const accepted = (userStories[r.id] || []).filter((s) => s.status === 'Accepted')
@@ -235,12 +267,124 @@ export default function Estimation() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Effort Estimation"
-        breadcrumb={['Planning', 'Requirements', 'Effort Estimation']}
-        description="Estimate each accepted user story yourself, compare against the AI's estimate, and confirm the final number that goes to Sprint Management."
-      />
+    <div className="space-y-6 pb-12">
+      {/* Top Academic Breadcrumb Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            <GraduationCap className="h-3.5 w-3.5 text-primary" />
+            <span>{COURSE_INFO.courseCode} · {COURSE_INFO.courseName}</span>
+            <span className="text-border">/</span>
+            <span className="text-foreground">Milestone M3</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+            Effort Estimation &amp; Story Point Sizing
+            <Badge tone="primary" className="text-xs font-medium">
+              Scale: 1 to 21 SP
+            </Badge>
+          </h1>
+        </div>
+
+        {/* Action Toolbar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setGuideOpen(true)}
+            className="text-xs cursor-pointer gap-1.5"
+          >
+            <BookOpen className="h-3.5 w-3.5 text-primary" /> Fibonacci Sizing Guide
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setConsultOpen(true)}
+            className="text-xs cursor-pointer gap-1.5"
+          >
+            <UserCheck className="h-3.5 w-3.5 text-primary" /> Supervisor Advisory
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => navigate('/planning/sprint-management')}
+            className="text-xs cursor-pointer gap-1.5"
+          >
+            <KanbanSquare className="h-3.5 w-3.5" /> Sprint Board
+          </Button>
+        </div>
+      </div>
+
+      {/* LMS Project Banner Card with Round Progress Bar (no left border) */}
+      <Card className="p-5 relative overflow-hidden bg-card/90">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          <div className="space-y-2 min-w-0 max-w-2xl">
+            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+              <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                {COURSE_INFO.group.number} ({COURSE_INFO.group.code})
+              </span>
+              <span>·</span>
+              <span className="font-semibold text-foreground">{COURSE_INFO.department}</span>
+              <span>·</span>
+              <span>Protocol: <strong className="text-foreground">Consensus Planning Poker</strong></span>
+            </div>
+
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+              Consensus-Based Effort Estimation Studio
+            </h2>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Estimate each accepted user story yourself before revealing the AI agent reference point. This double-blind protocol prevents cognitive anchoring bias and builds calibrated engineering judgment.
+            </p>
+
+            <div className="flex items-center gap-4 flex-wrap pt-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5 font-medium text-foreground">
+                <AvatarComp name={COURSE_INFO.supervisor.name} size={20} className="ring-1 ring-border" />
+                Supervisor: {COURSE_INFO.supervisor.name}
+              </span>
+              <span className="h-1 w-1 rounded-full bg-border" />
+              <span className="flex items-center gap-1.5">
+                <Gauge className="h-3.5 w-3.5 text-primary" />
+                {estimatedCount} of {acceptedStories.length} Stories Sized
+              </span>
+              <span className="h-1 w-1 rounded-full bg-border" />
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                {totalStudentSP} Story Points Assigned
+              </span>
+            </div>
+          </div>
+
+          {/* Round Progress Bar with Percentage in Middle */}
+          <div className="flex flex-col items-center justify-center shrink-0 self-center sm:self-center px-3 py-1">
+            <div className="relative flex items-center justify-center" style={{ width: 92, height: 92 }}>
+              <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 92 92">
+                <circle
+                  cx="46"
+                  cy="46"
+                  r="38"
+                  className="stroke-muted"
+                  strokeWidth="7"
+                  fill="transparent"
+                />
+                <circle
+                  cx="46"
+                  cy="46"
+                  r="38"
+                  className="stroke-primary transition-all duration-700 ease-out"
+                  strokeWidth="7"
+                  strokeDasharray={2 * Math.PI * 38}
+                  strokeDashoffset={(2 * Math.PI * 38) * (1 - estimationProgressPercent / 100)}
+                  strokeLinecap="round"
+                  fill="transparent"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-xl font-bold tracking-tight text-foreground">{estimationProgressPercent}%</span>
+              </div>
+            </div>
+            <span className="text-xs font-semibold text-muted-foreground mt-1.5">Stories Sized</span>
+          </div>
+        </div>
+      </Card>
 
       <WorkflowStepper current="effort" />
 
@@ -346,6 +490,80 @@ export default function Estimation() {
       </div>
 
       <DartButton context="effort" />
+
+      {/* Supervisor Consultation Modal */}
+      <SupervisorConsultationModal
+        open={consultOpen}
+        onOpenChange={setConsultOpen}
+        requirements={requirements}
+      />
+
+      {/* Fibonacci Sizing Guide Dialog */}
+      <Dialog open={guideOpen} onOpenChange={setGuideOpen}>
+        <DialogContent className="sm:max-w-[620px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="p-1 rounded bg-primary/10 text-primary">
+                <BookOpen className="h-4 w-4" />
+              </span>
+              <DialogTitle className="text-lg font-bold">Agile Story Point Estimation &amp; Fibonacci Scale</DialogTitle>
+            </div>
+            <DialogDescription className="text-xs">
+              Academic principles for sizing software work units and mitigating estimation bias.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3.5 text-xs">
+            <div className="p-3.5 rounded-xl border border-border bg-card space-y-1">
+              <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                <Check className="h-3.5 w-3.5 text-primary" /> Relative Sizing over Absolute Hours
+              </h4>
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                Story points quantify combined effort, technical complexity, risk, and unknowns relative to a small reference baseline. Never treat 1 SP as a fixed number of hours.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-border bg-card space-y-2">
+              <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                <Check className="h-3.5 w-3.5 text-primary" /> Modified Fibonacci Reference Scale
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                <div className="p-2 rounded bg-muted/40 border border-border/50">
+                  <span className="font-bold text-primary block">1 – 2 SP</span>
+                  <span className="text-muted-foreground">Trivial task, well-understood implementation.</span>
+                </div>
+                <div className="p-2 rounded bg-muted/40 border border-border/50">
+                  <span className="font-bold text-primary block">3 – 5 SP</span>
+                  <span className="text-muted-foreground">Standard feature with minor dependencies.</span>
+                </div>
+                <div className="p-2 rounded bg-muted/40 border border-border/50">
+                  <span className="font-bold text-primary block">8 SP</span>
+                  <span className="text-muted-foreground">Substantial scope, cross-module integration.</span>
+                </div>
+                <div className="p-2 rounded bg-muted/40 border border-border/50">
+                  <span className="font-bold text-destructive block">13 – 21 SP</span>
+                  <span className="text-muted-foreground">Epic size: Must be decomposed before sprint.</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-amber-500/25 bg-amber-500/5 space-y-1 text-xs">
+              <h4 className="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" /> Preventing Cognitive Anchoring Bias
+              </h4>
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                Students must submit their own point estimate first. Seeing an AI or peer estimate beforehand anchors human judgment and degrades pedagogical estimation accuracy.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button size="sm" onClick={() => setGuideOpen(false)} className="text-xs cursor-pointer">
+              Understood
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
