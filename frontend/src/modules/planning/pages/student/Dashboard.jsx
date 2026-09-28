@@ -91,7 +91,7 @@ function targetForRequirement(r, userStories, estimations) {
 }
 
 function SectionLabel({ children }) {
-  return <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 mb-3">{children}</p>
+  return <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 mb-2">{children}</p>
 }
 
 function StatusDot({ tone = 'neutral', children }) {
@@ -109,7 +109,7 @@ function KpiCard({ icon: Icon, label, to, navigate, children }) {
       <button
         type="button"
         onClick={() => to && navigate(to)}
-        className="w-full flex items-center justify-between mb-3 text-left cursor-pointer group"
+        className="w-full flex items-center justify-between mb-2 text-left cursor-pointer group"
       >
         <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <Icon className="h-3.5 w-3.5" /> {label}
@@ -200,7 +200,7 @@ export default function Dashboard() {
       <PageHeader title="Project Planning" breadcrumb={['Planning', 'Student', 'Dashboard']} />
 
       {/* Project header */}
-      <Card className="p-6">
+      <Card className="p-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 mb-1.5">
@@ -217,7 +217,7 @@ export default function Dashboard() {
           </Badge>
         </div>
 
-        <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mt-4 text-xs text-muted-foreground">
+        <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mt-2.5 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5" /> {teamMembers.length} members
           </span>
@@ -237,9 +237,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 mt-5">
+        <div className="flex items-center gap-4 mt-2.5">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between text-xs mb-1.5">
+            <div className="flex items-center justify-between text-xs mb-1">
               <span className="font-medium text-muted-foreground">Project progress</span>
               <span className="font-semibold text-foreground">{overallPercent}%</span>
             </div>
@@ -258,7 +258,7 @@ export default function Dashboard() {
           <KpiCard icon={ClipboardList} label="Requirements" to="/planning/requirements/srs-quality" navigate={navigate}>
             <p className="text-3xl font-bold text-foreground tracking-tight">{requirements.length}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Total requirements</p>
-            <div className="flex items-center gap-3 mt-3 text-xs flex-wrap">
+            <div className="flex items-center gap-3 mt-2 text-xs flex-wrap">
               <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
                 <CheckCircle2 className="h-3 w-3" /> {passingCount} passed
               </span>
@@ -269,15 +269,15 @@ export default function Dashboard() {
                 <XCircle className="h-3 w-3" /> {failingCount} blocked
               </span>
             </div>
-            <Progress value={avgScore} className="h-1.5 mt-3" />
-            <p className="text-[11px] text-muted-foreground mt-1.5">{avgScore}% completed</p>
+            <Progress value={avgScore} className="h-1.5 mt-2" />
+            <p className="text-[11px] text-muted-foreground mt-1">{avgScore}% completed</p>
           </KpiCard>
 
           <KpiCard icon={ShieldCheck} label="SRS Quality" to="/planning/requirements/srs-quality" navigate={navigate}>
             <p className="text-3xl font-bold text-foreground tracking-tight">{avgScore}%</p>
             <p className="text-xs text-muted-foreground mt-0.5">Requirements passing</p>
-            <Progress value={avgScore} className="h-1.5 mt-3" />
-            <p className="text-xs text-muted-foreground mt-2">
+            <Progress value={avgScore} className="h-1.5 mt-2" />
+            <p className="text-xs text-muted-foreground mt-1.5">
               {passingCount} / {requirements.length} passed{failingCount > 0 ? ` · ${failingCount} blocked` : ''}
             </p>
           </KpiCard>
@@ -285,22 +285,22 @@ export default function Dashboard() {
           <KpiCard icon={Gauge} label="Estimated Work" to="/planning/sprint-management" navigate={navigate}>
             <p className="text-3xl font-bold text-foreground tracking-tight">{totalPoints} SP</p>
             <p className="text-xs text-muted-foreground mt-0.5">Current sprint</p>
-            <div className="flex items-center justify-between text-xs text-muted-foreground mt-3">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
               <span>{donePoints} SP done</span>
               <span>{totalPoints - donePoints} SP remaining</span>
             </div>
-            <Progress value={totalPoints ? Math.round((donePoints / totalPoints) * 100) : 0} className="h-1.5 mt-1.5" />
+            <Progress value={totalPoints ? Math.round((donePoints / totalPoints) * 100) : 0} className="h-1.5 mt-1" />
           </KpiCard>
 
           <KpiCard icon={Gavel} label="DART Flags" to="/planning/requirements/srs-quality" navigate={navigate}>
             <p className="text-3xl font-bold text-foreground tracking-tight">{openFlags.length}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{openFlags.length > 0 ? 'Require attention' : 'All clear'}</p>
             {openFlags.length === 0 ? (
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-3">
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-2">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> No unresolved conflicts
               </p>
             ) : (
-              <div className="space-y-1.5 mt-3">
+              <div className="space-y-1 mt-2">
                 {CATEGORY_ORDER.filter((cat) => dartTally[cat] > 0).map((cat) => (
                   <div key={cat} className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">{CATEGORY_LABEL[cat]}</span>
@@ -314,10 +314,10 @@ export default function Dashboard() {
       </div>
 
       {/* Pipeline */}
-      <Card className="p-6">
+      <Card className="p-4">
         <h3 className="text-base font-semibold text-foreground">Project planning pipeline</h3>
-        <p className="text-xs text-muted-foreground mb-6">Where your project stands across all four stages</p>
-        <div className="relative grid grid-cols-2 sm:grid-cols-4 gap-y-8 gap-x-4">
+        <p className="text-xs text-muted-foreground mb-3">Where your project stands across all four stages</p>
+        <div className="relative grid grid-cols-2 sm:grid-cols-4 gap-y-4 gap-x-4">
           <div className="hidden sm:block absolute top-[22px] left-[12.5%] right-[12.5%] h-px bg-border" />
           {pipelineStages.map((stage) => {
             const isSprint = stage.key === 'sprint'
@@ -345,7 +345,7 @@ export default function Dashboard() {
                     <span className="text-muted-foreground text-xs font-semibold">—</span>
                   )}
                 </span>
-                <p className="text-sm font-semibold text-foreground mt-3 group-hover:text-primary transition-colors">{stage.label}</p>
+                <p className="text-sm font-semibold text-foreground mt-2 group-hover:text-primary transition-colors">{stage.label}</p>
                 <p className="text-lg font-bold text-foreground leading-tight">{stage.percent}%</p>
                 <p className="text-xs text-muted-foreground mt-0.5 max-w-[150px]">{stage.caption}</p>
               </Link>
@@ -357,10 +357,10 @@ export default function Dashboard() {
       {/* Attention & insights */}
       <div>
         <SectionLabel>Attention &amp; insights</SectionLabel>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="p-6 flex flex-col">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">Attention required</h3>
-            <div className="space-y-3 flex-1">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Card className="p-5 flex flex-col">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Attention required</h3>
+            <div className="space-y-2 flex-1">
               {reviewCount > 0 && (
                 <div className="flex items-start gap-2.5 text-sm">
                   <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
@@ -395,14 +395,14 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => navigate(nextAction.to)}
-              className="mt-4 inline-flex items-center gap-1.5 self-start px-3 py-2 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/15 transition-colors cursor-pointer"
+              className="mt-3 inline-flex items-center gap-1.5 self-start px-3 py-2 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/15 transition-colors cursor-pointer"
             >
               {nextAction.text} <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </Card>
 
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">DART arbitration</h3>
               <Badge tone={openFlags.length > 0 ? 'danger' : 'success'}>{openFlags.length} open</Badge>
             </div>
@@ -411,9 +411,9 @@ export default function Dashboard() {
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" /> No unresolved conflicts right now.
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {openFlags.slice(0, 2).map((c) => (
-                  <div key={c.id} className="pb-3 border-b border-border last:border-0 last:pb-0">
+                  <div key={c.id} className="pb-2 border-b border-border last:border-0 last:pb-0">
                     <div className="flex items-center gap-2 mb-1">
                       <Badge tone={ARBITRATION_CATEGORY_TONE[c.category]}>{c.category}</Badge>
                       <span className="text-xs text-muted-foreground">{c.requirementId}</span>
@@ -430,7 +430,7 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-4 pt-4 border-t border-border">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-border">
               {CATEGORY_ORDER.map((cat) => (
                 <div key={cat} className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">{CATEGORY_LABEL[cat]}</span>
@@ -445,12 +445,12 @@ export default function Dashboard() {
       {/* Requirement analytics */}
       <div>
         <SectionLabel>Requirement analytics</SectionLabel>
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <Card className="p-6 lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+          <Card className="p-5 lg:col-span-2">
             <h3 className="text-base font-semibold text-foreground mb-0.5">Quality profile</h3>
-            <p className="text-xs text-muted-foreground mb-4">Averaged across {requirements.length} tracked requirements</p>
+            <p className="text-xs text-muted-foreground mb-3">Averaged across {requirements.length} tracked requirements</p>
             <QualityRadarChart scores={avgDimensionScores} height={200} />
-            <div className="space-y-2.5 mt-4">
+            <div className="space-y-2 mt-3">
               {QUALITY_DIMENSIONS.map((dim) => {
                 const score = avgDimensionScores[dim.key]
                 return (
@@ -467,7 +467,7 @@ export default function Dashboard() {
                 )
               })}
             </div>
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
               <div>
                 <p className="text-[11px] text-muted-foreground">Lowest dimension</p>
                 <p className="text-sm font-semibold text-destructive">{lowestDim.label} · {avgDimensionScores[lowestDim.key]}%</p>
@@ -483,7 +483,7 @@ export default function Dashboard() {
           </Card>
 
           <Card className="p-0 overflow-hidden lg:col-span-3">
-            <div className="p-5 pb-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="p-4 pb-3 flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <h3 className="text-base font-semibold text-foreground">Requirement health</h3>
                 <p className="text-xs text-muted-foreground">{filteredRequirements.length} of {requirements.length} requirements · click a row for details</p>
@@ -579,13 +579,13 @@ export default function Dashboard() {
       {/* Team & activity */}
       <div>
         <SectionLabel>Team &amp; activity</SectionLabel>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Card className="p-5">
             <h3 className="text-base font-semibold text-foreground">Team &amp; sprint workload</h3>
-            <p className="text-xs text-muted-foreground mb-4">{totalAssigned} / {totalCapacity} SP assigned this sprint</p>
+            <p className="text-xs text-muted-foreground mb-3">{totalAssigned} / {totalCapacity} SP assigned this sprint</p>
             <div className="divide-y divide-border">
               {workload.map((m) => (
-                <div key={m.id} className="py-3 first:pt-0 last:pb-0">
+                <div key={m.id} className="py-2.5 first:pt-0 last:pb-0">
                   <div className="flex items-center gap-3">
                     <AvatarComp name={m.name} size={36} />
                     <div className="min-w-0 flex-1">
@@ -598,7 +598,7 @@ export default function Dashboard() {
                       <p className="text-xs text-muted-foreground truncate">{m.role}</p>
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-1.5 flex items-center gap-2">
                     <Progress
                       value={Math.min(100, m.pct)}
                       className={`h-1.5 flex-1 ${m.over ? '[&>div]:bg-destructive' : m.pct >= 80 ? '[&>div]:bg-amber-500' : ''}`}
@@ -612,9 +612,9 @@ export default function Dashboard() {
             </div>
           </Card>
 
-          <Card className="p-6">
-            <h3 className="text-base font-semibold text-foreground mb-4">Recent activity</h3>
-            <div className="space-y-4">
+          <Card className="p-5">
+            <h3 className="text-base font-semibold text-foreground mb-3">Recent activity</h3>
+            <div className="space-y-3">
               {activityLog.slice(0, 6).map((a) => {
                 const meta = ACTIVITY_CATEGORY_META[a.category] || ACTIVITY_CATEGORY_META.ai
                 const Icon = meta.icon
@@ -655,7 +655,7 @@ export default function Dashboard() {
                 <SheetDescription>{selectedReq.title}</SheetDescription>
               </SheetHeader>
 
-              <div className="px-4 pb-4 space-y-5">
+              <div className="px-4 pb-4 space-y-4">
                 <p className="text-sm text-foreground leading-relaxed">{selectedReq.description}</p>
 
                 <div>

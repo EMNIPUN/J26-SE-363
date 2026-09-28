@@ -146,7 +146,7 @@ export default function DashboardShell() {
 
         {/* Column 2: Content Area (Independently scrollable with container-query auto-wrapping) */}
         <main className="flex-1 min-w-0 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 bg-background column-scroll-contain transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] workspace-container">
-          <div key={location.pathname} className="w-full animate-fade-rise">
+          <div key={location.pathname} className="w-full max-w-[1440px] mx-auto animate-fade-rise">
             <Outlet />
           </div>
         </main>
