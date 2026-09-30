@@ -11,3 +11,4 @@ dist
 .vercel
 *.log
 .DS_Store
+backend/app/agents/performance_assessment/PROPOSAL.md
