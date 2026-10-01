@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Award, GraduationCap, CheckCircle2, AlertTriangle, BookOpen, ChevronRight } from 'lucide-react'
+import { Award, GraduationCap } from 'lucide-react'
 import Card from '../../../shared/components/Card.jsx'
 import Badge from '../../../shared/components/Badge.jsx'
 import { Progress } from '@/components/ui/progress'

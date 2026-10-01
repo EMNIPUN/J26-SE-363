@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom'
 import { Bell, ArrowRight, ShieldAlert, CheckCircle2, Info, MessageSquare } from 'lucide-react'
 import Card from '../../../shared/components/Card.jsx'
 import Badge from '../../../shared/components/Badge.jsx'
-import AvatarComp from '../../../shared/components/Avatar.jsx'
-import { SUPERVISOR_NOTICES, COURSE_INFO } from '../data/lmsAcademicData.js'
+import { SUPERVISOR_NOTICES } from '../data/lmsAcademicData.js'
 
 export default function SupervisorNoticeBoard({ onConsultClick }) {
   const [notices] = useState(SUPERVISOR_NOTICES)

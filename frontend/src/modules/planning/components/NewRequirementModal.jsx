@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Sparkles, PlusCircle, CheckCircle2 } from 'lucide-react'
+import { Sparkles, PlusCircle } from 'lucide-react'
 import { actions } from '../context/planningStore.js'
 
 export default function NewRequirementModal({ open, onOpenChange, existingCount = 8 }) {
