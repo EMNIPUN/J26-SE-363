@@ -302,7 +302,7 @@ export default function SRSQuality() {
               <span>Standard: <strong className="text-foreground">IEEE 830 / ISO 29148</strong></span>
             </div>
 
-            <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
               Automated Requirements Quality Gatekeeper
             </h2>
 
