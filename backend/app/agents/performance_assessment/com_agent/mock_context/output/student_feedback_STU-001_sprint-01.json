@@ -1,0 +1,17 @@
+{
+  "student_id": "STU-001",
+  "sprint_id": "sprint-01",
+  "final_score": 0.7298,
+  "final_score_percentage": 72.98,
+  "behavioral_persona": "Collaborative Harmonizer",
+  "radar_chart_data": {
+    "effort": 0.5,
+    "consistency": 1.0,
+    "requirement_fulfillment": 0.8,
+    "collaboration": 1.0,
+    "task_complexity": 0.2,
+    "code_ownership": 0.5
+  },
+  "student_feedback_markdown": "# Sprint Performance Feedback for Alice Perera\n\nHi Alice Perera! Here is your feedback for **sprint-01**.\n\n**Overall Contribution Score:** 0.73 / 1.00\n**Your Engineering Archetype:** Collaborative Harmonizer\n\n### Key Strengths\n- Demonstrated consistent progress on assigned tasks.\n- Maintained solid repository commit practices.\n\n### Actionable Goals for Next Sprint\n- Engage in earlier code reviews on teammates' pull requests.\n- Distribute commits evenly throughout the sprint timeframe.\n",
+  "historical_trajectory": []
+}

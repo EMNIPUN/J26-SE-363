@@ -1,0 +1,10 @@
+{
+  "student_id": "STU-002",
+  "sprint_id": "sprint-02",
+  "final_score": 0.85,
+  "final_score_percentage": 85.0,
+  "behavioral_persona": "Balanced Contributor",
+  "radar_chart_data": {},
+  "student_feedback_markdown": "# Sprint Performance Feedback for [STUDENT_A]\n\nHi [STUDENT_A]! Here is your feedback for **sprint-02**.\n\n**Overall Contribution Score:** 0.85 / 1.00\n**Your Engineering Archetype:** None\n\n### Key Strengths\n- Demonstrated consistent progress on assigned tasks.\n- Maintained solid repository commit practices.\n\n### Actionable Goals for Next Sprint\n- Engage in earlier code reviews on teammates' pull requests.\n- Distribute commits evenly throughout the sprint timeframe.\n",
+  "historical_trajectory": []
+}

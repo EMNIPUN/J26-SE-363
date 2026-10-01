@@ -1,0 +1,124 @@
+{
+  "student_id": "STU-001",
+  "student_name": "Alice Perera",
+  "team_id": "TEAM-A",
+  "sprint_id": "sprint-02",
+  "assessed_at": "2026-10-01T09:50:32.202025Z",
+  "factor_scores": {
+    "effort": {
+      "score": 0.9333,
+      "label": "Effort & Volume",
+      "evidence_summary": "Assessed 2 primary evidence traces.",
+      "status": "completed"
+    },
+    "consistency": {
+      "score": 1.0,
+      "label": "Temporal Consistency",
+      "evidence_summary": "Assessed 1 primary evidence traces.",
+      "status": "completed"
+    },
+    "requirement_fulfillment": {
+      "score": 0.6667,
+      "label": "Requirement Fulfillment",
+      "evidence_summary": "Assessed 3 primary evidence traces.",
+      "status": "completed"
+    },
+    "collaboration": {
+      "score": 1.0,
+      "label": "Peer Collaboration",
+      "evidence_summary": "Assessed 2 primary evidence traces.",
+      "status": "completed"
+    },
+    "task_complexity": {
+      "score": 0.88,
+      "label": "Task Complexity",
+      "evidence_summary": "Assessed 1 primary evidence traces.",
+      "status": "completed"
+    },
+    "code_ownership": {
+      "score": 0.85,
+      "label": "Code Ownership & Comprehension",
+      "evidence_summary": "Assessed 1 primary evidence traces.",
+      "status": "completed"
+    }
+  },
+  "additive_score": 0.8688,
+  "behavioral_modifier": 1.1,
+  "final_score": 0.9557,
+  "final_score_percentage": 95.57,
+  "behavioral_persona": "Consistent Builder",
+  "instructor_report_markdown": "# Instructor Assessment Dossier: Alice Perera (STU-001)\n\n**Sprint:** sprint-02 | **Final Score S:** 0.96 / 1.00\n**Contributor Archetype:** Consistent Builder (Modifier: 1.10)\n\n### Factor Breakdown\n- effort: 0.93\n- consistency: 1.00\n- requirement_fulfillment: 0.67\n- collaboration: 1.00\n- task_complexity: 0.88\n- code_ownership: 0.85\n\n### Attention Required & Anomalies\nNone detected (Normal engagement profile).\n\n### Audit Evidence Traces\n- effort: {'type': 'commits_authored', 'count': 12, 'loc_net': 937}\n- effort: {'type': 'tasks_completed', 'count': 2, 'total_assigned': 3}\n- consistency: {'type': 'active_days', 'count': 10, 'span': '2025-09-02T10:15:00Z to 2025-09-14T21:00:00Z'}\n- requirement_fulfillment: {'task_id': 'TASK-101', 'status': 'Done', 'story_points': 5, 'ac_count': 4}\n- requirement_fulfillment: {'task_id': 'TASK-102', 'status': 'Done', 'story_points': 3, 'ac_count': 4}\n- requirement_fulfillment: {'task_id': 'TASK-103', 'status': 'In Progress', 'story_points': 5, 'ac_count': 4}\n- collaboration: {'type': 'pr_reviews_authored', 'count': 3}\n- collaboration: {'type': 'issue_discussions_participated', 'count': 3}\n- task_complexity: {'type': 'story_points', 'total_sp': 13, 'subtasks': 9}\n- code_ownership: {'question': \"Explain the role and security implications of the payload 'exp' claim in generate_session_token().\", 'is_extended': False, 'is_double_timed_out': False, 'ko_raw_score': 0.85, 'effective_score': 0.85}\n",
+  "student_feedback_markdown": "# Sprint Performance Feedback for Alice Perera\n\nHi Alice Perera! Here is your feedback for **sprint-02**.\n\n**Overall Contribution Score:** 0.96 / 1.00\n**Your Engineering Archetype:** Consistent Builder\n\n### Key Strengths\n- Demonstrated consistent progress on assigned tasks.\n- Maintained solid repository commit practices.\n\n### Actionable Goals for Next Sprint\n- Engage in earlier code reviews on teammates' pull requests.\n- Distribute commits evenly throughout the sprint timeframe.\n",
+  "radar_chart_data": {
+    "effort": 0.9333,
+    "consistency": 1.0,
+    "requirement_fulfillment": 0.6667,
+    "collaboration": 1.0,
+    "task_complexity": 0.88,
+    "code_ownership": 0.85
+  },
+  "lecturer_override_applied": false,
+  "lecturer_override_score": null,
+  "lecturer_comments": null,
+  "calculation_audit_trail": {
+    "original_weights": {
+      "effort": 0.2,
+      "consistency": 0.15,
+      "requirement_fulfillment": 0.25,
+      "collaboration": 0.15,
+      "task_complexity": 0.1,
+      "code_ownership": 0.15
+    },
+    "effective_weights": {
+      "effort": 0.2,
+      "consistency": 0.15,
+      "requirement_fulfillment": 0.25,
+      "collaboration": 0.15,
+      "task_complexity": 0.1,
+      "code_ownership": 0.15
+    },
+    "failed_factors": [],
+    "weights_sum": 1.0,
+    "steps": {
+      "effort": {
+        "original_weight": 0.2,
+        "effective_weight": 0.2,
+        "factor_score": 0.9333,
+        "weighted_contribution": 0.18666000000000002
+      },
+      "consistency": {
+        "original_weight": 0.15,
+        "effective_weight": 0.15,
+        "factor_score": 1.0,
+        "weighted_contribution": 0.15
+      },
+      "requirement_fulfillment": {
+        "original_weight": 0.25,
+        "effective_weight": 0.25,
+        "factor_score": 0.6667,
+        "weighted_contribution": 0.166675
+      },
+      "collaboration": {
+        "original_weight": 0.15,
+        "effective_weight": 0.15,
+        "factor_score": 1.0,
+        "weighted_contribution": 0.15
+      },
+      "task_complexity": {
+        "original_weight": 0.1,
+        "effective_weight": 0.1,
+        "factor_score": 0.88,
+        "weighted_contribution": 0.08800000000000001
+      },
+      "code_ownership": {
+        "original_weight": 0.15,
+        "effective_weight": 0.15,
+        "factor_score": 0.85,
+        "weighted_contribution": 0.1275
+      }
+    },
+    "additive_score": 0.8688
+  },
+  "discrepancy_flags": [],
+  "historical_trajectory": []
+}

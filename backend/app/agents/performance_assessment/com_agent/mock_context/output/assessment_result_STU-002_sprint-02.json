@@ -1,0 +1,29 @@
+{
+  "student_id": "STU-002",
+  "student_name": "Unknown Student",
+  "team_id": "TEAM-UNKNOWN",
+  "sprint_id": "sprint-02",
+  "assessed_at": "2026-10-01T09:50:32.251951Z",
+  "factor_scores": {},
+  "additive_score": 0.85,
+  "behavioral_modifier": 1.0,
+  "final_score": 0.85,
+  "final_score_percentage": 85.0,
+  "behavioral_persona": "Balanced Contributor",
+  "instructor_report_markdown": "# Instructor Assessment Dossier: [STUDENT_A] (STU-002)\n\n**Sprint:** sprint-02 | **Final Score S:** 0.85 / 1.00\n**Contributor Archetype:** None (Modifier: 1.00)\n\n### Factor Breakdown\nNo factor scores available.\n\n### Attention Required & Anomalies\n- [CRITICAL] GHOSTWRITER_SUSPICION: Simulated critical discrepancy requiring human lecturer review\n\n### Audit Evidence Traces\nStandard sprint development activity.\n",
+  "student_feedback_markdown": "# Sprint Performance Feedback for [STUDENT_A]\n\nHi [STUDENT_A]! Here is your feedback for **sprint-02**.\n\n**Overall Contribution Score:** 0.85 / 1.00\n**Your Engineering Archetype:** None\n\n### Key Strengths\n- Demonstrated consistent progress on assigned tasks.\n- Maintained solid repository commit practices.\n\n### Actionable Goals for Next Sprint\n- Engage in earlier code reviews on teammates' pull requests.\n- Distribute commits evenly throughout the sprint timeframe.\n",
+  "radar_chart_data": {},
+  "lecturer_override_applied": true,
+  "lecturer_override_score": 0.85,
+  "lecturer_comments": "Reviewed commits manually. Effort is satisfactory.",
+  "calculation_audit_trail": {},
+  "discrepancy_flags": [
+    {
+      "alert_code": "GHOSTWRITER_SUSPICION",
+      "severity": "CRITICAL",
+      "description": "Simulated critical discrepancy requiring human lecturer review",
+      "recommended_action": "Lecturer review required"
+    }
+  ],
+  "historical_trajectory": []
+}
