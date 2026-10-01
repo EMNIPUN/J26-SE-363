@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
 import PropTypes from 'prop-types'
-import MentorLogo from './MentorLogo.jsx'
 import { Sparkles } from 'lucide-react'
 
-const TARGET_WORD = ['M', 'E', 'N', 'T', 'O', 'R']
+const TARGET_WORD = ['S', 'E', 'L', 'V', 'I', 'A']
 const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 
-function FlippingMentor({ isComplete, isStatic = false }) {
+function FlippingSelvia({ isComplete, isStatic = false }) {
   const [lockedIndex, setLockedIndex] = useState(0)
   const [currentChars, setCurrentChars] = useState(() =>
     TARGET_WORD.map(() => GLYPHS[Math.floor(Math.random() * GLYPHS.length)])
@@ -76,7 +75,7 @@ function FlippingMentor({ isComplete, isStatic = false }) {
   )
 }
 
-FlippingMentor.propTypes = {
+FlippingSelvia.propTypes = {
   isComplete: PropTypes.bool.isRequired,
   isStatic: PropTypes.bool,
 }
@@ -86,7 +85,7 @@ export default function SplashScreen({ isBuffering = false, onComplete }) {
   const [hasSeenIntro] = useState(() => {
     if (typeof window === 'undefined') return true
     try {
-      return Boolean(sessionStorage.getItem('mentor_splash_seen'))
+      return Boolean(sessionStorage.getItem('selvia_splash_seen'))
     } catch {
       return false
     }
@@ -120,7 +119,7 @@ export default function SplashScreen({ isBuffering = false, onComplete }) {
     const t1 = setTimeout(() => setPhase('ready'), 1350)
     const t2 = setTimeout(() => {
       try {
-        sessionStorage.setItem('mentor_splash_seen', 'true')
+        sessionStorage.setItem('selvia_splash_seen', 'true')
       } catch {
         // ignore storage errors
       }
@@ -172,7 +171,7 @@ export default function SplashScreen({ isBuffering = false, onComplete }) {
     const handleKeyDown = () => {
       if (isBuffering) return
       try {
-        sessionStorage.setItem('mentor_splash_seen', 'true')
+        sessionStorage.setItem('selvia_splash_seen', 'true')
       } catch {
         // ignore storage errors
       }
@@ -196,7 +195,7 @@ export default function SplashScreen({ isBuffering = false, onComplete }) {
       onClick={() => {
         if (isBuffering) return
         try {
-          sessionStorage.setItem('mentor_splash_seen', 'true')
+          sessionStorage.setItem('selvia_splash_seen', 'true')
         } catch {
           // ignore storage errors
         }
@@ -209,7 +208,7 @@ export default function SplashScreen({ isBuffering = false, onComplete }) {
       className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background text-foreground select-none cursor-pointer transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] ${
         phase === 'exiting' ? 'opacity-0 scale-105 pointer-events-none' : 'opacity-100'
       }`}
-      aria-label="MENTOR AI Splash Screen"
+      aria-label="SELVIA AI Splash Screen"
     >
       {/* Ambient background glow */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--primary)/0.07_0%,transparent_65%)] pointer-events-none" />
@@ -248,19 +247,23 @@ export default function SplashScreen({ isBuffering = false, onComplete }) {
             />
 
             {/* Inner Card Frame */}
-            <div className="relative z-10 p-5 rounded-[14px] bg-card/95 backdrop-blur-xl border border-border/60 flex items-center justify-center">
-              <MentorLogo size={58} />
+            <div className="relative z-10 overflow-hidden rounded-[14px] bg-zinc-950 border border-cyan-400/20 flex items-center justify-center">
+              <img
+                src="/selvia-mark.png"
+                alt="SELVIA"
+                className="h-28 w-28 sm:h-32 sm:w-32 object-cover"
+              />
 
               {/* Status indicator pip on logo */}
               <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
                 <span
                   className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                    isBuffering ? 'bg-primary' : isReady ? 'bg-blue-500' : 'bg-primary'
+                    isBuffering ? 'bg-primary' : isReady ? 'bg-primary' : 'bg-primary'
                   }`}
                 />
                 <span
                   className={`relative inline-flex rounded-full h-3.5 w-3.5 ${
-                    isBuffering ? 'bg-primary' : isReady ? 'bg-blue-500' : 'bg-primary'
+                    isBuffering ? 'bg-primary' : isReady ? 'bg-primary' : 'bg-primary'
                   }`}
                 />
               </span>
@@ -268,10 +271,10 @@ export default function SplashScreen({ isBuffering = false, onComplete }) {
           </div>
         </div>
 
-        {/* ANIMATED "MENTOR" WITH "AI" */}
+        {/* ANIMATED "SELVIA" WITH "AI" */}
         <div className="flex items-center justify-center gap-2.5 sm:gap-3.5">
           <h1 className="text-4xl sm:text-5xl font-black text-foreground">
-            <FlippingMentor isComplete={isReady} isStatic={isStatic} />
+            <FlippingSelvia isComplete={isReady} isStatic={isStatic} />
           </h1>
 
           {/* Animated AI Badge */}

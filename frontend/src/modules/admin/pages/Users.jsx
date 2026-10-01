@@ -16,14 +16,14 @@ import {
 
 const USERS = [
   { name: 'Nimal Perera', email: 'student@lms.edu', role: 'Student', status: 'Active' },
-  { name: 'Dr. Amara Silva', email: 'instructor@lms.edu', role: 'Instructor', status: 'Active' },
+  { name: 'Dr. Amara Silva', email: 'instructor@lms.edu', role: 'Lecturer', status: 'Active' },
   { name: 'System Admin', email: 'admin@lms.edu', role: 'Admin', status: 'Active' },
   { name: 'Kasun Fernando', email: 'kasun.f@lms.edu', role: 'Student', status: 'Active' },
-  { name: 'Dr. Ishara Weerasinghe', email: 'ishara.w@lms.edu', role: 'Instructor', status: 'Invited' },
+  { name: 'Dr. Ishara Weerasinghe', email: 'ishara.w@lms.edu', role: 'Lecturer', status: 'Invited' },
   { name: 'Tharindu Jayasuriya', email: 'tharindu.j@lms.edu', role: 'Student', status: 'Suspended' },
 ]
 
-const ROLE_TONE = { Student: 'primary', Instructor: 'success', Admin: 'warning' }
+const ROLE_TONE = { Student: 'primary', Lecturer: 'success', Admin: 'warning' }
 const STATUS_TONE = { Active: 'success', Invited: 'neutral', Suspended: 'danger' }
 
 export default function Users() {

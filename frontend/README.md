@@ -1,8 +1,8 @@
-# MENTOR Frontend
+# SELVIA Frontend
 
-The unified frontend for **MENTOR** (**M**ulti-agent **E**ngineering **N**etwork for **T**ask **O**rchestration & **R**eview).
+The unified frontend for **SELVIA**.
 
-> **MENTOR is a multi-agent engineering system that orchestrates software project tasks, evaluates student contributions, provides adaptive learning support, and performs security review.**
+> **SELVIA is a multi-agent engineering system that orchestrates software project tasks, evaluates student contributions, provides adaptive learning support, and performs security review.**
 
 ---
 

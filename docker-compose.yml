@@ -17,7 +17,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: mentor_postgres
+    container_name: selvia_postgres
     restart: unless-stopped
     # ⚠️ DO NOT add application containers to 'infra' or 'auth'.
     # This database is strictly for Keycloak IAM internal data.
@@ -31,7 +31,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - mentor-net
+      - selvia-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -40,7 +40,7 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
-    container_name: mentor_keycloak
+    container_name: selvia_keycloak
     command: start --import-realm
     restart: unless-stopped
     # ⚠️ DO NOT add application containers to 'infra' or 'auth'.
@@ -69,11 +69,11 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - mentor-net
+      - selvia-net
 
   kong:
     image: kong:latest
-    container_name: mentor_kong
+    container_name: selvia_kong
     restart: unless-stopped
     # ⚠️ DO NOT add application containers to 'infra' or 'gateway'.
     # Reserved solely for the Kong API Gateway proxy.
@@ -102,12 +102,12 @@ services:
     depends_on:
       - keycloak
     networks:
-      - mentor-net
+      - selvia-net
 
 volumes:
   postgres_data:
     driver: local
 
 networks:
-  mentor-net:
+  selvia-net:
     driver: bridge

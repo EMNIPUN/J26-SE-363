@@ -79,14 +79,14 @@ export default function MyProgress() {
         <Card className="p-4 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
             <span>Team Contribution Share</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-500/10 text-blue-500">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Users2 className="h-4 w-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-foreground">32%</span>
             <span className="text-xs text-muted-foreground">of team total</span>
-            <Badge variant="outline" className="ml-auto text-[10px] text-blue-500 border-blue-500/30">
+            <Badge variant="outline" className="ml-auto text-[10px] text-primary border-primary/30">
               Target: 25%
             </Badge>
           </div>
@@ -114,7 +114,7 @@ export default function MyProgress() {
         <Card className="p-4 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
             <span>Viva Oral Comprehension</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-violet-500/10 text-violet-500">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
               <CheckCircle2 className="h-4 w-4" />
             </div>
           </div>
@@ -122,7 +122,7 @@ export default function MyProgress() {
             <span className="text-2xl font-bold text-foreground">
               {profile.comprehension.score}%
             </span>
-            <Badge variant="outline" className="ml-auto text-[10px] bg-violet-500/10 text-violet-500 border-violet-500/30">
+            <Badge variant="outline" className="ml-auto text-[10px] bg-primary/10 text-primary border-primary/30">
               Authentic Author
             </Badge>
           </div>

@@ -137,7 +137,7 @@ export default function InstructorDashboard() {
         <Card className="p-4 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
             <span>Contribution Parity (Gini)</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-500/10 text-blue-500">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Users2 className="h-4 w-4" />
             </div>
           </div>
@@ -146,7 +146,7 @@ export default function InstructorDashboard() {
               {stats.parityIndex}
             </span>
             <span className="text-xs text-muted-foreground">/ 1.0</span>
-            <Badge variant="outline" className="ml-auto text-[10px] text-blue-500 border-blue-500/30">
+            <Badge variant="outline" className="ml-auto text-[10px] text-primary border-primary/30">
               Equitable
             </Badge>
           </div>
@@ -156,7 +156,7 @@ export default function InstructorDashboard() {
         <Card className="p-4 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
             <span>Viva Comprehension Avg</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-violet-500/10 text-violet-500">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Sparkles className="h-4 w-4" />
             </div>
           </div>
@@ -164,7 +164,7 @@ export default function InstructorDashboard() {
             <span className="text-2xl font-bold text-foreground">
               {stats.avgComprehension}%
             </span>
-            <Badge variant="outline" className="ml-auto text-[10px] bg-violet-500/10 text-violet-500 border-violet-500/30">
+            <Badge variant="outline" className="ml-auto text-[10px] bg-primary/10 text-primary border-primary/30">
               High Authenticity
             </Badge>
           </div>

@@ -1,23 +1,18 @@
 import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import { Sparkles, ChevronLeft } from 'lucide-react'
+import { Sparkles, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import TopNavbar from './TopNavbar.jsx'
 import Sidebar from './Sidebar.jsx'
 import AiChatPanel from '../components/AiChatPanel.jsx'
 import { useAuth } from '../auth/useAuth.js'
 import { useScope } from '../context/useScope.js'
 import { getNavForRole } from './navConfig.js'
+import { PORTAL_LABEL } from '../constants/roles.js'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
-const PORTAL_LABEL = {
-  student: 'Student Portal',
-  instructor: 'Instructor Portal',
-  admin: 'Admin Portal',
-}
-
-const AI_PANEL_STORAGE_KEY = 'mentor-ai-panel-open'
-const SIDEBAR_COLLAPSED_KEY = 'mentor-sidebar-collapsed'
+const AI_PANEL_STORAGE_KEY = 'selvia-ai-panel-open'
+const SIDEBAR_COLLAPSED_KEY = 'selvia-sidebar-collapsed'
 
 export default function DashboardShell() {
   const { user } = useAuth()
@@ -34,9 +29,7 @@ export default function DashboardShell() {
   })
   const [aiPanelOpen, setAiPanelOpen] = useState(() => {
     try {
-      const saved =
-        localStorage.getItem(AI_PANEL_STORAGE_KEY) ??
-        localStorage.getItem('eduflow-ai-panel-open')
+      const saved = localStorage.getItem(AI_PANEL_STORAGE_KEY)
       return saved !== null ? saved === 'true' : true
     } catch {
       return true
@@ -46,6 +39,7 @@ export default function DashboardShell() {
   const { selectedGroup } = useScope()
   const activeTeamCode = selectedGroup?.code || 'J26-SE-363'
   const sections = getNavForRole(user.role, activeTeamCode)
+  const isTutorChat = location.pathname.endsWith('/tutor/chat')
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((prev) => {
@@ -77,11 +71,14 @@ export default function DashboardShell() {
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
-      <TopNavbar onToggleMobileMenu={() => setMobileNavOpen(true)} />
+      <TopNavbar
+        onToggleMobileMenu={() => setMobileNavOpen(true)}
+        sidebarCollapsed={sidebarCollapsed}
+      />
 
       {/* Mobile Nav Drawer */}
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <SheetContent side="left" className="p-0 w-72">
+        <SheetContent side="left" className="p-0 w-72 bg-sidebar text-sidebar-foreground border-sidebar-border">
           <div className="pt-6 h-full overflow-y-auto column-scroll-contain">
             <Sidebar
               sections={sections}
@@ -126,13 +123,13 @@ export default function DashboardShell() {
                 type="button"
                 onClick={handleToggleSidebar}
                 aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                className="absolute -right-3 top-5 z-20 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-xs hover:bg-accent hover:text-foreground hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="absolute -right-3.5 top-5 z-20 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm hover:border-primary/40 hover:bg-primary/10 hover:text-primary hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <ChevronLeft
-                  className={`h-3.5 w-3.5 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                    sidebarCollapsed ? 'rotate-180' : ''
-                  }`}
-                />
+                {sidebarCollapsed ? (
+                  <PanelLeftOpen className="h-4 w-4" />
+                ) : (
+                  <PanelLeftClose className="h-4 w-4" />
+                )}
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={8}>
@@ -143,7 +140,7 @@ export default function DashboardShell() {
 
         {/* Column 2: Content Area (Independently scrollable with container-query auto-wrapping) */}
         <main className="flex-1 min-w-0 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 bg-background column-scroll-contain transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] workspace-container">
-          <div key={location.pathname} className="max-w-7xl mx-auto animate-fade-rise">
+          <div key={location.pathname} className="w-full max-w-[1440px] mx-auto animate-fade-rise">
             <Outlet />
           </div>
         </main>
@@ -151,9 +148,9 @@ export default function DashboardShell() {
         {/* Column 3: AI Chat Panel (Desktop, fixed to screen, fluid width collapse with silky-smooth slide) */}
         <div
           aria-hidden={!aiPanelOpen}
-          className={`hidden lg:flex flex-col h-full shrink-0 bg-sidebar overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          className={`hidden lg:flex flex-col h-full shrink-0 bg-card overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
             aiPanelOpen
-              ? 'w-80 xl:w-96 border-l border-sidebar-border opacity-100'
+              ? 'w-80 xl:w-96 border-l border-border opacity-100'
               : 'w-0 border-l border-transparent opacity-0 pointer-events-none'
           }`}
         >
@@ -169,6 +166,7 @@ export default function DashboardShell() {
 
       {/* Floating AI Copilot Trigger (Smoothly scales & glides in/out when 3rd column opens/closes) */}
       <div
+        hidden={isTutorChat}
         className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           aiPanelOpen
             ? 'lg:opacity-0 lg:scale-75 lg:translate-y-4 lg:pointer-events-none'
@@ -185,8 +183,8 @@ export default function DashboardShell() {
           aria-label="Open AI Copilot"
           className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer group"
         >
-          <Sparkles className="h-4 w-4 text-amber-300 group-hover:rotate-12 transition-transform duration-200 shrink-0" />
-          <span className="text-xs font-semibold tracking-tight">MENTOR AI</span>
+          <Sparkles className="h-4 w-4 text-primary-foreground group-hover:rotate-12 transition-transform duration-200 shrink-0" />
+          <span className="text-xs font-semibold tracking-tight">SELVIA AI</span>
           <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
         </button>
       </div>

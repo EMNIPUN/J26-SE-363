@@ -21,25 +21,18 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
         icon: BookOpen,
         color: "#2563eb",
         children: [
-          { label: "Dashboard", to: t("/planning/dashboard") },
-          { label: "Blackboard", to: t("/planning/blackboard") },
-          {
-            label: "Traceability",
-            to: t("/planning/requirements/traceability"),
-          },
-          { label: "Estimation", to: t("/planning/requirements/estimation") },
-          { label: "SRS Quality", to: t("/planning/requirements/srs-quality") },
-          {
-            label: "Decomposition",
-            to: t("/planning/requirements/decomposition"),
-          },
+          { label: 'Dashboard', to: t('/planning/dashboard') },
+          { label: 'SRS Quality', to: t('/planning/requirements/srs-quality') },
+          { label: 'Decomposition', to: t('/planning/requirements/decomposition') },
+          { label: 'Effort Estimation', to: t('/planning/requirements/estimation') },
+          { label: 'Sprint Management', to: t('/planning/sprint-management') },
         ],
       },
       {
         label: "Performance",
         icon: BarChart3,
-        color: "#7c3aed",
-        to: t("/performance/my-progress"),
+        color: '#2563eb',
+        to: t('/performance/my-progress'),
       },
       {
         label: "Tutor Agent",
@@ -50,14 +43,24 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
       {
         label: "Project Security",
         icon: ShieldCheck,
-        color: "#dc2626",
+        color: '#2563eb',
         children: [
           { label: "Dashboard", to: t("/security/dashboard") },
           { label: "Scan Report", to: t("/security/scan-report") },
           { label: "Remediation", to: t("/security/remediation") },
         ],
       },
-    ];
+      {
+        label: 'Tutor Agent',
+        icon: Bot,
+        color: '#2563eb',
+        children: [
+          { label: 'Dashboard', to: t('/tutor/landing') },
+          { label: 'Chat', to: t('/tutor/chat') },
+          { label: 'Nudges', to: t('/tutor/nudges') },
+        ],
+      },
+    ]
   }
 
   if (role === "instructor") {
@@ -68,15 +71,16 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
         icon: BookOpen,
         color: "#2563eb",
         children: [
-          { label: "Dashboard", to: t("/planning/dashboard") },
-          { label: "Projects", to: t("/planning/projects") },
-          { label: "Groups", to: t("/planning/groups") },
+          { label: 'Dashboard', to: t('/planning/instructor/dashboard') },
+          { label: 'Projects', to: t('/planning/instructor/projects') },
+          { label: 'Groups', to: t('/planning/instructor/groups') },
+          { label: 'Arbitration Oversight', to: t('/planning/instructor/arbitration') },
         ],
       },
       {
         label: "Performance",
         icon: BarChart3,
-        color: "#7c3aed",
+        color: '#2563eb',
         children: [
           { label: "Dashboard", to: t("/performance/dashboard") },
           { label: "Student Detail", to: t("/performance/students") },
@@ -87,7 +91,7 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
       {
         label: "Security",
         icon: ShieldCheck,
-        color: "#dc2626",
+        color: '#2563eb',
         children: [
           { label: "Dashboard", to: t("/security/dashboard") },
           { label: "Scan Report", to: t("/security/scan-report") },
@@ -111,14 +115,9 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
     {
       label: "Performance",
       icon: BarChart3,
-      color: "#7c3aed",
-      to: t("/performance/dashboard"),
+      color: '#2563eb',
+      to: t('/performance/dashboard'),
     },
-    {
-      label: "Security",
-      icon: ShieldCheck,
-      color: "#dc2626",
-      to: t("/security/dashboard"),
-    },
-  ];
+    { label: 'Security', icon: ShieldCheck, color: '#2563eb', to: t('/security/dashboard') },
+  ]
 }

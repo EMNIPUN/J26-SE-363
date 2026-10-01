@@ -98,7 +98,7 @@ export default function AhpRadarChart({
         {/* Team Average Polygon (Background Reference) */}
         <polygon
           points={groupPolygon}
-          className="fill-blue-500/15 stroke-blue-500"
+          className="fill-muted-foreground/15 stroke-muted-foreground"
           strokeWidth="2"
           strokeDasharray="4 4"
         />
@@ -172,7 +172,7 @@ export default function AhpRadarChart({
           <span className="font-semibold text-foreground">{studentLabel}</span>
         </div>
         <div className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-blue-500/20" />
+          <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground ring-2 ring-muted-foreground/20" />
           <span className="font-medium text-muted-foreground">{groupLabel}</span>
         </div>
       </div>

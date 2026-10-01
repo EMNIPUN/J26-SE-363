@@ -1,6 +1,6 @@
-# MENTOR Team-Scoped Architecture & Guidelines
+# SELVIA Team-Scoped Architecture & Guidelines
 
-This document is the **single source of truth** for all 4 research modules (**Project Planning**, **Performance Assessment**, **Adaptive AI Tutor**, and **AEGIS Security**) on how team scoping and tenancy isolation are structured in MENTOR.
+This document is the **single source of truth** for all 4 research modules (**Project Planning**, **Performance Assessment**, **Adaptive AI Tutor**, and **AEGIS Security**) on how team scoping and tenancy isolation are structured in SELVIA.
 
 ---
 
@@ -10,7 +10,7 @@ In the academic domain, projects belong to a batch and specialization:
 ```text
 🎓 Batch (e.g. 2026 Batch — Y4S1)
    └── 💻 Specialization (e.g. Software Engineering)
-        └── 👥 Research Group / Team (e.g. J26-SE-363 — MENTOR Platform)
+        └── 👥 Research Group / Team (e.g. J26-SE-363 — SELVIA Platform)
              └── 👤 Student Members (e.g. Sadeesha, Chathush, Nipun, Dilshan)
 ```
 
