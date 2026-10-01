@@ -3,6 +3,7 @@ import {
   BookOpen,
   BarChart3,
   ShieldCheck,
+  Bot,
   Users,
   Settings,
 } from 'lucide-react'
@@ -33,6 +34,12 @@ export function getNavForRole(role, teamCode = 'J26-SE-363') {
         icon: BarChart3,
         color: '#7c3aed',
         to: t('/performance/my-progress'),
+      },
+      {
+        label: 'Tutor Agent',
+        icon: Bot,
+        color: '#0891b2',
+        to: t('/tutor/landing'),
       },
       {
         label: 'Project Security',
