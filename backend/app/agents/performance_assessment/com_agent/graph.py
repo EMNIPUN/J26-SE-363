@@ -367,7 +367,15 @@ def build_com_agent_graph(checkpointer: Optional[Any] = None, store: Optional[An
     builder.add_edge("update_cross_sprint_memory_node", "export_results_node")
     builder.add_edge("export_results_node", END)
 
-    # Checkpointer configuration
-    cp = checkpointer or MemorySaver()
+    # Checkpointer configuration (resolves PostgresSaver in prod or MemorySaver fallback)
+    if checkpointer is None:
+        try:
+            from app.agents.performance_assessment.com_agent.db import get_checkpointer
+            cp = get_checkpointer()
+        except Exception:
+            cp = MemorySaver()
+    else:
+        cp = checkpointer
+
     st = store if store is not None else {}
     return builder.compile(checkpointer=cp, store=st)

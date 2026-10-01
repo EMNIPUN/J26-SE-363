@@ -1,0 +1,23 @@
+# Performance Assessment Agent - Standalone Requirements
+# Strictly isolated dependencies for decoupled agent execution
+
+fastapi>=0.110.0
+uvicorn>=0.28.0
+pydantic>=2.0.0
+pyyaml>=6.0.0
+python-dotenv>=1.0.0
+
+# LangGraph & Checkpointing
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langsmith>=0.1.0
+
+# PostgreSQL Drivers & Pooling
+psycopg[binary]>=3.1.0
+psycopg_pool>=3.2.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+anyio>=4.0.0

@@ -1,0 +1,56 @@
+# ==============================================================================
+# PERFORMANCE ASSESSMENT AGENT - DOCKER COMPOSE
+# Fully decoupled stack: Dedicated PostgreSQL instance & Agent Microservice
+# ==============================================================================
+
+services:
+  assessment_postgres:
+    image: postgres:16-alpine
+    container_name: assessment_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: assessment_db
+      POSTGRES_USER: assessment_user
+      POSTGRES_PASSWORD: assessment_pass
+    ports:
+      # Bound to host 5434 to prevent collisions with default postgres 5432/5433
+      - "5434:5432"
+    volumes:
+      - assessment_pgdata:/var/lib/postgresql/data
+    networks:
+      - assessment-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U assessment_user -d assessment_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  assessment_agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: assessment_agent
+    restart: unless-stopped
+    environment:
+      COM_AGENT_ENV: production
+      POSTGRES_HOST: assessment_postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: assessment_db
+      POSTGRES_USER: assessment_user
+      POSTGRES_PASSWORD: assessment_pass
+      DATABASE_URL: postgresql://assessment_user:assessment_pass@assessment_postgres:5432/assessment_db
+    ports:
+      - "8002:8002"
+    depends_on:
+      assessment_postgres:
+        condition: service_healthy
+    networks:
+      - assessment-net
+
+volumes:
+  assessment_pgdata:
+    driver: local
+
+networks:
+  assessment-net:
+    driver: bridge
