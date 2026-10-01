@@ -22,7 +22,7 @@ export default function InstructorGroups() {
     <div className="space-y-6">
       <PageHeader
         title="Groups"
-        breadcrumb={['Planning', 'Instructor', 'Groups']}
+        breadcrumb={['Planning', 'Lecturer', 'Groups']}
         description="Group roster, per-group requirement quality-gate summary, and pipeline coverage."
       />
 

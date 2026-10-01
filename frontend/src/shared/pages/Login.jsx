@@ -20,7 +20,7 @@ import ThemeToggle from '../components/ThemeToggle.jsx'
 
 const ROLE_OPTIONS = [
   { role: 'student', label: 'Student', icon: GraduationCap },
-  { role: 'instructor', label: 'Instructor', icon: UserCheck },
+  { role: 'instructor', label: 'Lecturer', icon: UserCheck },
   { role: 'admin', label: 'Admin', icon: Shield },
 ]
 

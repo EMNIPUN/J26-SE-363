@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { useAuth } from '../auth/useAuth.js'
+import { getRoleLabel } from '../constants/roles.js'
 import Avatar from '../components/Avatar.jsx'
 
 function isSectionActive(section, pathname) {
@@ -335,8 +336,8 @@ export default function Sidebar({
               <p className="truncate text-sm font-semibold leading-tight">
                 {user?.name}
               </p>
-              <p className="truncate text-xs capitalize text-sidebar-foreground/60">
-                {user?.role}
+              <p className="truncate text-xs text-sidebar-foreground/60">
+                {getRoleLabel(user?.role)}
               </p>
             </div>
           </div>

@@ -149,7 +149,7 @@ export default function ArbitrationOversight() {
     <div className="space-y-6">
       <PageHeader
         title="Arbitration Oversight"
-        breadcrumb={['Planning', 'Instructor', 'Arbitration Oversight']}
+        breadcrumb={['Planning', 'Lecturer', 'Arbitration Oversight']}
         description="Cross-group DART queue — review structured diagnostic rationales and confirm or override a resolution."
         actions={
           <>

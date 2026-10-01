@@ -7,14 +7,9 @@ import AiChatPanel from '../components/AiChatPanel.jsx'
 import { useAuth } from '../auth/useAuth.js'
 import { useScope } from '../context/useScope.js'
 import { getNavForRole } from './navConfig.js'
+import { PORTAL_LABEL } from '../constants/roles.js'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-
-const PORTAL_LABEL = {
-  student: 'Student Portal',
-  instructor: 'Instructor Portal',
-  admin: 'Admin Portal',
-}
 
 const AI_PANEL_STORAGE_KEY = 'selvia-ai-panel-open'
 const SIDEBAR_COLLAPSED_KEY = 'selvia-sidebar-collapsed'
@@ -44,6 +39,7 @@ export default function DashboardShell() {
   const { selectedGroup } = useScope()
   const activeTeamCode = selectedGroup?.code || 'J26-SE-363'
   const sections = getNavForRole(user.role, activeTeamCode)
+  const isTutorChat = location.pathname.endsWith('/tutor/chat')
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((prev) => {
@@ -170,6 +166,7 @@ export default function DashboardShell() {
 
       {/* Floating AI Copilot Trigger (Smoothly scales & glides in/out when 3rd column opens/closes) */}
       <div
+        hidden={isTutorChat}
         className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           aiPanelOpen
             ? 'lg:opacity-0 lg:scale-75 lg:translate-y-4 lg:pointer-events-none'

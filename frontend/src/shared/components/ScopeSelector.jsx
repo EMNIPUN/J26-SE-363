@@ -44,19 +44,20 @@ export default function ScopeSelector() {
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label="Select current project"
-          className="flex h-10 min-w-0 max-w-[320px] items-center gap-2 rounded-lg border border-border bg-background px-3 text-left text-xs transition-all duration-150 hover:bg-muted/60 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring group"
+          aria-label={`Current project: ${selectedGroup?.name || 'none'}. Change project`}
+          title={selectedGroup?.projectTitle}
+          className="flex h-10 min-w-0 max-w-[180px] lg:max-w-[260px] items-center gap-2 rounded-lg border border-border bg-background px-2.5 text-left text-xs transition-all duration-150 hover:bg-muted/60 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring group"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-muted/50 text-muted-foreground">
             <FolderKanban className="h-3.5 w-3.5" />
           </div>
 
           <div className="min-w-0 leading-tight">
-            <span className="block truncate font-semibold text-foreground">
-              {selectedGroup?.projectTitle || 'Select project'}
+            <span className="hidden lg:block truncate font-semibold text-foreground">
+              {selectedGroup?.name || 'Select project'}
             </span>
-            <span className="block truncate text-[11px] font-medium text-muted-foreground">
-              {selectedGroup?.code || 'Team'} - {selectedGroup?.name || 'Project group'}
+            <span className="block truncate font-mono text-[11px] font-semibold text-foreground lg:font-medium lg:text-muted-foreground">
+              {selectedGroup?.code || 'Team'}
             </span>
           </div>
 

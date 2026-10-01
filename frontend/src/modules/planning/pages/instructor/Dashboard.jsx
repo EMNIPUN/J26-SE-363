@@ -54,8 +54,8 @@ export default function InstructorDashboard() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Instructor Dashboard"
-        breadcrumb={['Planning', 'Instructor', 'Dashboard']}
+        title="Lecturer Dashboard"
+        breadcrumb={['Planning', 'Lecturer', 'Dashboard']}
         description="Cross-project view of requirement quality-gate pass rates and open DART arbitration flags across every supervised group."
       />
 
