@@ -5,7 +5,7 @@ import Avatar from '../components/Avatar.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 import NotificationDropdown from '../components/NotificationDropdown.jsx'
 import CommandPalette from '../components/CommandPalette.jsx'
-import MentorLogo from '../components/MentorLogo.jsx'
+import SelviaLogo from '../components/SelviaLogo.jsx'
 import ScopeSelector from '../components/ScopeSelector.jsx'
 import {
   DropdownMenu,
@@ -43,7 +43,7 @@ export default function TopNavbar({ onToggleMobileMenu, sidebarCollapsed = false
           </ShadcnButton>
         )}
 
-        <MentorLogo size={32} showText={!sidebarCollapsed} capitalizeFirst={true} />
+        <SelviaLogo size={32} showText={!sidebarCollapsed} />
       </div>
 
       <div className="h-5 w-px bg-border/60 hidden sm:block" />

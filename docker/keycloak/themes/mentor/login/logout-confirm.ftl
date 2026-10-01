@@ -3,7 +3,7 @@
     <#if section = "form">
         <div id="kc-logout-confirm" class="content-area">
             <p class="logout-description" style="color: #a1a1aa; font-size: 0.925rem; line-height: 1.5; margin-bottom: 1.5rem; text-align: center;">
-                Are you sure you want to log out of your MENTOR workspace session?
+                Are you sure you want to log out of your SELVIA workspace session?
             </p>
 
             <form class="form-actions" action="${url.logoutConfirmAction}" method="POST" style="display: flex; flex-direction: column; gap: 0.85rem;">

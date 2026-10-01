@@ -16,8 +16,8 @@ const PORTAL_LABEL = {
   admin: 'Admin Portal',
 }
 
-const AI_PANEL_STORAGE_KEY = 'mentor-ai-panel-open'
-const SIDEBAR_COLLAPSED_KEY = 'mentor-sidebar-collapsed'
+const AI_PANEL_STORAGE_KEY = 'selvia-ai-panel-open'
+const SIDEBAR_COLLAPSED_KEY = 'selvia-sidebar-collapsed'
 
 export default function DashboardShell() {
   const { user } = useAuth()
@@ -34,9 +34,7 @@ export default function DashboardShell() {
   })
   const [aiPanelOpen, setAiPanelOpen] = useState(() => {
     try {
-      const saved =
-        localStorage.getItem(AI_PANEL_STORAGE_KEY) ??
-        localStorage.getItem('eduflow-ai-panel-open')
+      const saved = localStorage.getItem(AI_PANEL_STORAGE_KEY)
       return saved !== null ? saved === 'true' : true
     } catch {
       return true

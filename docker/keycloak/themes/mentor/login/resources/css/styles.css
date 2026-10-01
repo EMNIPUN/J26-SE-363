@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MENTOR Keycloak Custom Theme Stylesheet
+   SELVIA Keycloak Custom Theme Stylesheet
    Matches exact Tailwind v4 dark design tokens & layout from React Login.jsx
    ========================================================================== */
 
@@ -103,9 +103,15 @@ body {
   gap: 0.625rem;
 }
 
-.logo-svg {
+.logo-svg,
+.logo-mark {
   flex-shrink: 0;
   color: #ffffff;
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #05070c;
 }
 
 .brand-text {

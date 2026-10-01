@@ -100,7 +100,7 @@ const IEEE_STANDARDS_INFO = [
     title: 'Scope Alignment',
     standard: 'Capstone SE4010 Rubric LO-1',
     description: 'The obligation must fall strictly within the group research domain and allocated student specialization boundaries.',
-    rule: 'Ensure traceability to approved project charter and mentor-approved research themes.',
+    rule: 'Ensure traceability to approved project charter and supervisor-approved research themes.',
   },
 ]
 

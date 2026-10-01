@@ -1,12 +1,12 @@
-# MENTOR Frontend Routing & Navigation Architecture Guide
+# SELVIA Frontend Routing & Navigation Architecture Guide
 
-This document is the **single source of truth** for all developers contributing to the **MENTOR** frontend routing, navigation hierarchy, and role-based views.
+This document is the **single source of truth** for all developers contributing to the **SELVIA** frontend routing, navigation hierarchy, and role-based views.
 
 ---
 
 ## 🎯 Architecture Overview
 
-MENTOR follows modern SaaS standards (comparable to **Linear**, **GitHub**, and **Canvas LMS**) using a **Unified App Shell** with **Domain-Driven Routing** and a **Role-Polymorphic Entrypoint**.
+SELVIA follows modern SaaS standards (comparable to **Linear**, **GitHub**, and **Canvas LMS**) using a **Unified App Shell** with **Domain-Driven Routing** and a **Role-Polymorphic Entrypoint**.
 
 ### The Core Problem Solved
 In legacy or poorly-structured web apps, developers often prefix routes with user roles (e.g. `/student/dashboard` vs `/instructor/dashboard` vs `/admin/dashboard`). This causes:
@@ -15,7 +15,7 @@ In legacy or poorly-structured web apps, developers often prefix routes with use
 - **Leaked Role Paths**: Clunky URLs that expose internal role taxonomy.
 - **Git Merge Hell**: Multiple team members constantly editing the root router table.
 
-### The MENTOR Routing Solution
+### The SELVIA Routing Solution
 1. **Team-Scoped Workspaces (`/teams/:teamId/*`)**: All module workflows operate inside an active team workspace (e.g., `/teams/J26-SE-363/performance/dashboard`).
 2. **Backward-Compatible Redirects**: Unscoped routes (e.g., `/app` or `/performance/dashboard`) automatically redirect to the active team (`/teams/J26-SE-363/...`).
 3. **Domain-Driven Modules**: Each research module owns an independent URL namespace (`planning/*`, `performance/*`, `tutor/*`, `security/*`). Developers never edit other team members' route tables.

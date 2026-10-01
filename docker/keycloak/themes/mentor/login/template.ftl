@@ -6,8 +6,8 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow">
-    <title>Sign in to MENTOR</title>
-    <link rel="icon" type="image/svg+xml" href="${url.resourcesPath}/img/favicon.svg" />
+    <title>Sign in to SELVIA</title>
+    <link rel="icon" type="image/png" href="${url.resourcesPath}/img/selvia-mark.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -33,23 +33,10 @@
             <!-- Brand Header -->
             <div class="showcase-header">
                 <div class="logo-lockup">
-                    <svg width="38" height="38" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo-svg">
-                        <path d="M20 4L35 12.5V27.5L20 36L5 27.5V12.5L20 4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.3"/>
-                        <line x1="20" y1="4" x2="20" y2="18" stroke="currentColor" stroke-width="1.2" opacity="0.35"/>
-                        <line x1="5" y1="12.5" x2="14" y2="18" stroke="currentColor" stroke-width="1.2" opacity="0.35"/>
-                        <line x1="35" y1="12.5" x2="26" y2="18" stroke="currentColor" stroke-width="1.2" opacity="0.35"/>
-                        <path d="M10 29V15L20 24L30 15V29" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <circle cx="20" cy="4" r="2" fill="currentColor"/>
-                        <circle cx="35" cy="12.5" r="2" fill="currentColor"/>
-                        <circle cx="35" cy="27.5" r="2" fill="currentColor"/>
-                        <circle cx="20" cy="36" r="2" fill="currentColor"/>
-                        <circle cx="5" cy="27.5" r="2" fill="currentColor"/>
-                        <circle cx="5" cy="12.5" r="2" fill="currentColor"/>
-                        <path d="M20 13L22 17L26 18L22 19L20 23L18 19L14 18L18 17L20 13Z" fill="#3b82f6"/>
-                    </svg>
+                    <img src="${url.resourcesPath}/img/selvia-mark.png" alt="SELVIA" class="logo-mark" width="42" height="42" />
                     <div class="brand-text">
                         <div class="brand-title-row">
-                            <span class="brand-name">MENTOR</span>
+                            <span class="brand-name">SELVIA</span>
                             <span class="ai-badge">AI</span>
                         </div>
                         <span class="brand-tagline">Engineering Workspace</span>
@@ -60,19 +47,19 @@
             <!-- Value Proposition -->
             <div class="showcase-content">
                 <h1 class="showcase-headline">
-                    Intelligent project planning and continuous mentoring.
+                    Intelligent project planning and continuous learning support.
                 </h1>
                 <p class="showcase-subhead">
-                    Streamlining software project tracking, automated quality gates, and real-time team mentoring into a single unified workspace.
+                    Streamlining software project tracking, automated quality gates, and real-time team guidance into a single unified workspace.
                 </p>
 
                 <!-- Testimonial Card -->
                 <div class="testimonial-card">
                     <p class="testimonial-quote">
-                        &ldquo;MENTOR brings project requirements, team contributions, and intelligent tutoring together with seamless clarity.&rdquo;
+                        &ldquo;SELVIA brings project requirements, team contributions, and intelligent tutoring together with seamless clarity.&rdquo;
                     </p>
                     <div class="testimonial-author">
-                        <div class="avatar-badge">M</div>
+                        <div class="avatar-badge">S</div>
                         <div>
                             <p class="author-title">Engineering Workspace</p>
                             <p class="author-sub">Continuous Quality Assurance</p>
@@ -83,7 +70,7 @@
 
             <!-- Left Footer -->
             <div class="showcase-footer">
-                <span>&copy; 2026 MENTOR. All rights reserved.</span>
+                <span>&copy; 2026 SELVIA. All rights reserved.</span>
             </div>
         </section>
 
@@ -94,12 +81,8 @@
             <!-- Mobile Brand Header -->
             <div class="mobile-header">
                 <div class="logo-lockup">
-                    <svg width="32" height="32" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo-svg">
-                        <path d="M20 4L35 12.5V27.5L20 36L5 27.5V12.5L20 4Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.3"/>
-                        <path d="M10 29V15L20 24L30 15V29" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M20 13L22 17L26 18L22 19L20 23L18 19L14 18L18 17L20 13Z" fill="#3b82f6"/>
-                    </svg>
-                    <span class="brand-name" style="font-size: 16px;">MENTOR</span>
+                    <img src="${url.resourcesPath}/img/selvia-mark.png" alt="SELVIA" class="logo-mark" width="32" height="32" />
+                    <span class="brand-name" style="font-size: 16px;">SELVIA</span>
                 </div>
             </div>
 
@@ -116,7 +99,7 @@
                         <h2 class="form-title">Authentication Notice</h2>
                         <p class="form-subtitle">An issue occurred during your authentication request.</p>
                     <#else>
-                        <h2 class="form-title">Sign in to MENTOR</h2>
+                        <h2 class="form-title">Sign in to SELVIA</h2>
                         <p class="form-subtitle">Welcome back! Please enter your details to continue.</p>
                     </#if>
                 </div>
@@ -139,7 +122,7 @@
 
             <!-- Footer -->
             <footer class="auth-footer">
-                <span>&copy; 2026 MENTOR Platform. All rights reserved.</span>
+                <span>&copy; 2026 SELVIA Platform. All rights reserved.</span>
                 <span class="footer-links">Privacy &amp; Terms</span>
             </footer>
         </section>

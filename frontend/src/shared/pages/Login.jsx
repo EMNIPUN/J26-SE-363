@@ -15,7 +15,7 @@ import { useAuth } from '../auth/useAuth.js'
 import { DEMO_ACCOUNTS, findAccount } from '../auth/credentials.js'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import MentorLogo from '../components/MentorLogo.jsx'
+import SelviaLogo from '../components/SelviaLogo.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 
 const ROLE_OPTIONS = [
@@ -88,17 +88,21 @@ export default function Login() {
 
         {/* Brand Header */}
         <div className="relative z-10 flex items-center gap-3">
-          <MentorLogo size={38} showText={true} className="text-white" textClassName="text-white" />
+          <img
+            src="/SELVIA_Banner.png"
+            alt="SELVIA"
+            className="h-12 w-auto max-w-[280px] object-contain mix-blend-screen"
+          />
         </div>
 
         {/* Value Proposition */}
         <div className="relative z-10 max-w-lg space-y-6 my-auto py-8">
           <h1 className="text-3xl xl:text-4xl font-extrabold tracking-tight text-white leading-tight">
-            Intelligent project planning and continuous mentoring.
+            Intelligent project planning and continuous learning support.
           </h1>
 
           <p className="text-base text-zinc-400 leading-relaxed font-normal">
-            Streamlining software project tracking, automated quality gates, and real-time team mentoring into a single unified workspace.
+            Streamlining software project tracking, automated quality gates, and real-time team guidance into a single unified workspace.
           </p>
 
           {/* Testimonial / Highlight Card */}
@@ -108,7 +112,7 @@ export default function Login() {
             </p>
             <div className="flex items-center gap-3 pt-1 border-t border-white/5">
               <div className="h-7 w-7 rounded-full bg-primary/30 border border-white/20 flex items-center justify-center text-xs font-bold text-white">
-                M
+                S
               </div>
               <div className="text-xs">
                 <p className="font-semibold text-white">Engineering Workspace</p>
@@ -131,7 +135,7 @@ export default function Login() {
         {/* Top Header / Theme Toggle */}
         <div className="flex items-center justify-between w-full">
           <div className="lg:hidden flex items-center gap-2">
-            <MentorLogo size={32} showText={true} className="text-foreground" />
+            <SelviaLogo size={32} showText={true} className="text-foreground" />
           </div>
           <div className="ml-auto">
             <ThemeToggle />

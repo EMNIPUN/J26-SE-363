@@ -3,6 +3,7 @@ import {
   BookOpen,
   BarChart3,
   ShieldCheck,
+  Bot,
   Users,
   Settings,
 } from 'lucide-react'
@@ -41,6 +42,16 @@ export function getNavForRole(role, teamCode = 'J26-SE-363') {
           { label: 'Dashboard', to: t('/security/dashboard') },
           { label: 'Scan Report', to: t('/security/scan-report') },
           { label: 'Remediation', to: t('/security/remediation') },
+        ],
+      },
+      {
+        label: 'Tutor Agent',
+        icon: Bot,
+        color: '#2563eb',
+        children: [
+          { label: 'Dashboard', to: t('/tutor/landing') },
+          { label: 'Chat', to: t('/tutor/chat') },
+          { label: 'Nudges', to: t('/tutor/nudges') },
         ],
       },
     ]
