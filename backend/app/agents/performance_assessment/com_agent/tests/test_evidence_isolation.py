@@ -45,7 +45,7 @@ async def test_mock_github_client_date_window_filtering():
         since="2025-09-02T00:00:00Z",
         until="2025-09-05T23:59:59Z"
     )
-    # Should only return the 2 commits within Sept 2 - Sept 5
+    # Should return the 3 commits within Sept 2 - Sept 5
     assert len(commits) == 3
     for c in commits:
         date = c["commit"]["author"]["date"]

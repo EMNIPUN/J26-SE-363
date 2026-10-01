@@ -3,6 +3,11 @@
 Strictly aligned with:
 - BOARD.md Phase 9 (T9.1 - T9.5)
 - PLAN.md Section 11 (Verification Plan & Acceptance Criteria)
+
+Production-grade improvements:
+- Clean stale output files before test runs to prevent false positives.
+- Config-driven ceiling assertion in quiz extension test.
+- Replaced tautological test with real prompt & config verification.
 """
 
 import json
@@ -24,6 +29,10 @@ from app.agents.performance_assessment.schemas import (
 from app.agents.performance_assessment.com_agent.config.settings_loader import (
     IS_DEV_MODE,
     FactorWeightsConfig,
+    settings,
+)
+from app.agents.performance_assessment.com_agent.prompts.prompt_loader import (
+    load_prompt_library,
 )
 from app.agents.performance_assessment.com_agent.graph import (
     build_com_agent_graph,
@@ -42,6 +51,16 @@ def clean_graph():
 @pytest.mark.asyncio
 async def test_t9_1_happy_path_mock_run():
     """T9.1: Happy Path Mock Run end-to-end."""
+    out_dir = pathlib.Path(__file__).resolve().parent.parent / "mock_context" / "output"
+    dossier_path = out_dir / "assessment_result_STU-001_sprint-01.json"
+    feedback_path = out_dir / "student_feedback_STU-001_sprint-01.json"
+
+    # Pre-clean stale outputs to ensure test verifies current run output
+    if dossier_path.exists():
+        dossier_path.unlink()
+    if feedback_path.exists():
+        feedback_path.unlink()
+
     graph = build_com_agent_graph()
 
     # T9.1.1: Trigger 1 — automated sprint deadline trigger
@@ -70,9 +89,7 @@ async def test_t9_1_happy_path_mock_run():
     assert 0.0 <= state_final["final_score"] <= 1.0
 
     # T9.1.3: Inspect mock_context/output/assessment_result_STU-001_sprint-01.json
-    out_dir = pathlib.Path(__file__).resolve().parent.parent / "mock_context" / "output"
-    dossier_path = out_dir / "assessment_result_STU-001_sprint-01.json"
-    assert dossier_path.exists()
+    assert dossier_path.exists(), f"Expected fresh dossier file at {dossier_path}"
 
     with open(dossier_path, "r", encoding="utf-8") as f:
         dossier_data = json.load(f)
@@ -85,8 +102,7 @@ async def test_t9_1_happy_path_mock_run():
     assert len(dossier_contract.radar_chart_data) == 6
 
     # T9.1.4: Inspect mock_context/output/student_feedback_STU-001_sprint-01.json
-    feedback_path = out_dir / "student_feedback_STU-001_sprint-01.json"
-    assert feedback_path.exists()
+    assert feedback_path.exists(), f"Expected fresh feedback file at {feedback_path}"
 
     with open(feedback_path, "r", encoding="utf-8") as f:
         feedback_data = json.load(f)
@@ -154,15 +170,25 @@ async def test_t9_3_quiz_extension_path():
     final_state = get_assessment_status(thread_id, graph=graph)
     assert final_state["quiz_is_extended"] is True
     assert final_state["ko_raw_score"] == 0.85
-    # Fusion score capped at ceiling 0.50
-    assert final_state["ko_fusion_score"] == 0.50
+    # Fusion score capped at ceiling from settings
+    cap = settings.quiz_timeout.capped_score_ceiling
+    assert final_state["ko_fusion_score"] == pytest.approx(cap, abs=1e-6)
 
 
 def test_t9_4_langsmith_project_and_anonymization():
-    """T9.4: Project configuration and PII absence in prompts."""
-    # Project naming check
-    expected_project = "performance_assessment_com_agent"
-    assert expected_project == "performance_assessment_com_agent"
+    """T9.4: Verify project configuration and prompt template constraints."""
+    library = load_prompt_library()
+    dossier = library.prompts["instructor_assessment_dossier"]
+    feedback = library.prompts["student_formative_feedback"]
+
+    assert "student_name" in dossier.input_variables
+    assert "student_name" in feedback.input_variables
+    assert any("STRICTLY FORBIDDEN" in c for c in dossier.strict_constraints)
+    assert any("NEVER alter" in c for c in feedback.strict_constraints)
+
+    env_file = pathlib.Path(__file__).resolve().parent.parent / ".env.example"
+    assert env_file.exists()
+    assert "LANGCHAIN_PROJECT=performance_assessment_com_agent" in env_file.read_text(encoding="utf-8")
 
 
 def test_t9_5_configuration_smoke_tests():

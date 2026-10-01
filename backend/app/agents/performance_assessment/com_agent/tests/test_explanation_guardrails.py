@@ -1,7 +1,13 @@
-"""Tests for explanation generation node and guardrails (T5.12 & PLAN.md Section 9 Node 13)."""
+"""Tests for explanation generation node and guardrails (T5.12 & PLAN.md Section 9 Node 13).
+
+Improvements:
+- Replaced ambiguous OR-assertions with strict, specific assertions for both dossier and student prompts.
+- Verified anonymized placeholders [STUDENT_A], [STUDENT_ID] are sent in user prompts.
+- Added edge-case test: empty factor scores / empty trajectory on Sprint 1.
+"""
 
 import pytest
-from app.agents.performance_assessment.com_agent.state import FactorOutput, DiscrepancyAlert
+from app.agents.performance_assessment.com_agent.state import FactorOutput
 from app.agents.performance_assessment.com_agent.nodes.explanation_node import (
     generate_explanation_node,
 )
@@ -76,6 +82,11 @@ async def test_generate_explanation_node_with_custom_llm_callable(mock_assessmen
     assert "Synthesized Response for 1500" in updates["instructor_report_markdown"]
     assert "Synthesized Response for 1000" in updates["student_feedback_markdown"]
 
+    # Anonymized tokens sent to LLM, never real student name
+    for _, usr_prompt, _ in calls:
+        assert "[STUDENT_A]" in usr_prompt
+        assert "Alice Perera" not in usr_prompt
+
 
 @pytest.mark.asyncio
 async def test_explanation_guardrails_constraints_and_trace_isolation(mock_assessment_state):
@@ -84,7 +95,7 @@ async def test_explanation_guardrails_constraints_and_trace_isolation(mock_asses
 
     def capturing_llm(sys_prompt: str, usr_prompt: str, params: dict) -> str:
         calls.append((sys_prompt, usr_prompt))
-        return f"# Report\nFinal Score: 0.86\nFeedback content without trace data."
+        return "# Report\nFinal Score: 0.86\nFeedback content without trace data."
 
     updates = await generate_explanation_node(mock_assessment_state, llm_callable=capturing_llm)
 
@@ -94,11 +105,34 @@ async def test_explanation_guardrails_constraints_and_trace_isolation(mock_asses
 
     # T8.8.3: strict_constraints guardrail text present in rendered system prompt
     dossier_sys, feedback_sys = calls[0][0], calls[1][0]
-    assert ("MANDATORY CONSTRAINTS:" in dossier_sys or "RULES:" in dossier_sys)
-    assert ("STRICTLY FORBIDDEN:" in dossier_sys or "RULES:" in feedback_sys)
+    assert "MANDATORY CONSTRAINTS:" in dossier_sys
+    assert "STRICTLY FORBIDDEN:" in dossier_sys
+    assert "RULES:" in feedback_sys
+    assert "NEVER alter or contradict" in feedback_sys
 
     # T8.8.4: student_feedback_markdown contains no raw evidence trace data
     feedback = updates["student_feedback_markdown"]
     for prohibited in ["sha", "stats", "deletions", "additions", "commit_history", "evidence_traces"]:
         assert prohibited not in feedback.lower()
 
+
+@pytest.mark.asyncio
+async def test_generate_explanation_node_empty_history_edge_case():
+    """Sprint 1 edge case: historical trajectory is empty, factor scores are minimal."""
+    state = {
+        "student_name": "Bob Smith",
+        "student_id": "STU-002",
+        "sprint_id": "sprint-01",
+        "final_score": 0.70,
+        "behavioral_persona": "Balanced Contributor",
+        "factor_scores": {},
+        "discrepancy_flags": [],
+        "historical_trajectory": [],
+    }
+
+    updates = await generate_explanation_node(state)
+    assert updates["current_step"] == "explanation_generated"
+    assert "instructor_report_markdown" in updates
+    assert "student_feedback_markdown" in updates
+    assert "0.7" in updates["instructor_report_markdown"]
+    assert "[STUDENT_A]" in updates["instructor_report_markdown"]
