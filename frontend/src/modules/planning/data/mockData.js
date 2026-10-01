@@ -22,7 +22,7 @@ export const AGENTS = {
 export const QUALITY_GATE_THRESHOLD = 70
 
 export const PROJECT_INFO = {
-  name: 'NexaPlan — Adaptive Tutor Framework',
+  name: 'NexaPlan - Adaptive Tutor Framework',
   batch: 'Y4.2',
   groupId: 'g03',
   supervisor: 'Dr. Amara Silva',
@@ -491,7 +491,7 @@ export const GROUPS = [
   {
     id: 'g07',
     name: 'Group 07',
-    project: 'AEGIS — Security Vulnerability Assistant',
+    project: 'AEGIS - Security Vulnerability Assistant',
     batch: 'Y4.1',
     members: 4,
     qualityGate: 92,
@@ -503,7 +503,7 @@ export const GROUPS = [
   {
     id: 'g12',
     name: 'Group 12',
-    project: 'TrackWise — Performance Analytics Platform',
+    project: 'TrackWise - Performance Analytics Platform',
     batch: 'Y4.1',
     members: 5,
     qualityGate: 74,
@@ -515,7 +515,7 @@ export const GROUPS = [
   {
     id: 'g03',
     name: 'Group 03',
-    project: 'NexaPlan — Adaptive Tutor Framework',
+    project: 'NexaPlan - Adaptive Tutor Framework',
     batch: 'Y4.2',
     members: 4,
     qualityGate: 58,
@@ -527,7 +527,7 @@ export const GROUPS = [
   {
     id: 'g09',
     name: 'Group 09',
-    project: 'CivicPulse — Community Reporting App',
+    project: 'CivicPulse - Community Reporting App',
     batch: 'Y4.1',
     members: 4,
     qualityGate: 81,
@@ -539,7 +539,7 @@ export const GROUPS = [
   {
     id: 'g15',
     name: 'Group 15',
-    project: 'MedTrack — Clinical Scheduling System',
+    project: 'MedTrack - Clinical Scheduling System',
     batch: 'Y4.2',
     members: 5,
     qualityGate: 69,
@@ -551,7 +551,7 @@ export const GROUPS = [
   {
     id: 'g21',
     name: 'Group 21',
-    project: 'HarvestLink — Agri Supply Chain Tracker',
+    project: 'HarvestLink - Agri Supply Chain Tracker',
     batch: 'Y4.2',
     members: 4,
     qualityGate: 87,

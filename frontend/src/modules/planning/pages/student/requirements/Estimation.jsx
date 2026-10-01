@@ -325,7 +325,7 @@ export default function Estimation() {
               <span>Protocol: <strong className="text-foreground">Consensus Planning Poker</strong></span>
             </div>
 
-            <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
               Consensus-Based Effort Estimation Studio
             </h2>
 

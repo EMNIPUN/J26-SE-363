@@ -535,7 +535,7 @@ export default function Decomposition() {
               <span>Methodology: <strong className="text-foreground">INVEST Agile Framework</strong></span>
             </div>
 
-            <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
               Backlog Decomposition &amp; Story Traceability Studio
             </h2>
 

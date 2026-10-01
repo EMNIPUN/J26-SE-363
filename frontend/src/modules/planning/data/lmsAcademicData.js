@@ -22,7 +22,7 @@ export const COURSE_INFO = {
   group: {
     code: 'J26-SE-363',
     number: 'Group 07',
-    name: 'NexaPlan — Adaptive Tutor Framework',
+    name: 'NexaPlan - Adaptive Tutor Framework',
     specialization: 'Software Engineering',
     batch: 'Y4.2 (2026)',
     repoUrl: 'https://github.com/EMNIPUN/J26-SE-363',
