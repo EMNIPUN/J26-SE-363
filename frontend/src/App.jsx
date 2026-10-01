@@ -103,7 +103,7 @@ function AppContent() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="dark" storageKey="mentor-theme">
+      <ThemeProvider defaultTheme="dark" storageKey="selvia-theme">
         <ModalProvider>
           <Toaster />
           <AuthProvider>

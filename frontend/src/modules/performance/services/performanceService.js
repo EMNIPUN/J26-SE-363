@@ -68,7 +68,7 @@ export const MOCK_STUDENT_DETAILED_DATA = {
       { id: 'act-1', type: 'commit', message: 'feat(auth): add RequireRole route guard and 403 page', date: 'Today, 2:30 PM', hash: '30869c2' },
       { id: 'act-2', type: 'review', message: 'Approved PR #5: unified routing architecture', date: 'Yesterday, 6:15 PM', hash: 'PR-005' },
       { id: 'act-3', type: 'standup', message: 'Sprint 4 Standup: completed Keycloak token propagation', date: '2 days ago', status: 'On Track' },
-      { id: 'act-4', type: 'commit', message: 'feat(keycloak): add MENTOR custom theme and templates', date: '3 days ago', hash: 'e87f7c7' },
+      { id: 'act-4', type: 'commit', message: 'feat(keycloak): add SELVIA custom theme and templates', date: '3 days ago', hash: 'e87f7c7' },
     ],
   },
 }

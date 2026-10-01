@@ -43,7 +43,7 @@ apiClient.interceptors.request.use(
       if (typeof window !== 'undefined') {
         const match = window.location.pathname.match(/\/teams\/([^/]+)/)
         const teamInUrl = match ? match[1] : null
-        const savedScope = sessionStorage.getItem('mentor_academic_scope')
+        const savedScope = sessionStorage.getItem('selvia_active_scope')
         let savedGroupId = null
         if (savedScope) {
           savedGroupId = JSON.parse(savedScope)?.groupId

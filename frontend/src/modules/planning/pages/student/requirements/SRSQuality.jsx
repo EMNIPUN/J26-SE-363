@@ -19,7 +19,6 @@ import {
   ShieldCheck,
   Check,
 } from 'lucide-react'
-import PageHeader from '../../../../../shared/components/PageHeader.jsx'
 import Card from '../../../../../shared/components/Card.jsx'
 import Badge from '../../../../../shared/components/Badge.jsx'
 import LoadingState from '../../../../../shared/components/LoadingState.jsx'
@@ -100,7 +99,7 @@ const IEEE_STANDARDS_INFO = [
     title: 'Scope Alignment',
     standard: 'Capstone SE4010 Rubric LO-1',
     description: 'The obligation must fall strictly within the group research domain and allocated student specialization boundaries.',
-    rule: 'Ensure traceability to approved project charter and mentor-approved research themes.',
+    rule: 'Ensure traceability to approved project charter and supervisor-approved research themes.',
   },
 ]
 
@@ -133,18 +132,6 @@ export default function SRSQuality() {
   const passingCount = requirements.filter((r) => r.status === 'Passing').length
   const attentionCount = requirements.filter((r) => r.status !== 'Passing').length
   const failingCount = requirements.filter((r) => r.status === 'Failing').length
-
-  const avgDimensionScores = QUALITY_DIMENSIONS.reduce((acc, dim) => {
-    acc[dim.key] = Math.round(
-      requirements.reduce((sum, r) => sum + (r.dimensionScores?.[dim.key] ?? 0), 0) / (requirements.length || 1),
-    )
-    return acc
-  }, {})
-
-  const lowestDim = QUALITY_DIMENSIONS.reduce(
-    (min, dim) => (avgDimensionScores[dim.key] < avgDimensionScores[min.key] ? dim : min),
-    QUALITY_DIMENSIONS[0],
-  )
 
   function selectRequirement(id) {
     setSelectedId(id)

@@ -1,6 +1,6 @@
 # Environment Selection & Configuration Architecture
 
-This document explains how each component in the **MENTOR** platform (Frontend, Backend, Keycloak, Kong API Gateway, and PostgreSQL) resolves, selects, and consumes environment configuration across **local development**, **staging/development**, and **production** environments.
+This document explains how each component in the **SELVIA** platform (Frontend, Backend, Keycloak, Kong API Gateway, and PostgreSQL) resolves, selects, and consumes environment configuration across **local development**, **staging/development**, and **production** environments.
 
 ---
 

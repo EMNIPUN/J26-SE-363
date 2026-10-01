@@ -38,7 +38,7 @@ export default function GroupWorkspace() {
   if (!group) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Group not found" breadcrumb={['Planning', 'Instructor', 'Groups']} />
+        <PageHeader title="Group not found" breadcrumb={['Planning', 'Lecturer', 'Groups']} />
         <EmptyState
           title="No such group"
           description="This group may have been removed or the link is out of date."
@@ -85,7 +85,7 @@ export default function GroupWorkspace() {
         </Link>
         <PageHeader
           title={group.name}
-          breadcrumb={['Planning', 'Instructor', 'Groups', group.name]}
+          breadcrumb={['Planning', 'Lecturer', 'Groups', group.name]}
           description={group.project}
           actions={
             <>

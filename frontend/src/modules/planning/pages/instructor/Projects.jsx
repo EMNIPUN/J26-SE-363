@@ -76,7 +76,7 @@ export default function InstructorProjects() {
     <div className="space-y-6">
       <PageHeader
         title="Projects"
-        breadcrumb={['Planning', 'Instructor', 'Projects']}
+        breadcrumb={['Planning', 'Lecturer', 'Projects']}
         description="Every project you supervise, with a link into each project's requirement set."
         actions={
           <>

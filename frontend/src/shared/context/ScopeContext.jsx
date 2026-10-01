@@ -8,7 +8,7 @@ import {
 
 const ScopeContext = createContext(null)
 
-const STORAGE_KEY = 'mentor_active_scope'
+const STORAGE_KEY = 'selvia_active_scope'
 
 export function ScopeProvider({ children }) {
   const { user } = useAuth()

@@ -1,6 +1,6 @@
-# MENTOR Frontend API Architecture Guidelines
+# SELVIA Frontend API Architecture Guidelines
 
-This guide explains how to make backend API calls in the **MENTOR** platform following production-grade clean architecture.
+This guide explains how to make backend API calls in the **SELVIA** platform following production-grade clean architecture.
 
 ---
 
@@ -24,7 +24,7 @@ This guide explains how to make backend API calls in the **MENTOR** platform fol
 ## ⚡ 5 Golden Rules for Every Developer
 
 1. **NEVER Hardcode URLs**:
-   - ❌ Never write `fetch("http://localhost:8000/api/projects")` or `axios.get("https://api.mentor.com/...")`.
+   - ❌ Never write `fetch("http://localhost:8000/api/projects")` or `axios.get("https://api.selvia.com/...")`.
    - ✅ Always use relative paths starting with `/api` registered in [`src/shared/api/endpoints.js`](../src/shared/api/endpoints.js).
 2. **NEVER Store Tokens in `localStorage`**:
    - ❌ Never store JWT tokens in `localStorage.setItem("token")` (vulnerable to XSS).

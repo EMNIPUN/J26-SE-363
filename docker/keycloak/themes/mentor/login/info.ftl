@@ -1,18 +1,31 @@
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayMessage=false; section>
     <#if section = "form">
-        <div id="kc-info-wrapper" class="content-area" style="text-align: center; padding: 1rem 0;">
-            <p style="color: #e4e4e7; font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem;">
-                ${message.summary}
+        <div id="kc-info-wrapper" class="form">
+            <p class="notice-text">
+                ${kcSanitize(message.summary)?no_esc}<#if requiredActions??>: <strong><#list requiredActions as reqActionItem>${kcSanitize(msg("requiredAction.${reqActionItem}"))?no_esc}<#sep>, </#list></strong></#if>
             </p>
 
-            <#if actionUri??>
-                <a href="${actionUri}" class="btn-submit" style="display: inline-flex; align-items: center; justify-content: center; text-decoration: none; width: 100%;">
+            <#if skipLink??>
+            <#elseif pageRedirectUri?has_content>
+                <a href="${pageRedirectUri}" class="btn btn-primary">
                     <span>Continue</span>
+                    <@layout.icon name="arrow-right" class="icon arrow"/>
                 </a>
-            <#elseif (client.baseUrl)??>
-                <a href="${client.baseUrl}" class="btn-submit" style="display: inline-flex; align-items: center; justify-content: center; text-decoration: none; width: 100%;">
-                    <span>Return to Application</span>
+            <#elseif actionUri?has_content>
+                <a href="${actionUri}" class="btn btn-primary">
+                    <span>Continue</span>
+                    <@layout.icon name="arrow-right" class="icon arrow"/>
+                </a>
+            <#elseif (client.baseUrl)?has_content>
+                <a href="${client.baseUrl}" class="btn btn-primary">
+                    <span>Return to SELVIA</span>
+                    <@layout.icon name="arrow-right" class="icon arrow"/>
+                </a>
+            <#else>
+                <a href="${url.loginUrl}" class="back-link">
+                    <@layout.icon name="arrow-left"/>
+                    <span>Back to sign in</span>
                 </a>
             </#if>
         </div>

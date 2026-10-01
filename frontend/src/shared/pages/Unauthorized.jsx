@@ -1,22 +1,18 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ShieldAlert, ArrowLeft, LayoutDashboard } from 'lucide-react'
 import { useAuth } from '../auth/useAuth.js'
+import { ROLE_LABEL } from '../constants/roles.js'
 import { Button } from '@/components/ui/button'
 
 export default function Unauthorized({ allowedRoles = [] }) {
   const { user } = useAuth()
-
-  const roleLabels = {
-    admin: 'Administrator',
-    instructor: 'Instructor',
-    student: 'Student',
-  }
+  const navigate = useNavigate()
 
   const formattedRequired = allowedRoles.length > 0
-    ? allowedRoles.map((r) => roleLabels[r] || r).join(' or ')
+    ? allowedRoles.map((r) => ROLE_LABEL[r] || r).join(' or ')
     : 'Elevated'
 
-  const currentRoleLabel = user?.role ? roleLabels[user.role] || user.role : 'Guest'
+  const currentRoleLabel = user?.role ? ROLE_LABEL[user.role] || user.role : 'Guest'
 
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 py-12 text-center animate-fade-rise">
@@ -53,11 +49,9 @@ export default function Unauthorized({ allowedRoles = [] }) {
             Return to Dashboard
           </Link>
         </Button>
-        <Button asChild variant="outline" size="default" className="gap-2">
-          <Link to={-1}>
-            <ArrowLeft className="h-4 w-4" />
-            Go Back
-          </Link>
+        <Button variant="outline" size="default" className="gap-2" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-4 w-4" />
+          Go Back
         </Button>
       </div>
     </div>

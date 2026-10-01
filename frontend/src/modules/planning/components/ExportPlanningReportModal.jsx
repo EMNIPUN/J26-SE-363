@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { FileText, Copy, Printer, Check, Download, GraduationCap, ShieldCheck } from 'lucide-react'
+import { FileText, Copy, Printer, Check, GraduationCap, ShieldCheck } from 'lucide-react'
 import Badge from '../../../shared/components/Badge.jsx'
 import { COURSE_INFO } from '../data/lmsAcademicData.js'
 

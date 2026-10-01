@@ -178,8 +178,8 @@ const rows = await db.execute(
     file: 'Backend/.env.production.bak',
     line: 6,
     code: [
-      'SMTP_HOST=smtp.mentor-platform.dev',
-      'SMTP_USER=notifications@mentor-platform.dev',
+      'SMTP_HOST=smtp.selvia-platform.dev',
+      'SMTP_USER=notifications@selvia-platform.dev',
       'SMTP_PASS=Kx7!mPq2v_Live',
     ],
     vulnerableLine: 2,
@@ -197,8 +197,8 @@ const rows = await db.execute(
     riskScore: 74,
     learningPriority: 'Medium',
     before: `# Backend/.env.production.bak (committed by mistake)
-SMTP_HOST=smtp.mentor-platform.dev
-SMTP_USER=notifications@mentor-platform.dev
+SMTP_HOST=smtp.selvia-platform.dev
+SMTP_USER=notifications@selvia-platform.dev
 SMTP_PASS=Kx7!mPq2v_Live`,
     after: `# Removed from the repository and history (git filter-repo).
 # Runtime value now injected via the deployment secret manager:

@@ -354,9 +354,9 @@
 }
 
 @container (max-width: 980px) {
-  /* Automatically wrap 12-column and 2-column grids into single column */
-  .workspace-container [class*="lg:grid-cols-12"],
-  .workspace-container [class*="lg:grid-cols-2"],
+  /* Collapse every multi-column lg:/md:2 grid; col-spans below are reset to 1,
+     so any grid left with >1 track would squash its cards into slivers. */
+  .workspace-container [class*="lg:grid-cols-"],
   .workspace-container [class*="md:grid-cols-2"] {
     grid-template-columns: minmax(0, 1fr) !important;
   }

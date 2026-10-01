@@ -16,6 +16,7 @@ import {
 const quickLinks = [
   { ...getModule('planning'), to: '/planning/dashboard' },
   { ...getModule('performance'), to: '/performance/dashboard' },
+  { ...getModule('tutor'), to: '/tutor/landing' },
   { ...getModule('security'), to: '/security/dashboard' },
 ]
 
@@ -64,7 +65,7 @@ export default function AdminHome() {
             </TableRow>
             <TableRow>
               <TableCell className="font-medium">Dr. Ishara Weerasinghe</TableCell>
-              <TableCell>Instructor</TableCell>
+              <TableCell>Lecturer</TableCell>
               <TableCell className="text-muted-foreground">5 days ago</TableCell>
             </TableRow>
             <TableRow>
