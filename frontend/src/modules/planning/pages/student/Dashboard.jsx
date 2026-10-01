@@ -17,20 +17,12 @@ import {
   XCircle,
   GraduationCap,
   Calendar,
-  FileText,
-  BookOpen,
-  Award,
   PlusCircle,
   Download,
   UserCheck,
-  RefreshCw,
-  ExternalLink,
-  ChevronRight,
-  TrendingUp,
   Layers,
   Activity,
 } from 'lucide-react'
-import PageHeader from '../../../../shared/components/PageHeader.jsx'
 import Card from '../../../../shared/components/Card.jsx'
 import Badge from '../../../../shared/components/Badge.jsx'
 import Button from '../../../../shared/components/Button.jsx'
@@ -58,7 +50,7 @@ import ExportPlanningReportModal from '../../components/ExportPlanningReportModa
 import NewRequirementModal from '../../components/NewRequirementModal.jsx'
 import { usePlanningData } from '../../context/usePlanningData.js'
 import { QUALITY_DIMENSIONS, ARBITRATION_CASES, GROUPS, getArbitrationForRequirement } from '../../data/mockData.js'
-import { COURSE_INFO, ACADEMIC_MILESTONES, STUDENT_ACADEMIC_PROFILES } from '../../data/lmsAcademicData.js'
+import { COURSE_INFO, STUDENT_ACADEMIC_PROFILES } from '../../data/lmsAcademicData.js'
 import { computeStageStats, getNextAction, STAGE_ORDER } from '../../stageStats.js'
 import { ARBITRATION_CATEGORY_TONE, GATE_STATUS_TONE, formatRelativeTime } from '../../utils.js'
 
@@ -66,7 +58,6 @@ const PRIORITY_TONE = { High: 'danger', Medium: 'warning', Low: 'neutral' }
 const GATE_STATUS_LABEL = { Passing: 'Passed', 'Needs Review': 'Review', Failing: 'Blocked' }
 const ROW_STATUS_TONE = { ready: 'success', waiting: 'primary', attention: 'warning', blocked: 'danger' }
 const CATEGORY_ORDER = ['COMPOUND', 'AMBIGUOUS', 'STRUCTURAL', 'NOVEL']
-const CATEGORY_LABEL = { COMPOUND: 'Compound', AMBIGUOUS: 'Ambiguous', STRUCTURAL: 'Structural', NOVEL: 'Novel' }
 const STATUS_FILTERS = [
   { value: 'all', label: 'All statuses' },
   { value: 'ready', label: 'Ready for Sprint' },
@@ -379,15 +370,6 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
           {pipelineStages.map((stage, idx) => {
-            const isSprint = stage.key === 'sprint'
-            const tone = isSprint
-              ? 'primary'
-              : stage.complete
-                ? 'success'
-                : stage.blocked || stage.percent === 0
-                  ? 'neutral'
-                  : 'warning'
-
             return (
               <Link
                 key={stage.key}
