@@ -56,12 +56,15 @@ def evaluate_task_fulfillment(tasks: List[Dict[str, Any]], commits: List[Dict[st
     ac_met_count = 0
 
     for t in tasks:
-        # Simulate LLM rubric scoring (1 to 5) converted to (0.0 to 1.0)
-        semantic = float(t.get("semantic_alignment_score", 0.80))
-        is_done = t.get("status") == "Done"
+        is_done = t.get("status") in ["Done", "Closed"]
         ac_met = bool(t.get("acceptance_criteria_met", is_done))
         if ac_met:
             ac_met_count += 1
+
+        if "semantic_alignment_score" in t:
+            semantic = float(t["semantic_alignment_score"])
+        else:
+            semantic = 1.0 if is_done else 0.0
 
         rubric_val = 1.0 + (semantic * 4.0)  # Map 0.0-1.0 to 1.0-5.0 rubric
         rf_j = round((rubric_val - 1.0) / 4.0, 4)

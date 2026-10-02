@@ -9,6 +9,7 @@ Strictly aligned with:
 import logging
 from typing import Dict, Any, Tuple
 from app.agents.performance_assessment.com_agent.state import FactorOutput
+from app.agents.performance_assessment.com_agent.factor_bridge import classify_persona_via_bridge
 
 logger = logging.getLogger(__name__)
 

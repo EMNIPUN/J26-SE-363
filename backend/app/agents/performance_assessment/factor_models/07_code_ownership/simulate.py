@@ -103,7 +103,10 @@ def evaluate_ownership_response(
 
     return {
         "score": final_score,
+        "raw_score": raw_score,
         "features": {
+            "ko_raw_score": raw_score,
+            "ko_fusion_score": final_score,
             "comprehension_rating_1_to_5": rubric_rating,
             "cyclomatic_complexity": 2,
             "token_count": 48,

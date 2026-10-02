@@ -13,6 +13,7 @@ from app.agents.performance_assessment.com_agent.state import FactorOutput
 from app.agents.performance_assessment.com_agent.ingestion.github_client import get_github_client
 from app.agents.performance_assessment.com_agent.ingestion.scrum_mcp_client import get_scrum_client
 from app.agents.performance_assessment.com_agent.fusion_engine.weights_config import get_weights_as_dict
+from app.agents.performance_assessment.com_agent.factor_bridge import evaluate_factor
 from app.agents.performance_assessment.com_agent.policies.fallback_policies import (
     get_fallback_for_factor,
     redistribute_weights,
@@ -65,28 +66,20 @@ async def run_effort_tool(state: Dict[str, Any]) -> Dict[str, Any]:
             "RD": rd,
         }
 
-        # Normalize score using cohort baseline if present
-        baselines = state.get("cohort_baselines", {}).get("metric_means", {})
-        baseline_cc = baselines.get("cc", 10.0) or 10.0
-        # Compute normalized effort score [0.0, 1.0]
-        raw_score = min(1.0, max(0.1, (cc / max(1.0, baseline_cc) * 0.5) + (ct / max(1, len(tasks)) * 0.5) if tasks else 0.5))
-        score = round(raw_score, 4)
-
-        evidence = [
+        # Delegate score calculation through decoupled factor bridge
+        has_deps = state.get("has_committed_dependencies", False)
+        output = await evaluate_factor(
+            "effort",
+            payload={"features": features, "has_committed_dependencies": has_deps},
+            context=state,
+        )
+        output.features.update(features)
+        output.evidence_traces = [
             {"type": "commits_authored", "count": cc, "loc_net": loc_net},
             {"type": "tasks_completed", "count": ct, "total_assigned": len(tasks)},
         ]
 
-        return {
-            "factor_scores": {
-                "effort": FactorOutput(
-                    score=score,
-                    features=features,
-                    evidence_traces=evidence,
-                    status="completed",
-                )
-            }
-        }
+        return {"factor_scores": {"effort": output}}
     except Exception as e:
         logger.error(f"Error executing effort tool: {e}")
         return {"factor_scores": {"effort": get_fallback_for_factor("effort", str(e))}}
@@ -130,20 +123,12 @@ async def run_consistency_tool(state: Dict[str, Any]) -> Dict[str, Any]:
             "total_commits": len(commits),
         }
 
-        # Consistency score based on active spread over sprint
-        score = round(min(1.0, max(0.1, 0.4 + (unique_days / 10.0) * 0.6)), 4)
-        evidence = [{"type": "active_days", "count": unique_days, "span": f"{dates[0]} to {dates[-1]}"}]
+        # Delegate score calculation through decoupled factor bridge
+        output = await evaluate_factor("consistency", payload={"features": features}, context=state)
+        output.features.update(features)
+        output.evidence_traces = [{"type": "active_days", "count": unique_days, "span": f"{dates[0]} to {dates[-1]}"}]
 
-        return {
-            "factor_scores": {
-                "consistency": FactorOutput(
-                    score=score,
-                    features=features,
-                    evidence_traces=evidence,
-                    status="completed",
-                )
-            }
-        }
+        return {"factor_scores": {"consistency": output}}
     except Exception as e:
         logger.error(f"Error executing consistency tool: {e}")
         return {"factor_scores": {"consistency": get_fallback_for_factor("consistency", str(e))}}
@@ -181,9 +166,6 @@ async def run_req_fulfillment_tool(state: Dict[str, Any]) -> Dict[str, Any]:
                 "ac_count": len(ac_list),
             })
 
-        ac_ratio = (total_ac_verified / max(1, total_ac_count)) if total_ac_count > 0 else 0.8
-        score = round(ac_ratio, 4)
-
         features = {
             "assigned_task_count": len(tasks),
             "completed_task_count": completed_tasks,
@@ -191,16 +173,16 @@ async def run_req_fulfillment_tool(state: Dict[str, Any]) -> Dict[str, Any]:
             "ac_total_count": total_ac_count,
         }
 
-        return {
-            "factor_scores": {
-                "requirement_fulfillment": FactorOutput(
-                    score=score,
-                    features=features,
-                    evidence_traces=task_details,
-                    status="completed",
-                )
-            }
-        }
+        # Delegate score calculation through decoupled factor bridge
+        output = await evaluate_factor(
+            "requirement_fulfillment",
+            payload={"student_tasks": tasks, "features": features},
+            context=state,
+        )
+        output.features.update(features)
+        output.evidence_traces = task_details
+
+        return {"factor_scores": {"requirement_fulfillment": output}}
     except Exception as e:
         logger.error(f"Error executing requirement fulfillment tool: {e}")
         return {"factor_scores": {"requirement_fulfillment": get_fallback_for_factor("requirement_fulfillment", str(e))}}
@@ -241,22 +223,21 @@ async def run_collaboration_tool(state: Dict[str, Any]) -> Dict[str, Any]:
             "IR": round(len(reviews) / max(1, len(reviews) + len(comments)), 2),
         }
 
-        score = round(min(1.0, 0.40 + (total_interactions * 0.10)), 4)
         evidence = [
             {"type": "pr_reviews_authored", "count": len(reviews)},
             {"type": "issue_discussions_participated", "count": len(comments)},
         ]
 
-        return {
-            "factor_scores": {
-                "collaboration": FactorOutput(
-                    score=score,
-                    features=features,
-                    evidence_traces=evidence,
-                    status="completed",
-                )
-            }
-        }
+        # Delegate score calculation through decoupled factor bridge
+        output = await evaluate_factor(
+            "collaboration",
+            payload={"review_comments": reviews, "issue_comments": comments, "features": features},
+            context=state,
+        )
+        output.features.update(features)
+        output.evidence_traces = evidence
+
+        return {"factor_scores": {"collaboration": output}}
     except Exception as e:
         logger.error(f"Error executing collaboration tool: {e}")
         return {"factor_scores": {"collaboration": get_fallback_for_factor("collaboration", str(e))}}
@@ -282,20 +263,16 @@ async def run_complexity_tool(state: Dict[str, Any]) -> Dict[str, Any]:
             "CB": 0.70,  # Cyclomatic complexity baseline
         }
 
-        # Normalize complexity against typical sprint expectations
-        score = round(min(1.0, max(0.2, (sp_total / 15.0) * 0.6 + (subtask_count / 10.0) * 0.4)), 4)
-        evidence = [{"type": "story_points", "total_sp": sp_total, "subtasks": subtask_count}]
+        # Delegate score calculation through decoupled factor bridge
+        output = await evaluate_factor(
+            "task_complexity",
+            payload={"features": features, "tasks": tasks},
+            context=state,
+        )
+        output.features.update(features)
+        output.evidence_traces = [{"type": "story_points", "total_sp": sp_total, "subtasks": subtask_count}]
 
-        return {
-            "factor_scores": {
-                "task_complexity": FactorOutput(
-                    score=score,
-                    features=features,
-                    evidence_traces=evidence,
-                    status="completed",
-                )
-            }
-        }
+        return {"factor_scores": {"task_complexity": output}}
     except Exception as e:
         logger.error(f"Error executing complexity tool: {e}")
         return {"factor_scores": {"task_complexity": get_fallback_for_factor("task_complexity", str(e))}}

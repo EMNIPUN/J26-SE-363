@@ -15,6 +15,7 @@ from app.agents.performance_assessment.com_agent.state import (
     ActiveVerificationState,
     FactorOutput,
 )
+from app.agents.performance_assessment.com_agent.factor_bridge import evaluate_factor
 
 logger = logging.getLogger(__name__)
 
@@ -233,12 +234,16 @@ async def evaluate_ownership_tool(state: Dict[str, Any]) -> Dict[str, Any]:
         student_text = av.student_response or ""
         if av.ownership_score is not None:
             raw_score = av.ownership_score
-        elif len(student_text.strip()) > 20:
-            raw_score = 0.85
-        elif len(student_text.strip()) > 0:
-            raw_score = 0.25
         else:
-            raw_score = 0.0
+            # Delegate evaluation to factor bridge
+            payload = {
+                "student_response": student_text,
+                "is_extension_period": av.is_extended,
+                "is_timeout": False,
+                "code_snippet": av.target_code_snippet,
+            }
+            res = await evaluate_factor("code_ownership", payload=payload, context=state)
+            raw_score = float(res.features.get("ko_raw_score", res.score))
 
         if av.is_extended:
             fusion_score = min(raw_score, cap_ceiling)
