@@ -76,3 +76,31 @@ def test_server_routes_registered():
     assert "/api/v1/assessment/triggers/on-demand" in routes
     assert "/api/v1/assessment/triggers/lecturer-review" in routes
     assert "/api/v1/assessment/status/{thread_id}" in routes
+
+
+def test_assessment_env_files():
+    """Verify that .env and .env.example exist in the assessment folder with required keys."""
+    import pathlib
+    assessment_dir = pathlib.Path(__file__).resolve().parent.parent.parent
+    env_file = assessment_dir / ".env"
+    example_file = assessment_dir / ".env.example"
+
+    assert env_file.exists(), ".env must exist in performance_assessment folder"
+    assert example_file.exists(), ".env.example must exist in performance_assessment folder"
+
+    required_vars = [
+        "COM_AGENT_ENV",
+        "COMPOSE_PROFILES",
+        "POSTGRES_DB",
+        "POSTGRES_USER",
+        "POSTGRES_PASSWORD",
+        "POSTGRES_HOST",
+        "POSTGRES_PORT",
+    ]
+    env_text = env_file.read_text(encoding="utf-8")
+    example_text = example_file.read_text(encoding="utf-8")
+
+    for v in required_vars:
+        assert v in env_text, f"{v} missing in .env"
+        assert v in example_text, f"{v} missing in .env.example"
+

@@ -14,6 +14,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Build arguments loaded from environment (.env)
+ARG POSTGRES_USER=assessment_user
+ARG POSTGRES_PASSWORD=assessment_pass
+ARG POSTGRES_DB=assessment_db
+ARG COM_AGENT_ENV=production
+
 # Copy isolated requirements and install
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
@@ -27,9 +33,13 @@ RUN mkdir -p /app/app/agents/performance_assessment && \
 # Copy agent code into the container
 COPY . /app/app/agents/performance_assessment/
 
+# Environment variables populated from build args / env
 ENV PYTHONPATH=/app \
     PYTHONUNBUFFERED=1 \
-    COM_AGENT_ENV=production \
+    COM_AGENT_ENV=${COM_AGENT_ENV} \
+    POSTGRES_USER=${POSTGRES_USER} \
+    POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+    POSTGRES_DB=${POSTGRES_DB} \
     PORT=8002
 
 EXPOSE 8002
