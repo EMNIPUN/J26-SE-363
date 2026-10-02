@@ -61,6 +61,28 @@ async def trigger_sprint_end(
         if custom_contexts and stu_id in custom_contexts:
             ctx.update(custom_contexts[stu_id])
         
+        # Non-lossy evidence ingestion & multi-factor preparation pool
+        try:
+            from app.agents.performance_assessment.com_agent.ingestion.evidence_preparer import (
+                ingest_and_pool_evidence,
+            )
+            pooled = await ingest_and_pool_evidence(
+                student_id=stu_id,
+                sprint_id=sprint_id,
+                team_id=ctx.get("team_id", "TEAM-A"),
+                repo_url=ctx.get("repo_url", "https://github.com/org/repo"),
+                force_refresh=False,
+                custom_context=ctx,
+            )
+            ctx["prepared_factor_payloads"] = pooled.get("factor_payloads")
+            ctx["has_committed_dependencies"] = (
+                pooled.get("factor_payloads", {})
+                .get("effort", {})
+                .get("has_committed_dependencies", False)
+            )
+        except Exception as e:
+            logger.warning(f"Evidence pooling fallback for {stu_id}: {e}")
+
         initial_state = build_initial_state(ctx)
         await runner.ainvoke(initial_state, config=cfg)
         return cfg["configurable"]["thread_id"]
@@ -102,11 +124,13 @@ async def trigger_on_demand(
     student_id: str,
     graph: Optional[Any] = None,
     student_context: Optional[Dict[str, Any]] = None,
+    force_refresh: bool = False,
 ) -> str:
     """Trigger 3: On-Demand Lecturer Trigger (Manual Dashboard Trigger).
 
     T7.1.3:
     - Starts a fresh assessment run for a single student.
+    - Ingests or reuses non-lossy evidence pool (honoring force_refresh).
     - Runs until quiz interrupt or completion.
     - Returns thread_id.
     """
@@ -116,9 +140,66 @@ async def trigger_on_demand(
     if student_context:
         ctx.update(student_context)
 
+    # Ingest or reuse evidence pool
+    try:
+        from app.agents.performance_assessment.com_agent.ingestion.evidence_preparer import (
+            ingest_and_pool_evidence,
+        )
+        pooled = await ingest_and_pool_evidence(
+            student_id=student_id,
+            sprint_id=sprint_id,
+            team_id=ctx.get("team_id", "TEAM-A"),
+            repo_url=ctx.get("repo_url", "https://github.com/org/repo"),
+            force_refresh=force_refresh,
+            custom_context=ctx,
+        )
+        ctx["prepared_factor_payloads"] = pooled.get("factor_payloads")
+        ctx["has_committed_dependencies"] = (
+            pooled.get("factor_payloads", {})
+            .get("effort", {})
+            .get("has_committed_dependencies", False)
+        )
+    except Exception as e:
+        logger.warning(f"On-demand evidence pooling fallback for {student_id}: {e}")
+
     initial_state = build_initial_state(ctx)
     await runner.ainvoke(initial_state, config=cfg)
     return cfg["configurable"]["thread_id"]
+
+
+async def check_expired_quiz_timeouts(
+    graph: Optional[Any] = None,
+    now_iso: Optional[str] = None,
+) -> List[str]:
+    """Finds threads waiting at quiz interrupt whose deadlines have elapsed, and wakes them up with timeout=True."""
+    from datetime import datetime, timezone
+    runner = graph or get_default_graph()
+    current_time = datetime.fromisoformat(now_iso) if now_iso else datetime.now(timezone.utc)
+    expired_threads = []
+
+    if hasattr(runner, "checkpointer") and runner.checkpointer is not None:
+        storage = getattr(runner.checkpointer, "storage", None)
+        if isinstance(storage, dict):
+            for thread_id, saved_state in storage.items():
+                step = saved_state.get("current_step")
+                if step in ["quiz_generated", "quiz_extended_waiting"]:
+                    av = saved_state.get("active_verification")
+                    deadline_str = getattr(av, "quiz_extension_deadline", None) if hasattr(av, "quiz_extension_deadline") else (av.get("quiz_extension_deadline") if isinstance(av, dict) else None)
+                    if not deadline_str:
+                        deadline_str = saved_state.get("quiz_deadline")
+                    if deadline_str:
+                        try:
+                            dl = datetime.fromisoformat(deadline_str)
+                            if current_time >= dl:
+                                expired_threads.append(thread_id)
+                        except Exception:
+                            pass
+
+    for tid in expired_threads:
+        cfg = {"configurable": {"thread_id": tid}}
+        await runner.ainvoke(Command(resume={"timeout": True}), config=cfg)
+
+    return expired_threads
 
 
 async def submit_lecturer_review(

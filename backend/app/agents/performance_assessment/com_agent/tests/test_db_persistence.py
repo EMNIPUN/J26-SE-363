@@ -9,6 +9,8 @@ from app.agents.performance_assessment.com_agent.db import (
     save_assessment_result_db,
     save_student_feedback_db,
     get_assessment_result_db,
+    save_student_evidence_pool,
+    get_student_evidence_pool,
     INIT_TABLES_SQL,
 )
 from app.agents.performance_assessment.com_agent.graph import MemorySaver
@@ -59,12 +61,33 @@ def test_save_and_get_assessment_result_db_offline_handling():
     assert get_assessment_result_db("STU-001", "sprint-01", db_url=offline_url) is None
 
 
+def test_save_and_get_student_evidence_pool_offline_handling():
+    """Evidence pool save and query methods return False / None when DB is unavailable."""
+    offline_url = "postgresql://user:pass@127.0.0.1:59999/nonexistent_db"
+    assert (
+        save_student_evidence_pool(
+            student_id="STU-001",
+            sprint_id="sprint-01",
+            team_id="team-alpha",
+            repo_url="https://github.com/org/repo.git",
+            raw_evidence={"commits": []},
+            factor_payloads={"effort": {}},
+            db_url=offline_url,
+        )
+        is False
+    )
+    assert get_student_evidence_pool("STU-001", "sprint-01", db_url=offline_url) is None
+
+
 def test_init_tables_sql_schema_integrity():
     """Ensure required tables and constraints are defined in SQL schema."""
     assert "CREATE TABLE IF NOT EXISTS assessment_results" in INIT_TABLES_SQL
     assert "CREATE TABLE IF NOT EXISTS student_feedback" in INIT_TABLES_SQL
     assert "CREATE TABLE IF NOT EXISTS cohort_baselines" in INIT_TABLES_SQL
+    assert "CREATE TABLE IF NOT EXISTS student_evidence_pool" in INIT_TABLES_SQL
     assert "uq_student_sprint UNIQUE (student_id, sprint_id)" in INIT_TABLES_SQL
+    assert "uq_evidence_student_sprint UNIQUE (student_id, sprint_id)" in INIT_TABLES_SQL
+    assert "idx_evidence_student_sprint ON student_evidence_pool" in INIT_TABLES_SQL
 
 
 def test_server_routes_registered():

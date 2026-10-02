@@ -52,7 +52,7 @@ class GitHubClientProtocol(abc.ABC):
     async def get_review_comments(
         self,
         repo_url: str,
-        pr_ids: List[int],
+        pr_ids: Optional[List[int]] = None,
         reviewer_username: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Retrieve review comments submitted by student on pull requests."""
@@ -152,11 +152,11 @@ class MockGitHubClient(GitHubClientProtocol):
     async def get_review_comments(
         self,
         repo_url: str,
-        pr_ids: List[int],
+        pr_ids: Optional[List[int]] = None,
         reviewer_username: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         raw_prs: List[Dict[str, Any]] = self._load_fixture("pull_requests.json")
-        pr_id_set = set(pr_ids)
+        pr_id_set = set(pr_ids) if pr_ids else set()
         reviewer_lower = reviewer_username.lower() if reviewer_username else None
 
         collected_reviews: List[Dict[str, Any]] = []
@@ -225,7 +225,7 @@ class RealGitHubClient(GitHubClientProtocol):
     async def get_review_comments(
         self,
         repo_url: str,
-        pr_ids: List[int],
+        pr_ids: Optional[List[int]] = None,
         reviewer_username: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         raise NotImplementedError("RealGitHubClient requires GitHub MCP server in production")
@@ -308,7 +308,7 @@ class CountingGitHubClientWrapper(GitHubClientProtocol):
     async def get_review_comments(
         self,
         repo_url: str,
-        pr_ids: List[int],
+        pr_ids: Optional[List[int]] = None,
         reviewer_username: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         self._record_call()

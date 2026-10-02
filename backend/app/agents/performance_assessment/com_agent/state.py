@@ -93,6 +93,8 @@ class AssessmentState(TypedDict):
     pull_requests: List[Dict[str, Any]]
     review_comments: List[Dict[str, Any]]
     scrum_status_history: List[Dict[str, Any]]
+    prepared_factor_payloads: Optional[Dict[str, Any]]
+    has_committed_dependencies: Optional[bool]
 
     # 3. Factor Tool Results (Annotated for parallel reduction via dict update)
     factor_scores: Annotated[Dict[str, FactorOutput], operator.ior]

@@ -64,8 +64,21 @@ CREATE TABLE IF NOT EXISTS cohort_baselines (
     CONSTRAINT uq_team_sprint_baseline UNIQUE (team_id, sprint_id)
 );
 
+CREATE TABLE IF NOT EXISTS student_evidence_pool (
+    id SERIAL PRIMARY KEY,
+    student_id VARCHAR(64) NOT NULL,
+    sprint_id VARCHAR(64) NOT NULL,
+    team_id VARCHAR(64) NOT NULL,
+    repo_url TEXT NOT NULL,
+    raw_evidence JSONB NOT NULL,
+    factor_payloads JSONB NOT NULL,
+    ingested_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_evidence_student_sprint UNIQUE (student_id, sprint_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_assessment_student_sprint ON assessment_results (student_id, sprint_id);
 CREATE INDEX IF NOT EXISTS idx_feedback_student_sprint ON student_feedback (student_id, sprint_id);
+CREATE INDEX IF NOT EXISTS idx_evidence_student_sprint ON student_evidence_pool (student_id, sprint_id);
 """
 
 
@@ -197,3 +210,86 @@ def get_assessment_result_db(student_id: str, sprint_id: str, db_url: Optional[s
     except Exception as e:
         logger.warning(f"Failed to query assessment result from PostgreSQL: {e}")
         return None
+
+
+def save_student_evidence_pool(
+    student_id: str,
+    sprint_id: str,
+    team_id: str,
+    repo_url: str,
+    raw_evidence: Dict[str, Any],
+    factor_payloads: Dict[str, Any],
+    db_url: Optional[str] = None,
+) -> bool:
+    """Persist uncompressed raw evidence and prepared multi-factor payloads into student_evidence_pool."""
+    url = db_url or get_db_url()
+    try:
+        import psycopg
+
+        sql = """
+        INSERT INTO student_evidence_pool (student_id, sprint_id, team_id, repo_url, raw_evidence, factor_payloads)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (student_id, sprint_id)
+        DO UPDATE SET
+            team_id = EXCLUDED.team_id,
+            repo_url = EXCLUDED.repo_url,
+            raw_evidence = EXCLUDED.raw_evidence,
+            factor_payloads = EXCLUDED.factor_payloads,
+            ingested_at = NOW();
+        """
+        with psycopg.connect(url, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    sql,
+                    (
+                        student_id,
+                        sprint_id,
+                        team_id,
+                        repo_url,
+                        json.dumps(raw_evidence),
+                        json.dumps(factor_payloads),
+                    ),
+                )
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to persist student evidence pool to PostgreSQL: {e}")
+        return False
+
+
+def get_student_evidence_pool(
+    student_id: str,
+    sprint_id: str,
+    db_url: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Retrieve raw evidence and prepared factor payloads for a student sprint from PostgreSQL."""
+    url = db_url or get_db_url()
+    try:
+        import psycopg
+
+        sql = """
+        SELECT team_id, repo_url, raw_evidence, factor_payloads, ingested_at
+        FROM student_evidence_pool
+        WHERE student_id = %s AND sprint_id = %s;
+        """
+        with psycopg.connect(url) as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, (student_id, sprint_id))
+                row = cur.fetchone()
+                if row:
+                    raw_ev = row[2] if isinstance(row[2], dict) else json.loads(row[2])
+                    factor_pay = row[3] if isinstance(row[3], dict) else json.loads(row[3])
+                    ingested_str = row[4].isoformat() if hasattr(row[4], "isoformat") else str(row[4])
+                    return {
+                        "student_id": student_id,
+                        "sprint_id": sprint_id,
+                        "team_id": row[0],
+                        "repo_url": row[1],
+                        "raw_evidence": raw_ev,
+                        "factor_payloads": factor_pay,
+                        "ingested_at": ingested_str,
+                    }
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to query student evidence pool from PostgreSQL: {e}")
+        return None
+

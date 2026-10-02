@@ -18,6 +18,7 @@ from app.agents.performance_assessment.agent import (
     trigger_on_demand,
     submit_lecturer_review,
     get_assessment_status,
+    check_expired_quiz_timeouts,
 )
 from app.agents.performance_assessment.com_agent.db import init_assessment_db
 
@@ -58,6 +59,7 @@ class OnDemandRequest(BaseModel):
     sprint_id: str = Field(..., description="Sprint identifier")
     student_id: str = Field(..., description="Student identifier")
     custom_context: Optional[Dict[str, Any]] = Field(default=None, description="Optional student context")
+    force_refresh: bool = Field(default=False, description="Re-ingest live data instead of reusing cached evidence pool")
 
 
 class LecturerReviewRequest(BaseModel):
@@ -75,6 +77,21 @@ async def health_check():
         "service": "performance_assessment_agent",
         "version": "1.0.0",
     }
+
+
+@app.post("/api/v1/assessment/check-timeouts", status_code=status.HTTP_200_OK)
+async def api_check_timeouts():
+    """Trigger periodic scan of active quiz threads to resume any that exceeded 48h/96h deadlines."""
+    try:
+        expired = await check_expired_quiz_timeouts()
+        return {
+            "status": "checked",
+            "expired_threads_count": len(expired),
+            "expired_threads": expired,
+        }
+    except Exception as e:
+        logger.error(f"Failed to check expired timeouts: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/v1/assessment/triggers/sprint-end", status_code=status.HTTP_202_ACCEPTED)
@@ -120,7 +137,8 @@ async def api_trigger_on_demand(req: OnDemandRequest):
         thread_id = await trigger_on_demand(
             sprint_id=req.sprint_id,
             student_id=req.student_id,
-            custom_context=req.custom_context,
+            student_context=req.custom_context,
+            force_refresh=req.force_refresh,
         )
         return {
             "status": "triggered",
