@@ -23,7 +23,7 @@ export default function CodeComprehensionLog({
       {/* Header Banner */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Award className="h-4 w-4" />
           </div>
           <div>

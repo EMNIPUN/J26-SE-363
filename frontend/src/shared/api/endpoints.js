@@ -1,7 +1,7 @@
 /**
  * Centralized API Endpoint Registry
  *
- * Single source of truth for all backend route paths across the MENTOR architecture.
+ * Single source of truth for all backend route paths across the SELVIA architecture.
  * Developers never hardcode string URLs inside components.
  */
 export const ENDPOINTS = {

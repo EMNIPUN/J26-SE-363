@@ -15,12 +15,12 @@ import { useAuth } from '../auth/useAuth.js'
 import { DEMO_ACCOUNTS, findAccount } from '../auth/credentials.js'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import MentorLogo from '../components/MentorLogo.jsx'
+import SelviaLogo from '../components/SelviaLogo.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 
 const ROLE_OPTIONS = [
   { role: 'student', label: 'Student', icon: GraduationCap },
-  { role: 'instructor', label: 'Instructor', icon: UserCheck },
+  { role: 'instructor', label: 'Lecturer', icon: UserCheck },
   { role: 'admin', label: 'Admin', icon: Shield },
 ]
 
@@ -88,27 +88,31 @@ export default function Login() {
 
         {/* Brand Header */}
         <div className="relative z-10 flex items-center gap-3">
-          <MentorLogo size={38} showText={true} className="text-white" textClassName="text-white" />
+          <img
+            src="/SELVIA_Banner.png"
+            alt="SELVIA"
+            className="h-12 w-auto max-w-[280px] object-contain mix-blend-screen"
+          />
         </div>
 
         {/* Value Proposition */}
         <div className="relative z-10 max-w-lg space-y-6 my-auto py-8">
           <h1 className="text-3xl xl:text-4xl font-extrabold tracking-tight text-white leading-tight">
-            Intelligent project planning and continuous mentoring.
+            Intelligent project planning and continuous learning support.
           </h1>
 
           <p className="text-base text-zinc-400 leading-relaxed font-normal">
-            Streamlining software project tracking, automated quality gates, and real-time team mentoring into a single unified workspace.
+            Streamlining software project tracking, automated quality gates, and real-time team guidance into a single unified workspace.
           </p>
 
           {/* Testimonial / Highlight Card */}
           <div className="rounded-xl bg-white/[0.05] border border-white/10 p-5 backdrop-blur-sm space-y-3">
             <p className="text-sm text-zinc-300 italic leading-relaxed">
-              &ldquo;MENTOR brings project requirements, team contributions, and intelligent tutoring together with seamless clarity.&rdquo;
+              &ldquo;SELVIA brings project requirements, team contributions, and intelligent tutoring together with seamless clarity.&rdquo;
             </p>
             <div className="flex items-center gap-3 pt-1 border-t border-white/5">
               <div className="h-7 w-7 rounded-full bg-primary/30 border border-white/20 flex items-center justify-center text-xs font-bold text-white">
-                M
+                S
               </div>
               <div className="text-xs">
                 <p className="font-semibold text-white">Engineering Workspace</p>
@@ -120,7 +124,7 @@ export default function Login() {
 
         {/* Bottom Footer */}
         <div className="relative z-10 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-zinc-500">
-          <span>&copy; {new Date().getFullYear()} MENTOR. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} SELVIA. All rights reserved.</span>
         </div>
       </section>
 
@@ -131,7 +135,7 @@ export default function Login() {
         {/* Top Header / Theme Toggle */}
         <div className="flex items-center justify-between w-full">
           <div className="lg:hidden flex items-center gap-2">
-            <MentorLogo size={32} showText={true} className="text-foreground" />
+            <SelviaLogo size={32} showText={true} className="text-foreground" />
           </div>
           <div className="ml-auto">
             <ThemeToggle />
@@ -142,7 +146,7 @@ export default function Login() {
         <div className="w-full max-w-[400px] mx-auto my-auto space-y-6 py-6">
           <div className="space-y-1.5">
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              Sign in to MENTOR
+              Sign in to SELVIA
             </h2>
             <p className="text-sm text-muted-foreground">
               Welcome back! Please enter your details to continue.
@@ -301,7 +305,7 @@ export default function Login() {
 
         {/* Footer */}
         <footer className="w-full pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between text-xs text-muted-foreground gap-2">
-          <span>&copy; {new Date().getFullYear()} MENTOR Platform. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} SELVIA Platform. All rights reserved.</span>
           <span className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
             Privacy &amp; Terms
           </span>

@@ -8,7 +8,7 @@ import {
 
 const ScopeContext = createContext(null)
 
-const STORAGE_KEY = 'mentor_active_scope'
+const STORAGE_KEY = 'selvia_active_scope'
 
 export function ScopeProvider({ children }) {
   const { user } = useAuth()
@@ -24,7 +24,7 @@ export function ScopeProvider({ children }) {
     )
   }, [isStudent, user])
 
-  // Initial group ID derived from sessionStorage or first group
+  // Initial group ID derived from sessionStorage, enrolled student group, or first group.
   const [selectedGroupId, setSelectedGroupIdState] = useState(() => {
     if (typeof window === 'undefined') return GROUPS[0].id
     try {
@@ -36,22 +36,19 @@ export function ScopeProvider({ children }) {
     } catch {
       // ignore JSON parse error
     }
-    return GROUPS[0].id
+    return studentProfile?.groupId || GROUPS[0].id
   })
-
-  // Declarative effective Group ID: locked to enrolled group for students
-  const effectiveGroupId = isStudent && studentProfile ? studentProfile.groupId : selectedGroupId
 
   // Resolved active group object
   const selectedGroup = useMemo(
-    () => GROUPS.find((g) => g.id === effectiveGroupId) || GROUPS[0],
-    [effectiveGroupId],
+    () => GROUPS.find((g) => g.id === selectedGroupId) || GROUPS[0],
+    [selectedGroupId],
   )
 
   // Students belonging to the active team
   const teamStudents = useMemo(
-    () => STUDENTS.filter((s) => s.groupId === effectiveGroupId),
-    [effectiveGroupId],
+    () => STUDENTS.filter((s) => s.groupId === selectedGroupId),
+    [selectedGroupId],
   )
 
   // Active batch metadata (for display)
@@ -60,14 +57,14 @@ export function ScopeProvider({ children }) {
     [selectedGroup],
   )
 
-  // Setter for instructor / admin
+  // Setter for the active project group.
   const setGroupId = useCallback((newGroupId) => {
     setSelectedGroupIdState(newGroupId)
   }, [])
 
-  // Persist active group in sessionStorage for instructors
+  // Persist active group in sessionStorage.
   useEffect(() => {
-    if (!isStudent && selectedGroupId) {
+    if (selectedGroupId) {
       try {
         sessionStorage.setItem(
           STORAGE_KEY,
@@ -77,13 +74,13 @@ export function ScopeProvider({ children }) {
         // ignore storage errors
       }
     }
-  }, [isStudent, selectedGroupId])
+  }, [selectedGroupId])
 
   const value = useMemo(
     () => ({
       isStudent,
       studentProfile,
-      selectedGroupId: effectiveGroupId,
+      selectedGroupId,
       selectedGroup,
       teamStudents,
       groups: GROUPS,
@@ -93,7 +90,7 @@ export function ScopeProvider({ children }) {
     [
       isStudent,
       studentProfile,
-      effectiveGroupId,
+      selectedGroupId,
       selectedGroup,
       teamStudents,
       selectedBatch,

@@ -3,6 +3,9 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+import { useAuth } from '../auth/useAuth.js'
+import { getRoleLabel } from '../constants/roles.js'
+import Avatar from '../components/Avatar.jsx'
 
 function isSectionActive(section, pathname) {
   if (section.to) {
@@ -31,13 +34,13 @@ function CollapsedSimpleItem({ section, active, onNavigate }) {
           onClick={onNavigate}
           className={`relative h-10 w-10 flex items-center justify-center mx-auto rounded-lg transition-all duration-150 ease-out active:scale-[0.98] outline-none ${
             active
-              ? 'bg-primary text-primary-foreground font-semibold shadow-xs ring-2 ring-primary/20'
-              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
           }`}
         >
           <Icon className="h-5 w-5 shrink-0" strokeWidth={2} />
           {active && (
-            <span className="absolute top-1 right-1 flex h-1.5 w-1.5 rounded-full bg-primary-foreground" />
+            <span className="absolute top-1 right-1 flex h-1.5 w-1.5 rounded-full bg-sidebar-primary" />
           )}
         </NavLink>
       </TooltipTrigger>
@@ -83,13 +86,13 @@ function CollapsedGroupItem({ section, active, pathname, onNavigate }) {
           aria-label={section.label}
           className={`relative h-10 w-10 flex items-center justify-center mx-auto rounded-lg transition-all duration-150 ease-out active:scale-[0.98] cursor-pointer outline-none ${
             active
-              ? 'bg-primary text-primary-foreground font-semibold shadow-xs ring-2 ring-primary/20'
-              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
           }`}
         >
           <Icon className="h-5 w-5 shrink-0" strokeWidth={2} />
           {active && (
-            <span className="absolute top-1 right-1 flex h-1.5 w-1.5 rounded-full bg-primary-foreground" />
+            <span className="absolute top-1 right-1 flex h-1.5 w-1.5 rounded-full bg-sidebar-primary" />
           )}
         </button>
       </PopoverTrigger>
@@ -130,13 +133,13 @@ function CollapsedGroupItem({ section, active, pathname, onNavigate }) {
                 }}
                 className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs rounded-md font-medium transition-all duration-150 active:scale-[0.98] ${
                   isChildActive
-                    ? 'bg-primary text-primary-foreground font-semibold shadow-2xs'
+                    ? 'bg-accent text-accent-foreground font-semibold'
                     : 'text-foreground hover:bg-accent'
                 }`}
               >
                 <span className="truncate">{child.label}</span>
                 {isChildActive && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground shrink-0" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                 )}
               </NavLink>
             )
@@ -154,26 +157,26 @@ export default function Sidebar({
   onNavigate,
 }) {
   const location = useLocation()
-  const [navState, setNavState] = useState({
-    prevPath: location.pathname,
-    openLabel: sections.find((s) => s.children && isSectionActive(s, location.pathname))?.label ?? null,
-  })
+  const { user } = useAuth()
+  const [openLabel, setOpenLabel] = useState(
+    () => sections.find((s) => s.children && isSectionActive(s, location.pathname))?.label ?? null,
+  )
 
-  let openLabel = navState.openLabel
-  if (navState.prevPath !== location.pathname) {
-    const activeSection = sections.find((s) => s.children && isSectionActive(s, location.pathname))
-    openLabel = activeSection?.label ?? null
-    setNavState({
-      prevPath: location.pathname,
-      openLabel,
-    })
+  // Re-sync whenever the route changes via something other than clicking this
+  // sidebar (in-page links, back/forward, deep links) — otherwise the group
+  // containing the active page can stay collapsed and never reveal which
+  // child link is actually active. Adjusting state during render (rather than
+  // in an effect) on a detected pathname change is the pattern React itself
+  // recommends for this: https://react.dev/learn/you-might-not-need-an-effect
+  const [syncedPathname, setSyncedPathname] = useState(location.pathname)
+  if (location.pathname !== syncedPathname) {
+    setSyncedPathname(location.pathname)
+    const activeParent = sections.find((s) => s.children && isSectionActive(s, location.pathname))
+    if (activeParent) setOpenLabel(activeParent.label)
   }
 
   const handleToggle = (label) => {
-    setNavState((prev) => ({
-      ...prev,
-      openLabel: prev.openLabel === label ? null : label,
-    }))
+    setOpenLabel((prev) => (prev === label ? null : label))
   }
 
   return (
@@ -181,7 +184,7 @@ export default function Sidebar({
       <div className="flex flex-col min-w-0">
         {/* Portal Header */}
         {!collapsed && portalLabel && (
-          <div className="px-3 pb-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border truncate">
+          <div className="px-3 pb-3 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 border-b border-sidebar-border truncate">
             {portalLabel}
           </div>
         )}
@@ -230,8 +233,8 @@ export default function Sidebar({
                     onClick={onNavigate}
                     className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 ease-out active:scale-[0.98] ${
                       active
-                        ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                     }`}
                   >
                     <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
@@ -251,21 +254,21 @@ export default function Sidebar({
                   type="button"
                   className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-all duration-150 ease-out active:scale-[0.98] cursor-pointer ${
                     active
-                      ? 'bg-primary/10 text-primary font-semibold ring-1 ring-primary/15'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground font-medium'
+                      ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-medium'
                   }`}
                   onClick={() => handleToggle(section.label)}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <Icon
-                      className={`h-4 w-4 shrink-0 ${active ? 'text-primary' : ''}`}
+                      className={`h-4 w-4 shrink-0 ${active ? 'text-sidebar-primary' : ''}`}
                       strokeWidth={2}
                     />
                     <span className="truncate">{section.label}</span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {active && !isOpen && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-sidebar-primary" />
                     )}
                     <ChevronDown
                       className={`h-4 w-4 shrink-0 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
@@ -276,7 +279,7 @@ export default function Sidebar({
                   </div>
                 </button>
                 {isOpen && (
-                  <div className="ml-4 pl-3 border-l-2 border-primary/20 flex flex-col space-y-1 pt-1 animate-fade-rise">
+                  <div className="ml-4 pl-3 border-l-2 border-sidebar-border flex flex-col space-y-1 pt-1 animate-fade-rise">
                     {section.children.map((child) => {
                       const isChildActive =
                         location.pathname === child.to || location.pathname.startsWith(child.to + '/')
@@ -287,13 +290,13 @@ export default function Sidebar({
                           onClick={onNavigate}
                           className={`flex items-center justify-between px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150 ease-out active:scale-[0.98] ${
                             isChildActive
-                              ? 'bg-primary text-primary-foreground font-semibold shadow-2xs'
-                              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                              ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+                              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                           }`}
                         >
                           <span className="truncate">{child.label}</span>
                           {isChildActive && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground shrink-0" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-sidebar-primary shrink-0" />
                           )}
                         </NavLink>
                       )
@@ -304,6 +307,41 @@ export default function Sidebar({
             )
           })}
         </nav>
+      </div>
+
+      <div className={`${collapsed ? 'px-0 pt-3' : 'pt-4'} mt-4 border-t border-sidebar-border`}>
+        {collapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex justify-center">
+                <Avatar
+                  name={user?.name}
+                  size={34}
+                  className="border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground"
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={12}>
+              {user?.name}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <div className="flex items-center gap-3 rounded-lg px-2 py-2 text-sidebar-foreground">
+            <Avatar
+              name={user?.name}
+              size={38}
+              className="border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground"
+            />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold leading-tight">
+                {user?.name}
+              </p>
+              <p className="truncate text-xs text-sidebar-foreground/60">
+                {getRoleLabel(user?.role)}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   )

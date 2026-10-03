@@ -1,7 +1,7 @@
 /**
  * Universal Academic Scope Hierarchy Registry
  *
- * Defines the standardized 5-tier organizational data structure for MENTOR:
+ * Defines the standardized 5-tier organizational data structure for SELVIA:
  * Batch -> Specialization -> Group -> Team / Project -> Student
  *
  * Consumed by ScopeContext and shared across all 4 research modules:
@@ -43,21 +43,21 @@ export const SPECIALIZATIONS = [
     batchId: 'batch-2026-y4s1',
     name: 'Data Science',
     code: 'DS',
-    color: '#7c3aed',
+    color: '#1d4ed8',
   },
   {
     id: 'spec-csne',
     batchId: 'batch-2026-y4s1',
     name: 'Cyber Security & Network Engineering',
     code: 'CSNE',
-    color: '#dc2626',
+    color: '#3b82f6',
   },
   {
     id: 'spec-it',
     batchId: 'batch-2026-y4s1',
     name: 'Information Technology',
     code: 'IT',
-    color: '#16a34a',
+    color: '#60a5fa',
   },
 ]
 
@@ -67,7 +67,7 @@ export const GROUPS = [
     batchId: 'batch-2026-y4s1',
     specializationId: 'spec-se',
     code: 'J26-SE-363',
-    name: 'Group 07 — MENTOR Platform',
+    name: 'Group 07 — SELVIA Platform',
     projectTitle: 'Multi-agent Engineering Network for Task Orchestration & Review',
     repositoryUrl: 'https://github.com/EMNIPUN/J26-SE-363',
   },
@@ -78,7 +78,7 @@ export const GROUPS = [
     code: 'J26-SE-364',
     name: 'Group 12 — TrackWise',
     projectTitle: 'Automated Agile Sprints & Smart Backlog Balancing Engine',
-    repositoryUrl: 'https://github.com/mentor-research/trackwise',
+    repositoryUrl: 'https://github.com/selvia-research/trackwise',
   },
   {
     id: 'grp-j26-se-365',
@@ -87,7 +87,7 @@ export const GROUPS = [
     code: 'J26-SE-365',
     name: 'Group 03 — NexaPlan',
     projectTitle: 'Graph-based Requirements Decomposition & Dependency Tracker',
-    repositoryUrl: 'https://github.com/mentor-research/nexaplan',
+    repositoryUrl: 'https://github.com/selvia-research/nexaplan',
   },
   {
     id: 'grp-j26-ds-101',
@@ -96,7 +96,7 @@ export const GROUPS = [
     code: 'J26-DS-101',
     name: 'Group 01 — NeuralPulse',
     projectTitle: 'Predictive Student Retention via Multi-modal Learning Analytics',
-    repositoryUrl: 'https://github.com/mentor-research/neuralpulse',
+    repositoryUrl: 'https://github.com/selvia-research/neuralpulse',
   },
 ]
 

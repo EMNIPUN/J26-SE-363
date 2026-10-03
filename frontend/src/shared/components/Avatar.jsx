@@ -15,7 +15,7 @@ export default function Avatar({ name = '', size = 36, className = '' }) {
       className={`inline-flex items-center justify-center font-medium bg-primary/10 text-primary border border-border shrink-0 ${className}`}
       style={{ width: size, height: size, fontSize: size * 0.38 }}
     >
-      <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
+      <AvatarFallback className="bg-inherit text-inherit font-semibold text-xs">
         {getInitials(name)}
       </AvatarFallback>
     </ShadcnAvatar>

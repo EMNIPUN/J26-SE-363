@@ -1,7 +1,7 @@
 {
   "realm": "mentor",
   "enabled": true,
-  "displayName": "MENTOR Platform",
+  "displayName": "SELVIA Platform",
   "sslRequired": "external",
   "registrationAllowed": true,
   "loginWithEmailAllowed": true,
@@ -28,7 +28,7 @@
   "clients": [
     {
       "clientId": "mentor-frontend",
-      "name": "Mentor Web Application",
+      "name": "SELVIA Web Application",
       "enabled": true,
       "publicClient": true,
       "protocol": "openid-connect",

@@ -16,6 +16,7 @@ import {
 const quickLinks = [
   { ...getModule('planning'), to: '/planning/dashboard' },
   { ...getModule('performance'), to: '/performance/dashboard' },
+  { ...getModule('tutor'), to: '/tutor/landing' },
   { ...getModule('security'), to: '/security/dashboard' },
 ]
 
@@ -26,7 +27,7 @@ export default function AdminHome() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-          Welcome back, {user.name} 👋
+          Welcome back, {user.name}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">System-wide overview across every component.</p>
       </div>
@@ -64,7 +65,7 @@ export default function AdminHome() {
             </TableRow>
             <TableRow>
               <TableCell className="font-medium">Dr. Ishara Weerasinghe</TableCell>
-              <TableCell>Instructor</TableCell>
+              <TableCell>Lecturer</TableCell>
               <TableCell className="text-muted-foreground">5 days ago</TableCell>
             </TableRow>
             <TableRow>

@@ -2,11 +2,12 @@ import PropTypes from 'prop-types'
 import { AlertTriangle, CheckCircle2, TrendingUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 
+// On-theme blue mono-scale so team segments stay distinguishable without a rainbow
 const MEMBER_COLORS = [
-  'bg-emerald-500 hover:bg-emerald-600',
+  'bg-blue-700 hover:bg-blue-800',
   'bg-blue-500 hover:bg-blue-600',
-  'bg-violet-500 hover:bg-violet-600',
-  'bg-amber-500 hover:bg-amber-600',
+  'bg-blue-400 hover:bg-blue-500',
+  'bg-slate-400 hover:bg-slate-500',
 ]
 
 /**

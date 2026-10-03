@@ -1,36 +1,45 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Search,
-  LayoutDashboard,
-  Calendar,
-  BarChart3,
-  ShieldAlert,
-  Settings,
-  Sun,
-  Moon,
-  Bell,
-  HelpCircle,
-  ArrowRight
-} from 'lucide-react'
+import { Search, Sun, Moon, Laptop, ArrowRight, CornerDownLeft } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useTheme } from '@/shared/theme/useTheme.js'
-import { useConfirm } from '@/shared/utils/useConfirm.js'
 import { showToast } from '@/shared/utils/toast.jsx'
+import { useAuth } from '../auth/useAuth.js'
+import { useScope } from '../context/useScope.js'
+import { getNavForRole } from '../layout/navConfig.js'
+
+function buildPageItems(sections) {
+  return sections.flatMap((section) => {
+    if (section.children?.length) {
+      return section.children.map((child) => ({
+        id: child.to,
+        title: child.label === 'Dashboard' ? `${section.label} dashboard` : child.label,
+        hint: section.label,
+        icon: section.icon,
+        path: child.to,
+      }))
+    }
+    return [{ id: section.to, title: section.label, icon: section.icon, path: section.to }]
+  })
+}
 
 export default function CommandPalette({ open, onOpenChange }) {
   const [query, setQuery] = useState('')
+  const [activeIndex, setActiveIndex] = useState(0)
   const navigate = useNavigate()
-  const { theme, setTheme } = useTheme()
-  const confirm = useConfirm()
+  const { setTheme } = useTheme()
+  const { user } = useAuth()
+  const { selectedGroup } = useScope()
 
-  // Listen for global keyboard shortcut (Cmd+K / Ctrl+K)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         onOpenChange((prev) => {
-          if (!prev) setQuery('')
+          if (!prev) {
+            setQuery('')
+            setActiveIndex(0)
+          }
           return !prev
         })
       }
@@ -40,72 +49,54 @@ export default function CommandPalette({ open, onOpenChange }) {
   }, [onOpenChange])
 
   const handleOpenChange = (nextOpen) => {
-    if (!nextOpen) setQuery('')
+    if (!nextOpen) {
+      setQuery('')
+      setActiveIndex(0)
+    }
     onOpenChange(nextOpen)
   }
 
-  const COMMAND_SECTIONS = [
-    {
-      heading: 'Navigation & Portals',
-      items: [
-        { id: 'nav-overview', title: 'Dashboard Overview', icon: LayoutDashboard, path: '/app' },
-        { id: 'nav-admin', title: 'Admin Console', icon: Settings, path: '/admin/users' },
-        { id: 'nav-planning', title: 'Planning & Milestones', icon: Calendar, path: '/planning' },
-        { id: 'nav-perf', title: 'Performance Analytics', icon: BarChart3, path: '/performance' },
-        { id: 'nav-sec', title: 'Security & Compliance', icon: ShieldAlert, path: '/security' },
-      ],
-    },
-    {
-      heading: 'Quick Actions & Tools',
-      items: [
-        {
-          id: 'action-theme',
-          title: theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark / Black Theme',
-          icon: theme === 'dark' ? Sun : Moon,
-          action: () => {
-            const next = theme === 'dark' ? 'light' : 'dark'
-            setTheme(next)
-            showToast.info(`Theme set to ${next}`)
-          },
-        },
-        {
-          id: 'action-confirm-test',
-          title: 'Test Global Confirmation Modal',
-          icon: HelpCircle,
-          action: async () => {
-            onOpenChange(false)
-            const ok = await confirm({
-              title: 'Test Global Confirmation Popup',
-              description: 'This is triggered imperatively using useConfirm() with 0 boilerplate.',
-              confirmText: 'Acknowledge',
-              cancelText: 'Dismiss',
-              tone: 'default',
-            })
-            if (ok) {
-              showToast.success('Confirmed!', { description: 'You confirmed the global popup.' })
-            }
-          },
-        },
-        {
-          id: 'action-notif',
-          title: 'Simulate Notification Alert',
-          icon: Bell,
-          action: () => {
-            showToast.ai('New Research Alert', {
-              description: 'Supervisor published a review for your milestone submission.',
-            })
-          },
-        },
-      ],
-    },
-  ]
+  const sections = useMemo(() => {
+    const nav = user ? getNavForRole(user.role, selectedGroup?.code) : []
+    const applyTheme = (next, label) => () => {
+      setTheme(next)
+      showToast.info(`Theme set to ${label}`)
+    }
+    return [
+      { heading: 'Pages', items: buildPageItems(nav) },
+      {
+        heading: 'Appearance',
+        items: [
+          { id: 'theme-light', title: 'Use light theme', icon: Sun, action: applyTheme('light', 'light') },
+          { id: 'theme-dark', title: 'Use dark theme', icon: Moon, action: applyTheme('dark', 'dark') },
+          { id: 'theme-system', title: 'Match system theme', icon: Laptop, action: applyTheme('system', 'system') },
+        ],
+      },
+    ]
+  }, [user, selectedGroup?.code, setTheme])
 
-  const filteredSections = COMMAND_SECTIONS.map((section) => ({
-    ...section,
-    items: section.items.filter((item) =>
-      item.title.toLowerCase().includes(query.toLowerCase()),
-    ),
-  })).filter((section) => section.items.length > 0)
+  const filteredSections = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    let index = 0
+    return sections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter(
+          (item) =>
+            !q ||
+            item.title.toLowerCase().includes(q) ||
+            item.hint?.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((section) => section.items.length > 0)
+      .map((section) => ({
+        ...section,
+        items: section.items.map((item) => ({ ...item, index: index++ })),
+      }))
+  }, [sections, query])
+
+  const flatItems = useMemo(() => filteredSections.flatMap((s) => s.items), [filteredSections])
+  const safeIndex = Math.min(activeIndex, Math.max(flatItems.length - 1, 0))
 
   const handleSelectItem = (item) => {
     handleOpenChange(false)
@@ -116,25 +107,43 @@ export default function CommandPalette({ open, onOpenChange }) {
     }
   }
 
+  const handleInputKeyDown = (e) => {
+    if (!flatItems.length) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIndex((safeIndex + 1) % flatItems.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIndex((safeIndex - 1 + flatItems.length) % flatItems.length)
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSelectItem(flatItems[safeIndex])
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         showCloseButton={false}
         className="p-0 gap-0 max-w-xl overflow-hidden border-border bg-card shadow-2xl rounded-xl sm:max-w-xl"
       >
-        <DialogTitle className="sr-only">Command Palette</DialogTitle>
+        <DialogTitle className="sr-only">Search pages and actions</DialogTitle>
         <DialogDescription className="sr-only">
-          Quickly search modules, portals, and trigger actions.
+          Type to filter, use the arrow keys to move, and press Enter to open.
         </DialogDescription>
 
-        {/* Search Input Header */}
-        <div className="flex items-center px-4 border-b border-border bg-muted/20 h-12">
+        <div className="flex items-center px-4 border-b border-border h-12">
           <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Type a command or search portals..."
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setActiveIndex(0)
+            }}
+            onKeyDown={handleInputKeyDown}
+            placeholder="Search pages, e.g. “sprint” or “chat”…"
+            aria-label="Search pages and actions"
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
             autoFocus
           />
@@ -143,11 +152,10 @@ export default function CommandPalette({ open, onOpenChange }) {
           </kbd>
         </div>
 
-        {/* Results List */}
-        <div className="max-h-80 overflow-y-auto p-2 space-y-3 column-scroll-contain">
+        <div className="max-h-[22rem] overflow-y-auto p-2 space-y-3 column-scroll-contain" role="listbox">
           {filteredSections.length === 0 ? (
-            <div className="p-8 text-center text-xs text-muted-foreground">
-              No results found for &ldquo;{query}&rdquo;.
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              No results for &ldquo;{query}&rdquo;. Try a page name like &ldquo;Dashboard&rdquo;.
             </div>
           ) : (
             filteredSections.map((section) => (
@@ -157,21 +165,37 @@ export default function CommandPalette({ open, onOpenChange }) {
                 </div>
                 <div className="space-y-0.5">
                   {section.items.map((item) => {
+                    const itemIndex = item.index
+                    const isActive = itemIndex === safeIndex
                     const Icon = item.icon
                     return (
                       <button
                         key={item.id}
                         type="button"
+                        role="option"
+                        aria-selected={isActive}
                         onClick={() => handleSelectItem(item)}
-                        className="w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-foreground hover:bg-muted/70 transition-colors group cursor-pointer text-left active:scale-[0.99]"
+                        onMouseMove={() => !isActive && setActiveIndex(itemIndex)}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg text-foreground transition-colors cursor-pointer text-left ${
+                          isActive ? 'bg-accent text-accent-foreground' : ''
+                        }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted border border-border/40 text-muted-foreground group-hover:text-foreground">
-                            <Icon className="h-3.5 w-3.5" />
-                          </div>
+                        <span className="flex items-center gap-2.5 min-w-0">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted border border-border/40 text-muted-foreground">
+                            {Icon && <Icon className="h-3.5 w-3.5" />}
+                          </span>
                           <span className="truncate font-medium">{item.title}</span>
-                        </div>
-                        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all shrink-0" />
+                          {item.hint && (
+                            <span className="hidden sm:inline truncate text-xs text-muted-foreground">
+                              {item.hint}
+                            </span>
+                          )}
+                        </span>
+                        <ArrowRight
+                          className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-all ${
+                            isActive ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-1'
+                          }`}
+                        />
                       </button>
                     )
                   })}
@@ -181,15 +205,18 @@ export default function CommandPalette({ open, onOpenChange }) {
           )}
         </div>
 
-        {/* Footer Hint */}
-        <div className="px-4 py-2 border-t border-border bg-muted/30 flex items-center justify-between text-[11px] text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <span>Navigation</span>
-            <kbd className="px-1 py-0.5 rounded border border-border bg-muted text-[10px]">↵</kbd>
-          </div>
-          <div className="flex items-center gap-1">
-            <span>MENTOR Command Palette</span>
-          </div>
+        <div className="px-4 py-2 border-t border-border bg-muted/30 flex items-center gap-4 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <kbd className="px-1 py-0.5 rounded border border-border bg-muted text-[10px]">↑</kbd>
+            <kbd className="px-1 py-0.5 rounded border border-border bg-muted text-[10px]">↓</kbd>
+            to move
+          </span>
+          <span className="flex items-center gap-1.5">
+            <kbd className="px-1 py-0.5 rounded border border-border bg-muted text-[10px]">
+              <CornerDownLeft className="h-2.5 w-2.5" />
+            </kbd>
+            to open
+          </span>
         </div>
       </DialogContent>
     </Dialog>
