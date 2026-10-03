@@ -17,7 +17,10 @@ from typing import List, Tuple, Set
 
 
 # Protected folder can be overridden via PROTECTED_PATH secret/env var
-PROTECTED_PATH = os.environ.get("PROTECTED_PATH") or "backend/app/agents/performance_assessment"
+PROTECTED_PATH = (
+    os.environ.get("PROTECTED_PATH")
+    or "backend/agentic_framework/app/agents/performance_assessment"
+)
 
 
 def get_authorized_identities() -> Tuple[Set[str], Set[str]]:

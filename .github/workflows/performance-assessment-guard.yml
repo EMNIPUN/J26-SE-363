@@ -3,7 +3,7 @@ name: Performance Assessment Guard
 on:
   pull_request:
     paths:
-      - 'backend/app/agents/performance_assessment/**'
+      - 'backend/agentic_framework/app/agents/performance_assessment/**'
       - '.github/scripts/check_assessment_access.py'
       - '.github/workflows/performance-assessment-guard.yml'
   push:
@@ -11,7 +11,7 @@ on:
       - main
       - dev
     paths:
-      - 'backend/app/agents/performance_assessment/**'
+      - 'backend/agentic_framework/app/agents/performance_assessment/**'
       - '.github/scripts/check_assessment_access.py'
       - '.github/workflows/performance-assessment-guard.yml'
   workflow_dispatch:
