@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     # GitHub Ingestion Settings
     GITHUB_TOKEN: Optional[str] = None
 
+    # Agent Job Queue Retention (Clean up finished/failed jobs older than X hours)
+    AGENT_JOB_RETENTION_HOURS: int = 24
+
     model_config = SettingsConfigDict(
         env_file=(
             "backend/server/.env",

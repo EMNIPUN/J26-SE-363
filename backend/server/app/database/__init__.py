@@ -1,5 +1,5 @@
-from app.database.base import Base, TimestampMixin
-from app.database.session import (
+from .base import Base, TimestampMixin
+from .session import (
     get_engine,
     get_session_factory,
     get_db,

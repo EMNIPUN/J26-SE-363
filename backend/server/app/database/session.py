@@ -3,7 +3,10 @@ import os
 from typing import Generator, Optional
 from sqlalchemy import create_engine, text, Engine
 from sqlalchemy.orm import sessionmaker, Session
-from app.core.config import settings
+try:
+    from ..core.config import settings
+except (ImportError, ValueError):
+    from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
