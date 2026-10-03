@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # Supabase Cloud Project Settings (Optional for storage/buckets)
     SUPABASE_URL: Optional[str] = None
     SUPABASE_KEY: Optional[str] = None
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
     SUPABASE_BUCKET_RUBRICS: str = "project-rubrics"
 
     # Keycloak IAM Configuration
@@ -45,7 +46,14 @@ class Settings(BaseSettings):
     GITHUB_TOKEN: Optional[str] = None
 
     model_config = SettingsConfigDict(
-        env_file=(".env", ".env.development", "backend/.env", "../.env"),
+        env_file=(
+            "backend/server/.env",
+            "server/.env",
+            "backend/.env",
+            ".env",
+            ".env.development",
+            "../.env",
+        ),
         env_file_encoding="utf-8",
         extra="ignore",
     )
