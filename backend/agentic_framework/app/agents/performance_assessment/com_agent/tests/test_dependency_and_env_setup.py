@@ -4,7 +4,7 @@ import pathlib
 import pytest
 
 COM_AGENT_DIR = pathlib.Path(__file__).resolve().parent.parent
-BACKEND_DIR = COM_AGENT_DIR.parent.parent.parent.parent
+BACKEND_DIR = next((p for p in COM_AGENT_DIR.parents if p.name == "backend"), COM_AGENT_DIR.parent.parent.parent.parent.parent)
 
 def test_requirements_file_content():
     req_file = BACKEND_DIR / "requirements.txt"
