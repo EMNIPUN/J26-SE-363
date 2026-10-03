@@ -39,7 +39,9 @@ export default function DashboardShell() {
   const { selectedGroup } = useScope()
   const activeTeamCode = selectedGroup?.code || 'J26-SE-363'
   const sections = getNavForRole(user.role, activeTeamCode)
-  const isTutorChat = location.pathname.endsWith('/tutor/chat')
+  // The Tutor page has its own chat, so the global copilot steps aside there.
+  const isTutorPage = /\/tutor\/chat\/?$/.test(location.pathname)
+  const showAiPanel = aiPanelOpen && !isTutorPage
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((prev) => {
@@ -147,16 +149,16 @@ export default function DashboardShell() {
 
         {/* Column 3: AI Chat Panel (Desktop, fixed to screen, fluid width collapse with silky-smooth slide) */}
         <div
-          aria-hidden={!aiPanelOpen}
+          aria-hidden={!showAiPanel}
           className={`hidden lg:flex flex-col h-full shrink-0 bg-card overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-            aiPanelOpen
+            showAiPanel
               ? 'w-80 xl:w-96 border-l border-border opacity-100'
               : 'w-0 border-l border-transparent opacity-0 pointer-events-none'
           }`}
         >
           <div
             className={`w-80 xl:w-96 h-full flex flex-col shrink-0 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-              aiPanelOpen ? 'translate-x-0' : 'translate-x-6'
+              showAiPanel ? 'translate-x-0' : 'translate-x-6'
             }`}
           >
             <AiChatPanel onClose={handleToggleAi} />
@@ -166,7 +168,7 @@ export default function DashboardShell() {
 
       {/* Floating AI Copilot Trigger (Smoothly scales & glides in/out when 3rd column opens/closes) */}
       <div
-        hidden={isTutorChat}
+        hidden={isTutorPage}
         className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           aiPanelOpen
             ? 'lg:opacity-0 lg:scale-75 lg:translate-y-4 lg:pointer-events-none'

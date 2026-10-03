@@ -26,7 +26,7 @@ const INITIAL_TASKS = [
   { id: 't1', label: 'Submit requirement decomposition', due: 'Done', done: true, path: '/planning/requirements/decomposition' },
   { id: 't2', label: 'Review open DART arbitration flags', due: 'Due tomorrow', done: false, path: '/planning/dashboard' },
   { id: 't3', label: 'Fix flagged security findings', due: 'Due in 3 days', done: false, path: '/security/remediation' },
-  { id: 't4', label: 'Complete estimation learning check', due: 'Due in 4 days', done: false, path: '/tutor/nudges' },
+  { id: 't4', label: 'Complete JWT authentication quiz', due: 'Due in 4 days', done: false, path: '/tutor/activity/act-quiz-jwt' },
 ]
 
 const ACTIVITY = [
@@ -46,9 +46,9 @@ const ACTIVITY = [
     id: 'a2',
     icon: Bot,
     tone: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
-    text: 'Tutor Agent suggested a sprint guidance session on effort estimation.',
+    text: 'AI Tutor recommended a coding exercise on JWT validation middleware.',
     time: 'Yesterday',
-    path: '/tutor/chat',
+    path: '/tutor/activity/act-ex-jwt-middleware',
   },
   {
     id: 'a3',
@@ -77,7 +77,7 @@ export default function StudentHome() {
   const quickLinks = [
     { ...getModule('planning'), to: team('/planning/dashboard') },
     { ...getModule('performance'), to: team('/performance/my-progress') },
-    { ...getModule('tutor'), to: team('/tutor/landing') },
+    { ...getModule('tutor'), to: team('/tutor/chat') },
     { ...getModule('security'), to: team('/security/dashboard') },
   ]
 
@@ -106,7 +106,7 @@ export default function StudentHome() {
           <Button asChild size="lg">
             <Link to={team('/tutor/chat')}>
               <Sparkles className="h-4 w-4" />
-              Ask Tutor Agent
+              Ask AI Tutor
             </Link>
           </Button>
         </div>

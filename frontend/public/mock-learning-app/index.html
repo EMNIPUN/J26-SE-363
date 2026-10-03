@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Learning Lab (mock)</title>
+    <!--
+      Stand-in for the external learning platform. SELVIA embeds the real
+      platform the same way; this page only simulates an activity so the
+      completion flow can be tested without the real app.
+
+      Contract with SELVIA:
+        - Launch URL query: activityId, title, kind (learning|exercise|quiz), concept, platform
+        - On finish: window.parent.postMessage({ type: 'selvia:activity-completed', activityId }, origin)
+        - Mock only: the finished activityId is appended to sessionStorage
+          'selvia-mock-learning-app-completions', which the SELVIA mock API reads
+          in place of the backend querying the platform through MCP.
+    -->
+    <style>
+      :root {
+        color-scheme: light;
+        --fg: #1f2433;
+        --muted: #667085;
+        --border: #e4e7ec;
+        --accent: #6d28d9;
+        --accent-soft: #f3efff;
+        --success: #047857;
+        --success-soft: #ecfdf3;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: var(--fg); background: #fafafa; font-size: 14px; line-height: 1.5; }
+      header {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+        padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--border);
+      }
+      .brand { font-weight: 700; color: var(--accent); }
+      .tag {
+        font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+        padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent);
+      }
+      .mock { margin-left: auto; font-size: 11px; color: var(--muted); }
+      main { max-width: 720px; margin: 0 auto; padding: 24px 20px 40px; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      .sub { color: var(--muted); margin: 0 0 20px; }
+      .card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+      .step { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+      .bar { height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; margin-bottom: 16px; }
+      .bar > span { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+      h2 { font-size: 16px; margin: 0 0 8px; }
+      p { margin: 0 0 12px; }
+      .options { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; border: 0; }
+      .options label {
+        display: flex; gap: 8px; align-items: center; padding: 10px 12px;
+        border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+      }
+      .options label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+      textarea {
+        width: 100%; min-height: 180px; padding: 12px; border: 1px solid var(--border); border-radius: 8px;
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; resize: vertical;
+      }
+      .tests { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 4px; font-size: 13px; }
+      .tests li::before { content: '✓ '; color: var(--success); font-weight: 700; }
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 20px; }
+      button {
+        font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 8px; cursor: pointer;
+        border: 1px solid var(--accent); background: var(--accent); color: #fff;
+      }
+      button.secondary { background: #fff; color: var(--accent); }
+      button:disabled { opacity: .5; cursor: not-allowed; }
+      button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .done { background: var(--success-soft); border-color: #abefc6; }
+      .done h2 { color: var(--success); }
+      .tester {
+        margin-top: 24px; padding: 12px; border: 1px dashed var(--border); border-radius: 8px;
+        font-size: 12px; color: var(--muted);
+      }
+      .tester label { display: flex; gap: 8px; align-items: center; color: var(--fg); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="brand" id="platform">Learning Lab</span>
+      <span class="tag" id="kind-tag"></span>
+      <span class="mock">Mock platform for SELVIA development</span>
+    </header>
+    <main>
+      <h1 id="title"></h1>
+      <p class="sub" id="concept"></p>
+      <div class="card" id="card" aria-live="polite"></div>
+      <div class="tester">
+        <label>
+          <input type="checkbox" id="send-message" checked />
+          Send completion message to SELVIA
+        </label>
+        <p style="margin: 6px 0 0">
+          Untick to test SELVIA’s “Check progress” fallback: the result is still recorded on the platform, but SELVIA
+          is not notified.
+        </p>
+      </div>
+    </main>
+
+    <script>
+      (function () {
+        var COMPLETIONS_KEY = 'selvia-mock-learning-app-completions'
+        var MESSAGE_TYPE = 'selvia:activity-completed'
+
+        var params = new URLSearchParams(window.location.search)
+        var activity = {
+          id: params.get('activityId') || '',
+          title: params.get('title') || 'Untitled activity',
+          kind: params.get('kind') || 'learning',
+          concept: params.get('concept') || 'this concept',
+          platform: params.get('platform') || 'Learning Lab',
+        }
+        var KIND_LABELS = { learning: 'Learning Material', exercise: 'Coding Exercise', quiz: 'Adaptive Quiz' }
+
+        var card = document.getElementById('card')
+        document.getElementById('platform').textContent = activity.platform
+        document.getElementById('kind-tag').textContent = KIND_LABELS[activity.kind] || activity.kind
+        document.getElementById('title').textContent = activity.title
+        document.getElementById('concept').textContent = 'Concept: ' + activity.concept
+        document.title = activity.title + ' · ' + activity.platform
+
+        function el(tag, attrs, children) {
+          var node = document.createElement(tag)
+          Object.keys(attrs || {}).forEach(function (key) {
+            if (key === 'text') node.textContent = attrs[key]
+            else if (key === 'onclick') node.addEventListener('click', attrs[key])
+            else node.setAttribute(key, attrs[key])
+          })
+          ;(children || []).forEach(function (child) { node.appendChild(child) })
+          return node
+        }
+
+        function render(nodes) {
+          card.className = 'card'
+          card.replaceChildren.apply(card, nodes)
+        }
+
+        function progress(step, total) {
+          return [
+            el('div', { class: 'step', text: 'Step ' + step + ' of ' + total }),
+            el('div', { class: 'bar' }, [el('span', { style: 'width:' + Math.round((step / total) * 100) + '%' })]),
+          ]
+        }
+
+        function recordCompletion() {
+          try {
+            var list = JSON.parse(sessionStorage.getItem(COMPLETIONS_KEY) || '[]')
+            if (!Array.isArray(list)) list = []
+            list.push(activity.id)
+            sessionStorage.setItem(COMPLETIONS_KEY, JSON.stringify(list))
+          } catch (e) {
+            // storage unavailable
+          }
+        }
+
+        function finish() {
+          recordCompletion()
+          var notified = document.getElementById('send-message').checked && window.parent !== window
+          if (notified) {
+            window.parent.postMessage({ type: MESSAGE_TYPE, activityId: activity.id }, window.location.origin)
+          }
+          render([
+            el('h2', { text: 'Activity complete' }),
+            el('p', {
+              text: notified
+                ? 'Your result has been sent to SELVIA.'
+                : 'Your result is saved on ' + activity.platform + '. Use “Check progress” in SELVIA to update your knowledge gap.',
+            }),
+            el('div', { class: 'actions' }, [el('button', { class: 'secondary', type: 'button', text: 'Start again', onclick: start })]),
+          ])
+          card.className = 'card done'
+        }
+
+        // Learning material: a few reading steps.
+        var LESSON_STEPS = [
+          ['Why it matters', 'How ' + activity.concept + ' fits into the API you are building, and the problem it solves.'],
+          ['How it works', 'A worked walkthrough of ' + activity.concept + ' with an annotated code example.'],
+          ['Common mistakes', 'The errors students make most often with ' + activity.concept + ', and how to spot them.'],
+        ]
+
+        function lessonStep(index) {
+          var step = LESSON_STEPS[index]
+          var last = index === LESSON_STEPS.length - 1
+          render(
+            progress(index + 1, LESSON_STEPS.length).concat([
+              el('h2', { text: step[0] }),
+              el('p', { text: step[1] }),
+              el('div', { class: 'actions' }, [
+                index > 0 ? el('button', { class: 'secondary', type: 'button', text: 'Back', onclick: function () { lessonStep(index - 1) } }) : el('span'),
+                el('button', { type: 'button', text: last ? 'Finish' : 'Next', onclick: last ? finish : function () { lessonStep(index + 1) } }),
+              ]),
+            ]),
+          )
+        }
+
+        // Adaptive quiz: the next question's difficulty follows the last answer.
+        var QUESTION_COUNT = 3
+
+        function quizStep(index, difficulty) {
+          var name = 'q' + index
+          var options = ['Option A', 'Option B', 'Option C', 'Option D'].map(function (label, i) {
+            return el('label', {}, [el('input', { type: 'radio', name: name, value: String(i) }), document.createTextNode(label)])
+          })
+          var next = el('button', { type: 'button', text: index === QUESTION_COUNT - 1 ? 'Finish quiz' : 'Next question', disabled: 'disabled' })
+          var fieldset = el('fieldset', { class: 'options' }, options)
+          fieldset.addEventListener('change', function () { next.removeAttribute('disabled') })
+          next.addEventListener('click', function () {
+            var correct = fieldset.querySelector('input:checked').value === '0'
+            if (index === QUESTION_COUNT - 1) finish()
+            else quizStep(index + 1, correct ? 'harder' : 'easier')
+          })
+          render(
+            progress(index + 1, QUESTION_COUNT).concat([
+              el('h2', { text: 'Question ' + (index + 1) + ': a question about ' + activity.concept }),
+              el('p', { text: difficulty ? 'Adapted: this question is ' + difficulty + ' based on your last answer.' : 'Choose the best answer.' }),
+              fieldset,
+              el('div', { class: 'actions' }, [next]),
+            ]),
+          )
+        }
+
+        // Coding exercise: edit, run simulated tests, submit.
+        function exercise() {
+          var code = el('textarea', { 'aria-label': 'Your code', spellcheck: 'false' })
+          code.value = '// ' + activity.title + '\nfunction solution(req, res, next) {\n  // your code here\n}\n'
+          var tests = el('ul', { class: 'tests' })
+          var submit = el('button', { type: 'button', text: 'Submit solution', disabled: 'disabled', onclick: finish })
+          var run = el('button', {
+            class: 'secondary',
+            type: 'button',
+            text: 'Run tests',
+            onclick: function () {
+              tests.replaceChildren(
+                el('li', { text: 'Handles a valid request' }),
+                el('li', { text: 'Rejects an invalid request' }),
+                el('li', { text: 'Returns the correct status codes' }),
+              )
+              submit.removeAttribute('disabled')
+            },
+          })
+          render([
+            el('h2', { text: 'Write your solution' }),
+            el('p', { text: 'Run the tests, then submit when they pass.' }),
+            code,
+            tests,
+            el('div', { class: 'actions' }, [run, submit]),
+          ])
+        }
+
+        function start() {
+          if (activity.kind === 'quiz') quizStep(0)
+          else if (activity.kind === 'exercise') exercise()
+          else lessonStep(0)
+        }
+
+        start()
+      })()
+    </script>
+  </body>
+</html>

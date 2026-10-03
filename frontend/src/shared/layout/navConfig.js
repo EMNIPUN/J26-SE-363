@@ -35,10 +35,16 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
         to: t('/performance/my-progress'),
       },
       {
-        label: "Tutor Agent",
+        label: "AI Tutor",
         icon: Bot,
         color: "#0891b2",
-        to: t("/tutor/landing"),
+        children: [
+          { label: 'Tutor Chat', to: t('/tutor/chat') },
+          { label: 'Sprint Guidance', to: t('/tutor/learning') },
+          { label: 'Practice Exercises', to: t('/tutor/exercise') },
+          { label: 'Assessments', to: t('/tutor/quiz') },
+          { label: 'Progress & Results', to: t('/tutor/results') },
+        ],
       },
       {
         label: "Project Security",
@@ -48,16 +54,6 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
           { label: "Dashboard", to: t("/security/dashboard") },
           { label: "Scan Report", to: t("/security/scan-report") },
           { label: "Remediation", to: t("/security/remediation") },
-        ],
-      },
-      {
-        label: 'Tutor Agent',
-        icon: Bot,
-        color: '#2563eb',
-        children: [
-          { label: 'Dashboard', to: t('/tutor/landing') },
-          { label: 'Chat', to: t('/tutor/chat') },
-          { label: 'Nudges', to: t('/tutor/nudges') },
         ],
       },
     ]
