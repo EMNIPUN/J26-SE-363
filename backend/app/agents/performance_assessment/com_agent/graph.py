@@ -292,6 +292,13 @@ def build_initial_state(student_context: Optional[Dict[str, Any]] = None) -> Dic
     }
 
 
+def router_quiz_response(state: Dict[str, Any]) -> str:
+    """Routes back to await_quiz_response_node if extension waiting, else evaluate_ownership_tool."""
+    if state.get("current_step") == "quiz_extended_waiting":
+        return "await_quiz_response_node"
+    return "evaluate_ownership_tool"
+
+
 def router_discrepancy_node(state: Dict[str, Any]) -> str:
     """T6.1.7: Router directing to lecturer review on CRITICAL discrepancy alerts."""
     if state.get("requires_human_review"):
@@ -343,7 +350,14 @@ def build_com_agent_graph(checkpointer: Optional[Any] = None, store: Optional[An
     # Sequential active verification
     builder.add_edge("join_passive_factors_node", "ast_quiz_generator_node")
     builder.add_edge("ast_quiz_generator_node", "await_quiz_response_node")
-    builder.add_edge("await_quiz_response_node", "evaluate_ownership_tool")
+    builder.add_conditional_edges(
+        "await_quiz_response_node",
+        router_quiz_response,
+        {
+            "await_quiz_response_node": "await_quiz_response_node",
+            "evaluate_ownership_tool": "evaluate_ownership_tool",
+        },
+    )
     builder.add_edge("evaluate_ownership_tool", "run_behavioral_pattern_node")
     builder.add_edge("run_behavioral_pattern_node", "deterministic_fusion_node")
     builder.add_edge("deterministic_fusion_node", "discrepancy_detection_node")
@@ -368,14 +382,24 @@ def build_com_agent_graph(checkpointer: Optional[Any] = None, store: Optional[An
     builder.add_edge("export_results_node", END)
 
     # Checkpointer configuration (resolves PostgresSaver in prod or MemorySaver fallback)
-    if checkpointer is None:
-        try:
-            from app.agents.performance_assessment.com_agent.db import get_checkpointer
-            cp = get_checkpointer()
-        except Exception:
-            cp = MemorySaver()
-    else:
-        cp = checkpointer
+    compile_kwargs = {}
+    if checkpointer is not False:
+        if checkpointer is None:
+            try:
+                from app.agents.performance_assessment.com_agent.db import get_checkpointer
+                cp = get_checkpointer()
+            except Exception:
+                cp = MemorySaver()
+        else:
+            cp = checkpointer
+        compile_kwargs["checkpointer"] = cp
 
-    st = store if store is not None else {}
-    return builder.compile(checkpointer=cp, store=st)
+    if store is not False and store is not None:
+        compile_kwargs["store"] = store
+
+    return builder.compile(**compile_kwargs)
+
+
+# Module-level compiled graph instances
+graph = build_com_agent_graph()
+studio_graph = build_com_agent_graph(checkpointer=False, store=False)

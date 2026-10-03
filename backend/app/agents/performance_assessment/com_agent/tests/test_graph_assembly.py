@@ -89,26 +89,12 @@ def test_router_discrepancy_node():
 
 @pytest.mark.asyncio
 async def test_graph_trigger_3_lecturer_review_workflow():
-    from app.agents.performance_assessment.com_agent.state import DiscrepancyAlert
+    from app.agents.performance_assessment.agent import trigger_sprint_end, submit_quiz_response
     graph = build_com_agent_graph()
     config = make_thread_config("sprint-02", "STU-002")
 
-    # Simulate state at discrepancy_checked requiring review
-    initial_state = build_initial_state({
-        "student_id": "STU-002",
-        "sprint_id": "sprint-02",
-        "current_step": "discrepancy_checked",
-        "requires_human_review": True,
-        "discrepancy_flags": [
-            DiscrepancyAlert(
-                alert_code="GHOSTWRITER_SUSPICION",
-                severity="CRITICAL",
-                description="Simulated critical discrepancy requiring human lecturer review",
-                recommended_action="Lecturer review required"
-            )
-        ]
-    })
-    graph.checkpointer.put(config, initial_state)
+    await trigger_sprint_end("sprint-02", ["STU-002"], graph=graph)
+    await submit_quiz_response("sprint_sprint-02_student_STU-002", "idk", graph=graph)
 
     # Resume with lecturer review input
     resume_cmd = Command(

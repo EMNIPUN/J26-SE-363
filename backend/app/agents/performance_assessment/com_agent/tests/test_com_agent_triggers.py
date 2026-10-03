@@ -158,17 +158,23 @@ async def test_t8_1_5_critical_discrepancy_pauses_at_lecturer_review():
     # Very short low-quality quiz response gives raw score 0.40
     # In student_context.json, effort is high (story points = 13, 2 completed)
     # To directly verify discrepancy pause, simulate state with critical flag
-    saved = graph.checkpointer.get(cfg)
-    saved["requires_human_review"] = True
-    saved["discrepancy_flags"] = [
-        DiscrepancyAlert(
-            alert_code="GHOSTWRITER_SUSPICION",
-            severity="CRITICAL",
-            description="High effort with low ownership detected",
-            recommended_action="Conduct oral viva",
-        )
-    ]
-    graph.checkpointer.put(cfg, saved)
+    saved = get_assessment_status(thread_id, graph=graph) or {}
+    saved_updates = {
+        "requires_human_review": True,
+        "discrepancy_flags": [
+            DiscrepancyAlert(
+                alert_code="GHOSTWRITER_SUSPICION",
+                severity="CRITICAL",
+                description="High effort with low ownership detected",
+                recommended_action="Conduct oral viva",
+            )
+        ],
+    }
+    if hasattr(graph, "update_state"):
+        graph.update_state(cfg, saved_updates)
+    else:
+        saved.update(saved_updates)
+        graph.checkpointer.put(cfg, saved)
 
     # Resume quiz
     resp_status = await submit_quiz_response(thread_id, "Very brief text", graph=graph)
@@ -185,15 +191,9 @@ async def test_t8_1_6_trigger_4_with_override_score():
     cfg = make_thread_config("sprint-02", "STU-001")
     thread_id = cfg["configurable"]["thread_id"]
 
-    # Set state paused at lecturer review
-    state = build_initial_state({
-        "student_id": "STU-001",
-        "sprint_id": "sprint-02",
-        "current_step": "discrepancy_checked",
-        "requires_human_review": True,
-        "final_score": 0.88,
-    })
-    graph.checkpointer.put(cfg, state)
+    await trigger_sprint_end("sprint-02", ["STU-001"], graph=graph)
+    resp_status = await submit_quiz_response(thread_id, "idk", graph=graph)
+    assert resp_status == "pending_lecturer_review"
 
     result = await submit_lecturer_review(
         thread_id,
@@ -218,14 +218,12 @@ async def test_t8_1_7_trigger_4_with_none_override_preserves_score():
     cfg = make_thread_config("sprint-02", "STU-001")
     thread_id = cfg["configurable"]["thread_id"]
 
-    state = build_initial_state({
-        "student_id": "STU-001",
-        "sprint_id": "sprint-02",
-        "current_step": "discrepancy_checked",
-        "requires_human_review": True,
-        "final_score": 0.78,
-    })
-    graph.checkpointer.put(cfg, state)
+    await trigger_sprint_end("sprint-02", ["STU-001"], graph=graph)
+    resp_status = await submit_quiz_response(thread_id, "idk", graph=graph)
+    assert resp_status == "pending_lecturer_review"
+
+    status_before = get_assessment_status(thread_id, graph=graph)
+    orig_score = status_before["final_score"]
 
     result = await submit_lecturer_review(
         thread_id,
@@ -237,7 +235,7 @@ async def test_t8_1_7_trigger_4_with_none_override_preserves_score():
     assert result == "finalized"
 
     status = get_assessment_status(thread_id, graph=graph)
-    assert status["final_score"] == 0.78
+    assert status["final_score"] == orig_score
     assert status["lecturer_reviewed"] is True
 
 

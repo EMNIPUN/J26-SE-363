@@ -240,6 +240,17 @@ def get_assessment_status(
     """Retrieve the current saved AssessmentState snapshot for a thread."""
     runner = graph or get_default_graph()
     cfg = {"configurable": {"thread_id": thread_id}}
+    if hasattr(runner, "get_state"):
+        try:
+            snapshot = runner.get_state(cfg)
+            if snapshot and hasattr(snapshot, "values") and snapshot.values:
+                return snapshot.values
+        except Exception:
+            pass
     if hasattr(runner, "checkpointer") and runner.checkpointer is not None:
-        return runner.checkpointer.get(cfg)
+        val = runner.checkpointer.get(cfg)
+        if isinstance(val, dict):
+            if "channel_values" in val and isinstance(val["channel_values"], dict):
+                return val["channel_values"]
+            return val
     return None

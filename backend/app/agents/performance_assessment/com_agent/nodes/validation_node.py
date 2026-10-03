@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Optional
 from app.agents.performance_assessment.com_agent.config.settings_loader import IS_DEV_MODE
 from app.agents.performance_assessment.com_agent.ingestion.cohort_baseline import (
     load_historical_baselines,
+    aload_historical_baselines,
     compute_rolling_average_baseline,
 )
 from app.agents.performance_assessment.com_agent.state import AssessmentState, CohortBaseline
@@ -97,7 +98,7 @@ async def validate_context_node(
         }
 
     # 6. T5.1.5: Compute or load rolling cohort baseline
-    historical = load_historical_baselines(store, team_id=team_id or "UNKNOWN")
+    historical = await aload_historical_baselines(store, team_id=team_id or "UNKNOWN")
     # Current sprint raw baseline fallback if not already in state
     current_raw = merged.get("cohort_raw_current") or {
         "metric_means": {"cc": 10.0, "loc_net": 250.0, "fc": 4.0},

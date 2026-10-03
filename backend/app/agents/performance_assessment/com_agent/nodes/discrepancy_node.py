@@ -25,6 +25,17 @@ async def discrepancy_detection_node(state: Dict[str, Any]) -> Dict[str, Any]:
     factor_scores = state.get("factor_scores", {})
     alerts: List[DiscrepancyAlert] = run_all_discrepancy_checks(factor_scores)
 
+    # Double timeout anomaly check
+    if state.get("quiz_is_double_timed_out"):
+        alerts.append(
+            DiscrepancyAlert(
+                alert_code="DOUBLE_TIMEOUT",
+                severity="CRITICAL",
+                description="Student failed to complete active verification quiz within both 48h and +24h extension windows.",
+                recommended_action="Conduct mandatory live oral examination to verify code authorship.",
+            )
+        )
+
     requires_human = any(
         alert.severity in REQUIRES_HUMAN_REVIEW_SEVERITIES for alert in alerts
     )

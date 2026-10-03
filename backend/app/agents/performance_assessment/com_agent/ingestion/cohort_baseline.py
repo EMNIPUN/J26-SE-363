@@ -100,6 +100,45 @@ def compute_current_sprint_raw_baseline(
     }
 
 
+async def aload_historical_baselines(store: Any, team_id: str) -> List[Dict[str, Any]]:
+    """Async query for historical sprint baselines from Store or in-memory dictionary.
+
+    Uses store.aget if available (e.g. LangGraph BatchedStore), falling back to store.get.
+    """
+    if store is None:
+        return []
+
+    # Case 1: Plain python dictionary
+    if isinstance(store, dict):
+        key_tuple = ("cohort", team_id, "sprint_baselines")
+        if key_tuple in store:
+            val = store[key_tuple]
+            return val if isinstance(val, list) else val.get("baselines", [])
+        str_key = f"cohort:{team_id}:sprint_baselines"
+        if str_key in store:
+            val = store[str_key]
+            return val if isinstance(val, list) else val.get("baselines", [])
+        return []
+
+    # Case 2: LangGraph BaseStore object
+    if hasattr(store, "aget") or hasattr(store, "get"):
+        try:
+            if hasattr(store, "aget"):
+                item = await store.aget(("cohort", team_id), "sprint_baselines")
+            else:
+                item = store.get(("cohort", team_id), "sprint_baselines")
+            if item is not None:
+                val = getattr(item, "value", item)
+                if isinstance(val, dict):
+                    return val.get("baselines", [])
+                if isinstance(val, list):
+                    return val
+        except Exception as e:
+            logger.debug(f"aload_historical_baselines query error: {e}")
+
+    return []
+
+
 def load_historical_baselines(store: Any, team_id: str) -> List[Dict[str, Any]]:
     """Query LangGraph Store or dev in-memory dictionary for historical sprint baselines.
 
@@ -124,7 +163,6 @@ def load_historical_baselines(store: Any, team_id: str) -> List[Dict[str, Any]]:
     # Case 2: LangGraph BaseStore object with .get(namespace, key)
     if hasattr(store, "get"):
         try:
-            # Try namespace=("cohort", team_id), key="sprint_baselines"
             item = store.get(("cohort", team_id), "sprint_baselines")
             if item is not None:
                 val = getattr(item, "value", item)
@@ -132,20 +170,8 @@ def load_historical_baselines(store: Any, team_id: str) -> List[Dict[str, Any]]:
                     return val.get("baselines", [])
                 if isinstance(val, list):
                     return val
-        except TypeError:
-            pass
-
-        try:
-            # Try single key
-            item = store.get(("cohort", team_id, "sprint_baselines"))
-            if item is not None:
-                val = getattr(item, "value", item)
-                if isinstance(val, dict):
-                    return val.get("baselines", [])
-                if isinstance(val, list):
-                    return val
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"load_historical_baselines query error: {e}")
 
     return []
 
@@ -183,6 +209,60 @@ def compute_rolling_average_baseline(
     )
 
 
+async def asave_sprint_baseline(
+    store: Any, team_id: str, sprint_id: str, raw_baseline: Dict[str, Any]
+) -> None:
+    """Async version of save_sprint_baseline supporting aget/aput on LangGraph BaseStore."""
+    if store is None:
+        return
+
+    entry = {
+        "sprint_id": sprint_id,
+        "metric_means": raw_baseline.get("metric_means", {}),
+        "metric_stds": raw_baseline.get("metric_stds", {}),
+        "student_count": raw_baseline.get("student_count", 0),
+        "saved_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Case 1: Plain python dict
+    if isinstance(store, dict):
+        key = ("cohort", team_id, "sprint_baselines")
+        existing = store.get(key, [])
+        updated = [b for b in existing if b.get("sprint_id") != sprint_id]
+        updated.append(entry)
+        store[key] = updated
+        return
+
+    # Case 2: LangGraph BaseStore (support async aget/aput)
+    if hasattr(store, "aput") or hasattr(store, "put"):
+        existing_item = None
+        try:
+            if hasattr(store, "aget"):
+                existing_item = await store.aget(("cohort", team_id), "sprint_baselines")
+            elif hasattr(store, "get"):
+                existing_item = store.get(("cohort", team_id), "sprint_baselines")
+        except Exception:
+            pass
+
+        existing_list = []
+        if existing_item:
+            val = getattr(existing_item, "value", existing_item)
+            if isinstance(val, dict):
+                existing_list = val.get("baselines", [])
+            elif isinstance(val, list):
+                existing_list = val
+
+        updated = [b for b in existing_list if b.get("sprint_id") != sprint_id]
+        updated.append(entry)
+        try:
+            if hasattr(store, "aput"):
+                await store.aput(("cohort", team_id), "sprint_baselines", {"baselines": updated})
+            else:
+                store.put(("cohort", team_id), "sprint_baselines", {"baselines": updated})
+        except Exception as e:
+            logger.warning(f"Failed to persist sprint baseline via asave_sprint_baseline: {e}")
+
+
 def save_sprint_baseline(
     store: Any, team_id: str, sprint_id: str, raw_baseline: Dict[str, Any]
 ) -> None:
@@ -206,28 +286,42 @@ def save_sprint_baseline(
     if isinstance(store, dict):
         key = ("cohort", team_id, "sprint_baselines")
         existing = store.get(key, [])
-        # Replace if existing sprint_id, else append
         updated = [b for b in existing if b.get("sprint_id") != sprint_id]
         updated.append(entry)
         store[key] = updated
         return
 
-    # Case 2: LangGraph BaseStore with put(namespace, key, value)
-    if hasattr(store, "put"):
-        existing_item = None
+    # If running inside active async loop and store has aput, schedule task
+    if hasattr(store, "aput"):
         try:
-            existing_item = store.get(("cohort", team_id), "sprint_baselines")
-        except Exception:
+            import asyncio
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                loop.create_task(asave_sprint_baseline(store, team_id, sprint_id, raw_baseline))
+                return
+        except RuntimeError:
             pass
 
-        existing_list = []
-        if existing_item:
-            val = getattr(existing_item, "value", existing_item)
-            if isinstance(val, dict):
-                existing_list = val.get("baselines", [])
-            elif isinstance(val, list):
-                existing_list = val
+    # Case 2: LangGraph BaseStore with put(namespace, key, value)
+    if hasattr(store, "put"):
+        try:
+            existing_item = None
+            try:
+                existing_item = store.get(("cohort", team_id), "sprint_baselines")
+            except Exception:
+                pass
 
-        updated = [b for b in existing_list if b.get("sprint_id") != sprint_id]
-        updated.append(entry)
-        store.put(("cohort", team_id), "sprint_baselines", {"baselines": updated})
+            existing_list = []
+            if existing_item:
+                val = getattr(existing_item, "value", existing_item)
+                if isinstance(val, dict):
+                    existing_list = val.get("baselines", [])
+                elif isinstance(val, list):
+                    existing_list = val
+
+            updated = [b for b in existing_list if b.get("sprint_id") != sprint_id]
+            updated.append(entry)
+            store.put(("cohort", team_id), "sprint_baselines", {"baselines": updated})
+        except Exception as e:
+            logger.warning(f"Failed to persist sprint baseline: {e}")
+

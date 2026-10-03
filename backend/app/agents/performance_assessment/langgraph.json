@@ -1,0 +1,9 @@
+{
+  "dependencies": [
+    "../../.."
+  ],
+  "graphs": {
+    "performance_assessment": "./com_agent/graph.py:studio_graph"
+  },
+  "env": "./.env"
+}

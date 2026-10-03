@@ -11,13 +11,14 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from app.agents.performance_assessment.com_agent.ingestion.cohort_baseline import (
     save_sprint_baseline,
+    asave_sprint_baseline,
 )
 
 logger = logging.getLogger(__name__)
 
 
 async def load_cross_sprint_memory_node(
-    state: Dict[str, Any], store: Optional[Any] = None
+    state: Dict[str, Any], *, store=None
 ) -> Dict[str, Any]:
     """T5.10.1: Node 11 — Load Cross-Sprint Student Trajectory.
 
@@ -26,16 +27,20 @@ async def load_cross_sprint_memory_node(
     """
     student_id = state.get("student_id")
     trajectory: List[Dict[str, Any]] = []
+    logger.info(f"[MEMORY_LOAD] student_id={student_id}, store={type(store)}")
 
     if store is not None and student_id:
         # Case 1: Dict store
         if isinstance(store, dict):
             key = ("students", student_id, "sprint_history")
             trajectory = store.get(key, [])
-        # Case 2: LangGraph BaseStore
-        elif hasattr(store, "get"):
+        # Case 2: LangGraph BaseStore (support async aget/aput and sync get/put)
+        elif hasattr(store, "aget") or hasattr(store, "get"):
             try:
-                item = store.get(("students", student_id), "sprint_history")
+                if hasattr(store, "aget"):
+                    item = await store.aget(("students", student_id), "sprint_history")
+                else:
+                    item = store.get(("students", student_id), "sprint_history")
                 if item:
                     val = getattr(item, "value", item)
                     trajectory = val.get("history", []) if isinstance(val, dict) else val
@@ -49,7 +54,7 @@ async def load_cross_sprint_memory_node(
 
 
 async def update_cross_sprint_memory_node(
-    state: Dict[str, Any], store: Optional[Any] = None
+    state: Dict[str, Any], *, store=None
 ) -> Dict[str, Any]:
     """T5.10.2: Node 15 — Persist Assessment Results & Update Cohort Memory.
 
@@ -59,6 +64,7 @@ async def update_cross_sprint_memory_node(
     student_id = state.get("student_id")
     sprint_id = state.get("sprint_id")
     team_id = state.get("team_id", "DEFAULT_TEAM")
+    logger.info(f"[MEMORY_UPDATE] student_id={student_id}, sprint_id={sprint_id}, store={type(store)}")
 
     snapshot = {
         "sprint_id": sprint_id,
@@ -78,17 +84,23 @@ async def update_cross_sprint_memory_node(
             updated = [h for h in history if h.get("sprint_id") != sprint_id]
             updated.append(snapshot)
             store[key] = updated
-        # Case 2: LangGraph BaseStore
-        elif hasattr(store, "put"):
+        # Case 2: LangGraph BaseStore (support async aget/aput and sync get/put)
+        elif hasattr(store, "aput") or hasattr(store, "put"):
             try:
-                existing_item = store.get(("students", student_id), "sprint_history")
+                if hasattr(store, "aget"):
+                    existing_item = await store.aget(("students", student_id), "sprint_history")
+                else:
+                    existing_item = store.get(("students", student_id), "sprint_history")
                 existing_list = []
                 if existing_item:
                     val = getattr(existing_item, "value", existing_item)
                     existing_list = val.get("history", []) if isinstance(val, dict) else val
                 updated = [h for h in existing_list if h.get("sprint_id") != sprint_id]
                 updated.append(snapshot)
-                store.put(("students", student_id), "sprint_history", {"history": updated})
+                if hasattr(store, "aput"):
+                    await store.aput(("students", student_id), "sprint_history", {"history": updated})
+                else:
+                    store.put(("students", student_id), "sprint_history", {"history": updated})
             except Exception as e:
                 logger.warning(f"Failed to persist student history to store: {e}")
 
@@ -98,7 +110,10 @@ async def update_cross_sprint_memory_node(
         "metric_stds": {"cc": 2.5, "loc_net": 60.0},
         "student_count": 4,
     }
-    save_sprint_baseline(store, team_id=team_id, sprint_id=sprint_id or "sprint-01", raw_baseline=current_raw)
+    try:
+        await asave_sprint_baseline(store, team_id=team_id, sprint_id=sprint_id or "sprint-01", raw_baseline=current_raw)
+    except Exception as e:
+        logger.warning(f"Failed to persist sprint baseline: {e}")
 
     return {
         "current_step": "cross_sprint_memory_updated",

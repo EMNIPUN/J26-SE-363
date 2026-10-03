@@ -36,23 +36,27 @@ async def run_effort_tool(state: Dict[str, Any]) -> Dict[str, Any]:
         student_id = state.get("student_id", "")
 
         # 1. Author-filtered commits, strictly excluding merge commits
-        commits = await gh_client.get_commits(
-            repo_url=repo_url,
-            author_username=author_username,
-            author_emails=author_emails,
-            since=state.get("sprint_start"),
-            until=state.get("sprint_end"),
-        )
+        commits = state.get("commit_history")
+        if not commits:
+            commits = await gh_client.get_commits(
+                repo_url=repo_url,
+                author_username=author_username,
+                author_emails=author_emails,
+                since=state.get("sprint_start"),
+                until=state.get("sprint_end"),
+            )
 
         # 2. Student tasks from Scrum
-        tasks = await scrum_client.get_student_tasks(sprint_id=sprint_id, student_id=student_id)
+        tasks = state.get("assigned_tasks")
+        if not tasks:
+            tasks = await scrum_client.get_student_tasks(sprint_id=sprint_id, student_id=student_id)
 
         cc = len(commits)
         loc_add = sum(c.get("stats", {}).get("additions", 0) for c in commits)
         loc_del = sum(c.get("stats", {}).get("deletions", 0) for c in commits)
         loc_net = loc_add - loc_del
         fc = sum(len(c.get("files", [])) for c in commits)
-        completed_tasks = [t for t in tasks if t.get("status") == "Done"]
+        completed_tasks = [t for t in tasks if str(t.get("status", "")).upper() in ["DONE", "COMPLETED"]]
         ct = len(completed_tasks)
         rd = round(loc_net / cc, 2) if cc > 0 else 0.0
 
@@ -89,13 +93,15 @@ async def run_consistency_tool(state: Dict[str, Any]) -> Dict[str, Any]:
     """T5.2.2: Factor 2 — Consistency (AWR, DC, LI_norm, CV_norm over commit timestamps)."""
     try:
         gh_client = get_github_client()
-        commits = await gh_client.get_commits(
-            repo_url=state.get("repo_url", ""),
-            author_username=state.get("student_github_username", ""),
-            author_emails=state.get("student_git_emails", []),
-            since=state.get("sprint_start"),
-            until=state.get("sprint_end"),
-        )
+        commits = state.get("commit_history")
+        if not commits:
+            commits = await gh_client.get_commits(
+                repo_url=state.get("repo_url", ""),
+                author_username=state.get("student_github_username", ""),
+                author_emails=state.get("student_git_emails", []),
+                since=state.get("sprint_start"),
+                until=state.get("sprint_end"),
+            )
 
         if not commits:
             features = {"AWR": 0.0, "DC": 0.0, "LI_norm": 1.0, "CV_norm": 1.0}
@@ -138,10 +144,12 @@ async def run_req_fulfillment_tool(state: Dict[str, Any]) -> Dict[str, Any]:
     """T5.2.3: Factor 3 — Requirement Fulfillment (task acceptance criteria + diffs)."""
     try:
         scrum_client = get_scrum_client()
-        tasks = await scrum_client.get_student_tasks(
-            sprint_id=state.get("sprint_id", ""),
-            student_id=state.get("student_id", ""),
-        )
+        tasks = state.get("assigned_tasks")
+        if not tasks:
+            tasks = await scrum_client.get_student_tasks(
+                sprint_id=state.get("sprint_id", ""),
+                student_id=state.get("student_id", ""),
+            )
 
         completed_tasks = 0
         total_ac_verified = 0
@@ -150,11 +158,16 @@ async def run_req_fulfillment_tool(state: Dict[str, Any]) -> Dict[str, Any]:
 
         for t in tasks:
             t_id = t.get("task_id", "")
-            criteria = await scrum_client.get_task_acceptance_criteria(t_id)
-            ac_list = criteria.get("acceptance_criteria", [])
+            ac_list = t.get("acceptance_criteria", [])
+            if not ac_list:
+                try:
+                    criteria = await scrum_client.get_task_acceptance_criteria(t_id)
+                    ac_list = criteria.get("acceptance_criteria", [])
+                except Exception:
+                    ac_list = []
             total_ac_count += len(ac_list)
 
-            is_done = t.get("status") == "Done"
+            is_done = str(t.get("status", "")).upper() in ["DONE", "COMPLETED"]
             if is_done:
                 completed_tasks += 1
                 total_ac_verified += len(ac_list)
@@ -196,11 +209,13 @@ async def run_collaboration_tool(state: Dict[str, Any]) -> Dict[str, Any]:
         author_username = state.get("student_github_username", "")
 
         # Reviews on teammates' PRs
-        reviews = await gh_client.get_review_comments(
-            repo_url=repo_url,
-            pr_ids=[1, 2, 3, 4],
-            reviewer_username=author_username,
-        )
+        reviews = state.get("review_comments")
+        if not reviews:
+            reviews = await gh_client.get_review_comments(
+                repo_url=repo_url,
+                pr_ids=[1, 2, 3, 4],
+                reviewer_username=author_username,
+            )
 
         # Issue comments on teammates' issues
         comments = await gh_client.get_issue_comments(
@@ -247,10 +262,12 @@ async def run_complexity_tool(state: Dict[str, Any]) -> Dict[str, Any]:
     """T5.2.5: Factor 5 — Task Complexity (SP, SC, FI, DR, CB from Scrum & Git DAG)."""
     try:
         scrum_client = get_scrum_client()
-        tasks = await scrum_client.get_student_tasks(
-            sprint_id=state.get("sprint_id", ""),
-            student_id=state.get("student_id", ""),
-        )
+        tasks = state.get("assigned_tasks")
+        if not tasks:
+            tasks = await scrum_client.get_student_tasks(
+                sprint_id=state.get("sprint_id", ""),
+                student_id=state.get("student_id", ""),
+            )
 
         sp_total = sum(t.get("story_points", 0) for t in tasks)
         subtask_count = sum(t.get("subtask_count", 0) for t in tasks)

@@ -13,6 +13,8 @@ from typing import Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+CONNECT_TIMEOUT = int(os.getenv("POSTGRES_CONNECT_TIMEOUT", "2"))
+
 
 def get_db_url() -> str:
     """Resolve PostgreSQL connection URL from environment variables."""
@@ -88,7 +90,7 @@ def init_assessment_db(db_url: Optional[str] = None) -> bool:
     try:
         import psycopg
 
-        with psycopg.connect(url, autocommit=True) as conn:
+        with psycopg.connect(url, connect_timeout=CONNECT_TIMEOUT, autocommit=True) as conn:
             with conn.cursor() as cur:
                 cur.execute(INIT_TABLES_SQL)
         logger.info("Assessment database tables initialized successfully.")
@@ -115,7 +117,7 @@ def get_checkpointer(db_url: Optional[str] = None) -> Any:
         import psycopg
 
         # Quick connectivity test
-        with psycopg.connect(url) as conn:
+        with psycopg.connect(url, connect_timeout=CONNECT_TIMEOUT) as conn:
             pass
 
         checkpointer = PostgresSaver.from_conn_string(url)
@@ -154,7 +156,7 @@ def save_assessment_result_db(result_data: Dict[str, Any], db_url: Optional[str]
             data = EXCLUDED.data,
             assessed_at = NOW();
         """
-        with psycopg.connect(url, autocommit=True) as conn:
+        with psycopg.connect(url, connect_timeout=CONNECT_TIMEOUT, autocommit=True) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql, (student_id, sprint_id, team_id, final_score, persona, override, json.dumps(result_data)))
         return True
@@ -184,7 +186,7 @@ def save_student_feedback_db(feedback_data: Dict[str, Any], db_url: Optional[str
             data = EXCLUDED.data,
             created_at = NOW();
         """
-        with psycopg.connect(url, autocommit=True) as conn:
+        with psycopg.connect(url, connect_timeout=CONNECT_TIMEOUT, autocommit=True) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql, (student_id, sprint_id, final_score, persona, json.dumps(feedback_data)))
         return True
@@ -200,7 +202,7 @@ def get_assessment_result_db(student_id: str, sprint_id: str, db_url: Optional[s
         import psycopg
 
         sql = "SELECT data FROM assessment_results WHERE student_id = %s AND sprint_id = %s;"
-        with psycopg.connect(url) as conn:
+        with psycopg.connect(url, connect_timeout=CONNECT_TIMEOUT) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql, (student_id, sprint_id))
                 row = cur.fetchone()
@@ -237,7 +239,7 @@ def save_student_evidence_pool(
             factor_payloads = EXCLUDED.factor_payloads,
             ingested_at = NOW();
         """
-        with psycopg.connect(url, autocommit=True) as conn:
+        with psycopg.connect(url, connect_timeout=CONNECT_TIMEOUT, autocommit=True) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     sql,
@@ -271,7 +273,7 @@ def get_student_evidence_pool(
         FROM student_evidence_pool
         WHERE student_id = %s AND sprint_id = %s;
         """
-        with psycopg.connect(url) as conn:
+        with psycopg.connect(url, connect_timeout=CONNECT_TIMEOUT) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql, (student_id, sprint_id))
                 row = cur.fetchone()

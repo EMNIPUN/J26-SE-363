@@ -118,7 +118,59 @@ async def test_lecturer_review_node_override_score_clamped_below_zero():
     updates = await lecturer_review_node(state, mock_resume_value=resume_payload)
 
     assert updates["current_step"] == "lecturer_review_completed"
-    assert updates["final_score"] >= 0.0, (
-        f"override_score=-0.20 must be clamped to 0.0, got {updates['final_score']}"
-    )
     assert updates["final_score"] == pytest.approx(0.0, abs=1e-6)
+
+
+@pytest.mark.asyncio
+async def test_lecturer_review_node_string_resume():
+    """String input (e.g., from Studio text box) must not crash and be recorded as comments."""
+    state = {"student_id": "STU-001", "final_score": 0.60, "discrepancy_flags": []}
+    updates = await lecturer_review_node(state, mock_resume_value="Approved without change")
+    assert updates["current_step"] == "lecturer_review_completed"
+    assert updates["lecturer_reviewed"] is True
+    assert updates["lecturer_comments"] == "Approved without change"
+    assert updates["lecturer_override_score"] is None
+
+
+@pytest.mark.asyncio
+async def test_lecturer_review_node_json_string_resume():
+    """JSON string input (e.g., from Studio JSON payload) must parse correctly."""
+    state = {"student_id": "STU-001", "final_score": 0.50, "discrepancy_flags": []}
+    json_str = '{"override_score": 0.85, "reason": "Oral viva passed", "lecturer_id": "LEC-007"}'
+    updates = await lecturer_review_node(state, mock_resume_value=json_str)
+    assert updates["current_step"] == "lecturer_review_completed"
+    assert updates["final_score"] == 0.85
+    assert updates["lecturer_override_score"] == 0.85
+    assert updates["lecturer_id"] == "LEC-007"
+    assert updates["lecturer_comments"] == "Oral viva passed"
+
+
+@pytest.mark.asyncio
+async def test_lecturer_review_node_numeric_string_resume():
+    """Numeric string input (e.g., user types '0.72') must be parsed as override_score."""
+    state = {"student_id": "STU-001", "final_score": 0.50, "discrepancy_flags": []}
+    updates = await lecturer_review_node(state, mock_resume_value="0.72")
+    assert updates["current_step"] == "lecturer_review_completed"
+    assert updates["final_score"] == 0.72
+    assert updates["lecturer_override_score"] == 0.72
+
+
+@pytest.mark.asyncio
+async def test_lecturer_review_node_float_resume():
+    """Direct float/int input must be treated as override_score."""
+    state = {"student_id": "STU-001", "final_score": 0.50, "discrepancy_flags": []}
+    updates = await lecturer_review_node(state, mock_resume_value=0.88)
+    assert updates["current_step"] == "lecturer_review_completed"
+    assert updates["final_score"] == 0.88
+    assert updates["lecturer_override_score"] == 0.88
+
+
+@pytest.mark.asyncio
+async def test_lecturer_review_node_none_or_empty_resume():
+    """None or empty resume must gracefully default without error."""
+    state = {"student_id": "STU-001", "final_score": 0.50, "discrepancy_flags": []}
+    updates = await lecturer_review_node(state, mock_resume_value="")
+    assert updates["current_step"] == "lecturer_review_completed"
+    assert updates["lecturer_reviewed"] is True
+    assert updates["lecturer_override_score"] is None
+

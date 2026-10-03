@@ -6,6 +6,7 @@ Strictly aligned with:
 - PLAN.md Section 9 Node 13 (generate_explanation_node)
 """
 
+import os
 import logging
 from typing import Dict, Any, Optional, Callable
 from app.agents.performance_assessment.com_agent.prompts.prompt_loader import (
@@ -110,10 +111,45 @@ async def generate_explanation_node(
     feedback_sys, feedback_usr = render_prompt(feedback_def, feedback_vars)
 
     # 3. Execute LLM Call or deterministic dev synthesizer
+    llm_traces = []
+    use_real = (
+        state.get("use_real_llm")
+        or os.getenv("USE_REAL_LLM", "").lower() in ("1", "true")
+    )
+
     if llm_callable is not None:
         instructor_report = llm_callable(dossier_sys, dossier_usr, dossier_def.model_parameters)
         student_feedback = llm_callable(feedback_sys, feedback_usr, feedback_def.model_parameters)
-    else:
+    elif use_real:
+        try:
+            from app.agents.performance_assessment.com_agent.llm_client import groq_client
+            d_params = dossier_def.model_parameters or {}
+            f_params = feedback_def.model_parameters or {}
+
+            logger.info("Executing Real Groq LLM for Instructor Assessment Dossier...")
+            d_res = groq_client.complete(
+                system_prompt=dossier_sys,
+                user_prompt=dossier_usr,
+                temperature=d_params.get("temperature", 0.15),
+                max_tokens=d_params.get("max_tokens", 1500),
+            )
+            instructor_report = d_res["content"]
+            llm_traces.append({"prompt_id": "instructor_assessment_dossier", **d_res})
+
+            logger.info("Executing Real Groq LLM for Student Formative Feedback...")
+            f_res = groq_client.complete(
+                system_prompt=feedback_sys,
+                user_prompt=feedback_usr,
+                temperature=f_params.get("temperature", 0.30),
+                max_tokens=f_params.get("max_tokens", 1000),
+            )
+            student_feedback = f_res["content"]
+            llm_traces.append({"prompt_id": "student_formative_feedback", **f_res})
+        except Exception as e:
+            logger.error(f"Groq LLM call failed: {e}. Falling back to default synthesizer.", exc_info=True)
+            use_real = False
+
+    if not use_real and llm_callable is None:
         # Realistic markdown synthesis strictly respecting guardrails and anonymization
         instructor_report = (
             f"# Instructor Assessment Dossier: [STUDENT_A] ([STUDENT_ID])\n\n"
@@ -139,5 +175,6 @@ async def generate_explanation_node(
     return {
         "instructor_report_markdown": instructor_report,
         "student_feedback_markdown": student_feedback,
+        "llm_execution_traces": llm_traces,
         "current_step": "explanation_generated",
     }

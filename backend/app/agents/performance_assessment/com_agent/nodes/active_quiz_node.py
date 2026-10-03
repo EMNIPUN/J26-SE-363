@@ -113,7 +113,6 @@ async def await_quiz_response_node(
             av.is_extended = True
             av.quiz_extension_deadline = deadline_dt.isoformat()
 
-            # Second chance interrupt
             return {
                 "active_verification": av,
                 "quiz_is_extended": True,
