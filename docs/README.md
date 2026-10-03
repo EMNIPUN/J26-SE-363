@@ -4,4 +4,6 @@ A multi-agent generative AI framework for supporting project-based learning and 
 
 ## Guides & Architecture
 - [Environment Selection & Configuration Architecture](./ENVIRONMENT_GUIDE.md) — Comprehensive guide on `.env.*` resolution, Vite modes, Docker Compose interpolation, Keycloak/Kong credential propagation, and backend environment management.
+- [Server Database & Migration Guide](./SERVER_DATABASE_GUIDE.md) — Guide on Supabase dual-connection pooling (ports 6543 vs 5432), environment variables, Alembic migration commands, and running the server.
+- [Server & Agentic Framework Communication Guide](./AGENT_COMMUNICATION_GUIDE.md) — Complete guide on the asynchronous `agent_jobs` queue, Option A 24-hour cleanup, and concrete examples for all 4 research modules (performance, planning, security, tutor).
 

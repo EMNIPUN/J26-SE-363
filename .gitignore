@@ -11,13 +11,28 @@ dist
 .vercel
 *.log
 .DS_Store
-backend/app/agents/performance_assessment/PROPOSAL.md
+
+# Agentic Framework & LangGraph
+backend/agentic_framework/app/agents/performance_assessment/PROPOSAL.md
+**/PROPOSAL.md
 .langgraph_api/
 *.pckl
 
-# Assessment Output Data
-backend/app/agents/performance_assessment/com_agent/mock_context/output/
+# Assessment Mock Context & Output Data
+backend/agentic_framework/app/agents/performance_assessment/com_agent/mock_context/
+**/mock_context/**/*.json
+**/mock_context/*.json
 **/mock_context/output/
 assessment_result_*.json
 student_feedback_*.json
+
+# Python caches & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+ENV/
 

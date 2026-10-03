@@ -218,3 +218,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# SELVIA Framework & Assessment Agent ignores
+agentic_framework/app/agents/performance_assessment/PROPOSAL.md
+**/PROPOSAL.md
+.langgraph_api/
+*.pckl
+agentic_framework/app/agents/performance_assessment/com_agent/mock_context/
+**/mock_context/**/*.json
+**/mock_context/*.json
+**/mock_context/output/
+assessment_result_*.json
+student_feedback_*.json

@@ -38,6 +38,26 @@ services:
       timeout: 5s
       retries: 5
 
+  server-postgres:
+    image: postgres:16-alpine
+    container_name: selvia_server_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SERVER_POSTGRES_DB}
+      POSTGRES_USER: ${SERVER_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${SERVER_POSTGRES_PASSWORD}
+    ports:
+      - "${SERVER_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - server_postgres_data:/var/lib/postgresql/data
+    networks:
+      - selvia-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
     container_name: selvia_keycloak
@@ -106,6 +126,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  server_postgres_data:
     driver: local
 
 networks:
