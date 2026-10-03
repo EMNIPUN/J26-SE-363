@@ -1,0 +1,38 @@
+[
+  {
+    "task_id": "TASK-101",
+    "student_id": "STU-001",
+    "sprint_id": "sprint-02",
+    "title": "Implement authentication and session JWT handling",
+    "story_points": 5,
+    "subtask_count": 3,
+    "status": "Done",
+    "assigned_to": "Alice Perera",
+    "created_at": "2025-09-01T09:00:00Z",
+    "completed_at": "2025-09-09T14:30:00Z"
+  },
+  {
+    "task_id": "TASK-102",
+    "student_id": "STU-001",
+    "sprint_id": "sprint-02",
+    "title": "Design user profile and database models",
+    "story_points": 3,
+    "subtask_count": 2,
+    "status": "Done",
+    "assigned_to": "Alice Perera",
+    "created_at": "2025-09-01T09:00:00Z",
+    "completed_at": "2025-09-05T16:00:00Z"
+  },
+  {
+    "task_id": "TASK-103",
+    "student_id": "STU-001",
+    "sprint_id": "sprint-02",
+    "title": "Develop password reset endpoints and notification hooks",
+    "story_points": 5,
+    "subtask_count": 4,
+    "status": "In Progress",
+    "assigned_to": "Alice Perera",
+    "created_at": "2025-09-08T10:00:00Z",
+    "completed_at": null
+  }
+]

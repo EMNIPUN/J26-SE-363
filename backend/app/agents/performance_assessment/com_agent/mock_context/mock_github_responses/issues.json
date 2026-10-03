@@ -1,0 +1,104 @@
+[
+  {
+    "id": 801,
+    "issue_number": 12,
+    "issue_title": "Database connection timeout under concurrent load",
+    "issue_author": {
+      "login": "bob-silva"
+    },
+    "user": {
+      "login": "alice-perera"
+    },
+    "created_at": "2025-09-04T16:20:00Z",
+    "body": "Hey @bob-silva, I encountered this during migration. You need to increase pool_size=10 and max_overflow=20 in session.py. Check my PR #2.",
+    "reactions": {
+      "total_count": 3,
+      "+1": 2,
+      "heart": 1
+    }
+  },
+  {
+    "id": 802,
+    "issue_number": 15,
+    "issue_title": "Docker compose network failure on macOS",
+    "issue_author": {
+      "login": "charlie-fernando"
+    },
+    "user": {
+      "login": "alice-perera"
+    },
+    "created_at": "2025-09-06T14:10:00Z",
+    "body": "Use host.docker.internal in the local development env instead of localhost. Added notes to README in commit a1b2c3d001.",
+    "reactions": {
+      "total_count": 2,
+      "+1": 2
+    }
+  },
+  {
+    "id": 803,
+    "issue_number": 18,
+    "issue_title": "API response schema validation errors in tests",
+    "issue_author": {
+      "login": "bob-silva"
+    },
+    "user": {
+      "login": "alice-perera"
+    },
+    "created_at": "2025-09-11T11:45:00Z",
+    "body": "Make sure you include the Bearer token in the Authorization header. I added an auth test utility in test_security.py.",
+    "reactions": {
+      "total_count": 1,
+      "rocket": 1
+    }
+  },
+  {
+    "id": 804,
+    "issue_number": 10,
+    "issue_title": "API Specification alignment for Sprint 2",
+    "issue_author": {
+      "login": "alice-perera"
+    },
+    "user": {
+      "login": "bob-silva"
+    },
+    "created_at": "2025-09-02T13:00:00Z",
+    "body": "Thanks Alice. We will align the React forms to match the Pydantic schemas in your spec.",
+    "reactions": {
+      "total_count": 1,
+      "+1": 1
+    }
+  },
+  {
+    "id": 805,
+    "issue_number": 12,
+    "issue_title": "Database connection timeout under concurrent load",
+    "issue_author": {
+      "login": "bob-silva"
+    },
+    "user": {
+      "login": "charlie-fernando"
+    },
+    "created_at": "2025-09-05T09:15:00Z",
+    "body": "Verified Alice's fix on my machine as well. Timeout is resolved.",
+    "reactions": {
+      "total_count": 1,
+      "+1": 1
+    }
+  },
+  {
+    "id": 806,
+    "issue_number": 15,
+    "issue_title": "Docker compose network failure on macOS",
+    "issue_author": {
+      "login": "charlie-fernando"
+    },
+    "user": {
+      "login": "bob-silva"
+    },
+    "created_at": "2025-09-06T15:30:00Z",
+    "body": "Working on Windows WSL2 now too.",
+    "reactions": {
+      "total_count": 0
+    }
+  }
+]

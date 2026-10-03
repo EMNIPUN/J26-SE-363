@@ -11,3 +11,13 @@ dist
 .vercel
 *.log
 .DS_Store
+backend/app/agents/performance_assessment/PROPOSAL.md
+.langgraph_api/
+*.pckl
+
+# Assessment Output Data
+backend/app/agents/performance_assessment/com_agent/mock_context/output/
+**/mock_context/output/
+assessment_result_*.json
+student_feedback_*.json
+

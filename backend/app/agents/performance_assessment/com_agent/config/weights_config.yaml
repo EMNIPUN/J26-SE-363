@@ -1,0 +1,19 @@
+# Factor Weights Configuration
+# These weights are decided by the lecturer/researcher using AHP or empirical tuning.
+# Weights must sum to exactly 1.0. The system validates this at startup.
+# Version should be bumped whenever weights are changed for auditability.
+
+version: "1.0.0"
+last_updated_by: "research_team"
+last_updated_at: "2025-09-01"
+
+factor_weights:
+  effort: 0.20                   # w1 — E
+  consistency: 0.15              # w2 — C
+  requirement_fulfillment: 0.25  # w3 — RF
+  collaboration: 0.15            # w4 — Co
+  task_complexity: 0.10          # w5 — TC
+  code_ownership: 0.15           # w6 — KO (w7 in PROPOSAL notation)
+
+# Note: Behavioral Pattern (BP) is a multiplier [0.80–1.20], not an additive weight.
+# The weights above must sum to 1.0. System raises ValueError if they do not.

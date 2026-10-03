@@ -1,0 +1,35 @@
+{
+  "TASK-101": {
+    "task_id": "TASK-101",
+    "title": "Implement authentication and session JWT handling",
+    "description": "Develop secure token generation, validation, and refresh token rotation logic for authenticated API requests.",
+    "acceptance_criteria": [
+      "JWT access tokens must expire in 15 minutes",
+      "Refresh token rotation must invalidate prior refresh tokens upon use",
+      "Passwords must be hashed using bcrypt or Argon2 with adequate work factor",
+      "Authentication endpoints must return standard OAuth2 compliant token payload"
+    ]
+  },
+  "TASK-102": {
+    "task_id": "TASK-102",
+    "title": "Design user profile and database models",
+    "description": "Construct SQLAlchemy user profile models, schema definitions, and initial Alembic database migrations.",
+    "acceptance_criteria": [
+      "User model must include email, hashed_password, full_name, and role columns",
+      "Email field must be unique and properly indexed",
+      "Alembic migration must run cleanly forwards and backwards",
+      "Database session pool must handle concurrent connections gracefully"
+    ]
+  },
+  "TASK-103": {
+    "task_id": "TASK-103",
+    "title": "Develop password reset endpoints and notification hooks",
+    "description": "Implement password reset token issuance, timed expiration verification, and event emission for email notifications.",
+    "acceptance_criteria": [
+      "Reset tokens must expire within 1 hour of issuance",
+      "Password reset endpoint must verify token authenticity before password update",
+      "Notification service hook must trigger on password change event",
+      "Unit tests must cover expired token rejection and replay attack prevention"
+    ]
+  }
+}

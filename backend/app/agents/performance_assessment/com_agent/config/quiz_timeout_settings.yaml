@@ -1,0 +1,14 @@
+# Code Ownership Quiz Timeout & API Rate Limit Configuration
+# Strictly aligned with PLAN.md Section 12.2 & Section 12.7.
+
+version: "1.0.0"
+
+code_ownership_quiz:
+  time_window_hours: 48           # Initial window given to the student
+  extra_time_hours: 48            # Extension window if first timeout fires
+  capped_score_ceiling: 0.50      # Max KO score allowed after extension (0.0–1.0)
+  # Note: If student misses both windows, KO = 0.0 (double timeout)
+
+github_api:
+  max_calls_per_student: 30       # Maximum GitHub MCP/REST calls per student thread
+  # When this cap is reached, all further data collection uses the local clone sandbox.
