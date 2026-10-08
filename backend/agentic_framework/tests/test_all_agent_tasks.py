@@ -1,21 +1,21 @@
 ﻿import pytest
-from agentic_framework.app.tasks.performance_tasks import (
+from app.tasks.performance_tasks import (
     assess_student,
     parse_rubric,
     generate_ownership_quiz,
     ingest_git_commits,
 )
-from agentic_framework.app.tasks.planning_tasks import (
+from app.tasks.planning_tasks import (
     estimate_story_points,
     analyze_sprint_velocity,
     assess_backlog_risks,
 )
-from agentic_framework.app.tasks.security_tasks import (
+from app.tasks.security_tasks import (
     scan_repository_secrets,
     audit_dependency_vulnerabilities,
     evaluate_code_security_score,
 )
-from agentic_framework.app.tasks.tutor_tasks import (
+from app.tasks.tutor_tasks import (
     generate_guidance,
     explain_code_concept,
     recommend_learning_topics,

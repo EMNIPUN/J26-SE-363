@@ -50,7 +50,7 @@ Supabase PostgreSQL (procrastinate_jobs table)
        │
        ▼
 Agentic Framework Worker Daemon (Consumer)
-       └── uv run python -m agentic_framework.worker
+       └── uv run python -m worker   (from backend/agentic_framework/)
              ├── @app.task("performance.assess_student")
              ├── @app.task("performance.parse_rubric")
              ├── @app.task("performance.generate_ownership_quiz")
@@ -148,12 +148,13 @@ async def assess_student(payload: dict) -> dict:
 
 **Start the Worker Daemon:**
 ```powershell
-cd backend
-uv run python -m agentic_framework.worker
+cd backend/agentic_framework
+uv sync
+uv run python -m worker
 ```
 Or consume only specific queues:
 ```powershell
-uv run python -m agentic_framework.worker --queues performance
+uv run python -m worker --queues performance
 ```
 
 ---

@@ -1,6 +1,6 @@
 ﻿import pytest
 import httpx
-from server.app.main import app, lifespan
+from app.main import app, lifespan
 
 
 @pytest.mark.asyncio

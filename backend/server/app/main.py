@@ -3,14 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-try:
-    from app.core.config import settings
-    from app.database.session import check_db_connection
-    from app.api.v1.jobs import router as jobs_router
-except ImportError:
-    from server.app.core.config import settings
-    from server.app.database.session import check_db_connection
-    from server.app.api.v1.jobs import router as jobs_router
+from app.core.config import settings
+from app.database.session import check_db_connection
+from app.api.v1.jobs import router as jobs_router
 
 from shared.queue import app as procrastinate_app, get_dsn
 
