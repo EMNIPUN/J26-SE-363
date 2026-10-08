@@ -4,11 +4,11 @@ Agentic Framework Worker Entrypoint.
 Starts the Procrastinate worker that consumes jobs from the PostgreSQL queue.
 
 Run:
-    cd backend
-    uv run python -m agentic_framework.worker
+    cd backend/agentic_framework
+    uv run python -m worker
 
 Or, to run specific queues only:
-    uv run python -m agentic_framework.worker --queues performance planning
+    uv run python -m worker --queues performance planning
 """
 
 import asyncio
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 def main(queues: list[str] | None = None) -> None:
     # Import all task modules first — this registers @app.task decorators
-    import agentic_framework.app.tasks  # noqa: F401
+    import app.tasks  # noqa: F401
 
     from shared.queue import app, get_dsn
 

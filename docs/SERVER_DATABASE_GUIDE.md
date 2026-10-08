@@ -61,7 +61,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 ## 3. Database Migration Commands (Alembic)
 
-All commands are executed from the `backend/` or `backend/server/` directory using `uv run`.
+All commands are executed from the `backend/server/` directory using `uv run` (the server has its own `pyproject.toml`, `uv.lock` and `.venv`; run `uv sync` there first).
 
 ### A. Apply All Migrations
 Applies all pending schema migrations up to the latest revision:
@@ -113,8 +113,11 @@ uv run python -c "from app.database import check_db_connection; print('Connected
 
 ## 5. Running Automated Tests
 
-Run the full backend test suite:
+The server and the agentic framework have separate environments, so run each test suite from its own folder:
 ```bash
-# From repository root:
-uv run pytest backend/
+# Server tests (from backend/server/):
+uv run pytest
+
+# Agent + worker tests (from backend/agentic_framework/):
+uv run pytest
 ```

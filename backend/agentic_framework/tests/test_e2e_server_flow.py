@@ -1,10 +1,36 @@
-﻿import pytest
+﻿"""End-to-end flow across both backend services.
+
+Needs the web server running separately (it has its own environment):
+    cd backend/server && uv run uvicorn app.main:app --port 8002
+Then, from backend/agentic_framework:
+    uv run pytest tests/test_e2e_server_flow.py
+
+Set SELVIA_SERVER_URL if the server is not on http://localhost:8002.
+"""
+
+import os
+
 import httpx
-from server.app.main import app, lifespan
+import pytest
+
 from shared.queue import app as procrastinate_app
 
 # Ensure all task modules are registered
-import agentic_framework.app.tasks  # noqa: F401
+import app.tasks  # noqa: F401
+
+SERVER_URL = os.getenv("SELVIA_SERVER_URL", "http://localhost:8002")
+
+
+def _server_is_running() -> bool:
+    try:
+        return httpx.get(f"{SERVER_URL}/health", timeout=2).status_code == 200
+    except httpx.HTTPError:
+        return False
+
+
+pytestmark = pytest.mark.skipif(
+    not _server_is_running(), reason=f"SELVIA server is not running at {SERVER_URL}"
+)
 
 
 @pytest.mark.asyncio
@@ -16,8 +42,8 @@ async def test_full_e2e_all_four_agents():
     4. Verify all 4 jobs successfully transition to 'succeeded' in Supabase
     5. Query results via REST API (GET /api/v1/jobs/{id})
     """
-    async with lifespan(app):
-        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with procrastinate_app.open_async():
+        async with httpx.AsyncClient(base_url=SERVER_URL) as client:
             # Step 1: Health check
             res_health = await client.get("/health")
             assert res_health.status_code == 200

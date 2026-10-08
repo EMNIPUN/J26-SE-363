@@ -1,1 +1,0 @@
-# Agentic Framework package root

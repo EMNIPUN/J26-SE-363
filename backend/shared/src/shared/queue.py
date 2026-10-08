@@ -10,6 +10,8 @@ if sys.platform == "win32":
 
 load_dotenv(dotenv_path="backend/.env", override=False)
 load_dotenv(dotenv_path=".env", override=False)
+# backend/.env when running from backend/server or backend/agentic_framework
+load_dotenv(dotenv_path="../.env", override=False)
 
 def get_dsn() -> str:
     """Return a psycopg-compatible DSN (strips SQLAlchemy dialect prefix).
