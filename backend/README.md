@@ -5,27 +5,37 @@ dependencies, lock file and virtual environment:
 
 ```text
 backend/
-  server/                  # FastAPI web server (producer): REST API + its own database
+  server/                  # Core API (FastAPI): REST API for the frontend + its own database
     pyproject.toml         # server dependencies only
     uv.lock                # server lock file (commit it)
     requirements.txt       # generated from uv.lock, never edited by hand
     app/                   # imported as `app.*`
+      clients/ai_backend.py  # fast AI requests: HTTP call to the AI Backend
+      services/ai_jobs.py    # slow AI requests: enqueue an orchestration job
     tests/
-  agentic_framework/       # LangGraph agents + Procrastinate worker (consumer)
+  agentic_framework/       # AI Backend (FastAPI + LangGraph) and the Procrastinate worker
     pyproject.toml         # dependencies for ALL agents
     uv.lock                # one lock file for every agent (commit it)
     requirements.txt       # generated from uv.lock, never edited by hand
+    app/main.py            # AI Backend app: POST /api/v1/orchestration
+    app/orchestrator/      # Main Orchestrator (graph, state, router, executor)
     app/agents/<agent>/    # project_planning, performance_assessment, adaptive_tutor, aegis
-    app/tasks/             # queue tasks that start each agent
+    app/agents/registry.py # where each agent is registered with the orchestrator
+    app/integrations/      # clients for external systems (MCP, GitHub, scanners)
+    app/tasks/             # queue tasks; orchestration_tasks.py sends jobs to the orchestrator
     worker.py
     tests/
-  shared/                  # `selvia-shared` package: the Procrastinate job queue
+  shared/                  # `selvia-shared` package used by both services
     pyproject.toml
-    src/shared/queue.py    # imported as `shared.queue` by both services
+    src/shared/contracts/  # Pydantic contracts: AgentRequest/Response, Orchestration*, contexts
+    src/shared/queue.py    # Procrastinate job queue
+    src/shared/jobs.py     # orchestration job name and queue naming, used by both services
 ```
 
-The server and the agents never import each other. They only communicate through the job queue in
-`shared` (see `docs/AGENT_COMMUNICATION_GUIDE.md`). Database migrations are in
+The server and the agents never import each other's code. The Core API reaches the Main
+Orchestrator in two ways: over HTTP (`POST /api/v1/orchestration`) when the caller waits, or as an
+`orchestration.run` queue job when the work is slow (see `docs/AGENT_COMMUNICATION_GUIDE.md`). Both sides use the models in `shared.contracts`. How
+members build their agents is in `docs/TEAM_DEVELOPMENT_GUIDE.md`. Database migrations are in
 `docs/SERVER_DATABASE_GUIDE.md`.
 
 ## Setup
@@ -48,7 +58,8 @@ from `backend/.env` (or the service's own `.env`).
 - All agents run in the same worker process and the same LangGraph runtime, so they share
   **one** lock file in `agentic_framework/`. Don't create a `pyproject.toml`, `uv.lock`,
   `requirements.txt` or `.venv` inside an agent folder.
-- `shared` declares only what the queue needs (`procrastinate`, `python-dotenv`); both services
+- `shared` declares only what the queue and contracts need (`procrastinate`, `python-dotenv`,
+  `pydantic`); both services
   get it through `[tool.uv.sources] selvia-shared = { path = "../shared", editable = true }`.
 
 Run these from the service folder you are changing (`backend/server/` or
@@ -79,19 +90,23 @@ Rules:
 ## Run
 
 ```bash
-# Web server (from backend/server/)
+# Core API (from backend/server/)
 uv run uvicorn app.main:app --reload --port 8002
+
+# AI Backend (from backend/agentic_framework/)
+uv run uvicorn app.main:app --reload --port 8003
 
 # Agent worker (from backend/agentic_framework/)
 uv run python -m worker
 uv run python -m worker --queues performance planning
 
-# Performance assessment agent as its own service (from backend/agentic_framework/)
-uv run uvicorn app.agents.performance_assessment.server:app --port 8003
+# Performance assessment agent as its own debug service (from backend/agentic_framework/)
+uv run uvicorn app.agents.performance_assessment.server:app --port 8004
 ```
 
-The web server and the performance agent both default to port 8002, so give one of them a different
-port when running both locally.
+The Core API reaches the AI Backend at `AI_BACKEND_URL` (default `http://localhost:8003`). The
+performance agent's debug server defaults to port 8002 like the Core API, so always pass `--port`
+when running both locally.
 
 The performance assessment agent's `Dockerfile` and `docker-compose.yml` live in its protected
 folder (only its owner may change them). They still expect a per-agent `requirements.txt`; an update

@@ -1,10 +1,11 @@
 [project]
 name = "selvia-shared"
 version = "0.1.0"
-description = "Code shared by the SELVIA server and agentic framework (Procrastinate job queue)."
+description = "Code shared by the SELVIA Core API and AI Backend: Pydantic contracts and the Procrastinate job queue."
 requires-python = ">=3.11"
 dependencies = [
     "procrastinate>=3.10.0",
+    "pydantic>=2.13.5",
     "python-dotenv>=1.2.3",
 ]
 

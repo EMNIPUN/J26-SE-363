@@ -2,6 +2,15 @@
 
 This guide details the PostgreSQL-backed job queue architecture connecting the **FastAPI Web Server** (`backend/server/`) and the **Multi-Agent Framework** (`backend/agentic_framework/`) using **Procrastinate**.
 
+> **Use the orchestration job for new work.** Background AI requests are now one task,
+> `orchestration.run`, whose payload is an `OrchestrationRequest`. The Core API enqueues it with
+> `start_ai_job()` (`backend/server/app/services/ai_jobs.py`); the worker runs
+> `run_orchestration()` (`backend/agentic_framework/app/tasks/orchestration_tasks.py`), which passes
+> it to the Main Orchestrator, the same one behind `POST /api/v1/orchestration`. The per-agent
+> tasks shown below (`performance.assess_student`, ...) are the older direct path and return mock
+> data. Procrastinate stores only the job status, not the task's return value, and the tasks don't
+> configure retries. See `docs/TEAM_DEVELOPMENT_GUIDE.md`.
+
 ---
 
 ## 1. Why Do We Need a Job Queue?
