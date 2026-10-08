@@ -1,20 +1,19 @@
+"""SELVIA AI Backend. Internal service: only the Core API calls it."""
+
 from fastapi import FastAPI
 
+from app.api.v1.router import api_router
+from app.core.config import settings
+
 app = FastAPI(
-    title="SELVIA API",
-    description="Software Engineering Learning & Virtual Intelligence Assistant",
+    title=settings.APP_NAME,
+    description="Main Orchestrator and specialized agents for SELVIA",
     version="0.1.0",
 )
 
-
-@app.get("/")
-async def root():
-    return {
-        "name": "SELVIA",
-        "status": "running"
-    }
+app.include_router(api_router, prefix="/api/v1")
 
 
-@app.get("/health")
-async def health():
-    return {"status": "healthy"}
+@app.get("/health", tags=["Health"])
+async def health() -> dict[str, str]:
+    return {"status": "UP", "service": settings.APP_NAME, "environment": settings.APP_ENV}

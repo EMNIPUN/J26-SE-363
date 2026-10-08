@@ -1,2 +1,4 @@
-# J26-SE-363
-A multi-agent generative AI framework for supporting project-based learning and intelligent lecturer monitoring through learning analytics.
+# Services
+
+Shared AI services used by more than one agent (for example an LLM client factory, RAG retrieval,
+or knowledge graph access). Logic used by only one agent stays inside that agent's directory.

@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     # Agent Job Queue Retention (Clean up finished/failed jobs older than X hours)
     AGENT_JOB_RETENTION_HOURS: int = 24
 
+    # AI Backend (internal service that runs the Main Orchestrator)
+    AI_BACKEND_URL: str = "http://localhost:8003"
+    AI_BACKEND_TIMEOUT_SECONDS: float = 60.0
+
     model_config = SettingsConfigDict(
         env_file=(
             "backend/server/.env",
