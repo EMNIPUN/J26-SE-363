@@ -172,9 +172,11 @@ Full guide: `docs/TEAM_DEVELOPMENT_GUIDE.md`.
 
 | Setting | Where | Default |
 |---|---|---|
-| `AI_BACKEND_URL` | Core API (`server/app/core/config.py`, `backend/.env`) | `http://localhost:8003` |
-| `AI_BACKEND_TIMEOUT_SECONDS` | Core API | `60` |
-| `AI_BACKEND_APP_ENV` | AI Backend (`AI_BACKEND_` prefix avoids clashes in the shared `.env`) | `development` |
+| `AI_BACKEND_URL` | Core API (`server/app/core/config.py`, `backend/server/.env`) | `http://localhost:8003` |
+| `AI_BACKEND_TIMEOUT_SECONDS` | Core API (`backend/server/.env`) | `60` |
+| `AI_BACKEND_APP_ENV` | AI Backend (`backend/agentic_framework/.env`) | `development` |
+
+Each service has its own `.env` file; see "Environment files" in `backend/README.md`.
 
 Dependency changes:
 
@@ -202,7 +204,7 @@ Dependency changes:
 | Core API | `app/core/config.py`, `pyproject.toml` |
 | Shared | `pyproject.toml` |
 | Lock files | `uv.lock` and `requirements.txt` in `server/` and `agentic_framework/` |
-| Docs / config | `backend/README.md`, `backend/.env.example`, `docs/README.md`, `docs/AGENT_COMMUNICATION_GUIDE.md` |
+| Docs / config | `backend/README.md`, `docs/README.md`, `docs/AGENT_COMMUNICATION_GUIDE.md`, the environment templates (the shared `backend/.env.example` has since been replaced by `backend/server/.env.example` and `backend/agentic_framework/.env.example`) |
 
 ### 8.3 Intentionally not changed
 
@@ -272,6 +274,6 @@ Expected now: `status: "unavailable"` with `agent_responses[0].agent_name = "ada
 | 8 | Performance debug server default port 8002 clashes with the Core API | Must pass `--port` locally | Sadeesha |
 | 9 | Free-text routing (LLM router), multi-step workflows acting on `next_action`, streaming chat replies | Lecturer chat, agent teamwork, word-by-word tutor replies | Common |
 | 10 | Retries for background jobs | Today one error marks a job `failed` | Common |
-| 11 | Procrastinate schema setup documented (`procrastinate schema --apply`) | New machines need the queue tables | Common |
+| 11 | Procrastinate schema setup documented (now `uv run python -m scripts.install_queue_schema`; `procrastinate schema --apply` is disabled, see `docs/SERVER_DATABASE_GUIDE.md` section 3F) | New machines need the queue tables | Common |
 | 12 | Backend CI (uv sync --locked, ruff, pytest per service) | No automatic checks on PRs | Common |
 | 13 | Commit this branch and open a PR to `dev` | Teammates can't see this work yet | You |

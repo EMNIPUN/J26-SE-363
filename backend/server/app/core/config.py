@@ -1,7 +1,11 @@
-import os
+from pathlib import Path
 from typing import Optional
-from pydantic import model_validator
+
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# backend/server/.env (only the Core API's own file; the AI Backend has a separate one)
+SERVER_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
@@ -16,8 +20,8 @@ class Settings(BaseSettings):
 
     # Server Database Configuration
     # Accepts a full connection URL or discrete connection parameters from environment.
-    # Supabase Transaction Pooler (Port 6543):
-    #   postgresql+psycopg://postgres.[REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require
+    # Supabase Transaction Pooler (Port 6543); Supabase URLs must use verify-full (app/database/safety.py):
+    #   postgresql+psycopg://postgres.[REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=verify-full&sslrootcert=../certs/supabase-ca.crt
     # Local Docker PostgreSQL:
     #   postgresql+psycopg://[USER]:[PASSWORD]@[HOST]:[PORT]/[DB]
     SERVER_DATABASE_URL: Optional[str] = None
@@ -63,17 +67,18 @@ class Settings(BaseSettings):
     AI_BACKEND_TIMEOUT_SECONDS: float = 60.0
 
     model_config = SettingsConfigDict(
-        env_file=(
-            "backend/server/.env",
-            "server/.env",
-            "backend/.env",
-            ".env",
-            ".env.development",
-            "../.env",
-        ),
+        env_file=SERVER_ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @field_validator("SERVER_DATABASE_URL", "SERVER_DIRECT_URL", mode="before")
+    @classmethod
+    def blank_url_is_unset(cls, value: Optional[str]) -> Optional[str]:
+        """`SERVER_DATABASE_URL=` (or only spaces) means "not set", not an empty URL."""
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     @model_validator(mode="after")
     def resolve_database_url(self) -> "Settings":
