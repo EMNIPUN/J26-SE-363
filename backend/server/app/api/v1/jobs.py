@@ -3,15 +3,25 @@ Agent Job Queue API endpoints — backed by Procrastinate on PostgreSQL.
 
 POST   /api/v1/jobs              — publish a job to the queue
 GET    /api/v1/jobs/{job_id}     — get job status + parameters
+
+Developer/admin tool: it can enqueue any task with any payload, so only admins
+may use it. Features start AI work through app.services.ai_jobs.start_ai_job().
 """
 
 from typing import Any
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from shared.contracts import UserRole
 from shared.queue import app as procrastinate_app
 
-router = APIRouter(prefix="/jobs", tags=["Agent Jobs"])
+from app.core.security import require_roles
+
+router = APIRouter(
+    prefix="/jobs",
+    tags=["Agent Jobs"],
+    dependencies=[Depends(require_roles(UserRole.ADMIN))],
+)
 
 
 # ---------------------------------------------------------------------------

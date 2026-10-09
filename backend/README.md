@@ -10,6 +10,7 @@ backend/
     uv.lock                # server lock file (commit it)
     requirements.txt       # generated from uv.lock, never edited by hand
     app/                   # imported as `app.*`
+      core/security.py       # Keycloak token check: get_current_user, require_roles
       clients/ai_backend.py  # fast AI requests: HTTP call to the AI Backend
       services/ai_jobs.py    # slow AI requests: enqueue an orchestration job
     tests/

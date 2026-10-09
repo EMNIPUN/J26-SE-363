@@ -22,12 +22,16 @@ certifi==2026.7.22
     # via
     #   httpcore
     #   httpx
+cffi==2.1.1 ; platform_python_implementation != 'PyPy'
+    # via cryptography
 click==8.5.0
     # via uvicorn
 colorama==0.4.6 ; sys_platform == 'win32'
     # via pytest
 croniter==6.2.4
     # via procrastinate
+cryptography==50.0.2
+    # via pyjwt
 fastapi==0.141.1
     # via selvia-server
 h11==0.16.0
@@ -66,6 +70,8 @@ psycopg-binary==3.3.6 ; implementation_name != 'pypy'
     # via psycopg
 psycopg-pool==3.3.3
     # via psycopg
+pycparser==3.1 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
+    # via cffi
 pydantic==2.13.5
     # via
     #   fastapi
@@ -78,6 +84,8 @@ pydantic-settings==2.15.0
     # via selvia-server
 pygments==2.21.0
     # via pytest
+pyjwt==2.15.1
+    # via selvia-server
 pytest==9.1.1
     # via pytest-asyncio
 pytest-asyncio==1.4.0

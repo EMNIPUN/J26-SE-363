@@ -6,6 +6,8 @@ Then, from backend/agentic_framework:
     uv run pytest tests/test_e2e_server_flow.py
 
 Set SELVIA_SERVER_URL if the server is not on http://localhost:8002.
+The jobs API is admin-only: set SELVIA_ADMIN_TOKEN to a Keycloak access token of
+an admin user (e.g. copied from the browser after logging in as admin).
 """
 
 import os
@@ -19,6 +21,7 @@ from shared.queue import app as procrastinate_app
 import app.tasks  # noqa: F401
 
 SERVER_URL = os.getenv("SELVIA_SERVER_URL", "http://localhost:8002")
+ADMIN_TOKEN = os.getenv("SELVIA_ADMIN_TOKEN")
 
 
 def _server_is_running() -> bool:
@@ -28,9 +31,12 @@ def _server_is_running() -> bool:
         return False
 
 
-pytestmark = pytest.mark.skipif(
-    not _server_is_running(), reason=f"SELVIA server is not running at {SERVER_URL}"
-)
+pytestmark = [
+    pytest.mark.skipif(
+        not _server_is_running(), reason=f"SELVIA server is not running at {SERVER_URL}"
+    ),
+    pytest.mark.skipif(not ADMIN_TOKEN, reason="SELVIA_ADMIN_TOKEN is not set"),
+]
 
 
 @pytest.mark.asyncio
@@ -43,7 +49,9 @@ async def test_full_e2e_all_four_agents():
     5. Query results via REST API (GET /api/v1/jobs/{id})
     """
     async with procrastinate_app.open_async():
-        async with httpx.AsyncClient(base_url=SERVER_URL) as client:
+        async with httpx.AsyncClient(
+            base_url=SERVER_URL, headers={"Authorization": f"Bearer {ADMIN_TOKEN}"}
+        ) as client:
             # Step 1: Health check
             res_health = await client.get("/health")
             assert res_health.status_code == 200

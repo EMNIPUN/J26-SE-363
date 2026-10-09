@@ -37,10 +37,20 @@ class Settings(BaseSettings):
     SUPABASE_BUCKET_RUBRICS: str = "project-rubrics"
 
     # Keycloak IAM Configuration
-    KEYCLOAK_SERVER_URL: Optional[str] = None
-    KEYCLOAK_REALM: Optional[str] = None
+    # Public URL of Keycloak behind Kong; tokens are issued for
+    # {KEYCLOAK_SERVER_URL}/realms/{KEYCLOAK_REALM}.
+    KEYCLOAK_SERVER_URL: str = "http://localhost:8000/auth"
+    KEYCLOAK_REALM: str = "mentor"
     KEYCLOAK_CLIENT_ID: Optional[str] = None
     KEYCLOAK_CLIENT_SECRET: Optional[str] = None
+    # Override when the server must fetch keys from a different (internal) URL
+    # than the public issuer, e.g. http://keycloak:8080/auth/realms/mentor/protocol/openid-connect/certs
+    KEYCLOAK_JWKS_URL: Optional[str] = None
+    # Clients whose access tokens the Core API accepts (token claim `azp`), as a JSON list.
+    KEYCLOAK_ALLOWED_CLIENTS: list[str] = ["mentor-frontend"]
+
+    # Browser origins allowed to call the Core API, as a JSON list.
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     # GitHub Ingestion Settings
     GITHUB_TOKEN: Optional[str] = None
@@ -82,6 +92,14 @@ class Settings(BaseSettings):
                     f"{self.SERVER_POSTGRES_DB}"
                 )
         return self
+
+    @property
+    def keycloak_issuer(self) -> str:
+        return f"{self.KEYCLOAK_SERVER_URL.rstrip('/')}/realms/{self.KEYCLOAK_REALM}"
+
+    @property
+    def keycloak_jwks_url(self) -> str:
+        return self.KEYCLOAK_JWKS_URL or f"{self.keycloak_issuer}/protocol/openid-connect/certs"
 
 
 settings = Settings()

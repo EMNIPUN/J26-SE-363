@@ -1,10 +1,22 @@
-﻿import pytest
-import httpx
+﻿import httpx
+import pytest
+from shared.contracts import UserRole
+
+from app.core.security import CurrentUser, get_current_user
 from app.main import app, lifespan
 
 
+@pytest.fixture
+def as_admin():
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        user_id="admin-1", role=UserRole.ADMIN
+    )
+    yield
+    app.dependency_overrides.clear()
+
+
 @pytest.mark.asyncio
-async def test_publish_and_get_job():
+async def test_publish_and_get_job(as_admin):
     async with lifespan(app):
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
             # 1. Publish job
