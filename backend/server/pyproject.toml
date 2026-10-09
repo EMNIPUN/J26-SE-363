@@ -11,6 +11,7 @@ dependencies = [
     "psycopg[binary]>=3.3.6",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
+    "pyjwt[crypto]>=2.10",
     "python-dotenv>=1.2.3",
     "selvia-shared",
     "sqlalchemy>=2.1.1",

@@ -221,13 +221,55 @@ Tests:
 - Test your agent through the orchestrator by overriding `get_orchestrator` (see
   `tests/test_orchestration_api.py`), or by calling `handle` directly with an `AgentRequest`.
 
-## 8. Not part of the foundation yet
+## 8. Authentication in the Core API
+
+The frontend logs in with Keycloak (realm `mentor`, client `mentor-frontend`) and sends the access
+token as `Authorization: Bearer <token>`. `backend/server/app/core/security.py` checks it: signature
+against Keycloak's public keys, expiry, issuer (`KEYCLOAK_SERVER_URL` + `KEYCLOAK_REALM`) and client
+(`KEYCLOAK_ALLOWED_CLIENTS`). The role comes from the Keycloak realm roles: `admin` > `lecturer`
+(or `instructor`) > `student`; users without a SELVIA role are students.
+
+Protect every new Core API endpoint:
+
+```python
+from typing import Annotated
+
+from fastapi import Depends
+from shared.contracts import UserRole
+
+from app.core.security import CurrentUser, get_current_user, require_roles
+
+
+@router.post("/tutor/messages")
+async def send_message(user: Annotated[CurrentUser, Depends(get_current_user)], ...):
+    request = OrchestrationRequest(requester=user.to_requester(), action="tutor.chat", ...)
+
+
+@router.post("/projects/{project_id}/guidance")
+async def upload_guidance(
+    user: Annotated[CurrentUser, Depends(require_roles(UserRole.LECTURER, UserRole.ADMIN))], ...
+): ...
+```
+
+- Always build `requester` from the token (`user.to_requester()`), never from the request body.
+- Responses: no or bad token → 401, wrong role → 403, Keycloak unreachable → 503.
+- `GET /api/v1/auth/me` returns the logged-in user; use it to check that login works end to end.
+- `POST /api/v1/jobs` and `GET /api/v1/jobs/{id}` are admin-only developer tools.
+- `GET /health` stays public.
+- In tests, skip Keycloak by overriding the dependency:
+  `app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id="u-1", role=UserRole.STUDENT)`
+  (see `backend/server/tests/test_auth.py` and `test_jobs_api.py`).
+
+Authentication protects the Core API only. The AI Backend trusts the Core API and must not be
+exposed to browsers; a service key between the two is a later step.
+
+## 9. Not part of the foundation yet
 
 Saving the results of slow jobs is the most important missing piece: the queue only records
 `succeeded` / `failed`, not the `OrchestrationResponse`, so an `agent_runs` table is needed before
 the frontend can show a background result.
 
-Authentication, database models for groups/projects/sprints, persistence of agent results, Neo4j,
+Database models for groups/projects/sprints, persistence of agent results, Neo4j,
 MCP integrations, LLM-based routing of free-text messages and multi-step orchestration are planned
 later steps. Don't build private versions of them inside an agent folder; raise them with the team
 so they land in the shared layer.
