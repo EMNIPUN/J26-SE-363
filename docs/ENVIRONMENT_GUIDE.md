@@ -216,6 +216,19 @@ services:
 
 For backend Python/Node microservices:
 
+### SELVIA backend files
+
+Each backend service has its own gitignored `.env` next to its `pyproject.toml`; there is no shared
+`backend/.env`:
+
+| File | Read by |
+| :--- | :--- |
+| `backend/server/.env` (template `backend/server/.env.example`) | Core API |
+| `backend/agentic_framework/.env` (template `backend/agentic_framework/.env.example`) | AI Backend and the agent worker |
+
+Start each service from its own folder. Details are in `backend/README.md` ("Environment files").
+The rest of this section describes the general pattern.
+
 ### During Local Development (Host Machine)
 Backend services use a settings manager (such as `pydantic-settings` in Python/FastAPI or `dotenv` in Node.js) to resolve the active environment:
 
@@ -281,7 +294,7 @@ In production, no `.env` files should be placed on disk or checked into Git. Ins
 | **Keycloak** | Inherits `KC_*` environment variables from Docker container | Defaults configured in `docker-compose.yml` |
 | **Kong Gateway** | Inherits port mappings and `KONG_*` environment variables from Docker | Fallback defaults like `${KONG_PROXY_PORT:-8000}` |
 | **PostgreSQL** | Inherits `POSTGRES_*` environment variables from Docker container | Defaults in `docker-compose.yml` |
-| **Backend Services** | Reads `APP_ENV` variable or container environment directly | `.env.local` $\rightarrow$ `.env.{APP_ENV}` $\rightarrow$ Container OS Env |
+| **Backend Services** | Each service reads its own `.env` (`backend/server/.env`, `backend/agentic_framework/.env`) | Container OS Env $\rightarrow$ the service's `.env` |
 
 ---
 

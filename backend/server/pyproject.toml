@@ -38,3 +38,7 @@ packages = ["app"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.ruff.lint.isort]
+# The local alembic/ migrations folder would otherwise make Ruff treat the alembic package as first-party.
+known-third-party = ["alembic"]

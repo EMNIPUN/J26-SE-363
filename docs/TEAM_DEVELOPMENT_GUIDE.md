@@ -199,8 +199,9 @@ uv run python -m worker
 ```
 
 The Core API finds the AI Backend through `AI_BACKEND_URL` (default `http://localhost:8003`) and
-`AI_BACKEND_TIMEOUT_SECONDS` in `backend/.env`. AI Backend settings use the `AI_BACKEND_` prefix so
-they don't collide with Core API settings in the same file.
+`AI_BACKEND_TIMEOUT_SECONDS` in `backend/server/.env`. The AI Backend and the worker read
+`backend/agentic_framework/.env`; put your agent's settings there with your own prefix (copy
+`backend/agentic_framework/.env.example` to start). Never copy Core API secrets into it.
 
 Try the orchestration endpoint (it returns `unavailable` until the tutor is registered):
 

@@ -31,7 +31,10 @@ def main(queues: list[str] | None = None) -> None:
 
     dsn = get_dsn()
     if not dsn:
-        logger.error("No database DSN found. Set SERVER_DIRECT_URL or SERVER_DATABASE_URL in .env")
+        logger.error(
+            "No queue database URL found. Set SERVER_DIRECT_URL in backend/agentic_framework/.env "
+            "and run the worker from backend/agentic_framework/"
+        )
         sys.exit(1)
 
     logger.info(f"Starting Procrastinate worker (queues: {queues or 'all'})")

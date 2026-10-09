@@ -9,7 +9,10 @@ backend/
     pyproject.toml         # server dependencies only
     uv.lock                # server lock file (commit it)
     requirements.txt       # generated from uv.lock, never edited by hand
+    alembic.ini            # database migrations (see docs/SERVER_DATABASE_GUIDE.md)
+    alembic/versions/      # migration scripts
     app/                   # imported as `app.*`
+      models/                # users, groups, group_members, projects, project_documents, agent_runs
       core/security.py       # Keycloak token check: get_current_user, require_roles
       clients/ai_backend.py  # fast AI requests: HTTP call to the AI Backend
       services/ai_jobs.py    # slow AI requests: enqueue an orchestration job
@@ -49,8 +52,27 @@ cd backend/agentic_framework && uv sync   # creates backend/agentic_framework/.v
 ```
 
 `uv sync` also installs `shared` into each environment as an editable path dependency, so changes
-to `backend/shared/` are picked up immediately by both services. Environment variables are read
-from `backend/.env` (or the service's own `.env`).
+to `backend/shared/` are picked up immediately by both services.
+
+## Environment files: one per service
+
+Each service reads only its own `.env`, so agent developers never need the Core API's secrets and
+each deployed container gets only its own variables:
+
+| File (gitignored) | Template | Read by | Contains |
+|---|---|---|---|
+| `backend/server/.env` | `backend/server/.env.example` | Core API | Database URLs, Supabase keys, Keycloak and CORS settings, `AI_BACKEND_URL` |
+| `backend/agentic_framework/.env` | `backend/agentic_framework/.env.example` | AI Backend and worker | `AI_BACKEND_*` settings, the queue database URL (`SERVER_DIRECT_URL`), agent settings |
+| `.env` (repository root) | `.env.example` | Docker Compose | Keycloak, Kong and local PostgreSQL containers |
+
+```bash
+cp backend/server/.env.example backend/server/.env
+cp backend/agentic_framework/.env.example backend/agentic_framework/.env
+```
+
+Start each service from its own folder: the shared job queue loads the `.env` of the current
+folder. The worker and the Core API share the queue database, so `SERVER_DIRECT_URL` appears in both
+files. A `backend/.env` is no longer read.
 
 ## Dependencies: one lock file per service
 
