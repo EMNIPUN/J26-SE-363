@@ -7,13 +7,13 @@
 
 :root {
   /* SELVIA enterprise-blue system — 60% light canvas, 30% navy chrome, 10% blue accent */
-  --background: oklch(0.985 0.004 250); /* near-white cool canvas (the 60%) */
-  --foreground: oklch(0.21 0.03 258); /* slate-900 text */
-  --card: oklch(1 0 0); /* crisp white cards & panels */
-  --card-foreground: oklch(0.21 0.03 258);
+  --background: oklch(0.974 0.005 275); /* #F5F6FA soft canvas */
+  --foreground: oklch(0.21 0.03 280);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.03 280);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.03 258);
-  --primary: oklch(0.55 0.20 260); /* enterprise blue-600 accent (the 10%) */
+  --popover-foreground: oklch(0.21 0.03 280);
+  --primary: oklch(0.485 0.193 280); /* #5146C7 indigo */
   --primary-foreground: oklch(0.99 0 0);
   --secondary: oklch(0.96 0.012 255);
   --secondary-foreground: oklch(0.30 0.04 260);
@@ -24,22 +24,22 @@
   --destructive: oklch(0.58 0.22 27); /* status red */
   --border: oklch(0.925 0.008 250);
   --input: oklch(0.92 0.008 250);
-  --ring: oklch(0.55 0.20 260); /* blue focus ring */
-  --chart-1: oklch(0.55 0.20 260); /* blue — primary series */
+  --ring: oklch(0.485 0.193 280);
+  --chart-1: oklch(0.485 0.193 280);
   --chart-2: oklch(0.68 0.14 250); /* light blue */
   --chart-3: oklch(0.45 0.16 265); /* deep blue */
   --chart-4: oklch(0.75 0.15 75); /* amber — warning series */
-  --chart-5: oklch(0.62 0.17 150); /* green — success series */
+  --chart-5: oklch(0.517 0.102 165); /* #177A59 supportive green */
   --radius: 0.625rem;
-  /* Dark navy sidebar even in light mode (the 30% structural chrome) */
-  --sidebar: oklch(0.22 0.045 265);
-  --sidebar-foreground: oklch(0.86 0.015 255);
-  --sidebar-primary: oklch(0.60 0.20 260); /* blue active pill */
+  /* Light sidebar so the workspace feels calm rather than like a control console */
+  --sidebar: oklch(0.99 0.003 275);
+  --sidebar-foreground: oklch(0.32 0.04 280);
+  --sidebar-primary: oklch(0.485 0.193 280);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.30 0.04 264); /* lighter navy hover */
-  --sidebar-accent-foreground: oklch(0.96 0.01 255);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.60 0.20 260);
+  --sidebar-accent: oklch(0.94 0.02 280);
+  --sidebar-accent-foreground: oklch(0.32 0.06 280);
+  --sidebar-border: oklch(0.90 0.01 275);
+  --sidebar-ring: oklch(0.485 0.193 280);
   /* White navbar, decoupled from card color */
   --topbar: oklch(1 0 0);
   --topbar-foreground: oklch(0.21 0.03 258);
@@ -109,7 +109,7 @@
   --card-foreground: oklch(0.95 0.006 250);
   --popover: oklch(0.22 0.022 262);
   --popover-foreground: oklch(0.95 0.006 250);
-  --primary: oklch(0.62 0.19 260); /* brighter blue for dark bg */
+  --primary: oklch(0.72 0.14 280); /* brighter indigo for dark backgrounds */
   --primary-foreground: oklch(0.99 0 0);
   --secondary: oklch(0.26 0.02 262);
   --secondary-foreground: oklch(0.95 0.006 250);
@@ -120,20 +120,20 @@
   --destructive: oklch(0.65 0.21 27);
   --border: oklch(1 0 0 / 11%);
   --input: oklch(1 0 0 / 13%);
-  --ring: oklch(0.62 0.19 260);
-  --chart-1: oklch(0.62 0.19 260); /* blue — primary series */
+  --ring: oklch(0.72 0.14 280);
+  --chart-1: oklch(0.72 0.14 280);
   --chart-2: oklch(0.72 0.13 250); /* light blue */
   --chart-3: oklch(0.55 0.16 265); /* deep blue */
   --chart-4: oklch(0.80 0.15 75); /* amber — warning series */
-  --chart-5: oklch(0.72 0.16 150); /* green — success series */
+  --chart-5: oklch(0.74 0.12 165);
   --sidebar: oklch(0.14 0.02 264); /* darkest navy frame for Sidebar */
   --sidebar-foreground: oklch(0.90 0.01 255);
-  --sidebar-primary: oklch(0.62 0.19 260); /* blue active pill */
+  --sidebar-primary: oklch(0.72 0.14 280);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.24 0.025 264); /* navy hover */
-  --sidebar-accent-foreground: oklch(0.95 0.01 255);
+  --sidebar-accent: oklch(0.24 0.025 280);
+  --sidebar-accent-foreground: oklch(0.95 0.01 280);
   --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.62 0.19 260);
+  --sidebar-ring: oklch(0.72 0.14 280);
   --topbar: oklch(0.20 0.022 262); /* dark slate TopNavbar in dark theme */
   --topbar-foreground: oklch(0.95 0.006 250);
   --topbar-border: oklch(1 0 0 / 10%);

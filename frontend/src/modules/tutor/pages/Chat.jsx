@@ -1,296 +1,297 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
-import {
-  ArrowLeft,
-  Bot,
-  ChevronRight,
-  Copy,
-  MessageSquarePlus,
-  SendHorizontal,
-  ThumbsDown,
-  ThumbsUp,
-} from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Bot, MessageSquarePlus, RotateCcw, SendHorizontal } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { useAuth } from '../../../shared/auth/useAuth.js'
 import Avatar from '../../../shared/components/Avatar.jsx'
-import { showToast } from '../../../shared/utils/toast.jsx'
-import { Button } from '@/components/ui/button'
-import AgentChip from '../components/AgentChip.jsx'
-import { SESSIONS, SUGGESTED_PROMPTS, mockAgentReply } from '../data/mockTutorData.js'
+import { useTeamPath } from '../../../shared/hooks/useTeamPath.js'
+import { CHAT_PROMPTS, CHAT_SESSIONS, CHAT_TRANSCRIPTS, CONCEPTS } from '../data/tutorWorkspace.js'
+import SampleBanner from '../components/SampleBanner.jsx'
+import TutorMessage from '../components/TutorMessage.jsx'
+import { tutorWorkspaceService } from '../services/tutorWorkspaceService.js'
 
 let idCounter = 0
-const nextId = (prefix) => `${prefix}-${++idCounter}`
-
-function welcomeMessages(sessionId, prompt) {
-  const session = SESSIONS.find((s) => s.id === sessionId)
-  const intro = session
-    ? {
-        id: nextId('bot'),
-        role: 'assistant',
-        agent: session.agent,
-        content: `Welcome back! Last time we worked on “${session.title}”. Where would you like to pick up?`,
-      }
-    : {
-        id: nextId('bot'),
-        role: 'assistant',
-        agent: 'learning',
-        content:
-          'Hi! I’m your Tutor Agent. Ask me about your requirements, estimates, sprint tasks or security findings — I’ll explain the concepts and help you plan your next step.',
-      }
-  return prompt ? [intro, { id: nextId('user'), role: 'user', content: prompt }] : [intro]
-}
+const nextId = () => `msg-${++idCounter}`
 
 export default function Chat() {
-  const { teamId } = useParams()
+  const team = useTeamPath()
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialPrompt = searchParams.get('prompt')
-  const initialSession = searchParams.get('session')
+  const initialSession = searchParams.get('session') || 'new'
 
-  const [activeSessionId, setActiveSessionId] = useState(initialSession || 'new')
-  const [messages, setMessages] = useState(() => welcomeMessages(initialSession, initialPrompt))
-  const [pendingPrompt, setPendingPrompt] = useState(initialPrompt)
+  const [sessionId, setSessionId] = useState(initialSession)
+  const [messages, setMessages] = useState(() => seedMessages(initialSession, initialPrompt))
   const [input, setInput] = useState('')
-  const [feedback, setFeedback] = useState({})
+  const [pending, setPending] = useState(initialPrompt)
+  const [failed, setFailed] = useState(null)
+  const [context, setContext] = useState(null)
+  const [showContext, setShowContext] = useState(false)
   const endRef = useRef(null)
   const inputRef = useRef(null)
 
-  const isTyping = pendingPrompt != null
+  useEffect(() => {
+    tutorWorkspaceService.getRecommendation().then(setContext).catch(() => setContext(null))
+  }, [])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [messages, isTyping])
+  }, [messages, pending, failed])
 
   useEffect(() => {
-    if (pendingPrompt == null) return
-    const timer = setTimeout(() => {
-      const reply = mockAgentReply(pendingPrompt)
-      setMessages((prev) => [...prev, { id: nextId('bot'), role: 'assistant', ...reply }])
-      setPendingPrompt(null)
-      setSearchParams(
-        (params) => {
-          params.delete('prompt')
-          return params
-        },
-        { replace: true },
-      )
-    }, 900)
-    return () => clearTimeout(timer)
-  }, [pendingPrompt, setSearchParams])
+    if (!pending) return
+    let live = true
+    tutorWorkspaceService
+      .sendTutorMessage(pending)
+      .then((reply) => {
+        if (!live) return
+        setMessages((prev) => [...prev, { id: nextId(), ...reply }])
+        setPending(null)
+        setSearchParams(
+          (params) => {
+            params.delete('prompt')
+            return params
+          },
+          { replace: true },
+        )
+      })
+      .catch((err) => {
+        if (!live) return
+        setFailed({ text: pending, message: err.message || 'The sample reply failed.' })
+        setPending(null)
+      })
+    return () => {
+      live = false
+    }
+  }, [pending, setSearchParams])
 
   const send = (raw) => {
     const text = raw.trim()
-    if (!text || isTyping) return
-    setMessages((prev) => [...prev, { id: nextId('user'), role: 'user', content: text }])
+    if (!text || pending) return
+    setFailed(null)
+    setMessages((prev) => [...prev, { id: nextId(), role: 'user', content: text }])
     setInput('')
-    setPendingPrompt(text)
+    setPending(text)
     inputRef.current?.focus()
   }
 
-  const openSession = (sessionId) => {
-    setActiveSessionId(sessionId)
-    setMessages(welcomeMessages(sessionId === 'new' ? null : sessionId, null))
-    setPendingPrompt(null)
+  const openSession = (nextIdValue) => {
+    setSessionId(nextIdValue)
+    setMessages(seedMessages(nextIdValue, null))
+    setPending(null)
+    setFailed(null)
     setInput('')
-    setSearchParams(sessionId === 'new' ? {} : { session: sessionId }, { replace: true })
+    setSearchParams(nextIdValue === 'new' ? {} : { session: nextIdValue }, { replace: true })
   }
 
-  const copyMessage = async (content) => {
-    try {
-      await navigator.clipboard.writeText(content)
-      showToast.success('Copied to clipboard')
-    } catch {
-      showToast.error('Could not copy the message')
-    }
-  }
-
-  const rate = (id, value) => {
-    setFeedback((prev) => ({ ...prev, [id]: value }))
-    showToast.info('Thanks for the feedback', {
-      description: 'It helps the Tutor Agent adapt its explanations to you.',
-    })
-  }
-
-  const showSuggestions = messages.filter((m) => m.role === 'user').length === 0 && !isTyping
+  const concept = context ? CONCEPTS[context.recommendation.conceptId] : null
+  const task = context?.tasks.find((item) => item.id === context.recommendation.taskId)
+  const gaps = (context?.estimates || []).filter(
+    (item) => item.status === 'Needs Attention' || item.status === 'Developing' || item.status === 'Insufficient Evidence',
+  )
 
   return (
-    <div className="flex h-[calc(100svh-7rem)] lg:h-[calc(100svh-8rem)] min-h-[520px] overflow-hidden rounded-xl border border-border/60 bg-card card-elevated">
-      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border bg-muted/20">
-        <div className="p-3 border-b border-border">
-          <Button className="w-full" size="lg" onClick={() => openSession('new')}>
-            <MessageSquarePlus className="h-4 w-4" />
-            New session
-          </Button>
-        </div>
-        <p className="px-4 pt-4 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Recent sessions
-        </p>
-        <ul className="flex-1 min-h-0 overflow-y-auto px-2 pb-3 space-y-0.5 column-scroll-contain">
-          {SESSIONS.map((s) => {
-            const isActive = activeSessionId === s.id
-            return (
-              <li key={s.id}>
+    <div className="space-y-3">
+      <SampleBanner />
+      <div className="flex h-[calc(100svh-12rem)] min-h-[520px] flex-col overflow-hidden rounded-xl border border-border bg-card xl:flex-row">
+        <aside className="hidden w-56 shrink-0 flex-col border-r border-border bg-muted/20 md:flex">
+          <div className="p-3">
+            <Button className="w-full" onClick={() => openSession('new')}>
+              <MessageSquarePlus className="h-4 w-4" />
+              New conversation
+            </Button>
+          </div>
+          <ul className="flex-1 space-y-1 overflow-y-auto px-2 pb-3">
+            {CHAT_SESSIONS.filter((item) => item.id !== 'new').map((session) => (
+              <li key={session.id}>
                 <button
                   type="button"
-                  onClick={() => openSession(s.id)}
-                  aria-current={isActive ? 'true' : undefined}
-                  className={`w-full rounded-lg px-3 py-2 text-left transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    isActive ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'
+                  onClick={() => openSession(session.id)}
+                  aria-current={sessionId === session.id ? 'page' : undefined}
+                  className={`w-full rounded-lg px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    sessionId === session.id ? 'bg-primary/10 text-foreground' : 'hover:bg-muted'
                   }`}
                 >
-                  <span className="block truncate text-sm font-medium">{s.title}</span>
-                  <span className="block text-[11px] text-muted-foreground">{s.when}</span>
+                  <span className="block truncate text-sm font-medium">{session.title}</span>
+                  <span className="text-xs text-muted-foreground">{session.when}</span>
                 </button>
               </li>
-            )
-          })}
-        </ul>
-      </aside>
+            ))}
+          </ul>
+        </aside>
 
-      <section className="flex min-w-0 flex-1 flex-col" aria-label="Tutor conversation">
-        <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border px-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Back to Tutor Agent dashboard">
-              <Link to={`/teams/${teamId}/tutor/landing`}>
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">
-                {SESSIONS.find((s) => s.id === activeSessionId)?.title || 'New session'}
-              </p>
-              <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Tutor Agent is online
-              </p>
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col" aria-label="Tutor conversation">
+          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <div>
+              <h1 className="text-sm font-semibold">Tutor chat</h1>
+              <p className="text-xs text-muted-foreground">One Adaptive Tutor. Replies on this page are sample text.</p>
             </div>
-          </div>
-          <Button variant="outline" size="sm" className="md:hidden" onClick={() => openSession('new')}>
-            <MessageSquarePlus className="h-3.5 w-3.5" />
-            New
-          </Button>
-        </header>
+            <div className="flex items-center gap-2">
+              <label htmlFor="tutor-session" className="sr-only">
+                Conversation
+              </label>
+              <select
+                id="tutor-session"
+                value={sessionId}
+                onChange={(event) => openSession(event.target.value)}
+                className="h-8 rounded-lg border border-input bg-background px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+              >
+                {CHAT_SESSIONS.map((session) => (
+                  <option key={session.id} value={session.id}>
+                    {session.title}
+                  </option>
+                ))}
+              </select>
+              <Button type="button" variant="outline" size="sm" className="xl:hidden" onClick={() => setShowContext((value) => !value)}>
+                {showContext ? 'Hide context' : 'Task context'}
+              </Button>
+            </div>
+          </header>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-6 sm:px-6 column-scroll-contain" aria-live="polite">
-          <div className="mx-auto flex max-w-3xl flex-col gap-5">
-            {messages.map((msg) =>
-              msg.role === 'assistant' ? (
-                <div key={msg.id} className="flex items-start gap-3 animate-fade-rise">
+          <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4" aria-live="polite">
+            {messages.map((message) =>
+              message.role === 'assistant' ? (
+                <div key={message.id} className="flex items-start gap-3">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Bot className="h-4 w-4" />
+                    <Bot className="h-4 w-4" aria-hidden="true" />
                   </span>
-                  <div className="min-w-0 max-w-[85%] space-y-1.5">
-                    <AgentChip agent={msg.agent} />
-                    <div className="rounded-2xl rounded-tl-sm border border-border/60 bg-muted/50 px-4 py-3 text-sm leading-relaxed text-foreground whitespace-pre-line">
-                      {msg.content}
-                    </div>
-                    <div className="flex items-center gap-0.5 text-muted-foreground">
-                      <button
-                        type="button"
-                        onClick={() => copyMessage(msg.content)}
-                        className="rounded-md p-1.5 hover:bg-muted hover:text-foreground cursor-pointer"
-                        aria-label="Copy message"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => rate(msg.id, 'up')}
-                        className={`rounded-md p-1.5 hover:bg-muted hover:text-foreground cursor-pointer ${feedback[msg.id] === 'up' ? 'text-primary' : ''}`}
-                        aria-label="Helpful"
-                        aria-pressed={feedback[msg.id] === 'up'}
-                      >
-                        <ThumbsUp className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => rate(msg.id, 'down')}
-                        className={`rounded-md p-1.5 hover:bg-muted hover:text-foreground cursor-pointer ${feedback[msg.id] === 'down' ? 'text-destructive' : ''}`}
-                        aria-label="Not helpful"
-                        aria-pressed={feedback[msg.id] === 'down'}
-                      >
-                        <ThumbsDown className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                  <div className="max-w-[90%] rounded-2xl rounded-tl-sm border border-border bg-muted/40 px-4 py-3">
+                    <TutorMessage content={message.content} />
                   </div>
                 </div>
               ) : (
-                <div key={msg.id} className="flex items-start justify-end gap-3 animate-fade-rise">
-                  <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-sm leading-relaxed text-primary-foreground whitespace-pre-line">
-                    {msg.content}
+                <div key={message.id} className="flex items-start justify-end gap-3">
+                  <div className="max-w-[90%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-sm text-primary-foreground whitespace-pre-line">
+                    {message.content}
                   </div>
                   <Avatar name={user?.name} size={32} />
                 </div>
               ),
             )}
-
-            {isTyping && (
-              <div className="flex items-start gap-3 animate-fade-rise">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Bot className="h-4 w-4" />
-                </span>
-                <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm border border-border/60 bg-muted/50 px-4 py-3">
-                  <span className="sr-only">Tutor Agent is typing</span>
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce [animation-delay:0.2s]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce [animation-delay:0.4s]" />
-                </div>
-              </div>
+            {pending && (
+              <p className="pl-11 text-sm text-muted-foreground" role="status">
+                Preparing a sample reply…
+              </p>
             )}
-
-            {showSuggestions && (
-              <div className="grid gap-2 pt-2 sm:grid-cols-2 sm:pl-11">
-                {SUGGESTED_PROMPTS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => send(prompt)}
-                    className="group flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-card px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-muted cursor-pointer active:scale-[0.99]"
-                  >
-                    <span>{prompt}</span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                  </button>
-                ))}
+            {failed && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm">
+                <p>{failed.message}</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => {
+                    const text = failed.text
+                    setFailed(null)
+                    setPending(text)
+                  }}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Retry
+                </Button>
               </div>
             )}
             <div ref={endRef} />
           </div>
-        </div>
 
-        <div className="shrink-0 border-t border-border p-3 sm:p-4">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              send(input)
-            }}
-            className="mx-auto flex max-w-3xl items-end gap-2 rounded-xl border border-input bg-background p-2 focus-within:ring-2 focus-within:ring-ring/40"
-          >
-            <label htmlFor="tutor-input" className="sr-only">
-              Message the Tutor Agent
-            </label>
-            <textarea
-              id="tutor-input"
-              ref={inputRef}
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  send(input)
-                }
+          <div className="border-t border-border p-3">
+            <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
+              {CHAT_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => send(prompt)}
+                  className="shrink-0 rounded-full border border-border px-3 py-1 text-xs hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                send(input)
               }}
-              placeholder="Ask about your sprint, a concept, or a finding…"
-              className="max-h-40 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none field-sizing-content"
-            />
-            <Button type="submit" size="icon-lg" disabled={!input.trim() || isTyping} aria-label="Send message">
-              <SendHorizontal className="h-4 w-4" />
-            </Button>
-          </form>
-          <p className="mt-2 text-center text-[11px] text-muted-foreground">
-            Press Enter to send · Shift + Enter for a new line
-          </p>
-        </div>
-      </section>
+              className="flex items-end gap-2"
+            >
+              <label htmlFor="tutor-input" className="sr-only">
+                Message the Adaptive Tutor
+              </label>
+              <textarea
+                id="tutor-input"
+                ref={inputRef}
+                rows={2}
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault()
+                    send(input)
+                  }
+                }}
+                placeholder="Ask a software engineering question, or ask about the sample task."
+                className="min-h-11 flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <Button type="submit" size="icon" disabled={!input.trim() || Boolean(pending)} aria-label="Send message">
+                <SendHorizontal className="h-4 w-4" />
+              </Button>
+            </form>
+          </div>
+        </section>
+
+        <aside className={`${showContext ? 'flex' : 'hidden'} max-h-64 shrink-0 flex-col gap-3 overflow-y-auto border-t border-border p-4 xl:flex xl:max-h-none xl:w-72 xl:border-t-0 xl:border-l`}>
+          <h2 className="text-sm font-semibold">Current sample context</h2>
+          {context ? (
+            <>
+              <p className="text-sm">{context.project.name}</p>
+              <p className="text-xs text-muted-foreground">{context.project.sprintName}</p>
+              <div>
+                <p className="text-xs font-medium">Selected task</p>
+                <p className="text-sm">{task?.title}</p>
+                <p className="text-xs text-muted-foreground">{task?.status}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium">Related concept</p>
+                <p className="text-sm">{concept?.label}</p>
+                <p className="text-xs text-muted-foreground">{concept?.status}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium">Knowledge gaps in the snapshot</p>
+                <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+                  {gaps.map((item) => (
+                    <li key={item.conceptId}>
+                      {CONCEPTS[item.conceptId]?.label}: {item.status}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <Button asChild variant="outline" size="sm">
+                <Link to={team('/tutor/guidance')}>Open sprint guidance</Link>
+              </Button>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Context will appear when the sample workspace loads.</p>
+          )}
+        </aside>
+      </div>
     </div>
   )
+}
+
+function seedMessages(sessionId, prompt) {
+  const stored = CHAT_TRANSCRIPTS[sessionId] || []
+  const base =
+    stored.length > 0
+      ? stored.map((message) => ({ ...message }))
+      : [
+          {
+            id: 'welcome',
+            role: 'assistant',
+            content:
+              'Sample reply, not from the tutor service.\n\nAsk about the campus portal task, a concept such as JWT, or a general software engineering question. I will answer from the sample project context.',
+          },
+        ]
+  if (prompt) base.push({ id: 'prompt', role: 'user', content: prompt })
+  return base
 }

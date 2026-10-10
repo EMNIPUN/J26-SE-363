@@ -19,6 +19,7 @@ const MEMBER_COLORS = [
 export default function TeamParityBar({
   members = [],
   highlightStudentId = null,
+  audience = 'instructor',
 }) {
   const memberCount = members.length || 1
   const idealShare = Math.round(100 / memberCount)
@@ -43,22 +44,23 @@ export default function TeamParityBar({
   // Detect team-wide disparity
   const hasFreeRider = normalizedMembers.some((m) => m.isFreeRider)
   const isWellBalanced = !hasFreeRider && normalizedMembers.every((m) => Math.abs(m.percent - idealShare) <= 8)
+  const studentView = audience === 'student'
 
   return (
     <div className="space-y-4">
       {/* Equity Status Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-foreground">Contribution Parity:</span>
+          <span className="font-semibold text-foreground">{studentView ? 'Work share:' : 'Contribution balance:'}</span>
           {isWellBalanced ? (
             <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Equitably Balanced (Gini: 0.92)
+              Shares look even
             </span>
           ) : hasFreeRider ? (
             <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-medium">
               <AlertTriangle className="h-3.5 w-3.5" />
-              Disparity Detected (Free-Rider Flagged)
+              {studentView ? 'Shares are uneven' : 'Uneven share — inferred from scores'}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
@@ -127,9 +129,9 @@ export default function TeamParityBar({
               <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                 <span className="font-mono">{m.studentId}</span>
                 {m.isFreeRider ? (
-                  <span className="text-destructive font-medium">Free-rider</span>
+                  <span className="text-destructive font-medium">{studentView ? 'Lighter share' : 'Light contribution'}</span>
                 ) : m.isDominant ? (
-                  <span className="text-amber-500 font-medium">Heavy load</span>
+                  <span className="text-amber-500 font-medium">{studentView ? 'Heavier share' : 'Heavy load'}</span>
                 ) : (
                   <span className="text-emerald-500 font-medium">Balanced</span>
                 )}
@@ -153,4 +155,5 @@ TeamParityBar.propTypes = {
     }),
   ),
   highlightStudentId: PropTypes.string,
+  audience: PropTypes.oneOf(['student', 'instructor']),
 }

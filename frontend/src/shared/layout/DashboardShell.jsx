@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sparkles, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import TopNavbar from './TopNavbar.jsx'
@@ -7,6 +7,8 @@ import AiChatPanel from '../components/AiChatPanel.jsx'
 import { useAuth } from '../auth/useAuth.js'
 import { useScope } from '../context/useScope.js'
 import { getNavForRole } from './navConfig.js'
+import { getPageTrail } from './pageContext.js'
+import { OPEN_AI_PANEL_EVENT } from '../utils/aiPanel.js'
 import { PORTAL_LABEL } from '../constants/roles.js'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -30,7 +32,7 @@ export default function DashboardShell() {
   const [aiPanelOpen, setAiPanelOpen] = useState(() => {
     try {
       const saved = localStorage.getItem(AI_PANEL_STORAGE_KEY)
-      return saved !== null ? saved === 'true' : true
+      return saved !== null ? saved === 'true' : false
     } catch {
       return true
     }
@@ -39,7 +41,8 @@ export default function DashboardShell() {
   const { selectedGroup } = useScope()
   const activeTeamCode = selectedGroup?.code || 'J26-SE-363'
   const sections = getNavForRole(user.role, activeTeamCode)
-  const isTutorChat = location.pathname.endsWith('/tutor/chat')
+  const isTutorWorkspace = location.pathname.includes('/tutor/')
+  const showAiPanel = aiPanelOpen && !isTutorWorkspace
 
   const handleToggleSidebar = () => {
     setSidebarCollapsed((prev) => {
@@ -52,6 +55,25 @@ export default function DashboardShell() {
       return next
     })
   }
+
+  useEffect(() => {
+    const open = () => {
+      if (window.innerWidth < 1024) {
+        setMobileAiOpen(true)
+        return
+      }
+      setAiPanelOpen(true)
+      try {
+        localStorage.setItem(AI_PANEL_STORAGE_KEY, 'true')
+      } catch {
+        // ignore localStorage errors
+      }
+    }
+    window.addEventListener(OPEN_AI_PANEL_EVENT, open)
+    return () => window.removeEventListener(OPEN_AI_PANEL_EVENT, open)
+  }, [])
+
+  const pageTrail = getPageTrail(sections, location.pathname)
 
   const handleToggleAi = () => {
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
@@ -74,6 +96,7 @@ export default function DashboardShell() {
       <TopNavbar
         onToggleMobileMenu={() => setMobileNavOpen(true)}
         sidebarCollapsed={sidebarCollapsed}
+        pageTrail={pageTrail}
       />
 
       {/* Mobile Nav Drawer */}
@@ -147,16 +170,16 @@ export default function DashboardShell() {
 
         {/* Column 3: AI Chat Panel (Desktop, fixed to screen, fluid width collapse with silky-smooth slide) */}
         <div
-          aria-hidden={!aiPanelOpen}
+          aria-hidden={!showAiPanel}
           className={`hidden lg:flex flex-col h-full shrink-0 bg-card overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-            aiPanelOpen
+            showAiPanel
               ? 'w-80 xl:w-96 border-l border-border opacity-100'
               : 'w-0 border-l border-transparent opacity-0 pointer-events-none'
           }`}
         >
           <div
             className={`w-80 xl:w-96 h-full flex flex-col shrink-0 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-              aiPanelOpen ? 'translate-x-0' : 'translate-x-6'
+              showAiPanel ? 'translate-x-0' : 'translate-x-6'
             }`}
           >
             <AiChatPanel onClose={handleToggleAi} />
@@ -166,9 +189,9 @@ export default function DashboardShell() {
 
       {/* Floating AI Copilot Trigger (Smoothly scales & glides in/out when 3rd column opens/closes) */}
       <div
-        hidden={isTutorChat}
+        hidden={isTutorWorkspace}
         className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          aiPanelOpen
+          showAiPanel
             ? 'lg:opacity-0 lg:scale-75 lg:translate-y-4 lg:pointer-events-none'
             : 'lg:opacity-100 lg:scale-100 lg:translate-y-0 lg:pointer-events-auto'
         } ${

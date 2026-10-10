@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import AhpRadarChart from '../../components/AhpRadarChart.jsx'
 import AtRiskPredictorCard from '../../components/AtRiskPredictorCard.jsx'
 import CodeComprehensionLog from '../../components/CodeComprehensionLog.jsx'
+import EmptyState from '@/shared/components/EmptyState.jsx'
 import { MOCK_STUDENT_DETAILED_DATA } from '../../services/performanceService.js'
 
 export default function StudentDetail() {
@@ -27,27 +28,10 @@ export default function StudentDetail() {
     return teamStudents.find((s) => s.id === activeStudentId) || teamStudents[0]
   }, [teamStudents, activeStudentId])
 
-  // Detailed profile (mock fallback)
-  const detailedProfile = useMemo(() => {
-    const defaultData = MOCK_STUDENT_DETAILED_DATA['std-it23155534']
-    if (activeStudentId === 'std-it23155534') return defaultData
-
-    // Dynamic mock for other team members
-    return {
-      ...defaultData,
-      studentId: student?.studentId || 'IT23152878',
-      name: student?.name || 'Chathush Vishmika',
-      overallScore: student?.currentScore || 8.4,
-      atRisk: {
-        isAtRisk: student?.riskLevel !== 'Low',
-        probability: student?.riskProbability || 0.15,
-        tier: student?.riskLevel || 'Low',
-        trend: 'stable',
-        sprintTrajectory: defaultData.atRisk.sprintTrajectory,
-        primaryFactor: 'Steady commit activity with balanced backlog task closure',
-      },
-    }
-  }, [student, activeStudentId])
+  const detailedProfile = useMemo(
+    () => MOCK_STUDENT_DETAILED_DATA[activeStudentId] || null,
+    [activeStudentId],
+  )
 
   return (
     <div className="space-y-6 animate-fade-rise">
@@ -61,10 +45,10 @@ export default function StudentDetail() {
             <span className="text-xs text-muted-foreground">Detailed Evaluation Review</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Student Performance & Viva Investigation
+            Evidence for {student?.name?.split(' ')[0] || 'this student'}
           </h1>
-          <p className="text-xs text-muted-foreground">
-            Forensic analysis of individual contribution using 7-Factor AHP, ML at-risk classification, and oral viva verification.
+          <p className="text-sm text-muted-foreground">
+            Counts below are on the profile. A factor chart or transcript appears only when it is stored for this person.
           </p>
         </div>
       </div>
@@ -112,7 +96,7 @@ export default function StudentDetail() {
                       : ''
                   }`}
                 >
-                  {student?.riskLevel || 'Low'} Risk
+                  Inferred · {student?.riskLevel || 'Not recorded'}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -123,16 +107,16 @@ export default function StudentDetail() {
 
           <div className="flex items-center gap-4 text-xs">
             <div className="text-right">
-              <span className="text-[11px] text-muted-foreground">AHP Score</span>
+              <span className="text-xs text-muted-foreground">Recorded score</span>
               <div className="font-mono font-bold text-lg text-foreground">
-                {student?.currentScore || 8.8} / 10
+                {typeof student?.currentScore === 'number' ? `${student.currentScore} / 10` : '—'}
               </div>
             </div>
             <div className="h-8 w-px bg-border" />
             <div className="text-right">
-              <span className="text-[11px] text-muted-foreground">Viva Score</span>
+              <span className="text-xs text-muted-foreground">Explanation score</span>
               <div className="font-mono font-bold text-lg text-foreground">
-                {student?.comprehensionRate || 94}%
+                {typeof student?.comprehensionRate === 'number' ? `${student.comprehensionRate}%` : '—'}
               </div>
             </div>
           </div>
@@ -153,12 +137,20 @@ export default function StudentDetail() {
               </p>
             </div>
 
-            <div className="py-2">
-              <AhpRadarChart
-                factors={detailedProfile.factors}
-                size={320}
-                studentLabel={student?.name?.split(' ')[0] || 'Student'}
-              />
+            <div className="py-2 w-full">
+              {detailedProfile?.factors ? (
+                <AhpRadarChart
+                  factors={detailedProfile.factors}
+                  size={320}
+                  studentLabel={student?.name?.split(' ')[0] || 'Student'}
+                />
+              ) : (
+                <EmptyState
+                  card={false}
+                  title="No factor breakdown on file"
+                  description="This chart is not filled in from another student. Use the commits, reviews, and stand-ups on the profile instead."
+                />
+              )}
             </div>
           </Card>
 
@@ -168,7 +160,10 @@ export default function StudentDetail() {
               Weighted Factor Contribution Points
             </h3>
             <div className="space-y-2 text-xs">
-              {detailedProfile.factors.map((f) => (
+              {(detailedProfile?.factors || []).length === 0 && (
+                <p className="text-sm text-muted-foreground">No weighted factors are stored for this student.</p>
+              )}
+              {(detailedProfile?.factors || []).map((f) => (
                 <div
                   key={f.id}
                   className="flex items-center justify-between p-2.5 rounded-lg border border-border/60 bg-muted/20"
@@ -196,16 +191,30 @@ export default function StudentDetail() {
         {/* Right Column: ML At-Risk Predictor & Oral Viva Transcripts */}
         <div className="lg:col-span-5 space-y-6">
           {/* ML At-Risk Card */}
-          <AtRiskPredictorCard
-            probability={detailedProfile.atRisk.probability}
-            tier={detailedProfile.atRisk.tier}
-            primaryFactor={detailedProfile.atRisk.primaryFactor}
-          />
+          {typeof student?.riskProbability === 'number' ? (
+            <AtRiskPredictorCard
+              probability={student.riskProbability}
+              tier={student.riskLevel || 'Low'}
+              primaryFactor={
+                detailedProfile?.atRisk?.primaryFactor
+                || `Inferred from the profile. ${student.commitsCount ?? '—'} commits and stand-ups ${student.standupAttendance || 'not recorded'}. Confirm those before you act.`
+              }
+            />
+          ) : (
+            <EmptyState
+              title="No inferred signal"
+              description="This profile does not include a risk estimate."
+            />
+          )}
 
-          {/* Oral Viva Transcript Log */}
-          <CodeComprehensionLog
-            comprehension={detailedProfile.comprehension}
-          />
+          {detailedProfile?.comprehension ? (
+            <CodeComprehensionLog comprehension={detailedProfile.comprehension} />
+          ) : (
+            <EmptyState
+              title="No explanation transcript"
+              description="A viva transcript is shown only when it belongs to this student."
+            />
+          )}
         </div>
       </div>
     </div>

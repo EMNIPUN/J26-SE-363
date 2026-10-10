@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { Gavel, ChevronDown, AlertTriangle, GitBranch, CheckCircle2 } from 'lucide-react'
 import Badge from '../../../shared/components/Badge.jsx'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
@@ -91,6 +91,8 @@ function buildSprintInsights(kanbanTasks) {
 }
 
 export default function DartButton({ context = 'dashboard' }) {
+  const { teamId } = useParams()
+  const team = (path) => (teamId ? `/teams/${teamId}${path}` : path)
   const [open, setOpen] = useState(false)
   const { requirements, userStories, estimations, kanbanTasks } = usePlanningData()
 
@@ -279,7 +281,7 @@ export default function DartButton({ context = 'dashboard' }) {
                     ))}
                   </ul>
                 </div>
-                <Link to="/planning/instructor/arbitration" className="text-xs text-primary hover:underline inline-block">
+                <Link to={team('/planning/instructor/arbitration')} className="text-xs text-primary hover:underline inline-block">
                   Open Arbitration Oversight
                 </Link>
               </div>
@@ -319,10 +321,10 @@ export default function DartButton({ context = 'dashboard' }) {
                   </div>
                 )}
                 <div className="pt-2 flex flex-wrap gap-3">
-                  <Link to="/planning/requirements/srs-quality" className="text-xs text-primary hover:underline">
+                  <Link to={team('/planning/requirements/srs-quality')} className="text-xs text-primary hover:underline">
                     Review SRS Quality
                   </Link>
-                  <Link to="/planning/sprint-management" className="text-xs text-primary hover:underline">
+                  <Link to={team('/planning/sprint-management')} className="text-xs text-primary hover:underline">
                     Review Sprint Board
                   </Link>
                 </div>

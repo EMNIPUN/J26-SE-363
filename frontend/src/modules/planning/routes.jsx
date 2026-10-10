@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import RequireRole from '@/shared/auth/RequireRole'
 
 import Dashboard from './pages/student/Dashboard.jsx'
 import Estimation from './pages/student/requirements/Estimation.jsx'
@@ -21,11 +22,13 @@ export default function PlanningRoutes() {
       <Route path="requirements/decomposition" element={<Decomposition />} />
       <Route path="requirements/estimation" element={<Estimation />} />
       <Route path="sprint-management" element={<SprintManagement />} />
-      <Route path="instructor/dashboard" element={<InstructorDashboard />} />
-      <Route path="instructor/projects" element={<InstructorProjects />} />
-      <Route path="instructor/groups" element={<InstructorGroups />} />
-      <Route path="instructor/groups/:groupId" element={<GroupWorkspace />} />
-      <Route path="instructor/arbitration" element={<ArbitrationOversight />} />
+      <Route element={<RequireRole allowedRoles={['instructor', 'admin']} />}>
+        <Route path="instructor/dashboard" element={<InstructorDashboard />} />
+        <Route path="instructor/projects" element={<InstructorProjects />} />
+        <Route path="instructor/groups" element={<InstructorGroups />} />
+        <Route path="instructor/groups/:groupId" element={<GroupWorkspace />} />
+        <Route path="instructor/arbitration" element={<ArbitrationOversight />} />
+      </Route>
     </Routes>
   )
 }

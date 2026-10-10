@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import PageHeader from '../../../../shared/components/PageHeader.jsx'
 import Card from '../../../../shared/components/Card.jsx'
 import Badge from '../../../../shared/components/Badge.jsx'
@@ -17,6 +17,7 @@ import { RISK_TONE } from '../../utils.js'
 
 export default function InstructorGroups() {
   const navigate = useNavigate()
+  const { teamId } = useParams()
 
   return (
     <div className="space-y-6">
@@ -45,7 +46,7 @@ export default function InstructorGroups() {
                 <TableRow
                   key={g.id}
                   className="cursor-pointer"
-                  onClick={() => navigate(`/planning/instructor/groups/${g.id}`)}
+                  onClick={() => navigate(`/teams/${teamId}/planning/instructor/groups/${g.id}`)}
                 >
                   <TableCell className="font-medium">{g.name}</TableCell>
                   <TableCell className="text-muted-foreground">{g.members}</TableCell>

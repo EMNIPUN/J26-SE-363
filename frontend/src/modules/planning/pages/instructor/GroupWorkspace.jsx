@@ -31,7 +31,7 @@ import { computeStageStats, STAGE_ORDER } from '../../stageStats.js'
 import { GATE_STATUS_TONE, RISK_TONE, ARBITRATION_CATEGORY_TONE } from '../../utils.js'
 
 export default function GroupWorkspace() {
-  const { groupId } = useParams()
+  const { groupId, teamId } = useParams()
   const group = GROUPS.find((g) => g.id === groupId)
   const live = usePlanningData()
 
@@ -77,7 +77,7 @@ export default function GroupWorkspace() {
     <div className="space-y-6">
       <div>
         <Link
-          to="/planning/instructor/groups"
+          to={`/teams/${teamId}/planning/instructor/groups`}
           className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground mb-3 transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />

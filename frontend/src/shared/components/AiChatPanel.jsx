@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import PropTypes from 'prop-types'
 import {
   Sparkles,
   Send,
   X,
   Bot,
-  ExternalLink,
   ChevronRight,
   MessageSquare
 } from 'lucide-react'
@@ -15,22 +15,60 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '../auth/useAuth.js'
+import { OPEN_AI_PANEL_EVENT, takePendingPrompt } from '../utils/aiPanel.js'
 
-const SUGGESTED_PROMPTS = [
-  'What are my next project milestones?',
-  'Summarize recent thesis submissions',
-  'Review rubric guidelines for Phase 2',
-  'Generate an outline for research proposal'
-]
-
-const INITIAL_MESSAGES = [
-  {
-    id: 'msg-welcome-1',
-    role: 'assistant',
-    content: "Hello! I am SELVIA, your learning and monitoring copilot. I orchestrate project tasks, provide adaptive learning support, evaluate contributions, and perform automated code reviews. How can I assist you today?",
-    time: 'Just now'
+function promptsFor(pathname, role) {
+  if (pathname.includes('/sprint')) {
+    return [
+      'What should I do first on this board?',
+      'How do I handle a blocked task?',
+      'What should I learn before I estimate this story?',
+    ]
   }
-]
+  if (pathname.includes('/requirements') || pathname.includes('/planning')) {
+    return [
+      'Why might a requirement fail the quality gate?',
+      'What should I do next in the pipeline?',
+      'How do I make a requirement easier to test?',
+    ]
+  }
+  if (pathname.includes('/security')) {
+    return [
+      'How should I read an open finding?',
+      'What should I learn before changing this code?',
+      'Which finding should I handle first?',
+    ]
+  }
+  if (pathname.includes('/performance')) {
+    return role === 'instructor'
+      ? [
+          'Which signal is observed, and which is inferred?',
+          'What evidence should I check before I intervene?',
+        ]
+      : [
+          'What should I practice next?',
+          'How can I read my progress without comparing myself?',
+        ]
+  }
+  if (role === 'instructor') {
+    return [
+      'What is waiting for my decision?',
+      'Which groups are below the quality gate?',
+    ]
+  }
+  return [
+    'What should I do next?',
+    'Explain the step I am on, simply.',
+    'What should I learn before I continue?',
+  ]
+}
+
+function welcomeFor(role) {
+  if (role === 'instructor') {
+    return 'I can help you think through a decision on this page. I will not invent scores. You keep the final call.'
+  }
+  return 'I can help you think through the page you are on. I will not invent grades or deadlines. For a guided explanation, open the Adaptive Tutor.'
+}
 
 let messageIdCounter = 0
 function generateMessageId(prefix) {
@@ -40,7 +78,20 @@ function generateMessageId(prefix) {
 
 export default function AiChatPanel({ onClose }) {
   const { user } = useAuth()
-  const [messages, setMessages] = useState(INITIAL_MESSAGES)
+  const { pathname } = useLocation()
+  const { teamId } = useParams()
+  const suggestedPrompts = promptsFor(pathname, user?.role)
+  const tutorHref = teamId
+    ? `/teams/${teamId}/tutor/chat`
+    : '/tutor/chat'
+  const [messages, setMessages] = useState(() => [
+    {
+      id: 'msg-welcome-1',
+      role: 'assistant',
+      content: welcomeFor(user?.role),
+      time: 'Just now',
+    },
+  ])
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef(null)
@@ -52,6 +103,9 @@ export default function AiChatPanel({ onClose }) {
   useEffect(() => {
     scrollToBottom()
   }, [messages, isTyping])
+
+  const sendRef = useRef(null)
+  const rootRef = useRef(null)
 
   const handleSendMessage = (textToSend) => {
     const text = (typeof textToSend === 'string' ? textToSend : inputValue).trim()
@@ -69,12 +123,10 @@ export default function AiChatPanel({ onClose }) {
     setIsTyping(true)
 
     setTimeout(() => {
-      let botReply = `I understand you are asking about "${text}". Based on your role (${user?.role || 'user'}), I can help organize deadlines, analyze research progress, and evaluate submission rubrics.`
-      if (text.toLowerCase().includes('milestone')) {
-        botReply = 'Your upcoming project milestone is **Phase 2: System Architecture & Data Pipeline**, scheduled for review next Monday. Would you like a preparation checklist?'
-      } else if (text.toLowerCase().includes('rubric')) {
-        botReply = 'The Phase 2 evaluation rubric weights:\n- Architecture & Scalability: 35%\n- Implementation Quality: 35%\n- Presentation & Q&A: 30%'
-      }
+      const botReply =
+        user?.role === 'instructor'
+          ? `This panel is not connected to SELVIA's project data yet, so I can't answer “${text}” from live records. The dashboard and the module pages show the stored evidence. I won't invent a figure, and you keep the final call.`
+          : `I can help you think about “${text}”, but I won’t invent a score, a rank, or a deadline. Open the Adaptive Tutor for a guided explanation of the task you are on.`
 
       setMessages((prev) => [
         ...prev,
@@ -89,8 +141,29 @@ export default function AiChatPanel({ onClose }) {
     }, 800)
   }
 
+  useEffect(() => {
+    sendRef.current = handleSendMessage
+  })
+
+  useEffect(() => {
+    const deliver = () => {
+      const prompt = takePendingPrompt()
+      if (prompt) sendRef.current?.(prompt)
+    }
+    const onOpen = () => {
+      if (rootRef.current?.offsetParent === null) return
+      deliver()
+    }
+    const timer = setTimeout(deliver, 0)
+    window.addEventListener(OPEN_AI_PANEL_EVENT, onOpen)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener(OPEN_AI_PANEL_EVENT, onOpen)
+    }
+  }, [])
+
   return (
-    <aside aria-label="AI Copilot" className="flex flex-col h-full w-full bg-card select-none overflow-hidden">
+    <aside ref={rootRef} aria-label="AI Copilot" className="flex flex-col h-full w-full bg-card select-none overflow-hidden">
       {/* Header (Fixed to top of panel) */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur shrink-0">
         <div className="flex items-center gap-2">
@@ -115,7 +188,7 @@ export default function AiChatPanel({ onClose }) {
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
               onClick={onClose}
-              title="Close AI Copilot"
+              aria-label="Close AI Copilot"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -184,7 +257,7 @@ export default function AiChatPanel({ onClose }) {
               Suggested questions
             </p>
             <div className="flex flex-col gap-1">
-              {SUGGESTED_PROMPTS.map((prompt) => (
+              {suggestedPrompts.map((prompt) => (
                 <button
                   key={prompt}
                   type="button"
@@ -229,11 +302,11 @@ export default function AiChatPanel({ onClose }) {
             <Send className="h-3.5 w-3.5" />
           </Button>
         </form>
-        <p className="text-[10px] text-muted-foreground text-center mt-1.5 flex items-center justify-center gap-1">
-          <span>SELVIA AI Orchestration Engine is experimental.</span>
-          <span className="underline cursor-pointer hover:text-foreground inline-flex items-center gap-0.5">
-            Privacy info <ExternalLink className="h-2.5 w-2.5" />
-          </span>
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          Guidance only, not a grade.{' '}
+          <Link to={tutorHref} className="font-medium text-primary hover:underline">
+            Open Adaptive Tutor
+          </Link>
         </p>
       </div>
     </aside>

@@ -28,10 +28,10 @@ export default function CodeComprehensionLog({
           </div>
           <div>
             <h3 className="text-sm font-semibold text-foreground">
-              GenAI Code Comprehension & Viva Evaluation
+              How this code was explained
             </h3>
-            <p className="text-[11px] text-muted-foreground">
-              Automated oral verification preventing AI ghost-writing & plagiarism
+            <p className="text-xs text-muted-foreground">
+              A stored explanation of the student's own work. It is evidence, not a verdict on character.
             </p>
           </div>
         </div>

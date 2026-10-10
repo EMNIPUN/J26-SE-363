@@ -1,8 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
-import { ArrowRight, BellRing, MessageCircle, Sparkles, TrendingUp } from 'lucide-react'
+import { ArrowRight, BellRing, MessageCircle, Sparkles } from 'lucide-react'
 import PageHeader from '../../../shared/components/PageHeader.jsx'
 import Card from '../../../shared/components/Card.jsx'
-import Badge from '../../../shared/components/Badge.jsx'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import AgentChip from '../components/AgentChip.jsx'
@@ -31,9 +30,9 @@ export default function Landing() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Tutor Agent"
-        breadcrumb={['Tutor Agent', 'Dashboard']}
-        description="Your adaptive learning companion — it tracks your learning momentum, suggests what to study next for this sprint, and answers questions about your project."
+        title="Adaptive Tutor"
+        breadcrumb={['Adaptive Tutor', 'Suggestions']}
+        description="Help that starts from your sprint. These suggestions use the sample project until the tutor is connected to your live tasks. Nothing here is a grade."
         actions={
           <>
             <Button asChild variant="outline" size="lg">
@@ -57,22 +56,40 @@ export default function Landing() {
         }
       />
 
+      <Card className="gap-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Suggested for this sprint</h2>
+          <p className="text-sm text-muted-foreground">
+            Start with the item that matches the task you are doing. Discuss opens a practice conversation, not an assessment.
+          </p>
+        </div>
+        <ul className="space-y-2">
+          {SPRINT_GUIDANCE.map((item) => (
+            <li
+              key={item.id}
+              className="flex flex-col gap-3 rounded-lg border border-border/60 p-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <AgentChip agent={item.agent} />
+                <p className="mt-2 text-sm font-medium text-foreground">{item.title}</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">{item.detail}</p>
+              </div>
+              <Button asChild variant="outline" size="sm" className="shrink-0 self-start sm:self-center">
+                <Link to={chatWith(item.prompt)}>
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  Discuss
+                </Link>
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="gap-5">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-foreground">Learning momentum</h2>
-              <p className="text-xs text-muted-foreground">How consistently you are learning</p>
-            </div>
-            <Badge tone="success">
-              <TrendingUp className="h-3 w-3" />
-              +{MOMENTUM.change} this week
-            </Badge>
-          </div>
-
-          <div className="flex items-end gap-2">
-            <span className="text-5xl font-bold tracking-tight text-foreground tabular-nums">{MOMENTUM.score}</span>
-            <span className="pb-1.5 text-sm text-muted-foreground">/ 100</span>
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Practice rhythm</h2>
+            <p className="text-sm text-muted-foreground">A sample week, shown until real study activity is connected.</p>
           </div>
 
           <div>
@@ -90,17 +107,13 @@ export default function Landing() {
             </div>
           </div>
 
-          <dl className="grid grid-cols-3 gap-2 border-t border-border pt-4 text-center">
+          <dl className="grid grid-cols-2 gap-2 border-t border-border pt-4 text-center">
             <div>
-              <dt className="text-[11px] text-muted-foreground">Sessions</dt>
+              <dt className="text-xs text-muted-foreground">Sample sessions</dt>
               <dd className="text-lg font-semibold text-foreground">{MOMENTUM.sessionsThisWeek}</dd>
             </div>
             <div>
-              <dt className="text-[11px] text-muted-foreground">Concepts</dt>
-              <dd className="text-lg font-semibold text-foreground">{MOMENTUM.conceptsMastered}</dd>
-            </div>
-            <div>
-              <dt className="text-[11px] text-muted-foreground">Checks</dt>
+              <dt className="text-xs text-muted-foreground">Checks in the sample</dt>
               <dd className="text-lg font-semibold text-foreground">
                 {MOMENTUM.checksPassed}/{MOMENTUM.checksTotal}
               </dd>
@@ -108,41 +121,10 @@ export default function Landing() {
           </dl>
         </Card>
 
-        <Card className="lg:col-span-2 gap-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-base font-semibold text-foreground">Suggested for this sprint</h2>
-              <p className="text-xs text-muted-foreground">Based on your tasks, estimates and open findings</p>
-            </div>
-          </div>
-          <ul className="space-y-2">
-            {SPRINT_GUIDANCE.map((item) => (
-              <li
-                key={item.id}
-                className="flex flex-col gap-3 rounded-lg border border-border/60 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <AgentChip agent={item.agent} />
-                  <p className="mt-2 text-sm font-medium text-foreground">{item.title}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
-                </div>
-                <Button asChild variant="outline" size="sm" className="shrink-0 self-start sm:self-center">
-                  <Link to={chatWith(item.prompt)}>
-                    <MessageCircle className="h-3.5 w-3.5" />
-                    Discuss
-                  </Link>
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="gap-4">
           <div>
-            <h2 className="text-base font-semibold text-foreground">Concept mastery</h2>
-            <p className="text-xs text-muted-foreground">Updated after each learning check</p>
+            <h2 className="text-base font-semibold text-foreground">Concepts to revisit</h2>
+            <p className="text-sm text-muted-foreground">Sample familiarity, not a ranking. Lower just means practice it next.</p>
           </div>
           <ul className="space-y-4">
             {CONCEPTS.map((c) => (

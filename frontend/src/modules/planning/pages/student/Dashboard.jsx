@@ -48,6 +48,7 @@ import SupervisorNoticeBoard from '../../components/SupervisorNoticeBoard.jsx'
 import SupervisorConsultationModal from '../../components/SupervisorConsultationModal.jsx'
 import ExportPlanningReportModal from '../../components/ExportPlanningReportModal.jsx'
 import NewRequirementModal from '../../components/NewRequirementModal.jsx'
+import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import { usePlanningData } from '../../context/usePlanningData.js'
 import { QUALITY_DIMENSIONS, ARBITRATION_CASES, GROUPS, getArbitrationForRequirement } from '../../data/mockData.js'
 import { COURSE_INFO, STUDENT_ACADEMIC_PROFILES } from '../../data/lmsAcademicData.js'
@@ -149,6 +150,7 @@ function KpiCard({ icon: Icon, label, value, subtext, to, navigate, badge, child
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const team = useTeamPath()
   const { requirements, userStories, estimations, kanbanTasks, teamMembers, projectInfo, activityLog } =
     usePlanningData()
 
@@ -275,6 +277,37 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <section className="rounded-xl border border-primary/25 bg-card p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">Do this next</p>
+            <p className="mt-1 text-base font-semibold text-foreground">{nextAction.text}</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              One step is enough. The other stages can wait until this one moves.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Button size="sm" className="text-xs gap-1.5 cursor-pointer" onClick={() => navigate(team(nextAction.to))}>
+              Continue <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs gap-1.5 cursor-pointer"
+              onClick={() =>
+                navigate(
+                  team(
+                    `/tutor/chat?prompt=${encodeURIComponent(`Help me with this next step: ${nextAction.text}`)}`,
+                  ),
+                )
+              }
+            >
+              <Sparkles className="h-3.5 w-3.5" /> Ask the tutor
+            </Button>
+          </div>
+        </div>
+      </section>
+
       {/* LMS Project Banner Card */}
       <Card className="p-5 relative overflow-hidden bg-card/90">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
@@ -355,13 +388,13 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Intelligent Planning Pipeline
+              Where the project stands
             </h3>
-            <p className="text-xs text-muted-foreground">Four-phase curriculum workflow for IEEE-compliant agile delivery</p>
+            <p className="text-xs text-muted-foreground">The same four stages as your home page. Open the one that needs you.</p>
           </div>
           <button
             type="button"
-            onClick={() => navigate(nextAction.to)}
+            onClick={() => navigate(team(nextAction.to))}
             className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1 cursor-pointer"
           >
             {nextAction.text} <ArrowRight className="h-3 w-3" />
@@ -373,7 +406,7 @@ export default function Dashboard() {
             return (
               <Link
                 key={stage.key}
-                to={stage.to}
+                to={team(stage.to)}
                 className="p-3 rounded-xl border border-border/70 hover:border-primary/50 hover:bg-muted/30 transition-all group flex flex-col justify-between"
               >
                 <div>
@@ -474,7 +507,7 @@ export default function Dashboard() {
                 label="Tracked Requirements"
                 value={`${requirements.length}`}
                 subtext="IEEE 830 functional & non-functional"
-                to="/planning/requirements/srs-quality"
+                to={team('/planning/requirements/srs-quality')}
                 navigate={navigate}
                 badge={<Badge tone="primary">{passingCount} Passing</Badge>}
               >
@@ -499,7 +532,7 @@ export default function Dashboard() {
                 label="SRS Quality Gate"
                 value={`${avgScore}%`}
                 subtext={`Gate Threshold: >= 70%`}
-                to="/planning/requirements/srs-quality"
+                to={team('/planning/requirements/srs-quality')}
                 navigate={navigate}
                 badge={
                   <Badge tone={avgScore >= 70 ? 'success' : 'danger'}>
@@ -523,7 +556,7 @@ export default function Dashboard() {
                 label="Sprint 5 Capacity"
                 value={`${totalPoints} SP`}
                 subtext={`${donePoints} SP completed of ${totalPoints} SP`}
-                to="/planning/sprint-management"
+                to={team('/planning/sprint-management')}
                 navigate={navigate}
                 badge={<Badge tone="primary">{Math.round(totalPoints ? (donePoints / totalPoints) * 100 : 0)}% Burndown</Badge>}
               >
@@ -544,7 +577,7 @@ export default function Dashboard() {
                 label="DART Arbitration"
                 value={`${openFlags.length}`}
                 subtext={openFlags.length > 0 ? 'Diagnostic flags unresolved' : 'All agents in consensus'}
-                to="/planning/requirements/srs-quality"
+                to={team('/planning/requirements/srs-quality')}
                 navigate={navigate}
                 badge={
                   <Badge tone={openFlags.length > 0 ? 'warning' : 'success'}>
@@ -646,7 +679,7 @@ export default function Dashboard() {
                 <span className="text-xs text-muted-foreground">Next Recommended Step:</span>
                 <Button
                   size="sm"
-                  onClick={() => navigate(nextAction.to)}
+                  onClick={() => navigate(team(nextAction.to))}
                   className="text-xs gap-1.5 cursor-pointer"
                 >
                   {nextAction.text} <ArrowRight className="h-3.5 w-3.5" />
@@ -706,7 +739,7 @@ export default function Dashboard() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => navigate('/planning/requirements/srs-quality')}
+                  onClick={() => navigate(team('/planning/requirements/srs-quality'))}
                   className="text-xs cursor-pointer gap-1"
                 >
                   Quality Gate <ArrowRight className="h-3 w-3" />
@@ -924,7 +957,7 @@ export default function Dashboard() {
               </div>
               <Button
                 size="sm"
-                onClick={() => navigate('/planning/sprint-management')}
+                onClick={() => navigate(team('/planning/sprint-management'))}
                 className="text-xs gap-1.5 cursor-pointer"
               >
                 <KanbanSquare className="h-3.5 w-3.5" /> Open Sprint Board
@@ -995,7 +1028,7 @@ export default function Dashboard() {
                         <span className="text-[10px] text-muted-foreground">{c.createdAt?.slice(0, 10)}</span>
                         <button
                           type="button"
-                          onClick={() => navigate('/planning/requirements/srs-quality')}
+                          onClick={() => navigate(team('/planning/requirements/srs-quality'))}
                           className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1 cursor-pointer"
                         >
                           Resolve in Quality Gate <ArrowRight className="h-3 w-3" />
@@ -1152,7 +1185,7 @@ export default function Dashboard() {
                     onClick={() => {
                       const target = targetForRequirement(selectedReq, userStories, estimations)
                       setSelectedReq(null)
-                      navigate(target)
+                      navigate(team(target))
                     }}
                   >
                     Open in Planning Pipeline ({targetForRequirement(selectedReq, userStories, estimations).split('/').pop()})

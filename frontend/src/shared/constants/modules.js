@@ -10,7 +10,7 @@ export const MODULES = [
     icon: BookOpen,
     color: '#2563eb',
     owner: 'IT23152878 · Rajapaksha',
-    tagline: 'Requirements analysis, quality gates & intelligent project planning',
+    tagline: 'Requirements, estimates, and the sprint board',
   },
   {
     key: 'performance',
@@ -19,16 +19,16 @@ export const MODULES = [
     icon: BarChart3,
     color: '#2563eb',
     owner: 'IT23155534 · Kumbukage',
-    tagline: 'Individual student contribution scoring & at-risk prediction',
+    tagline: 'How the work is going, without a public ranking',
   },
   {
     key: 'tutor',
-    label: 'Tutor Agent',
+    label: 'AI Tutor',
     path: '/tutor',
     icon: Bot,
     color: '#2563eb',
     owner: 'IT23283930 · Ekanayake',
-    tagline: 'Adaptive project learning, sprint guidance & learning momentum nudges',
+    tagline: 'Help that starts from the task you are doing',
   },
   {
     key: 'security',
@@ -37,7 +37,7 @@ export const MODULES = [
     icon: ShieldCheck,
     color: '#2563eb',
     owner: 'IT23314238 · Croos',
-    tagline: 'Security vulnerability detection & remediation reporting',
+    tagline: 'Findings in the project code, and how to fix them',
   },
 ]
 

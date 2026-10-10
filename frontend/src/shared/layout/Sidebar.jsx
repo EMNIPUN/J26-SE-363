@@ -123,6 +123,7 @@ function CollapsedGroupItem({ section, active, pathname, onNavigate }) {
           {section.children.map((child) => {
             const isChildActive =
               pathname === child.to || pathname.startsWith(child.to + '/')
+            const ChildIcon = child.icon
             return (
               <NavLink
                 key={child.to}
@@ -137,7 +138,10 @@ function CollapsedGroupItem({ section, active, pathname, onNavigate }) {
                     : 'text-foreground hover:bg-accent'
                 }`}
               >
-                <span className="truncate">{child.label}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  {ChildIcon && <ChildIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden="true" />}
+                  <span className="truncate">{child.label}</span>
+                </span>
                 {isChildActive && (
                   <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                 )}
@@ -283,18 +287,22 @@ export default function Sidebar({
                     {section.children.map((child) => {
                       const isChildActive =
                         location.pathname === child.to || location.pathname.startsWith(child.to + '/')
+                      const ChildIcon = child.icon
                       return (
                         <NavLink
                           key={child.to}
                           to={child.to}
                           onClick={onNavigate}
-                          className={`flex items-center justify-between px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150 ease-out active:scale-[0.98] ${
+                          className={`flex items-center justify-between gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-150 ease-out active:scale-[0.98] ${
                             isChildActive
                               ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
                               : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                           }`}
                         >
-                          <span className="truncate">{child.label}</span>
+                          <span className="flex min-w-0 items-center gap-2">
+                            {ChildIcon && <ChildIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden="true" />}
+                            <span className="truncate">{child.label}</span>
+                          </span>
                           {isChildActive && (
                             <span className="h-1.5 w-1.5 rounded-full bg-sidebar-primary shrink-0" />
                           )}

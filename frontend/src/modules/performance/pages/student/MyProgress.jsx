@@ -4,7 +4,6 @@ import {
   Award,
   Sparkles,
   Users2,
-  TrendingUp,
   Lightbulb,
   CheckCircle2,
   Calendar,
@@ -17,16 +16,22 @@ import AhpRadarChart from '../../components/AhpRadarChart.jsx'
 import TeamParityBar from '../../components/TeamParityBar.jsx'
 import AtRiskPredictorCard from '../../components/AtRiskPredictorCard.jsx'
 import CodeComprehensionLog from '../../components/CodeComprehensionLog.jsx'
+import EmptyState from '@/shared/components/EmptyState.jsx'
 import { MOCK_STUDENT_DETAILED_DATA } from '../../services/performanceService.js'
 
 export default function MyProgress() {
-  const { selectedGroup, teamStudents } = useScope()
+  const { selectedGroup, teamStudents, studentProfile } = useScope()
   const [activeTab, setActiveTab] = useState('factors')
 
-  // Get student's detailed performance evaluation
-  const profile = useMemo(() => {
-    return MOCK_STUDENT_DETAILED_DATA['std-it23155534']
-  }, [])
+  const record = studentProfile
+  const detailed = useMemo(
+    () => (record ? MOCK_STUDENT_DETAILED_DATA[record.id] || null : null),
+    [record],
+  )
+  const scoreTotal = teamStudents.reduce((sum, member) => sum + (member.currentScore || 0), 0)
+  const scoreShare = record?.currentScore && scoreTotal
+    ? Math.round((record.currentScore / scoreTotal) * 100)
+    : null
 
   return (
     <div className="space-y-6 animate-fade-rise">
@@ -40,10 +45,12 @@ export default function MyProgress() {
             <span className="text-xs text-muted-foreground">Sprint 4 Cycle</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            My Individual Performance & Contribution
+            Your learning progress
           </h1>
-          <p className="text-xs text-muted-foreground">
-            Multi-metric Analytic Hierarchy Process (AHP) scoring, ML risk prediction & GenAI code comprehension.
+          <p className="text-sm text-muted-foreground">
+            {record
+              ? `A private look at ${record.name.split(' ')[0]}'s recorded work. These counts are not a rank.`
+              : 'Sign in as a student to see your own recorded work.'}
           </p>
         </div>
 
@@ -59,18 +66,18 @@ export default function MyProgress() {
         {/* Metric 1: AHP Overall Score */}
         <Card className="p-4 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span>AHP Contribution Score</span>
+            <span>Contribution so far</span>
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Award className="h-4 w-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-foreground">
-              {profile.overallScore}
+              {record?.currentScore ?? '—'}
             </span>
             <span className="text-xs text-muted-foreground font-mono">/ 10</span>
-            <Badge className="ml-auto text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
-              Grade A (Top 5%)
+            <Badge className="ml-auto text-xs bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">
+              Recorded
             </Badge>
           </div>
         </Card>
@@ -78,16 +85,16 @@ export default function MyProgress() {
         {/* Metric 2: Team Share Parity */}
         <Card className="p-4 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span>Team Contribution Share</span>
+            <span>Share of recorded scores</span>
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Users2 className="h-4 w-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-foreground">32%</span>
-            <span className="text-xs text-muted-foreground">of team total</span>
-            <Badge variant="outline" className="ml-auto text-[10px] text-primary border-primary/30">
-              Target: 25%
+            <span className="text-2xl font-bold text-foreground">{scoreShare != null ? `${scoreShare}%` : '—'}</span>
+            <span className="text-xs text-muted-foreground">of this team</span>
+            <Badge variant="outline" className="ml-auto text-xs text-primary border-primary/30">
+              From profile scores
             </Badge>
           </div>
         </Card>
@@ -95,17 +102,17 @@ export default function MyProgress() {
         {/* Metric 3: At-Risk ML Prediction */}
         <Card className="p-4 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span>Free-Rider Risk Probability</span>
+            <span>Commits on record</span>
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-500">
               <Sparkles className="h-4 w-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-emerald-500">
-              {Math.round(profile.atRisk.probability * 100)}%
+            <span className="text-2xl font-bold text-foreground">
+              {record?.commitsCount ?? '—'}
             </span>
-            <Badge variant="outline" className="ml-auto text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
-              Low Risk (Safe)
+            <Badge variant="outline" className="ml-auto text-xs bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
+              Observed
             </Badge>
           </div>
         </Card>
@@ -113,17 +120,17 @@ export default function MyProgress() {
         {/* Metric 4: GenAI Code Comprehension */}
         <Card className="p-4 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span>Viva Oral Comprehension</span>
+            <span>Stand-ups on record</span>
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
               <CheckCircle2 className="h-4 w-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-foreground">
-              {profile.comprehension.score}%
+              {record?.standupAttendance ?? '—'}
             </span>
-            <Badge variant="outline" className="ml-auto text-[10px] bg-primary/10 text-primary border-primary/30">
-              Authentic Author
+            <Badge variant="outline" className="ml-auto text-xs bg-primary/10 text-primary border-primary/30">
+              Observed
             </Badge>
           </div>
         </Card>
@@ -159,13 +166,21 @@ export default function MyProgress() {
                 <h3 className="text-sm font-semibold text-foreground">
                   Multi-Factor Contribution Radar
                 </h3>
-                <p className="text-[11px] text-muted-foreground">
-                  Your normalized scores vs team average across 7 research dimensions
+                <p className="text-xs text-muted-foreground">
+                  Your scores beside the team average, so you can see where to practice. This is not a ranking.
                 </p>
               </div>
 
               <div className="py-2">
-                <AhpRadarChart factors={profile.factors} size={330} />
+                {detailed ? (
+                  <AhpRadarChart factors={detailed.factors} size={330} />
+                ) : (
+                  <EmptyState
+                    card={false}
+                    title="No factor breakdown yet"
+                    description="A seven-factor chart appears only when it is stored for you. Your commits, reviews, and stand-ups above are the record we have."
+                  />
+                )}
               </div>
             </Card>
 
@@ -181,7 +196,7 @@ export default function MyProgress() {
               </div>
 
               <div className="space-y-2.5">
-                {profile.factors.map((f) => {
+                {(detailed?.factors || []).map((f) => {
                   const contributionPoints = ((f.studentValue * f.weight) / 10).toFixed(2)
                   const isAboveAvg = f.studentValue >= f.groupAvg
 
@@ -220,7 +235,7 @@ export default function MyProgress() {
                               : 'text-muted-foreground'
                           }`}
                         >
-                          {isAboveAvg ? 'Above Avg' : 'Below Avg'}
+                          {isAboveAvg ? 'A strength' : 'Room to grow'}
                         </Badge>
                       </div>
                     </div>
@@ -236,109 +251,104 @@ export default function MyProgress() {
           <Card className="p-5 bg-card border-border shadow-xs space-y-4">
             <div>
               <h3 className="text-sm font-semibold text-foreground">
-                Team Contribution Parity (Fair-Share Distribution)
+                How the work is shared
               </h3>
-              <p className="text-[11px] text-muted-foreground">
-                Monitors workload balance to prevent free-riding and avoid single-developer burn-out
+              <p className="text-xs text-muted-foreground">
+                A lighter or heavier share is a signal to rebalance the sprint, not a judgment of you.
               </p>
             </div>
 
             <TeamParityBar
               members={teamStudents}
-              highlightStudentId="std-it23155534"
+              highlightStudentId={record?.id}
+              audience="student"
             />
           </Card>
 
-          {/* Longitudinal Sprint History */}
-          <Card className="p-5 bg-card border-border shadow-xs space-y-3">
-            <div className="flex items-center justify-between">
+          {detailed?.atRisk?.sprintTrajectory?.length > 0 && (
+            <Card className="p-5 bg-card border-border shadow-xs space-y-3">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">
-                  Multi-Sprint Performance Trajectory
+                  Scores across recent sprints
                 </h3>
-                <p className="text-[11px] text-muted-foreground">
-                  Progression across Sprints 1 to 4
+                <p className="text-xs text-muted-foreground">
+                  Stored with this sample profile. Not a comparison with your classmates.
                 </p>
               </div>
-              <Badge variant="outline" className="text-xs text-primary gap-1">
-                <TrendingUp className="h-3 w-3" />
-                Upward Momentum (+0.7 pts)
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-              {profile.atRisk.sprintTrajectory.map((s) => (
-                <div
-                  key={s.sprint}
-                  className="p-3 rounded-lg border border-border/70 bg-muted/20 text-xs text-center space-y-1"
-                >
-                  <span className="text-muted-foreground font-medium text-[11px]">
-                    {s.sprint}
-                  </span>
-                  <div className="font-mono text-lg font-bold text-foreground">
-                    {s.score}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                {detailed.atRisk.sprintTrajectory.map((s) => (
+                  <div
+                    key={s.sprint}
+                    className="p-3 rounded-lg border border-border/70 bg-muted/20 text-xs text-center space-y-1"
+                  >
+                    <span className="text-muted-foreground font-medium">{s.sprint}</span>
+                    <div className="font-mono text-lg font-bold text-foreground">{s.score}</div>
                   </div>
-                  <div className="text-[10px] text-emerald-500 font-medium">
-                    Risk: {Math.round(s.probability * 100)}%
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+                ))}
+              </div>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Tab 3: GenAI Code Comprehension Viva Log */}
         <TabsContent value="viva" className="space-y-4 pt-2">
-          <CodeComprehensionLog comprehension={profile.comprehension} />
+          {detailed?.comprehension ? (
+            <CodeComprehensionLog comprehension={detailed.comprehension} />
+          ) : (
+            <EmptyState
+              title="No explanation transcript yet"
+              description="A viva transcript is shown only when it is stored for you. Nothing here is copied from another student."
+            />
+          )}
         </TabsContent>
 
         {/* Tab 4: AI Coaching & Actionable Recommendations */}
         <TabsContent value="coaching" className="space-y-4 pt-2">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-6 space-y-4">
-              <AtRiskPredictorCard
-                probability={profile.atRisk.probability}
-                tier={profile.atRisk.tier}
-                primaryFactor={profile.atRisk.primaryFactor}
-              />
+              {detailed?.atRisk ? (
+                <AtRiskPredictorCard
+                  audience="student"
+                  probability={detailed.atRisk.probability}
+                  tier={detailed.atRisk.tier}
+                  primaryFactor={detailed.atRisk.primaryFactor}
+                />
+              ) : (
+                <EmptyState
+                  title="No pattern estimate yet"
+                  description="Your commits and stand-ups are on the summary above. A pattern estimate is not stored for this profile."
+                />
+              )}
             </div>
 
             <div className="lg:col-span-6 space-y-4">
-              <Card className="p-5 bg-card border-border shadow-xs space-y-4">
-                <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
-                  <Lightbulb className="h-4 w-4 text-amber-500" />
-                  Prescriptive Recommendations for Next Sprint
-                </div>
-
-                <div className="space-y-3 text-xs">
-                  <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-1">
-                    <span className="font-semibold text-primary">
-                      1. Maintain High PR Review Rigor
-                    </span>
-                    <p className="text-muted-foreground leading-relaxed">
-                      You reviewed 14 pull requests in Sprint 4 with substantial code feedback. Keep this up in Sprint 5 to maintain your Grade A standing.
-                    </p>
+              {detailed ? (
+                <Card className="p-5 bg-card border-border shadow-xs space-y-4">
+                  <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
+                    <Lightbulb className="h-4 w-4 text-amber-500" />
+                    Ideas for the next sprint
                   </div>
-
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border/70 space-y-1">
-                    <span className="font-semibold text-foreground">
-                      2. Code Churn Balance
-                    </span>
-                    <p className="text-muted-foreground leading-relaxed">
-                      Your commits are well-spaced over weekdays. Ensure pull requests remain under 400 lines of net change to maximize code comprehension scores.
-                    </p>
+                  <div className="space-y-3 text-sm">
+                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-1">
+                      <span className="font-semibold text-primary">Keep reviewing your teammates’ work</span>
+                      <p className="text-muted-foreground leading-relaxed">
+                        {record?.prReviewsCount ?? 0} pull request reviews are on this profile. That habit helps the whole team.
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/30 border border-border/70 space-y-1">
+                      <span className="font-semibold text-foreground">Keep changes easy to explain</span>
+                      <p className="text-muted-foreground leading-relaxed">
+                        Smaller pull requests are easier to talk through later. This note comes with the sample factor breakdown.
+                      </p>
+                    </div>
                   </div>
-
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border/70 space-y-1">
-                    <span className="font-semibold text-foreground">
-                      3. Assist Teammate Backlog
-                    </span>
-                    <p className="text-muted-foreground leading-relaxed">
-                      Team member Dilshan has a slight task bottleneck in Sprint 4. Cross-pair review on their pull requests will elevate the entire group parity index.
-                    </p>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              ) : (
+                <EmptyState
+                  title="No suggestions stored"
+                  description="When a factor breakdown exists for you, practice ideas will show here. They will not be copied from someone else."
+                />
+              )}
             </div>
           </div>
         </TabsContent>

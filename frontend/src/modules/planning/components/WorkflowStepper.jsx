@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
 import { Check, Lock } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
+import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import { usePlanningData } from '../context/usePlanningData.js'
 import { computeStageStats, STAGE_ORDER } from '../stageStats.js'
 
 export default function WorkflowStepper({ current, variant = 'compact' }) {
+  const team = useTeamPath()
   const { requirements, userStories, estimations, kanbanTasks } = usePlanningData()
   const stats = computeStageStats({ requirements, userStories, estimations, kanbanTasks })
   const stages = STAGE_ORDER.map((key) => stats[key])
@@ -15,7 +17,7 @@ export default function WorkflowStepper({ current, variant = 'compact' }) {
         {stages.map((stage, i) => (
           <Link
             key={stage.key}
-            to={stage.to}
+            to={team(stage.to)}
             className="flex items-start gap-3.5 group rounded-lg -mx-2 px-2 py-2.5 hover:bg-muted/50 transition-colors"
           >
             <span
@@ -56,7 +58,7 @@ export default function WorkflowStepper({ current, variant = 'compact' }) {
         return (
           <div key={stage.key} className="flex items-center gap-2 sm:gap-3 shrink-0">
             <Link
-              to={stage.to}
+              to={team(stage.to)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
                 isCurrent
                   ? 'border-primary bg-primary/10 text-primary'

@@ -8,7 +8,6 @@ import {
   Sparkles,
   CheckCircle2,
   X,
-  Plus
 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
@@ -106,33 +105,6 @@ export default function NotificationDropdown() {
   const handleDismissItem = (e, id) => {
     e.stopPropagation()
     setNotifications((prev) => prev.filter((n) => n.id !== id))
-  }
-
-  const handleSimulateNotification = () => {
-    const newId = `n-${Date.now()}`
-    const mockTypes = ['ai', 'feedback', 'calendar', 'system']
-    const randomType = mockTypes[Math.floor(Math.random() * mockTypes.length)]
-    const newNotification = {
-      id: newId,
-      title: randomType === 'ai' ? 'AI Citation Scan Updated' : 'Supervisor Review Received',
-      description: 'New progress update was logged for your research workspace.',
-      time: 'Just now',
-      read: false,
-      type: randomType,
-    }
-
-    setNotifications((prev) => [newNotification, ...prev])
-
-    // Fire matching professional toast
-    if (randomType === 'ai') {
-      showToast.ai(newNotification.title, {
-        description: newNotification.description,
-      })
-    } else {
-      showToast.info(newNotification.title, {
-        description: newNotification.description,
-      })
-    }
   }
 
   return (
@@ -294,18 +266,6 @@ export default function NotificationDropdown() {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-2 border-t border-border bg-muted/20 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSimulateNotification}
-            className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer w-full justify-center"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Simulate New Notification (Test Toast)</span>
-          </Button>
-        </div>
       </PopoverContent>
     </Popover>
   )
