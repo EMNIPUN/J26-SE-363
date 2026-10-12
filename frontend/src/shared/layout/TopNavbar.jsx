@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Search, LogOut, Menu } from 'lucide-react'
+import { Fragment, useState } from 'react'
+import { ChevronRight, Search, LogOut, Menu } from 'lucide-react'
 import { useAuth } from '../auth/useAuth.js'
 import { getRoleLabel } from '../constants/roles.js'
 import Avatar from '../components/Avatar.jsx'
@@ -20,7 +20,7 @@ import { Button as ShadcnButton } from '@/components/ui/button'
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 
-export default function TopNavbar({ onToggleMobileMenu, sidebarCollapsed = false }) {
+export default function TopNavbar({ onToggleMobileMenu, sidebarCollapsed = false, pageTrail = [] }) {
   const [commandOpen, setCommandOpen] = useState(false)
   const { user, logout } = useAuth()
 
@@ -46,31 +46,41 @@ export default function TopNavbar({ onToggleMobileMenu, sidebarCollapsed = false
         <SelviaLogo size={32} showText={!sidebarCollapsed} />
       </div>
 
-      <div className="h-5 w-px bg-border/60 hidden xl:block" />
+      <div className="h-5 w-px bg-border/60 hidden md:block" />
 
-      <div className="hidden xl:flex items-center flex-1 max-w-md ml-4">
-        <button
-          type="button"
-          onClick={() => setCommandOpen(true)}
-          className="relative w-full flex items-center justify-between gap-3 h-9 px-3 rounded-lg border border-border bg-background hover:bg-muted/60 text-xs text-muted-foreground transition-all duration-150 cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <span className="flex items-center gap-2 min-w-0">
-            <Search className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate whitespace-nowrap">Search pages and actions…</span>
-          </span>
-          <kbd className="inline-flex shrink-0 items-center gap-0.5 rounded border border-border bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shadow-2xs">
-            {isMac ? '⌘' : 'Ctrl'} K
-          </kbd>
-        </button>
-      </div>
+      {pageTrail.length > 0 && (
+        <nav aria-label="Breadcrumb" className="hidden md:flex min-w-0 flex-1 items-center pl-4 lg:pl-6">
+          <ol className="flex min-w-0 items-center gap-1.5 text-sm">
+            {pageTrail.map((crumb, index) => {
+              const isLast = index === pageTrail.length - 1
+              return (
+                <Fragment key={`${crumb}-${index}`}>
+                  <li
+                    className={`truncate ${isLast ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}
+                    aria-current={isLast ? 'page' : undefined}
+                  >
+                    {crumb}
+                  </li>
+                  {!isLast && (
+                    <li aria-hidden="true" className="text-muted-foreground/60">
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </li>
+                  )}
+                </Fragment>
+              )
+            })}
+          </ol>
+        </nav>
+      )}
 
       <div className="flex min-w-0 items-center gap-1.5 sm:gap-2 ml-auto pr-4 sm:pr-6">
         <ShadcnButton
           variant="ghost"
           size="icon"
-          className="xl:hidden h-9 w-9 text-muted-foreground hover:text-foreground cursor-pointer"
+          className="h-9 w-9 text-muted-foreground hover:text-foreground cursor-pointer"
           onClick={() => setCommandOpen(true)}
-          aria-label="Search pages and actions"
+          aria-label={`Search pages and actions (${isMac ? 'Command' : 'Ctrl'} K)`}
+          title={`Search (${isMac ? '⌘' : 'Ctrl'} K)`}
         >
           <Search className="h-4 w-4" />
         </ShadcnButton>

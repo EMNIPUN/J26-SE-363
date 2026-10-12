@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ListTodo,
   LayoutGrid,
@@ -74,6 +74,7 @@ import {
   VELOCITY_TREND,
 } from "../../data/mockData.js";
 import { showToast } from "@/shared/utils/toast.jsx";
+import { useTeamPath } from "@/shared/hooks/useTeamPath.js";
 
 const STATUS_TONE = {
   Todo: "neutral",
@@ -133,7 +134,12 @@ function IssueTypeIcon({ isStory, className = "h-3.5 w-3.5" }) {
 /* ------------------------------------------------------------------ */
 /* Issue card (Kanban board)                                          */
 /* ------------------------------------------------------------------ */
+function tutorPromptForTask(task) {
+  return `I'm working on the sprint task "${task.title}". What should I understand before I continue?`;
+}
+
 function IssueCard({ task, member, requirements, onOpen }) {
+  const team = useTeamPath();
   return (
     <div
       draggable
@@ -157,12 +163,23 @@ function IssueCard({ task, member, requirements, onOpen }) {
           <span className="line-clamp-2">{task.blockedReason}</span>
         </p>
       )}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
           <IssueTypeIcon isStory={Boolean(task.storyId)} className="h-3 w-3" />
           <span className="text-[10px] font-medium text-muted-foreground">
             {task.id}
           </span>
+          {task.status !== "Done" && (
+            <Link
+              to={team(
+                `/tutor/chat?prompt=${encodeURIComponent(tutorPromptForTask(task))}`,
+              )}
+              onClick={(event) => event.stopPropagation()}
+              className="text-[10px] font-medium text-primary hover:underline"
+            >
+              Ask tutor
+            </Link>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <span className="h-5 min-w-5 px-1 rounded-full bg-muted text-[10px] font-semibold text-foreground flex items-center justify-center">
@@ -321,6 +338,7 @@ function IssueRow({
 }
 
 function TaskDetailDialog({ task, onClose, teamMembers, onAssign, onMove }) {
+  const team = useTeamPath();
   if (!task) return null;
   const member = memberFor(teamMembers, task.assigneeId);
   return (
@@ -420,6 +438,24 @@ function TaskDetailDialog({ task, onClose, teamMembers, onAssign, onMove }) {
               ))}
             </div>
           </div>
+
+          {task.status !== "Done" && (
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="text-xs"
+            >
+              <Link
+                to={team(
+                  `/tutor/chat?prompt=${encodeURIComponent(tutorPromptForTask(task))}`,
+                )}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Ask the tutor about this task
+              </Link>
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -686,6 +722,7 @@ function BoardView() {
 /* ------------------------------------------------------------------ */
 function BacklogView() {
   const navigate = useNavigate();
+  const team = useTeamPath();
   const {
     requirements,
     userStories,
@@ -787,9 +824,11 @@ function BacklogView() {
                 isStory
                 onClick={() =>
                   navigate(
-                    story.status === "Accepted"
-                      ? "/planning/requirements/estimation"
-                      : "/planning/requirements/decomposition",
+                    team(
+                      story.status === "Accepted"
+                        ? "/planning/requirements/estimation"
+                        : "/planning/requirements/decomposition",
+                    ),
                   )
                 }
               />

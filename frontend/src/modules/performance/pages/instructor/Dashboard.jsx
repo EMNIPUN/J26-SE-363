@@ -15,6 +15,11 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import TeamParityBar from '../../components/TeamParityBar.jsx'
+import EmptyState from '@/shared/components/EmptyState.jsx'
+
+function needsLook(student) {
+  return student.riskLevel === 'High' || student.riskLevel === 'Critical' || student.riskProbability >= 0.5
+}
 
 export default function InstructorDashboard() {
   const { teamId } = useParams()
@@ -25,31 +30,25 @@ export default function InstructorDashboard() {
 
   // Summary statistics
   const stats = useMemo(() => {
-    const total = teamStudents.length || 1
-    const atRiskList = teamStudents.filter(
-      (s) => s.riskLevel === 'High' || s.riskLevel === 'Critical' || s.riskProbability > 0.4,
-    )
-    const avgScore = (
-      teamStudents.reduce((sum, s) => sum + (s.currentScore || 8.0), 0) / total
-    ).toFixed(1)
-    const avgComprehension = Math.round(
-      teamStudents.reduce((sum, s) => sum + (s.comprehensionRate || 90), 0) / total,
-    )
+    const scored = teamStudents.filter((student) => typeof student.currentScore === 'number')
+    const explained = teamStudents.filter((student) => typeof student.comprehensionRate === 'number')
+    const avgScore = scored.length
+      ? (scored.reduce((sum, student) => sum + student.currentScore, 0) / scored.length).toFixed(1)
+      : null
+    const avgComprehension = explained.length
+      ? Math.round(explained.reduce((sum, student) => sum + student.comprehensionRate, 0) / explained.length)
+      : null
 
     return {
       avgScore,
-      atRiskCount: atRiskList.length,
+      atRiskCount: teamStudents.filter(needsLook).length,
       avgComprehension,
-      parityIndex: 0.88,
     }
   }, [teamStudents])
 
-  // Filter students if filter selected
   const displayedStudents = useMemo(() => {
-    if (filterRisk === 'atRisk') {
-      return teamStudents.filter((s) => s.riskProbability >= 0.25 || s.riskLevel !== 'Low')
-    }
-    return teamStudents
+    const list = filterRisk === 'atRisk' ? teamStudents.filter(needsLook) : teamStudents
+    return [...list].sort((a, b) => (b.riskProbability || 0) - (a.riskProbability || 0))
   }, [teamStudents, filterRisk])
 
   return (
@@ -68,8 +67,8 @@ export default function InstructorDashboard() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             {selectedGroup?.projectTitle || 'Research Project Dashboard'}
           </h1>
-          <p className="text-xs text-muted-foreground">
-            Continuous individual performance tracking, contribution parity & at-risk detection.
+          <p className="text-sm text-muted-foreground">
+            Commits, reviews, and stand-ups are observed. Risk labels are inferred. Students do not see this page as a ranking.
           </p>
         </div>
 
@@ -91,18 +90,18 @@ export default function InstructorDashboard() {
         {/* Metric 1: Group Average AHP Score */}
         <Card className="p-4 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span>Group AHP Average</span>
+            <span>Recorded score average</span>
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Award className="h-4 w-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-foreground">
-              {stats.avgScore}
+              {stats.avgScore ?? '—'}
             </span>
             <span className="text-xs text-muted-foreground font-mono">/ 10</span>
-            <Badge className="ml-auto text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
-              Above Benchmark
+            <Badge className="ml-auto text-xs bg-primary/10 text-primary border-primary/20">
+              Observed
             </Badge>
           </div>
         </Card>
@@ -110,7 +109,7 @@ export default function InstructorDashboard() {
         {/* Metric 2: At-Risk Students Flagged */}
         <Card className="p-4 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span>At-Risk Students Flagged</span>
+            <span>Inferred signals to check</span>
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-500/10 text-amber-500">
               <AlertTriangle className="h-4 w-4" />
             </div>
@@ -128,7 +127,7 @@ export default function InstructorDashboard() {
                   : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
               }`}
             >
-              {stats.atRiskCount > 0 ? 'Requires Review' : 'Safe Cohort'}
+              {stats.atRiskCount > 0 ? 'Inferred' : 'None on record'}
             </Badge>
           </div>
         </Card>
@@ -136,18 +135,18 @@ export default function InstructorDashboard() {
         {/* Metric 3: Contribution Parity Gini Index */}
         <Card className="p-4 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span>Contribution Parity (Gini)</span>
+            <span>Students on this team</span>
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Users2 className="h-4 w-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-foreground">
-              {stats.parityIndex}
+              {teamStudents.length}
             </span>
-            <span className="text-xs text-muted-foreground">/ 1.0</span>
-            <Badge variant="outline" className="ml-auto text-[10px] text-primary border-primary/30">
-              Equitable
+            <span className="text-xs text-muted-foreground">with a profile</span>
+            <Badge variant="outline" className="ml-auto text-xs text-primary border-primary/30">
+              This team
             </Badge>
           </div>
         </Card>
@@ -155,17 +154,17 @@ export default function InstructorDashboard() {
         {/* Metric 4: Oral Viva Comprehension Rate */}
         <Card className="p-4 bg-card border-border shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-            <span>Viva Comprehension Avg</span>
+            <span>Explanation scores on record</span>
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Sparkles className="h-4 w-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-foreground">
-              {stats.avgComprehension}%
+              {stats.avgComprehension != null ? `${stats.avgComprehension}%` : '—'}
             </span>
-            <Badge variant="outline" className="ml-auto text-[10px] bg-primary/10 text-primary border-primary/30">
-              High Authenticity
+            <Badge variant="outline" className="ml-auto text-xs bg-primary/10 text-primary border-primary/30">
+              Observed
             </Badge>
           </div>
         </Card>
@@ -175,10 +174,10 @@ export default function InstructorDashboard() {
       <Card className="p-5 bg-card border-border shadow-xs space-y-4">
         <div>
           <h3 className="text-sm font-semibold text-foreground">
-            Team Contribution Equity & Free-Rider Detection
+            Contribution balance
           </h3>
-          <p className="text-[11px] text-muted-foreground">
-            Work distribution across all {teamStudents.length} assigned students in {selectedGroup?.code}
+          <p className="text-sm text-muted-foreground">
+            Shares use the recorded scores for {selectedGroup?.code}. An uneven bar is a prompt to look, not a finding by itself.
           </p>
         </div>
 
@@ -190,10 +189,10 @@ export default function InstructorDashboard() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-foreground">
-              Team Member Individual Evaluations
+              People on this team
             </h3>
-            <p className="text-[11px] text-muted-foreground">
-              Click &quot;Inspect Details&quot; to review the student&apos;s full 7-factor breakdown & oral viva transcript
+            <p className="text-sm text-muted-foreground">
+              Open a person to see what is stored. A missing factor chart means it was not copied from someone else.
             </p>
           </div>
 
@@ -212,14 +211,20 @@ export default function InstructorDashboard() {
               onClick={() => setFilterRisk('atRisk')}
               className="h-7 text-xs cursor-pointer"
             >
-              At Risk ({stats.atRiskCount})
+              Needs a look ({stats.atRiskCount})
             </Button>
           </div>
         </div>
 
+        {displayedStudents.length === 0 ? (
+          <EmptyState
+            title="No one in this filter"
+            description="Everyone on the selected team is below the inferred check-in line, or this team has no profiles yet."
+          />
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {displayedStudents.map((student) => {
-            const isAtRisk = student.riskProbability >= 0.25 || student.riskLevel !== 'Low'
+            const inferred = needsLook(student)
             return (
               <Card
                 key={student.id}
@@ -238,37 +243,37 @@ export default function InstructorDashboard() {
                     </div>
 
                     <Badge
-                      variant={isAtRisk ? 'destructive' : 'secondary'}
-                      className={`text-[10px] font-semibold ${
-                        !isAtRisk
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                      variant={inferred ? 'destructive' : 'secondary'}
+                      className={`text-xs font-semibold ${
+                        !inferred
+                          ? 'bg-primary/10 text-primary border-primary/20'
                           : ''
                       }`}
                     >
-                      {student.riskLevel || 'Low Risk'}
+                      Inferred · {student.riskLevel || 'Low'}
                     </Badge>
                   </div>
 
                   {/* Metrics Row */}
                   <div className="grid grid-cols-3 gap-2 py-3 border-y border-border/60 text-xs text-center my-3">
                     <div>
-                      <span className="text-[10px] text-muted-foreground">AHP Score</span>
+                      <span className="text-xs text-muted-foreground">Recorded score</span>
                       <div className="font-mono font-bold text-sm text-foreground">
-                        {student.currentScore || 8.5}/10
+                        {typeof student.currentScore === 'number' ? `${student.currentScore}/10` : '—'}
                       </div>
                     </div>
                     <div>
                       <span className="text-[10px] text-muted-foreground">Commits</span>
                       <div className="font-mono font-bold text-sm text-foreground flex items-center justify-center gap-1">
                         <GitCommit className="h-3 w-3 text-muted-foreground" />
-                        {student.commitsCount || 34}
+                        {typeof student.commitsCount === 'number' ? student.commitsCount : '—'}
                       </div>
                     </div>
                     <div>
                       <span className="text-[10px] text-muted-foreground">PR Reviews</span>
                       <div className="font-mono font-bold text-sm text-foreground flex items-center justify-center gap-1">
                         <GitPullRequest className="h-3 w-3 text-muted-foreground" />
-                        {student.prReviewsCount || 12}
+                        {typeof student.prReviewsCount === 'number' ? student.prReviewsCount : '—'}
                       </div>
                     </div>
                   </div>
@@ -276,8 +281,9 @@ export default function InstructorDashboard() {
 
                 {/* Inspect Action */}
                 <div className="pt-1 flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">
-                    Viva Comprehension: <strong>{student.comprehensionRate || 92}%</strong>
+                  <span className="text-xs text-muted-foreground">
+                    Stand-ups {student.standupAttendance || '—'}
+                    {typeof student.comprehensionRate === 'number' ? ` · explanation ${student.comprehensionRate}%` : ''}
                   </span>
 
                   <Button
@@ -287,7 +293,7 @@ export default function InstructorDashboard() {
                     className="h-8 text-xs text-primary gap-1 cursor-pointer hover:bg-primary/10"
                   >
                     <Link to={`/teams/${teamCode}/performance/students?studentId=${student.id}`}>
-                      <span>Inspect Details</span>
+                      <span>View evidence</span>
                       <ChevronRight className="h-3.5 w-3.5" />
                     </Link>
                   </Button>
@@ -296,6 +302,7 @@ export default function InstructorDashboard() {
             )
           })}
         </div>
+        )}
       </div>
     </div>
   )

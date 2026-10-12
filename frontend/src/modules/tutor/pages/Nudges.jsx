@@ -54,8 +54,8 @@ export default function Nudges() {
     <div className="space-y-6">
       <PageHeader
         title="Nudges"
-        breadcrumb={['Tutor Agent', 'Nudges']}
-        description="Timely suggestions from your Tutor Agent when a deadline is at risk, a learning check is due, or your momentum changes."
+        breadcrumb={['Adaptive Tutor', 'Nudges']}
+        description="Quiet reminders for a deadline, a learning check, or a change in pace. You can snooze or dismiss any of them."
         actions={
           <Button variant="outline" size="lg" onClick={markAllRead} disabled={unreadCount === 0}>
             <CheckCheck className="h-4 w-4" />

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import PageHeader from '../../../../shared/components/PageHeader.jsx'
 import Card from '../../../../shared/components/Card.jsx'
@@ -41,6 +41,7 @@ const STATUS_TONE = {
 
 export default function InstructorProjects() {
   const navigate = useNavigate()
+  const { teamId } = useParams()
   const [projects, setProjects] = useState(INITIAL_GROUPS)
   const [batchFilter, setBatchFilter] = useState('all')
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -119,7 +120,7 @@ export default function InstructorProjects() {
                 <TableRow
                   key={p.id}
                   className="cursor-pointer"
-                  onClick={() => navigate(`/planning/instructor/groups/${p.id}`)}
+                  onClick={() => navigate(`/teams/${teamId}/planning/instructor/groups/${p.id}`)}
                 >
                   <TableCell className="font-medium max-w-xs truncate">{p.project}</TableCell>
                   <TableCell className="text-muted-foreground">{p.name}</TableCell>

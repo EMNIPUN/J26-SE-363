@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Check,
 } from 'lucide-react'
+import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import Card from '../../../../../shared/components/Card.jsx'
 import Badge from '../../../../../shared/components/Badge.jsx'
 import LoadingState from '../../../../../shared/components/LoadingState.jsx'
@@ -106,6 +107,7 @@ const IEEE_STANDARDS_INFO = [
 let manualIdCounter = 200
 
 export default function SRSQuality() {
+  const team = useTeamPath()
   const { requirements, addRequirement, updateRequirementText, rescoreRequirement, getRequirementHistory } =
     usePlanningData()
   const [selectedId, setSelectedId] = useState(requirements[0]?.id ?? null)
@@ -574,7 +576,7 @@ export default function SRSQuality() {
 
                   {selected.status === 'Passing' ? (
                     <Link
-                      to="/planning/requirements/decomposition"
+                      to={team('/planning/requirements/decomposition')}
                       className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline shrink-0 bg-primary/10 px-3 py-1.5 rounded-lg"
                     >
                       Proceed to Decomposition <ArrowRight className="h-3.5 w-3.5" />
