@@ -13,6 +13,7 @@ dependencies = [
     "pydantic-settings>=2.15.0",
     "pyjwt[crypto]>=2.10",
     "python-dotenv>=1.2.3",
+    "python-multipart>=0.0.32",
     "selvia-shared",
     "sqlalchemy>=2.1.1",
     "uvicorn[standard]>=0.54.0",

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   UploadCloud,
+  Download,
   FileText,
   Plus,
   RefreshCw,
@@ -386,6 +387,17 @@ export default function SRSQuality() {
               e.target.value = ''
             }}
           />
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="text-xs cursor-pointer gap-1.5"
+          >
+            <a href="/SRS_Template.docx" download>
+              <Download className="h-3.5 w-3.5" />
+              Download Template
+            </a>
+          </Button>
           <Button
             size="sm"
             variant="outline"

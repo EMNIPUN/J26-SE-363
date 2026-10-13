@@ -17,6 +17,9 @@ export const ENDPOINTS = {
     TASKS: '/planning/tasks',
     TASK_DETAIL: (id) => `/planning/tasks/${id}`,
     TIMELINE: (projectId) => `/planning/projects/${projectId}/timeline`,
+    // Requirement Quality Agent
+    SRS: '/planning/srs',          // POST multipart: upload .docx -> extract + score
+    QUALITY: '/planning/quality',  // POST json: score typed-in requirements
   },
   TUTOR: {
     SESSIONS: '/tutor/sessions',

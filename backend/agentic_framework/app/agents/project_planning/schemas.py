@@ -100,3 +100,31 @@ class RequirementQualityResult(BaseModel):
 class AnalyzeQualityResult(BaseModel):
     threshold: int = DEFAULT_QUALITY_THRESHOLD
     requirements: list[RequirementQualityResult] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Requirement extraction — SRS .docx -> requirement list (FR-01)
+# ---------------------------------------------------------------------------
+
+
+class ExtractOptions(BaseModel):
+    # When true, also run quality analysis on the extracted requirements.
+    analyze_quality: bool = False
+    threshold: int = DEFAULT_QUALITY_THRESHOLD
+
+
+class ExtractRequirementsInput(BaseModel):
+    """Payload for ``planning.extract_requirements``.
+
+    The Core API base64-encodes the uploaded .docx into ``file_base64``.
+    """
+
+    file_base64: str
+    filename: str | None = None
+    options: ExtractOptions = Field(default_factory=ExtractOptions)
+
+
+class ExtractRequirementsResult(BaseModel):
+    count: int
+    requirements: list[RequirementInput] = Field(default_factory=list)
+    quality: AnalyzeQualityResult | None = None

@@ -16,6 +16,11 @@ export default defineConfig(({ mode }) => {
     env.VITE_BACKEND_TARGET ||
     'http://localhost:8000'
 
+  // When /api is pointed straight at the local Core API (bypassing Kong), its
+  // routes live under /api/v1, so rewrite the prefix. For a real gateway (which
+  // already expects /api) no rewrite is applied.
+  const targetsLocalCoreApi = /(localhost|127\.0\.0\.1):8002(\/|$)/.test(gatewayUrl)
+
   return {
     plugins: [react(), tailwindcss()],
     resolve: {
@@ -31,6 +36,9 @@ export default defineConfig(({ mode }) => {
           target: gatewayUrl,
           changeOrigin: true,
           secure: false,
+          ...(targetsLocalCoreApi
+            ? { rewrite: (p) => p.replace(/^\/api/, '/api/v1') }
+            : {}),
         },
       },
     },
