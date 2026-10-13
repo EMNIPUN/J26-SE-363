@@ -8,7 +8,10 @@ Agents that are not registered yet answer with status "unavailable".
 from shared.contracts import AgentName
 
 from app.agents.base import BaseAgent
+from app.agents.project_planning.agent import ProjectPlanningAgent
 
 
 def build_agent_registry() -> dict[AgentName, BaseAgent]:
-    return {}
+    return {
+        AgentName.PROJECT_PLANNING: ProjectPlanningAgent(),
+    }
