@@ -43,6 +43,7 @@ import QualityRadarChart from '../../../components/QualityRadarChart.jsx'
 import HighlightedRequirementText from '../../../components/HighlightedRequirementText.jsx'
 import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
+import { qualityService } from '../../../services/qualityService.js'
 import { QUALITY_DIMENSIONS, getArbitrationForRequirement } from '../../../data/mockData.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
 import { GATE_STATUS_TONE, QUALITY_GATE_THRESHOLD, DIMENSION_ISSUE, formatRelativeTime } from '../../../utils.js'
@@ -52,6 +53,35 @@ function dimTier(score) {
   if (score >= 80) return 'pass'
   if (score >= 60) return 'warn'
   return 'fail'
+}
+
+// Backend gate status -> the page's status vocabulary.
+const BACKEND_STATUS_MAP = { passed: 'Passing', needs_review: 'Needs Review', blocked: 'Failing' }
+
+// Convert the backend ExtractRequirementsResult into the page's requirement shape.
+function mapBackendResult(result) {
+  const textById = Object.fromEntries((result?.requirements || []).map((r) => [r.id, r.text]))
+  const scored = result?.quality?.requirements || []
+  const now = new Date().toISOString()
+  return scored.map((q) => {
+    const text = textById[q.id] || ''
+    const dimensionScores = Object.fromEntries(
+      Object.entries(q.dimension_scores || {}).map(([key, v]) => [key, v?.score ?? 0]),
+    )
+    return {
+      id: q.id,
+      title: text.length > 72 ? `${text.slice(0, 72)}…` : text || q.id,
+      description: text,
+      priority: 'Medium',
+      status: BACKEND_STATUS_MAP[q.status] || 'Needs Review',
+      overallScore: q.overall_score,
+      dimensionScores,
+      suggestedRewrite: q.suggested_rewrite || null,
+      lastChecked: now,
+      confidence: q.confidence,
+      dartTriggered: q.dart_triggered,
+    }
+  })
 }
 
 const DIM_ICON = {
@@ -90,18 +120,18 @@ const IEEE_STANDARDS_INFO = [
     rule: 'Define exact numeric criteria: latency thresholds, throughput numbers, or concrete boolean conditions.',
   },
   {
-    key: 'feasibility',
-    title: 'Feasibility',
-    standard: 'IEEE 830 § 4.3.6',
-    description: 'The requirement must be technically achievable within project scope, chosen tech stack, and semester timeline constraints.',
-    rule: 'Assess dependencies on third-party APIs, hardware requirements, and model inference constraints.',
+    key: 'correctness',
+    title: 'Correctness',
+    standard: 'IEEE 830 § 4.3.1',
+    description: 'Every requirement stated must be one the software shall actually meet — it must reflect a genuine, accurate need with no erroneous behaviour.',
+    rule: 'Confirm the stated behaviour is the intended one and is technically sound for the goal.',
   },
   {
-    key: 'scope',
-    title: 'Scope Alignment',
-    standard: 'Capstone SE4010 Rubric LO-1',
-    description: 'The obligation must fall strictly within the group research domain and allocated student specialization boundaries.',
-    rule: 'Ensure traceability to approved project charter and supervisor-approved research themes.',
+    key: 'traceability',
+    title: 'Traceability',
+    standard: 'IEEE 830 § 4.3.8',
+    description: 'Each requirement must be uniquely identifiable and linkable backward to its source and forward to design and test artifacts.',
+    rule: 'Give each requirement a unique ID and keep it self-contained so it can be traced to a goal.',
   },
 ]
 
@@ -109,7 +139,7 @@ let manualIdCounter = 200
 
 export default function SRSQuality() {
   const team = useTeamPath()
-  const { requirements, addRequirement, updateRequirementText, rescoreRequirement, getRequirementHistory } =
+  const { requirements, addRequirement, updateRequirementText, rescoreRequirement, getRequirementHistory, loadRequirements } =
     usePlanningData()
   const [selectedId, setSelectedId] = useState(requirements[0]?.id ?? null)
   const [checkingId, setCheckingId] = useState(null)
@@ -157,29 +187,32 @@ export default function SRSQuality() {
     }, 900)
   }
 
-  function simulateUpload() {
+  async function handleUpload(file) {
+    if (!file) return
     setUploading(true)
-    setTimeout(() => {
-      const id1 = `REQ-1${manualIdCounter++}`
-      addRequirement({
-        id: id1,
-        title: 'System shall let a student export their requirement set as a PDF',
-        description:
-          'The system shall generate a downloadable PDF snapshot of all requirements and their quality scores within 3 seconds of request.',
-        priority: 'Medium',
-        status: 'Needs Review',
-        overallScore: 68,
-        dimensionScores: { clarity: 75, completeness: 65, consistency: 70, testability: 64, feasibility: 76, scope: 68 },
-        suggestedRewrite:
-          'Specify explicit document layout parameters and error handling if rendering pipeline exceeds timeout.',
-        lastChecked: new Date().toISOString(),
+    try {
+      const result = await qualityService.uploadSrs(file, QUALITY_GATE_THRESHOLD)
+      const reqs = mapBackendResult(result)
+      if (reqs.length === 0) {
+        showToast.error('No requirements found', {
+          description: 'Use the SRS template and keep requirements in the FR-/NFR- tables.',
+        })
+        return
+      }
+      loadRequirements(reqs)
+      setDocName(file.name)
+      setSelectedId(reqs[0].id)
+      const passed = reqs.filter((r) => r.status === 'Passing').length
+      showToast.success('SRS analyzed by the Quality agent', {
+        description: `${reqs.length} requirement(s) scored · ${passed} passed the ≥${QUALITY_GATE_THRESHOLD} gate.`,
       })
-      setDocName(`SRS_NexaPlan_v4.docx`)
+    } catch (err) {
+      showToast.error('Upload failed', {
+        description: err?.message || 'Could not reach the Quality agent. Is the backend running?',
+      })
+    } finally {
       setUploading(false)
-      showToast.success('Document Processed & Indexed', {
-        description: '1 new specification extracted and evaluated by the automated Quality Gatekeeper.',
-      })
-    }, 1400)
+    }
   }
 
   function submitManualRequirement() {
@@ -192,11 +225,11 @@ export default function SRSQuality() {
     const completeness = Math.min(95, Math.max(55, 62 + (desc.toLowerCase().includes('shall') ? 18 : 5)))
     const consistency = 80
     const testability = Math.min(95, Math.max(50, 65 + (desc.toLowerCase().includes('within') ? 20 : 5)))
-    const feasibility = 88
-    const scope = 85
+    const correctness = 82
+    const traceability = 80
 
-    const overallScore = Math.round((clarity + completeness + consistency + testability + feasibility + scope) / 6)
-    const status = overallScore >= 70 ? 'Passing' : overallScore >= 50 ? 'Needs Review' : 'Failing'
+    const overallScore = Math.round((clarity + completeness + correctness + testability + consistency + traceability) / 6)
+    const status = overallScore >= 75 ? 'Passing' : overallScore >= 50 ? 'Needs Review' : 'Failing'
 
     addRequirement({
       id,
@@ -208,10 +241,10 @@ export default function SRSQuality() {
       dimensionScores: {
         clarity,
         completeness,
-        consistency,
+        correctness,
         testability,
-        feasibility,
-        scope,
+        consistency,
+        traceability,
       },
       suggestedRewrite: status !== 'Passing' ? 'Add quantifiable acceptance limits to fulfill IEEE 830 testability.' : null,
       lastChecked: new Date().toISOString(),
@@ -380,10 +413,11 @@ export default function SRSQuality() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".doc,.docx,.pdf,.txt"
+            accept=".docx"
             className="hidden"
             onChange={(e) => {
-              if (e.target.files?.[0]) simulateUpload()
+              const file = e.target.files?.[0]
+              if (file) handleUpload(file)
               e.target.value = ''
             }}
           />
@@ -406,7 +440,7 @@ export default function SRSQuality() {
             className="text-xs cursor-pointer gap-1.5"
           >
             <UploadCloud className={`h-3.5 w-3.5 ${uploading ? 'animate-pulse' : ''}`} />
-            {uploading ? 'Extracting SRS…' : 'Upload SRS (.docx / .pdf)'}
+            {uploading ? 'Analyzing SRS…' : 'Upload SRS (.docx)'}
           </Button>
           <Button
             size="sm"

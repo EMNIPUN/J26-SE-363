@@ -23,7 +23,7 @@ export const SUBTASK_STATUS_TONE = {
   Todo: 'neutral',
 }
 
-export const QUALITY_GATE_THRESHOLD = 70
+export const QUALITY_GATE_THRESHOLD = 75
 
 export const DIMENSION_ISSUE = {
   clarity: {
@@ -50,17 +50,17 @@ export const DIMENSION_ISSUE = {
     whyItMatters: 'The development team cannot objectively determine whether the requirement is complete.',
     suggestion: 'Add a measurable, verifiable threshold — a number, a time limit, an exact behavior.',
   },
-  feasibility: {
-    label: 'Feasibility',
-    issue: 'This may not be achievable within the current architecture or project constraints.',
-    whyItMatters: 'Infeasible requirements block downstream decomposition and estimation entirely.',
-    suggestion: 'Confirm the current architecture can actually support this within project constraints.',
+  correctness: {
+    label: 'Correctness',
+    issue: 'The stated behaviour may not be the one the system actually needs.',
+    whyItMatters: 'An incorrect requirement sends design, code and tests down the wrong path.',
+    suggestion: 'Confirm this is the genuinely intended behaviour and is technically sound for the goal.',
   },
-  scope: {
-    label: 'Scope Alignment',
-    issue: 'This may reach outside the project’s agreed scope.',
-    whyItMatters: 'Out-of-scope requirements inflate effort and dilute the project’s focus.',
-    suggestion: 'Keep this requirement inside the agreed project scope — split out anything tangential.',
+  traceability: {
+    label: 'Traceability',
+    issue: 'This requirement is hard to identify or link back to a source/goal.',
+    whyItMatters: 'Untraceable requirements can’t be tracked through design, test and sign-off.',
+    suggestion: 'Give it a unique ID and keep it self-contained so it traces to a clear goal.',
   },
 }
 

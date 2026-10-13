@@ -20,7 +20,9 @@ export const qualityService = {
     form.append('file', file)
     return apiClient.post(ENDPOINTS.PLANNING.SRS, form, {
       params: { threshold },
-      headers: { 'Content-Type': 'multipart/form-data' },
+      // Let the browser set multipart/form-data WITH its boundary (overrides the
+      // client's default application/json). Setting it manually drops the boundary.
+      headers: { 'Content-Type': undefined },
       timeout: 120000, // scoring several requirements can take longer than the 15s default
     })
   },

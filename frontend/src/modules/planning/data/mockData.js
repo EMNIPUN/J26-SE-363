@@ -4,13 +4,14 @@
 // internally consistent end-to-end: SRS Quality -> Decomposition -> Effort
 // Estimation -> Sprint Management.
 
+// IEEE 830 six quality dimensions (must match the backend quality agent).
 export const QUALITY_DIMENSIONS = [
   { key: 'clarity', label: 'Clarity' },
   { key: 'completeness', label: 'Completeness' },
-  { key: 'consistency', label: 'Consistency' },
+  { key: 'correctness', label: 'Correctness' },
   { key: 'testability', label: 'Testability' },
-  { key: 'feasibility', label: 'Feasibility' },
-  { key: 'scope', label: 'Scope Alignment' },
+  { key: 'consistency', label: 'Consistency' },
+  { key: 'traceability', label: 'Traceability' },
 ]
 
 export const AGENTS = {
@@ -19,7 +20,7 @@ export const AGENTS = {
   estimation: { key: 'estimation', label: 'Estimation Agent', short: 'Estimation', color: '#3b82f6' },
 }
 
-export const QUALITY_GATE_THRESHOLD = 70
+export const QUALITY_GATE_THRESHOLD = 75
 
 export const PROJECT_INFO = {
   name: 'NexaPlan - Adaptive Tutor Framework',
@@ -49,7 +50,7 @@ export const REQUIREMENTS = [
     priority: 'High',
     status: 'Passing',
     overallScore: 93,
-    dimensionScores: { clarity: 95, completeness: 92, consistency: 90, testability: 94, feasibility: 96, scope: 91 },
+    dimensionScores: { clarity: 95, completeness: 92, consistency: 90, testability: 94, correctness: 96, traceability: 91 },
     suggestedRewrite: null,
     lastChecked: '2026-09-20T09:12:00Z',
   },
@@ -61,7 +62,7 @@ export const REQUIREMENTS = [
     priority: 'Medium',
     status: 'Passing',
     overallScore: 88,
-    dimensionScores: { clarity: 90, completeness: 85, consistency: 88, testability: 84, feasibility: 92, scope: 89 },
+    dimensionScores: { clarity: 90, completeness: 85, consistency: 88, testability: 84, correctness: 92, traceability: 89 },
     suggestedRewrite: null,
     lastChecked: '2026-09-19T14:32:00Z',
   },
@@ -72,7 +73,7 @@ export const REQUIREMENTS = [
     priority: 'Low',
     status: 'Failing',
     overallScore: 41,
-    dimensionScores: { clarity: 28, completeness: 35, consistency: 40, testability: 22, feasibility: 70, scope: 51 },
+    dimensionScores: { clarity: 28, completeness: 35, consistency: 40, testability: 22, correctness: 70, traceability: 51 },
     suggestedRewrite:
       'The system shall render the dashboard in under 2 seconds on a standard broadband connection, and a first-time user shall be able to submit a requirement without external help within 3 minutes.',
     lastChecked: '2026-09-21T08:05:00Z',
@@ -85,7 +86,7 @@ export const REQUIREMENTS = [
     priority: 'High',
     status: 'Needs Review',
     overallScore: 63,
-    dimensionScores: { clarity: 74, completeness: 70, consistency: 45, testability: 66, feasibility: 58, scope: 65 },
+    dimensionScores: { clarity: 74, completeness: 70, consistency: 45, testability: 66, correctness: 58, traceability: 65 },
     suggestedRewrite:
       'Split into two requirements: (1) auto-decomposition of a requirement into sub-tasks, and (2) a separate scope-lock rule triggered once decomposition is accepted.',
     lastChecked: '2026-09-21T11:47:00Z',
@@ -98,7 +99,7 @@ export const REQUIREMENTS = [
     priority: 'Medium',
     status: 'Passing',
     overallScore: 90,
-    dimensionScores: { clarity: 92, completeness: 88, consistency: 91, testability: 87, feasibility: 93, scope: 89 },
+    dimensionScores: { clarity: 92, completeness: 88, consistency: 91, testability: 87, correctness: 93, traceability: 89 },
     suggestedRewrite: null,
     lastChecked: '2026-09-18T16:20:00Z',
   },
@@ -110,7 +111,7 @@ export const REQUIREMENTS = [
     priority: 'Low',
     status: 'Failing',
     overallScore: 34,
-    dimensionScores: { clarity: 60, completeness: 40, consistency: 35, testability: 20, feasibility: 15, scope: 34 },
+    dimensionScores: { clarity: 60, completeness: 40, consistency: 35, testability: 20, correctness: 15, traceability: 34 },
     suggestedRewrite:
       'Scope down to: the system shall cache the last-fetched agent results for read-only viewing while offline; live agent inference requires connectivity.',
     lastChecked: '2026-09-21T07:58:00Z',
@@ -123,7 +124,7 @@ export const REQUIREMENTS = [
     priority: 'High',
     status: 'Needs Review',
     overallScore: 71,
-    dimensionScores: { clarity: 80, completeness: 75, consistency: 68, testability: 62, feasibility: 78, scope: 63 },
+    dimensionScores: { clarity: 80, completeness: 75, consistency: 68, testability: 62, correctness: 78, traceability: 63 },
     suggestedRewrite:
       'Clarify what "logged" means: specify that an override records instructor id, timestamp, and justification text in the case history.',
     lastChecked: '2026-09-20T13:10:00Z',
@@ -136,7 +137,7 @@ export const REQUIREMENTS = [
     priority: 'Medium',
     status: 'Passing',
     overallScore: 95,
-    dimensionScores: { clarity: 96, completeness: 94, consistency: 95, testability: 93, feasibility: 97, scope: 95 },
+    dimensionScores: { clarity: 96, completeness: 94, consistency: 95, testability: 93, correctness: 97, traceability: 95 },
     suggestedRewrite: null,
     lastChecked: '2026-09-17T10:00:00Z',
   },

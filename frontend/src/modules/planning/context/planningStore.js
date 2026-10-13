@@ -26,7 +26,7 @@ function nextDueDate(existingCount) {
 }
 
 function statusFromScore(score) {
-  if (score >= 70) return 'Passing'
+  if (score >= 75) return 'Passing'
   if (score >= 50) return 'Needs Review'
   return 'Failing'
 }
@@ -83,6 +83,22 @@ export function subscribe(listener) {
 }
 
 export const actions = {
+  // Replace the whole requirement set with results from the real backend
+  // (e.g. after an SRS upload). Resets per-requirement history to version 1.
+  loadRequirements(reqs) {
+    if (!reqs || reqs.length === 0) return
+    setState({
+      requirements: reqs,
+      requirementHistory: Object.fromEntries(
+        reqs.map((r) => [r.id, [{ version: 1, score: r.overallScore, status: r.status, timestamp: r.lastChecked }]]),
+      ),
+      activityLog: withActivity(
+        `SRS processed — ${reqs.length} requirement(s) extracted and scored by the Quality Analysis agent.`,
+        'primary',
+      ),
+    })
+  },
+
   addRequirement(req) {
     setState({
       requirements: [...state.requirements, req],
