@@ -5,31 +5,27 @@ Estimation sub-agents, the quality gates and DART) is ONE registered agent. The
 shared Main Orchestrator routes any ``planning.*`` action here; everything else
 is internal Python behind ``handle()``. See PLAN.md and the Architecture & Build
 Guide section 7.
-
-SKELETON STAGE: ``handle()`` wires routing and the response shape with
-placeholder scoring. The real ReAct component orchestrator replaces the
-``_analyze_quality_stub`` body in a later step.
 """
 
 from __future__ import annotations
+
+import asyncio
 
 from shared.contracts import (
     AgentName,
     AgentRequest,
     AgentResponse,
     ErrorInfo,
+    Evidence,
     ResultStatus,
 )
 
 from app.agents.project_planning.schemas import (
     AnalyzeQualityInput,
     AnalyzeQualityResult,
-    DimensionScore,
-    GateAction,
-    GateStatus,
-    QUALITY_DIMENSIONS,
     RequirementQualityResult,
 )
+from app.agents.project_planning.subagents.quality.scorer import score_requirement
 
 # Actions this component owns (all under the ``planning.`` prefix).
 ACTION_ANALYZE_QUALITY = "planning.analyze_quality"
@@ -44,9 +40,9 @@ class ProjectPlanningAgent:
 
     async def handle(self, request: AgentRequest) -> AgentResponse:
         if request.action == ACTION_ANALYZE_QUALITY:
-            return self._analyze_quality_stub(request)
+            return await self._analyze_quality(request)
 
-        # Known-but-not-yet-built actions return a clear, typed failure rather than crashing the orchestrator.
+        # Known-but-not-yet-built actions return a clear, typed failure.
         return AgentResponse(
             request_id=request.request_id,
             agent_name=self.name,
@@ -58,41 +54,45 @@ class ProjectPlanningAgent:
             ),
         )
 
-    # ------------------------------------------------------------------
-    # Placeholder scoring — proves routing + response shape end-to-end.
-    # Replaced by the Quality ReAct sub-agent (plan task 5).
-    # ------------------------------------------------------------------
-    def _analyze_quality_stub(self, request: AgentRequest) -> AgentResponse:
+    async def _analyze_quality(self, request: AgentRequest) -> AgentResponse:
         payload = AnalyzeQualityInput.model_validate(request.input)
         threshold = payload.options.threshold
+        all_texts = [r.text for r in payload.requirements]
 
-        results: list[RequirementQualityResult] = []
-        for req in payload.requirements:
-            placeholder = 80  # deterministic stub; real scores come from the agent
-            dim_scores = {
-                dim: DimensionScore(score=placeholder, rationale="placeholder (skeleton)")
-                for dim in QUALITY_DIMENSIONS
-            }
-            status = (
-                GateStatus.PASSED if placeholder >= threshold else GateStatus.BLOCKED
-            )
-            action = GateAction.PASS if placeholder >= threshold else GateAction.BLOCK
-            results.append(
-                RequirementQualityResult(
-                    id=req.id,
-                    overall_score=placeholder,
-                    status=status,
-                    gate_action=action,
-                    dimension_scores=dim_scores,
-                    confidence=1.0,
-                    dart_triggered=False,
+        # Score every requirement; each one also sees the others (consistency/traceability).
+        scored: list[RequirementQualityResult] = await asyncio.gather(
+            *(
+                score_requirement(
+                    req,
+                    other_texts=[t for t in all_texts if t != req.text],
+                    threshold=threshold,
                 )
+                for req in payload.requirements
             )
+        )
 
-        result = AnalyzeQualityResult(threshold=threshold, requirements=results)
+        result = AnalyzeQualityResult(threshold=threshold, requirements=list(scored))
         return AgentResponse(
             request_id=request.request_id,
             agent_name=self.name,
             status=ResultStatus.COMPLETED,
             result=result.model_dump(),
+            evidence=[_evidence_for(r) for r in scored],
         )
+
+
+def _evidence_for(r: RequirementQualityResult) -> Evidence:
+    """One transparency record per requirement (NFR-05)."""
+    return Evidence(
+        source="quality_agent",
+        description=(
+            f"{r.id}: {r.overall_score}/100 ({r.status.value}); "
+            f"{len(r.smells)} smell(s); confidence {r.confidence:.2f}"
+        ),
+        data={
+            "requirement_id": r.id,
+            "gate_action": r.gate_action.value,
+            "dart_triggered": r.dart_triggered,
+            "smells": [s.model_dump() for s in r.smells],
+        },
+    )

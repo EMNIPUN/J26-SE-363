@@ -1,0 +1,53 @@
+# Manual tests for the Project Planning agent (VS Code "REST Client" extension).
+# 1. Start the AI backend:  cd backend/agentic_framework && py -m uv run uvicorn app.main:app --port 8003
+# 2. Click "Send Request" above any block below.
+
+@base = http://127.0.0.1:8003
+
+### Health check
+GET {{base}}/health
+
+### Quality analysis — a vague requirement (expect: BLOCKED, low score, smells)
+POST {{base}}/api/v1/orchestration
+Content-Type: application/json
+
+{
+  "requester": { "user_id": "u-1", "role": "student" },
+  "action": "planning.analyze_quality",
+  "input": {
+    "requirements": [
+      { "id": "FR-01", "text": "The system shall provide a user-friendly login page that is fast and secure.", "type": "functional" }
+    ],
+    "options": { "threshold": 75 }
+  }
+}
+
+### Quality analysis — a well-formed requirement (expect: PASSED, ~78, no smells)
+POST {{base}}/api/v1/orchestration
+Content-Type: application/json
+
+{
+  "requester": { "user_id": "u-1", "role": "student" },
+  "action": "planning.analyze_quality",
+  "input": {
+    "requirements": [
+      { "id": "FR-02", "text": "The system shall lock a user account for 15 minutes after 5 consecutive failed login attempts and display the remaining lockout time.", "type": "functional" }
+    ],
+    "options": { "threshold": 75 }
+  }
+}
+
+### Quality analysis — put YOUR OWN requirement here and Send Request
+POST {{base}}/api/v1/orchestration
+Content-Type: application/json
+
+{
+  "requester": { "user_id": "u-1", "role": "student" },
+  "action": "planning.analyze_quality",
+  "input": {
+    "requirements": [
+      { "id": "FR-99", "text": "REPLACE THIS with a requirement you want to test.", "type": "functional" }
+    ],
+    "options": { "threshold": 75 }
+  }
+}
