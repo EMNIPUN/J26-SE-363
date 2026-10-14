@@ -13,9 +13,11 @@ falling back to the generic GROQ_ names):
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+import re
 from functools import lru_cache
 from typing import Any
 
@@ -29,6 +31,28 @@ logger = logging.getLogger(__name__)
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 DEFAULT_MODEL = "openai/gpt-oss-120b"
 FALLBACK_MODEL = "qwen/qwen3.8-27b"
+
+# Rate-limit (HTTP 429) handling: wait for the tokens-per-minute window to free up
+# instead of dropping to the heuristic. Bounded so a request can never hang forever.
+RATE_LIMIT_MAX_WAITS = 3
+RATE_LIMIT_WAIT_CAP = 20.0
+
+
+def _retry_after_seconds(resp: httpx.Response) -> float:
+    """How long to wait before retrying a 429, from the header or the message body."""
+    header = resp.headers.get("retry-after")
+    if header:
+        try:
+            return min(float(header), RATE_LIMIT_WAIT_CAP)
+        except ValueError:
+            pass
+    match = re.search(r"try again in ([0-9.]+)s", resp.text)
+    if match:
+        try:
+            return min(float(match.group(1)) + 0.5, RATE_LIMIT_WAIT_CAP)
+        except ValueError:
+            pass
+    return 5.0
 
 
 class GroqConfigError(RuntimeError):
@@ -73,7 +97,8 @@ class PlanningGroqClient:
 
         target_model = model or self.primary_model
         last_error: str | None = None
-        max_attempts = len(self.api_keys) * 2
+        rate_limit_waits = 0
+        max_attempts = len(self.api_keys) * 2 + RATE_LIMIT_MAX_WAITS
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for _ in range(max_attempts):
@@ -107,7 +132,20 @@ class PlanningGroqClient:
                     logger.warning("[groq] model %s not found; falling back to %s", target_model, self.fallback_model)
                     target_model = self.fallback_model
                     continue
-                if resp.status_code in (401, 429, 503):
+                if resp.status_code == 429:  # rate limited -> try another key, then wait
+                    last_error = f"HTTP 429: {resp.text[:200]}"
+                    self._rotate("HTTP 429")
+                    if rate_limit_waits < RATE_LIMIT_MAX_WAITS:
+                        rate_limit_waits += 1
+                        wait = _retry_after_seconds(resp)
+                        logger.warning(
+                            "[groq] rate limited; waiting %.1fs then retrying (%d/%d)",
+                            wait, rate_limit_waits, RATE_LIMIT_MAX_WAITS,
+                        )
+                        await asyncio.sleep(wait)
+                        continue
+                    break
+                if resp.status_code in (401, 503):
                     last_error = f"HTTP {resp.status_code}: {resp.text[:200]}"
                     self._rotate(f"HTTP {resp.status_code}")
                     continue

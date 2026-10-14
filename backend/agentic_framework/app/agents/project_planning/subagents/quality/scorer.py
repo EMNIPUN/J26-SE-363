@@ -1,9 +1,9 @@
-"""The ``dimension_scorer`` tool: score one requirement on the six IEEE 830 dims.
+"""Quality scoring primitives, shared by the ReAct graph and the direct fallback.
 
-Primary path: Groq LLM (JSON mode), grounded by the deterministic smell detector.
-Fallback path: a transparent heuristic so the component still works (degraded,
-clearly flagged) when no key is set or Groq is unreachable — the demo never
-hard-crashes.
+- ``request_dimension_scores``: the Groq call behind the ``dimension_scorer`` tool.
+- ``build_result``: turn raw LLM dimensions into a gated RequirementQualityResult.
+- ``score_requirement``: single-shot direct path — the fallback used when the ReAct
+  graph times out or errors, with a deterministic heuristic if Groq is unavailable.
 """
 
 from __future__ import annotations
@@ -35,32 +35,28 @@ def _clamp_score(value: object) -> int:
         return 60
 
 
-async def score_requirement(
-    req: RequirementInput,
+async def request_dimension_scores(
+    requirement_text: str,
+    smell_spans: list[str],
     other_texts: list[str],
-    threshold: int,
-) -> RequirementQualityResult:
-    smells = detect_smells(req.text)
+    reflection_note: str | None = None,
+) -> dict:
+    """Call Groq for the six-dimension scores. Returns the parsed JSON dict
+    ({dimensions, confidence, suggested_rewrite}). Raises on failure/misconfig."""
     client = get_groq_client()
-
-    if client.configured:
-        try:
-            data = await client.complete_json(
-                SYSTEM_PROMPT,
-                build_user_prompt(req.text, [s.span or s.type for s in smells], other_texts),
-            )
-            return _result_from_llm(req, smells, data, threshold)
-        except Exception:
-            logger.exception("Groq scoring failed for %s; using heuristic fallback", req.id)
-
-    return _heuristic_result(req, smells, threshold)
+    return await client.complete_json(
+        SYSTEM_PROMPT,
+        build_user_prompt(requirement_text, smell_spans, other_texts, reflection_note),
+        max_tokens=1200,
+    )
 
 
-def _result_from_llm(
-    req: RequirementInput,
+def build_result(
+    req_id: str,
     smells: list[Smell],
     data: dict,
     threshold: int,
+    confidence_override: float | None = None,
 ) -> RequirementQualityResult:
     dims_in = data.get("dimensions", {})
     dimension_scores: dict[str, DimensionScore] = {}
@@ -73,12 +69,16 @@ def _result_from_llm(
         )
 
     overall = round(sum(d.score for d in dimension_scores.values()) / len(dimension_scores))
-    confidence = float(data.get("confidence", 0.8) or 0.8)
+    confidence = (
+        confidence_override
+        if confidence_override is not None
+        else float(data.get("confidence", 0.8) or 0.8)
+    )
     confidence = max(0.0, min(1.0, confidence))
     status, action, dart = evaluate_gate(overall, confidence, threshold)
 
     return RequirementQualityResult(
-        id=req.id,
+        id=req_id,
         overall_score=overall,
         status=status,
         gate_action=action,
@@ -88,6 +88,27 @@ def _result_from_llm(
         confidence=confidence,
         dart_triggered=dart,
     )
+
+
+async def score_requirement(
+    req: RequirementInput,
+    other_texts: list[str],
+    threshold: int,
+) -> RequirementQualityResult:
+    """Direct single-shot scoring (the ReAct graph's fallback)."""
+    smells = detect_smells(req.text)
+    client = get_groq_client()
+
+    if client.configured:
+        try:
+            data = await request_dimension_scores(
+                req.text, [s.span or s.type for s in smells], other_texts
+            )
+            return build_result(req.id, smells, data, threshold)
+        except Exception:
+            logger.exception("Groq scoring failed for %s; using heuristic fallback", req.id)
+
+    return heuristic_result(req.id, smells, threshold)
 
 
 # --- deterministic fallback -------------------------------------------------
@@ -102,32 +123,30 @@ _SMELL_PENALTY = {
 }
 
 
-def _heuristic_result(
-    req: RequirementInput,
+def heuristic_result(
+    req_id: str,
     smells: list[Smell],
     threshold: int,
 ) -> RequirementQualityResult:
+    """Transparent, LLM-free scoring so the component degrades instead of crashing."""
     penalty = sum(_SMELL_PENALTY.get(s.type, 5) for s in smells)
     base = max(30, 95 - penalty)
 
-    # Spread the penalty across the dimensions the smells most affect.
     note = "Heuristic fallback (LLM unavailable); scores are approximate."
     dimension_scores = {
         dim: DimensionScore(score=base, rationale=note, issues=[s.span for s in smells if s.span][:3])
         for dim in QUALITY_DIMENSIONS
     }
-    overall = base
-    confidence = 0.5  # deliberately low: this path is degraded
-    status, action, dart = evaluate_gate(overall, confidence, threshold)
+    status, action, dart = evaluate_gate(base, 0.5, threshold)
 
     return RequirementQualityResult(
-        id=req.id,
-        overall_score=overall,
+        id=req_id,
+        overall_score=base,
         status=status,
         gate_action=action,
         dimension_scores=dimension_scores,
         smells=smells,
         suggested_rewrite=None,
-        confidence=confidence,
+        confidence=0.5,
         dart_triggered=dart,
     )

@@ -31,12 +31,15 @@ from app.agents.project_planning.schemas import (
     RequirementInput,
     RequirementQualityResult,
 )
-from app.agents.project_planning.subagents.quality.scorer import score_requirement
+from app.agents.project_planning.subagents.quality.graph import run_quality_agent
 
 # Actions this component owns (all under the ``planning.`` prefix).
 ACTION_ANALYZE_QUALITY = "planning.analyze_quality"
 ACTION_EXTRACT_REQUIREMENTS = "planning.extract_requirements"
 ACTION_ANALYZE_DECOMPOSITION = "planning.analyze_decomposition"
+
+# Keep concurrent LLM usage under the Groq free-tier tokens-per-minute limit.
+_MAX_CONCURRENT_SCORING = 3
 
 
 class ProjectPlanningAgent:
@@ -110,16 +113,19 @@ class ProjectPlanningAgent:
         self, requirements: list[RequirementInput], threshold: int
     ) -> list[RequirementQualityResult]:
         all_texts = [r.text for r in requirements]
-        scored = await asyncio.gather(
-            *(
-                score_requirement(
+        # Bound concurrency: the ReAct loop makes 2 LLM calls per requirement, so
+        # firing every requirement at once trips the LLM tokens-per-minute limit.
+        semaphore = asyncio.Semaphore(_MAX_CONCURRENT_SCORING)
+
+        async def _score_one(req: RequirementInput) -> RequirementQualityResult:
+            async with semaphore:
+                return await run_quality_agent(
                     req,
                     other_texts=[t for t in all_texts if t != req.text],
                     threshold=threshold,
                 )
-                for req in requirements
-            )
-        )
+
+        scored = await asyncio.gather(*(_score_one(req) for req in requirements))
         return list(scored)
 
     def _failed(self, request: AgentRequest, code: str, message: str) -> AgentResponse:

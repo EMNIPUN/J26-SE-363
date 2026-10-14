@@ -33,12 +33,22 @@ Reply with a STRICT JSON object only (no markdown), with exactly this shape:
 }"""
 
 
-def build_user_prompt(requirement_text: str, smells: list[str], other_requirements: list[str]) -> str:
+def build_user_prompt(
+    requirement_text: str,
+    smells: list[str],
+    other_requirements: list[str],
+    reflection_note: str | None = None,
+) -> str:
     smell_block = "\n".join(f"  - {s}" for s in smells) if smells else "  (none detected)"
     context_block = (
         "\n".join(f"  - {r}" for r in other_requirements[:15])
         if other_requirements
         else "  (no other requirements provided)"
+    )
+    reflect_block = (
+        f"\n\nA prior self-review flagged an inconsistency — correct it in this re-score:\n  - {reflection_note}"
+        if reflection_note
+        else ""
     )
     return f"""Requirement to evaluate:
 \"\"\"{requirement_text}\"\"\"
@@ -47,6 +57,39 @@ Deterministic smells already detected (use as evidence, do not just repeat them)
 {smell_block}
 
 Other requirements in the same SRS (for consistency/traceability checks):
-{context_block}
+{context_block}{reflect_block}
+
+Return the JSON object exactly as specified in the system message."""
+
+
+# --- reflect step (ReAct self-evaluation) ----------------------------------
+
+REFLECT_SYSTEM_PROMPT = """You are the reflection step of a requirements-quality agent. \
+You are given one requirement, the six dimension scores another step produced (with \
+rationales), and the deterministic smells detected. Judge whether the scores are \
+INTERNALLY CONSISTENT with that evidence — e.g. a requirement full of vague terms should \
+not score high on clarity; an untestable one should not score high on testability.
+
+Reply with a STRICT JSON object only:
+{
+  "consistent": bool,      // are the scores justified by the evidence?
+  "confidence": float,     // 0.0-1.0 overall reliability of this assessment
+  "issue": str             // if not consistent, the single most important thing to fix (else "")
+}"""
+
+
+def build_reflect_prompt(requirement_text: str, dimensions: dict, smells: list[str]) -> str:
+    dim_lines = "\n".join(
+        f"  - {dim}: {val.get('score')} — {val.get('rationale', '')}"
+        for dim, val in (dimensions or {}).items()
+    )
+    smell_block = ", ".join(smells) if smells else "(none)"
+    return f"""Requirement:
+\"\"\"{requirement_text}\"\"\"
+
+Dimension scores to review:
+{dim_lines}
+
+Smells detected: {smell_block}
 
 Return the JSON object exactly as specified in the system message."""
