@@ -85,6 +85,14 @@ class Smell(BaseModel):
     suggestion: str = ""
 
 
+class RetrievalEvidence(BaseModel):
+    """What the RAG/similarity tools retrieved while scoring (for UI transparency)."""
+
+    standards: list[dict] = Field(default_factory=list)       # IEEE 830 / SMART criteria
+    exemplars: list[dict] = Field(default_factory=list)       # graded example requirements
+    cross_req_hits: list[dict] = Field(default_factory=list)  # similar other requirements
+
+
 class RequirementQualityResult(BaseModel):
     id: str
     overall_score: int
@@ -95,6 +103,7 @@ class RequirementQualityResult(BaseModel):
     suggested_rewrite: str | None = None
     confidence: float = 1.0
     dart_triggered: bool = False
+    retrieval: RetrievalEvidence | None = None
 
 
 class AnalyzeQualityResult(BaseModel):

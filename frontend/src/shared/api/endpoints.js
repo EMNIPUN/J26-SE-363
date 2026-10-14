@@ -18,8 +18,10 @@ export const ENDPOINTS = {
     TASK_DETAIL: (id) => `/planning/tasks/${id}`,
     TIMELINE: (projectId) => `/planning/projects/${projectId}/timeline`,
     // Requirement Quality Agent
-    SRS: '/planning/srs',          // POST multipart: upload .docx -> extract + score
-    QUALITY: '/planning/quality',  // POST json: score typed-in requirements
+    SRS: '/planning/srs',               // POST multipart: upload .docx -> extract + score
+    SRS_TEMPLATE: '/planning/srs/template', // GET: backend-generated .docx template (public)
+    QUALITY: '/planning/quality',       // POST score typed-in reqs · GET latest stored results
+    QUALITY_HISTORY: (ref) => `/planning/quality/${ref}/history`,
   },
   TUTOR: {
     SESSIONS: '/tutor/sessions',

@@ -36,14 +36,27 @@ Reply with a STRICT JSON object only (no markdown), with exactly this shape:
 def build_user_prompt(
     requirement_text: str,
     smells: list[str],
-    other_requirements: list[str],
+    standards: list[dict] | None = None,
+    exemplars: list[dict] | None = None,
+    cross_hits: list[dict] | None = None,
     reflection_note: str | None = None,
 ) -> str:
     smell_block = "\n".join(f"  - {s}" for s in smells) if smells else "  (none detected)"
-    context_block = (
-        "\n".join(f"  - {r}" for r in other_requirements[:15])
-        if other_requirements
-        else "  (no other requirements provided)"
+
+    standards_block = (
+        "\n".join(f"  - {s.get('text', '')}" for s in standards[:3])
+        if standards
+        else "  (none retrieved)"
+    )
+    exemplars_block = (
+        "\n".join(f"  - [{e.get('quality')}] {e.get('requirement')} — {e.get('note')}" for e in exemplars[:3])
+        if exemplars
+        else "  (none retrieved)"
+    )
+    cross_block = (
+        "\n".join(f"  - (sim {h.get('similarity')}) {h.get('text')}" for h in cross_hits)
+        if cross_hits
+        else "  (no highly similar requirements found)"
     )
     reflect_block = (
         f"\n\nA prior self-review flagged an inconsistency — correct it in this re-score:\n  - {reflection_note}"
@@ -56,8 +69,14 @@ def build_user_prompt(
 Deterministic smells already detected (use as evidence, do not just repeat them):
 {smell_block}
 
-Other requirements in the same SRS (for consistency/traceability checks):
-{context_block}{reflect_block}
+Relevant IEEE 830 / SMART criteria (retrieved — ground your scores in these):
+{standards_block}
+
+Similar graded example requirements (compare against these):
+{exemplars_block}
+
+Other requirements in this SRS most similar to it (for consistency/traceability — possible duplicate/overlap/conflict):
+{cross_block}{reflect_block}
 
 Return the JSON object exactly as specified in the system message."""
 

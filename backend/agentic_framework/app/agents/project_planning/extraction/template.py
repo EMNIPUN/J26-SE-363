@@ -13,6 +13,7 @@ The layout matches ``extractor.py``: two tables, headers
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 from docx import Document
@@ -75,7 +76,7 @@ def _base_document(title_suffix: str) -> Document:
     return doc
 
 
-def build_template(path: Path) -> None:
+def _template_document():
     doc = _base_document("Project: ____________   Team: ____________   Date: ____________")
     empty_fr = [(f"FR-{i:02d}", "", "") for i in range(1, 9)]
     _add_table(doc, _FR_HEADERS, empty_fr)
@@ -92,9 +93,19 @@ def build_template(path: Path) -> None:
     )
     run.font.size = Pt(9)
     run.italic = True
+    return doc
 
+
+def build_template_bytes() -> bytes:
+    """Generate the blank SRS template as .docx bytes (served by the backend)."""
+    buffer = io.BytesIO()
+    _template_document().save(buffer)
+    return buffer.getvalue()
+
+
+def build_template(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    doc.save(str(path))
+    _template_document().save(str(path))
 
 
 def build_sample(path: Path) -> None:

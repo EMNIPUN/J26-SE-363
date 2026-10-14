@@ -36,3 +36,6 @@ __pycache__/
 venv/
 ENV/
 
+
+# ChromaDB local vector store (planning knowledge base)
+**/.chroma/

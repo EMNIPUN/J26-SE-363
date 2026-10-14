@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
+import logging
 
 from shared.contracts import (
     AgentName,
@@ -23,6 +24,8 @@ from shared.contracts import (
 )
 
 from app.agents.project_planning.extraction import extract_from_bytes
+from app.agents.project_planning.extraction.template import build_template_bytes
+from app.agents.project_planning.knowledge import warm_up as warm_up_knowledge
 from app.agents.project_planning.schemas import (
     AnalyzeQualityInput,
     AnalyzeQualityResult,
@@ -36,7 +39,10 @@ from app.agents.project_planning.subagents.quality.graph import run_quality_agen
 # Actions this component owns (all under the ``planning.`` prefix).
 ACTION_ANALYZE_QUALITY = "planning.analyze_quality"
 ACTION_EXTRACT_REQUIREMENTS = "planning.extract_requirements"
+ACTION_GET_SRS_TEMPLATE = "planning.get_srs_template"
 ACTION_ANALYZE_DECOMPOSITION = "planning.analyze_decomposition"
+
+logger = logging.getLogger(__name__)
 
 # Keep concurrent LLM usage under the provider's tokens-per-minute limit.
 _MAX_CONCURRENT_SCORING = 3
@@ -52,6 +58,8 @@ class ProjectPlanningAgent:
             return await self._analyze_quality(request)
         if request.action == ACTION_EXTRACT_REQUIREMENTS:
             return await self._extract_requirements(request)
+        if request.action == ACTION_GET_SRS_TEMPLATE:
+            return self._get_srs_template(request)
 
         # Known-but-not-yet-built actions return a clear, typed failure.
         return self._failed(request, "action_not_implemented", f"Action '{request.action}' is not implemented yet.")
@@ -107,12 +115,35 @@ class ProjectPlanningAgent:
         )
 
     # ------------------------------------------------------------------
+    # planning.get_srs_template  (backend-generated blank SRS .docx)
+    # ------------------------------------------------------------------
+    def _get_srs_template(self, request: AgentRequest) -> AgentResponse:
+        data = build_template_bytes()
+        return AgentResponse(
+            request_id=request.request_id,
+            agent_name=self.name,
+            status=ResultStatus.COMPLETED,
+            result={
+                "filename": "SRS_Template.docx",
+                "file_base64": base64.b64encode(data).decode(),
+            },
+        )
+
+    # ------------------------------------------------------------------
     # shared helpers
     # ------------------------------------------------------------------
     async def _score_requirements(
         self, requirements: list[RequirementInput], threshold: int
     ) -> list[RequirementQualityResult]:
         all_texts = [r.text for r in requirements]
+
+        # Seed/load the knowledge base once (single-threaded) before concurrent
+        # scoring, so the RAG retrieval tools don't race on first-run seeding.
+        try:
+            await asyncio.to_thread(warm_up_knowledge)
+        except Exception:
+            logger.exception("knowledge base warm-up failed; retrieval tools will return empty")
+
         # Bound concurrency: the ReAct loop makes 2 LLM calls per requirement, so
         # firing every requirement at once trips the LLM tokens-per-minute limit.
         semaphore = asyncio.Semaphore(_MAX_CONCURRENT_SCORING)

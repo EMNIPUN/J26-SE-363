@@ -4,6 +4,7 @@ which is what Alembic compares against (see alembic/env.py)."""
 from app.models.agent_run import AgentRun, AgentRunStatus
 from app.models.group import Group, GroupMember
 from app.models.project import Project, ProjectDocument
+from app.models.requirement_quality import RequirementQualityRecord
 from app.models.user import User
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "GroupMember",
     "Project",
     "ProjectDocument",
+    "RequirementQualityRecord",
     "User",
 ]

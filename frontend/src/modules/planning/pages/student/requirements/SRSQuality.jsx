@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   UploadCloud,
@@ -42,8 +42,12 @@ import RequirementListPanel from '../../../components/RequirementListPanel.jsx'
 import QualityRadarChart from '../../../components/QualityRadarChart.jsx'
 import HighlightedRequirementText from '../../../components/HighlightedRequirementText.jsx'
 import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
+import EmptyState from '../../../../../shared/components/EmptyState.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
-import { qualityService } from '../../../services/qualityService.js'
+import { srsTemplateUrl } from '../../../services/qualityService.js'
+import { useUploadSrs, useAnalyzeQuality, useQualityResults } from '../../../hooks/useQuality.js'
+import { mapExtractResult, mapAnalyzeResult, mapPersistedRows } from '../../../adapters/quality.js'
+import QualityEvidencePanel from '../../../components/QualityEvidencePanel.jsx'
 import { QUALITY_DIMENSIONS, getArbitrationForRequirement } from '../../../data/mockData.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
 import { GATE_STATUS_TONE, QUALITY_GATE_THRESHOLD, DIMENSION_ISSUE, formatRelativeTime } from '../../../utils.js'
@@ -53,35 +57,6 @@ function dimTier(score) {
   if (score >= 80) return 'pass'
   if (score >= 60) return 'warn'
   return 'fail'
-}
-
-// Backend gate status -> the page's status vocabulary.
-const BACKEND_STATUS_MAP = { passed: 'Passing', needs_review: 'Needs Review', blocked: 'Failing' }
-
-// Convert the backend ExtractRequirementsResult into the page's requirement shape.
-function mapBackendResult(result) {
-  const textById = Object.fromEntries((result?.requirements || []).map((r) => [r.id, r.text]))
-  const scored = result?.quality?.requirements || []
-  const now = new Date().toISOString()
-  return scored.map((q) => {
-    const text = textById[q.id] || ''
-    const dimensionScores = Object.fromEntries(
-      Object.entries(q.dimension_scores || {}).map(([key, v]) => [key, v?.score ?? 0]),
-    )
-    return {
-      id: q.id,
-      title: text.length > 72 ? `${text.slice(0, 72)}…` : text || q.id,
-      description: text,
-      priority: 'Medium',
-      status: BACKEND_STATUS_MAP[q.status] || 'Needs Review',
-      overallScore: q.overall_score,
-      dimensionScores,
-      suggestedRewrite: q.suggested_rewrite || null,
-      lastChecked: now,
-      confidence: q.confidence,
-      dartTriggered: q.dart_triggered,
-    }
-  })
 }
 
 const DIM_ICON = {
@@ -139,25 +114,47 @@ let manualIdCounter = 200
 
 export default function SRSQuality() {
   const team = useTeamPath()
-  const { requirements, addRequirement, updateRequirementText, rescoreRequirement, getRequirementHistory, loadRequirements } =
+  const { requirements, addRequirement, updateRequirementText, applyRequirementResult, getRequirementHistory, loadRequirements } =
     usePlanningData()
-  const [selectedId, setSelectedId] = useState(requirements[0]?.id ?? null)
+  const uploadMut = useUploadSrs()
+  const analyzeMut = useAnalyzeQuality()
+  const resultsQuery = useQualityResults()
+  const [selectedId, setSelectedId] = useState(null)
   const [checkingId, setCheckingId] = useState(null)
   const [draft, setDraft] = useState(null)
-  const [uploading, setUploading] = useState(false)
-  const [docName, setDocName] = useState('SRS_NexaPlan_v3.docx')
+  const [docName, setDocName] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [newReq, setNewReq] = useState({ title: '', description: '', priority: 'High' })
   const [historyOpen, setHistoryOpen] = useState(false)
   const [guideOpen, setGuideOpen] = useState(false)
   const [consultOpen, setConsultOpen] = useState(false)
   const fileInputRef = useRef(null)
+  const uploading = uploadMut.isPending
 
-  const selected = requirements.find((r) => r.id === selectedId) || null
+  // Hydrate from the DB once (an empty payload simply leaves the upload empty state).
+  useEffect(() => {
+    const rows = resultsQuery.data?.requirements
+    if (rows && rows.length > 0 && requirements.length === 0) {
+      loadRequirements(mapPersistedRows(rows))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultsQuery.data])
+
+  // Falls back to the first requirement until the student picks one.
+  const selected = requirements.find((r) => r.id === selectedId) || requirements[0] || null
   const currentDraft =
     draft && draft.id === selectedId
       ? draft
       : { id: selectedId, title: selected?.title || '', description: selected?.description || '' }
+
+  // Re-check button validation: needs text, and either an edit or a stale flag.
+  const draftText = currentDraft.description.trim()
+  const textChanged =
+    !!selected &&
+    (draftText !== (selected.description || '').trim() ||
+      currentDraft.title.trim() !== (selected.title || '').trim())
+  const checking = !!selected && checkingId === selected.id
+  const canRecheck = !!selected && !!draftText && (textChanged || selected.stale) && !checking
 
   const avgScore = requirements.length
     ? Math.round(requirements.reduce((sum, r) => sum + r.overallScore, 0) / requirements.length)
@@ -172,27 +169,46 @@ export default function SRSQuality() {
     setHistoryOpen(false)
   }
 
-  function runQualityCheck(reqId, patch) {
-    setCheckingId(reqId)
+  // Re-check: calls the REAL backend and writes ABSOLUTE scores (fixes the
+  // climbing-score bug). Only runs on non-empty text.
+  async function runQualityCheck(reqId, patch) {
     if (patch) updateRequirementText(reqId, patch)
-    setTimeout(() => {
-      const req = requirements.find((r) => r.id === reqId)
-      const delta = req?.status === 'Passing' ? Math.floor(Math.random() * 3) : 6 + Math.floor(Math.random() * 8)
-      rescoreRequirement(reqId, delta)
-      setCheckingId(null)
-      setDraft(null)
-      showToast.success('AI Analysis Complete', {
-        description: `${reqId} re-evaluated across all 6 IEEE dimensions.`,
+    const text = (patch?.description ?? selected?.description ?? '').trim()
+    if (!text) {
+      showToast.error('Nothing to check', { description: 'Add requirement text before running a quality check.' })
+      return
+    }
+    setCheckingId(reqId)
+    try {
+      const result = await analyzeMut.mutateAsync({
+        requirements: [{ id: reqId, text, type: 'functional' }],
+        threshold: QUALITY_GATE_THRESHOLD,
       })
-    }, 900)
+      const mapped = mapAnalyzeResult(result, text, {
+        title: patch?.title ?? selected?.title,
+        priority: selected?.priority,
+      })
+      if (mapped) {
+        applyRequirementResult(reqId, mapped)
+        setDraft(null)
+        showToast.success('Re-scored by the Quality agent', {
+          description: `${reqId}: ${mapped.overallScore}% (${mapped.status}).`,
+        })
+      }
+    } catch (err) {
+      showToast.error('Quality check failed', {
+        description: err?.message || 'Could not reach the Quality agent.',
+      })
+    } finally {
+      setCheckingId(null)
+    }
   }
 
   async function handleUpload(file) {
     if (!file) return
-    setUploading(true)
     try {
-      const result = await qualityService.uploadSrs(file, QUALITY_GATE_THRESHOLD)
-      const reqs = mapBackendResult(result)
+      const result = await uploadMut.mutateAsync({ file, threshold: QUALITY_GATE_THRESHOLD })
+      const reqs = mapExtractResult(result)
       if (reqs.length === 0) {
         showToast.error('No requirements found', {
           description: 'Use the SRS template and keep requirements in the FR-/NFR- tables.',
@@ -210,51 +226,34 @@ export default function SRSQuality() {
       showToast.error('Upload failed', {
         description: err?.message || 'Could not reach the Quality agent. Is the backend running?',
       })
-    } finally {
-      setUploading(false)
     }
   }
 
-  function submitManualRequirement() {
-    if (!newReq.title.trim()) return
+  // Manual add: score the new requirement with the REAL agent before storing it.
+  async function submitManualRequirement() {
+    const title = newReq.title.trim()
+    const description = (newReq.description || '').trim()
+    if (!title || !description) return
     const id = `REQ-1${manualIdCounter++}`
-    const desc = newReq.description || newReq.title
-    const wordCount = desc.trim().split(/\s+/).length
-
-    const clarity = Math.min(95, Math.max(60, 68 + (wordCount > 10 ? 12 : 0)))
-    const completeness = Math.min(95, Math.max(55, 62 + (desc.toLowerCase().includes('shall') ? 18 : 5)))
-    const consistency = 80
-    const testability = Math.min(95, Math.max(50, 65 + (desc.toLowerCase().includes('within') ? 20 : 5)))
-    const correctness = 82
-    const traceability = 80
-
-    const overallScore = Math.round((clarity + completeness + correctness + testability + consistency + traceability) / 6)
-    const status = overallScore >= 75 ? 'Passing' : overallScore >= 50 ? 'Needs Review' : 'Failing'
-
-    addRequirement({
-      id,
-      title: newReq.title.trim(),
-      description: desc.trim(),
-      priority: newReq.priority,
-      status,
-      overallScore,
-      dimensionScores: {
-        clarity,
-        completeness,
-        correctness,
-        testability,
-        consistency,
-        traceability,
-      },
-      suggestedRewrite: status !== 'Passing' ? 'Add quantifiable acceptance limits to fulfill IEEE 830 testability.' : null,
-      lastChecked: new Date().toISOString(),
-    })
-    setNewReq({ title: '', description: '', priority: 'High' })
-    setAddOpen(false)
-    setSelectedId(id)
-    showToast.success('Requirement added and scored', {
-      description: `${id} scored at ${overallScore}% (${status}). Review dimension breakdown on the right.`,
-    })
+    try {
+      const result = await analyzeMut.mutateAsync({
+        requirements: [{ id, text: description, type: 'functional' }],
+        threshold: QUALITY_GATE_THRESHOLD,
+      })
+      const mapped = mapAnalyzeResult(result, description, { title, priority: newReq.priority })
+      if (!mapped) throw new Error('No score returned by the agent.')
+      addRequirement(mapped)
+      setNewReq({ title: '', description: '', priority: 'High' })
+      setAddOpen(false)
+      setSelectedId(id)
+      showToast.success('Requirement added and scored', {
+        description: `${id}: ${mapped.overallScore}% (${mapped.status}).`,
+      })
+    } catch (err) {
+      showToast.error('Scoring failed', {
+        description: err?.message || 'Could not reach the Quality agent.',
+      })
+    }
   }
 
   const openCases = selected ? getArbitrationForRequirement(selected.id).filter((c) => c.status === 'Open') : []
@@ -399,12 +398,15 @@ export default function SRSQuality() {
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-bold text-foreground truncate">{docName}</p>
-              <Badge tone="success" className="text-[10px] px-1.5 py-0">Active Baseline</Badge>
+              <p className="text-sm font-bold text-foreground truncate">{docName || 'No SRS uploaded yet'}</p>
+              {docName && <Badge tone="success" className="text-[10px] px-1.5 py-0">Active Baseline</Badge>}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {requirements.length} specifications extracted · {passingCount} passing · {attentionCount} need revision
-              {failingCount > 0 ? ` · ${failingCount} blocked` : ''}
+              {requirements.length === 0
+                ? 'Download the template, fill it in, and upload to get real IEEE 830 scores.'
+                : `${requirements.length} specifications · ${passingCount} passing · ${attentionCount} need revision${
+                    failingCount > 0 ? ` · ${failingCount} blocked` : ''
+                  }`}
             </p>
           </div>
         </div>
@@ -427,7 +429,7 @@ export default function SRSQuality() {
             variant="outline"
             className="text-xs cursor-pointer gap-1.5"
           >
-            <a href="/SRS_Template.docx" download>
+            <a href={srsTemplateUrl} download>
               <Download className="h-3.5 w-3.5" />
               Download Template
             </a>
@@ -453,7 +455,16 @@ export default function SRSQuality() {
       </Card>
 
       {/* Main 3-Column Studio */}
-      <LoadingState loading={uploading} variant="card" className="h-24">
+      <LoadingState loading={uploading || resultsQuery.isLoading} variant="card" className="h-24">
+        {requirements.length === 0 ? (
+          <EmptyState
+            icon={UploadCloud}
+            title="Upload your SRS to begin"
+            description="Download the template, fill in your functional (FR) and non-functional (NFR) requirements, then upload it. The Quality agent scores each requirement against the six IEEE 830 dimensions and gates it at ≥75."
+            actionLabel="Upload SRS (.docx)"
+            onAction={() => fileInputRef.current?.click()}
+          />
+        ) : (
         <div className="grid grid-cols-1 xl:grid-cols-[290px_1fr_310px] gap-5 items-start">
           {/* Column 1 — Requirements Directory */}
           <div className="space-y-3">
@@ -468,7 +479,7 @@ export default function SRSQuality() {
 
             <RequirementListPanel
               requirements={requirements}
-              selectedId={selectedId}
+              selectedId={selected?.id}
               onSelect={selectRequirement}
               maxHeight={620}
               getItemMeta={(r) => ({
@@ -490,6 +501,11 @@ export default function SRSQuality() {
                     <Badge tone={selected.priority === 'High' ? 'danger' : selected.priority === 'Medium' ? 'warning' : 'neutral'}>
                       {selected.priority} Priority
                     </Badge>
+                    {selected.stale && (
+                      <Badge tone="warning" className="text-[10px] gap-1">
+                        <AlertTriangle className="h-3 w-3" /> Edited — re-check needed
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
@@ -572,7 +588,14 @@ export default function SRSQuality() {
                     <Button
                       size="sm"
                       className="text-xs cursor-pointer gap-1.5"
-                      disabled={checkingId === selected.id}
+                      disabled={!canRecheck}
+                      title={
+                        !draftText
+                          ? 'Add requirement text first'
+                          : !textChanged && !selected.stale
+                            ? 'Edit the requirement to run a new check'
+                            : undefined
+                      }
                       onClick={() =>
                         runQualityCheck(selected.id, {
                           title: currentDraft.title,
@@ -580,8 +603,8 @@ export default function SRSQuality() {
                         })
                       }
                     >
-                      <RefreshCw className={`h-3.5 w-3.5 ${checkingId === selected.id ? 'animate-spin' : ''}`} />
-                      {checkingId === selected.id ? 'Evaluating Multi-Agent Gate...' : 'Save & Run Quality Check'}
+                      <RefreshCw className={`h-3.5 w-3.5 ${checking ? 'animate-spin' : ''}`} />
+                      {checking ? 'Re-scoring…' : 'Save & Re-check Quality'}
                     </Button>
                   </div>
                 </div>
@@ -638,6 +661,9 @@ export default function SRSQuality() {
                   )}
                 </div>
               </Card>
+
+              {/* Glass-box: what the agent used for this score (NFR-05) */}
+              <QualityEvidencePanel requirement={selected} />
 
               {/* DART Reasoning Flag Callout */}
               {openCases.length > 0 && (
@@ -719,7 +745,13 @@ export default function SRSQuality() {
                   {QUALITY_DIMENSIONS.map((dim) => {
                     const score = selected.dimensionScores?.[dim.key] ?? 0
                     const tier = dimTier(score)
-                    const info = DIMENSION_ISSUE[dim.key]
+                    // Prefer the agent's OWN rationale/issues for this exact requirement;
+                    // fall back to the generic static copy only when the real data is missing
+                    // (e.g. a requirement scored before this field existed).
+                    const real = selected.dimensionDetails?.[dim.key]
+                    const fallback = DIMENSION_ISSUE[dim.key]
+                    const issueText = real?.issues?.[0] || real?.rationale || fallback?.issue
+                    const remedyText = selected.suggestedRewrite ? null : fallback?.suggestion
 
                     return (
                       <div
@@ -740,16 +772,20 @@ export default function SRSQuality() {
                           <span className="font-bold text-foreground text-xs">{score}%</span>
                         </div>
 
-                        {tier !== 'pass' && info && (
+                        {tier !== 'pass' && (issueText || remedyText) && (
                           <div className="mt-1 pt-1 border-t border-border/40 space-y-1 text-[11px] text-muted-foreground">
-                            <p className="text-foreground font-medium">
-                              <span className="text-destructive font-semibold">Issue: </span>
-                              {info.issue}
-                            </p>
-                            <p>
-                              <span className="font-semibold text-foreground">Remedy: </span>
-                              {info.suggestion}
-                            </p>
+                            {issueText && (
+                              <p className="text-foreground font-medium">
+                                <span className="text-destructive font-semibold">Issue: </span>
+                                {issueText}
+                              </p>
+                            )}
+                            {remedyText && (
+                              <p>
+                                <span className="font-semibold text-foreground">Remedy: </span>
+                                {remedyText}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>
@@ -771,6 +807,7 @@ export default function SRSQuality() {
             </div>
           )}
         </div>
+        )}
       </LoadingState>
 
       <DartButton context="quality" />
@@ -841,10 +878,15 @@ export default function SRSQuality() {
             <Button
               size="sm"
               onClick={submitManualRequirement}
-              disabled={!newReq.title.trim()}
+              disabled={!newReq.title.trim() || !newReq.description.trim() || analyzeMut.isPending}
               className="text-xs cursor-pointer gap-1.5"
             >
-              <Plus className="h-3.5 w-3.5" /> Submit &amp; Score
+              {analyzeMut.isPending ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Plus className="h-3.5 w-3.5" />
+              )}
+              {analyzeMut.isPending ? 'Scoring…' : 'Submit & Score'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,0 +1,68 @@
+[
+  {
+    "id": "ieee830-clarity",
+    "category": "ieee830",
+    "dimension": "clarity",
+    "text": "IEEE 830 — Unambiguous (Clarity): every requirement has exactly one interpretation. Avoid subjective words such as 'user-friendly', 'fast', 'efficient', 'flexible', 'secure', 'robust', or 'easy', because different readers interpret them differently. Replace them with precise, operational language: 'The system shall <actor> <action> <object> when <condition>.' A requirement is clear when a developer and a tester reading it independently would build and verify the same behaviour."
+  },
+  {
+    "id": "ieee830-completeness",
+    "category": "ieee830",
+    "dimension": "completeness",
+    "text": "IEEE 830 — Complete (Completeness): the requirement states the actor, the action, the object, the triggering condition, the valid input ranges, the expected outputs, and the behaviour for error/exception cases. A requirement is incomplete if it omits what happens on invalid input, boundary values, or failure. Example gap: 'The system shall let users log in' omits credentials, validation, lockout, and failure handling."
+  },
+  {
+    "id": "ieee830-correctness",
+    "category": "ieee830",
+    "dimension": "correctness",
+    "text": "IEEE 830 — Correct (Correctness): every requirement stated is one the software must actually meet, reflecting a genuine, accurate stakeholder need. A requirement is incorrect when it describes behaviour that is wrong for the goal, technically impossible, or contradicts the domain. Check that the stated behaviour is the intended one and is technically sound."
+  },
+  {
+    "id": "ieee830-testability",
+    "category": "ieee830",
+    "dimension": "testability",
+    "text": "IEEE 830 — Verifiable (Testability): a finite, cost-effective process (a test case) exists to check that the delivered software meets the requirement. Requirements with unquantified terms ('quickly', 'reliably', 'as needed') are not verifiable. Make them measurable: a number, a time limit (e.g. 'within 2 seconds'), a throughput, or a concrete pass/fail condition."
+  },
+  {
+    "id": "ieee830-consistency",
+    "category": "ieee830",
+    "dimension": "consistency",
+    "text": "IEEE 830 — Consistent (Consistency): no requirement conflicts with another, and no single requirement bundles contradictory or multiple obligations. Internal conflicts include different terms for the same thing, or two requirements that cannot both hold. A compound requirement ('the system shall X while also Y') breaks atomicity and should be split. Check each requirement against the rest of the SRS."
+  },
+  {
+    "id": "ieee830-traceability",
+    "category": "ieee830",
+    "dimension": "traceability",
+    "text": "IEEE 830 — Traceable (Traceability): each requirement is uniquely identified (e.g. FR-01) and can be linked backward to its source/goal and forward to design, code and test artifacts. A requirement is hard to trace if it has no identifier, bundles several concerns, or cannot be tied to a stated objective. Keep each requirement atomic and labelled so it can be followed through the project."
+  },
+  {
+    "id": "smart-specific",
+    "category": "smart",
+    "dimension": "clarity",
+    "text": "SMART — Specific: the requirement targets one well-defined behaviour with a clear actor and action, not a vague aspiration. 'The system shall be modern' is not specific; 'The system shall display search results in a paginated list of 20 items per page' is."
+  },
+  {
+    "id": "smart-measurable",
+    "category": "smart",
+    "dimension": "testability",
+    "text": "SMART — Measurable: the requirement includes a quantity or condition you can measure to confirm it is met — a time, a count, a percentage, or an explicit state. 'The system shall respond fast' is not measurable; 'The system shall return search results within 2 seconds for up to 10,000 records' is."
+  },
+  {
+    "id": "smart-achievable",
+    "category": "smart",
+    "dimension": "correctness",
+    "text": "SMART — Achievable: the requirement is realistic within the project's technology, time and resources. Check dependencies on third-party APIs, hardware and model constraints before committing to it."
+  },
+  {
+    "id": "smart-relevant",
+    "category": "smart",
+    "dimension": "traceability",
+    "text": "SMART — Relevant: the requirement contributes to a stated project goal and stays within scope. An out-of-scope or tangential requirement inflates effort and dilutes focus; tie each requirement to an approved objective."
+  },
+  {
+    "id": "smart-timebound",
+    "category": "smart",
+    "dimension": "testability",
+    "text": "SMART — Time-bound: where timing matters, the requirement states the time constraint explicitly (response time, deadline, timeout). 'The system shall process the upload promptly' is not time-bound; 'The system shall process a 5 MB upload within 10 seconds' is."
+  }
+]

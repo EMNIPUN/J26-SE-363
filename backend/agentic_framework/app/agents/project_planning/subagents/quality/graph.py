@@ -21,10 +21,16 @@ import logging
 
 from langgraph.graph import END, START, StateGraph
 
+from app.agents.project_planning.knowledge import (
+    cross_req_check,
+    query_exemplars,
+    query_standards,
+)
 from app.agents.project_planning.llm import get_llm_client
 from app.agents.project_planning.schemas import (
     RequirementInput,
     RequirementQualityResult,
+    RetrievalEvidence,
 )
 from app.agents.project_planning.subagents.quality.prompts import (
     REFLECT_SYSTEM_PROMPT,
@@ -46,7 +52,19 @@ MAX_REFLECT = 1       # at most one reflect-driven re-score
 AGENT_TIMEOUT_SECONDS = 150.0  # generous: allows for 429 rate-limit back-offs
 
 TOOL_SMELL_DETECTOR = "smell_detector"
+TOOL_STANDARD_RETRIEVER = "standard_retriever"
+TOOL_EXEMPLAR_RETRIEVER = "exemplar_retriever"
+TOOL_CROSS_REQ_CHECKER = "cross_req_checker"
 TOOL_DIMENSION_SCORER = "dimension_scorer"
+
+# The agent gathers evidence (smells + RAG retrieval + cross-req similarity)
+# before it scores. Each gathering tool runs once; dimension_scorer may re-run.
+_GATHER_TOOLS = (
+    TOOL_SMELL_DETECTOR,
+    TOOL_STANDARD_RETRIEVER,
+    TOOL_EXEMPLAR_RETRIEVER,
+    TOOL_CROSS_REQ_CHECKER,
+)
 
 
 # --- nodes ------------------------------------------------------------------
@@ -60,8 +78,8 @@ def reason(state: QualityState) -> QualityState:
     pending: str | None
     if iterations > MAX_ITERATIONS:
         pending = None  # safety: stop gathering, go reflect/finalize
-    elif TOOL_SMELL_DETECTOR not in tools_run:
-        pending = TOOL_SMELL_DETECTOR
+    elif next_gather := next((t for t in _GATHER_TOOLS if t not in tools_run), None):
+        pending = next_gather  # keep gathering evidence
     elif TOOL_DIMENSION_SCORER not in tools_run or state.get("reflection_note"):
         pending = TOOL_DIMENSION_SCORER  # score, or re-score after a reflection note
     else:
@@ -74,26 +92,44 @@ async def execute_tool(state: QualityState) -> QualityState:
     """Run the tool the reason step selected, writing its observation into state."""
     tool = state.get("pending_tool")
     tools_run = [*state.get("tools_run", [])]
+    text = state["requirement_text"]
+
+    def mark(name: str) -> None:
+        if name not in tools_run:
+            tools_run.append(name)
 
     if tool == TOOL_SMELL_DETECTOR:
-        smells = detect_smells(state["requirement_text"])
-        if TOOL_SMELL_DETECTOR not in tools_run:
-            tools_run.append(TOOL_SMELL_DETECTOR)
-        return {
-            "smells": smells,
-            "smell_spans": [s.span or s.type for s in smells],
-            "tools_run": tools_run,
-        }
+        mark(TOOL_SMELL_DETECTOR)
+        smells = detect_smells(text)
+        return {"smells": smells, "smell_spans": [s.span or s.type for s in smells], "tools_run": tools_run}
+
+    if tool == TOOL_STANDARD_RETRIEVER:
+        mark(TOOL_STANDARD_RETRIEVER)
+        return {"retrieved_standards": await _safe_retrieve(query_standards, text, state), "tools_run": tools_run}
+
+    if tool == TOOL_EXEMPLAR_RETRIEVER:
+        mark(TOOL_EXEMPLAR_RETRIEVER)
+        return {"retrieved_exemplars": await _safe_retrieve(query_exemplars, text, state), "tools_run": tools_run}
+
+    if tool == TOOL_CROSS_REQ_CHECKER:
+        mark(TOOL_CROSS_REQ_CHECKER)
+        try:
+            hits = await asyncio.to_thread(cross_req_check, text, state.get("other_texts", []))
+        except Exception:
+            logger.exception("cross_req_checker failed for %s", state.get("requirement_id"))
+            hits = []
+        return {"cross_req_hits": hits, "tools_run": tools_run}
 
     if tool == TOOL_DIMENSION_SCORER:
-        if TOOL_DIMENSION_SCORER not in tools_run:
-            tools_run.append(TOOL_DIMENSION_SCORER)
+        mark(TOOL_DIMENSION_SCORER)
         try:
             data = await request_dimension_scores(
-                state["requirement_text"],
+                text,
                 state.get("smell_spans", []),
-                state.get("other_texts", []),
-                state.get("reflection_note"),
+                standards=state.get("retrieved_standards"),
+                exemplars=state.get("retrieved_exemplars"),
+                cross_hits=state.get("cross_req_hits"),
+                reflection_note=state.get("reflection_note"),
             )
             return {"dimensions_raw": data, "tools_run": tools_run, "reflection_note": None}
         except Exception:
@@ -101,6 +137,15 @@ async def execute_tool(state: QualityState) -> QualityState:
             return {"scoring_failed": True, "tools_run": tools_run, "reflection_note": None}
 
     return {}  # no-op
+
+
+async def _safe_retrieve(fn, text: str, state: QualityState) -> list[dict]:
+    """Run a sync retrieval tool off the event loop; degrade to [] on failure."""
+    try:
+        return await asyncio.to_thread(fn, text, 3)
+    except Exception:
+        logger.exception("%s failed for %s", fn.__name__, state.get("requirement_id"))
+        return []
 
 
 async def reflect(state: QualityState) -> QualityState:
@@ -154,8 +199,14 @@ def finalize(state: QualityState) -> QualityState:
     smells = state.get("smells", [])
     threshold = state.get("threshold", 75)
 
+    retrieval = RetrievalEvidence(
+        standards=state.get("retrieved_standards") or [],
+        exemplars=state.get("retrieved_exemplars") or [],
+        cross_req_hits=state.get("cross_req_hits") or [],
+    )
+
     if state.get("scoring_failed") or not state.get("dimensions_raw"):
-        return {"result": heuristic_result(req_id, smells, threshold)}
+        return {"result": heuristic_result(req_id, smells, threshold, retrieval=retrieval)}
 
     result = build_result(
         req_id,
@@ -163,6 +214,7 @@ def finalize(state: QualityState) -> QualityState:
         state["dimensions_raw"],
         threshold,
         confidence_override=state.get("reflection_confidence"),
+        retrieval=retrieval,
     )
     return {"result": result}
 

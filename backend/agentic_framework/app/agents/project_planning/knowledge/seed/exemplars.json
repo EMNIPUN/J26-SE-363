@@ -1,0 +1,74 @@
+[
+  {
+    "id": "ex-login-high",
+    "quality": "high",
+    "requirement": "The system shall lock a user account for 15 minutes after 5 consecutive failed login attempts and display the remaining lockout time to the user.",
+    "note": "Specific actor/action/object, measurable thresholds (5 attempts, 15 minutes), testable, single obligation."
+  },
+  {
+    "id": "ex-login-low",
+    "quality": "low",
+    "requirement": "The system shall provide a user-friendly and secure login page that is fast.",
+    "note": "Vague subjective terms ('user-friendly', 'secure', 'fast') with no measurable criteria; not testable."
+  },
+  {
+    "id": "ex-search-high",
+    "quality": "high",
+    "requirement": "The system shall return search results within 2 seconds for queries over a catalogue of up to 50,000 products, displaying 20 results per page.",
+    "note": "Quantified time limit, scale, and pagination; verifiable."
+  },
+  {
+    "id": "ex-search-medium",
+    "quality": "medium",
+    "requirement": "The system shall allow users to search for products by name and show the matching results.",
+    "note": "Clear actor/action but missing performance, ranking, and empty-result behaviour; incomplete."
+  },
+  {
+    "id": "ex-upload-high",
+    "quality": "high",
+    "requirement": "The system shall accept document uploads of type .pdf or .docx up to 10 MB, and reject other types or larger files with a descriptive error message.",
+    "note": "States valid ranges, accepted types, and error handling; complete and testable."
+  },
+  {
+    "id": "ex-compound-low",
+    "quality": "low",
+    "requirement": "The system shall let a student upload an SRS and automatically generate a sprint backlog while also notifying the instructor.",
+    "note": "Compound requirement bundling three obligations ('upload', 'generate backlog', 'notify'); violates atomicity — should be split."
+  },
+  {
+    "id": "ex-notify-medium",
+    "quality": "medium",
+    "requirement": "The system shall notify the relevant people when an error occurs.",
+    "note": "Ambiguous: 'relevant people' and 'an error' are undefined; not specific or testable."
+  },
+  {
+    "id": "ex-report-high",
+    "quality": "high",
+    "requirement": "The system shall generate a PDF report of all requirements and their quality scores within 5 seconds of the user requesting it.",
+    "note": "Single obligation, measurable time limit, clear output; verifiable."
+  },
+  {
+    "id": "ex-reliability-low",
+    "quality": "low",
+    "requirement": "The system shall be reliable.",
+    "note": "No actor, action, or measurable criterion; untestable non-functional aspiration."
+  },
+  {
+    "id": "ex-availability-high",
+    "quality": "high",
+    "requirement": "The system shall maintain 99.5% uptime measured monthly, excluding scheduled maintenance announced 24 hours in advance.",
+    "note": "Quantified non-functional requirement with a clear, measurable target and exclusion."
+  },
+  {
+    "id": "ex-override-high",
+    "quality": "high",
+    "requirement": "The system shall allow an instructor to override a blocked requirement, recording the instructor's identity and the timestamp of the override.",
+    "note": "Specific actor, action, and auditable outcome; traceable and testable."
+  },
+  {
+    "id": "ex-role-medium",
+    "quality": "medium",
+    "requirement": "The system shall support different user roles with appropriate permissions.",
+    "note": "'Appropriate' is vague and the roles/permissions are unspecified; needs enumeration to be complete and testable."
+  }
+]

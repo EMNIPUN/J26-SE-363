@@ -35,6 +35,15 @@ export const qualityService = {
    */
   analyzeQuality: (requirements, threshold = 75) =>
     apiClient.post(ENDPOINTS.PLANNING.QUALITY, { requirements, threshold }, { timeout: 120000 }),
+
+  /** Latest stored result per requirement for the active team (hydrates the page). */
+  getResults: () => apiClient.get(ENDPOINTS.PLANNING.QUALITY),
+
+  /** All stored versions of one requirement (history drawer). */
+  getHistory: (requirementRef) => apiClient.get(ENDPOINTS.PLANNING.QUALITY_HISTORY(requirementRef)),
 }
+
+/** Direct download URL for the backend-generated SRS template (plain <a download>). */
+export const srsTemplateUrl = `${import.meta.env.VITE_API_BASE_URL || '/api'}${ENDPOINTS.PLANNING.SRS_TEMPLATE}`
 
 export default qualityService

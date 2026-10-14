@@ -17,6 +17,7 @@ from app.agents.project_planning.schemas import (
     DimensionScore,
     RequirementInput,
     RequirementQualityResult,
+    RetrievalEvidence,
     Smell,
 )
 from app.agents.project_planning.subagents.quality.prompts import (
@@ -38,15 +39,19 @@ def _clamp_score(value: object) -> int:
 async def request_dimension_scores(
     requirement_text: str,
     smell_spans: list[str],
-    other_texts: list[str],
+    *,
+    standards: list[dict] | None = None,
+    exemplars: list[dict] | None = None,
+    cross_hits: list[dict] | None = None,
     reflection_note: str | None = None,
 ) -> dict:
-    """Call the LLM for the six-dimension scores. Returns the parsed JSON dict
+    """Call the LLM for the six-dimension scores, grounded in the retrieved
+    standards/exemplars/cross-requirement evidence. Returns the parsed JSON dict
     ({dimensions, confidence, suggested_rewrite}). Raises on failure/misconfig."""
     client = get_llm_client()
     return await client.complete_json(
         SYSTEM_PROMPT,
-        build_user_prompt(requirement_text, smell_spans, other_texts, reflection_note),
+        build_user_prompt(requirement_text, smell_spans, standards, exemplars, cross_hits, reflection_note),
         max_tokens=2500,
     )
 
@@ -57,6 +62,7 @@ def build_result(
     data: dict,
     threshold: int,
     confidence_override: float | None = None,
+    retrieval: RetrievalEvidence | None = None,
 ) -> RequirementQualityResult:
     dims_in = data.get("dimensions", {})
     dimension_scores: dict[str, DimensionScore] = {}
@@ -87,6 +93,7 @@ def build_result(
         suggested_rewrite=(data.get("suggested_rewrite") or None),
         confidence=confidence,
         dart_triggered=dart,
+        retrieval=retrieval,
     )
 
 
@@ -102,7 +109,7 @@ async def score_requirement(
     if client.configured:
         try:
             data = await request_dimension_scores(
-                req.text, [s.span or s.type for s in smells], other_texts
+                req.text, [s.span or s.type for s in smells]
             )
             return build_result(req.id, smells, data, threshold)
         except Exception:
@@ -127,6 +134,7 @@ def heuristic_result(
     req_id: str,
     smells: list[Smell],
     threshold: int,
+    retrieval: RetrievalEvidence | None = None,
 ) -> RequirementQualityResult:
     """Transparent, LLM-free scoring so the component degrades instead of crashing."""
     penalty = sum(_SMELL_PENALTY.get(s.type, 5) for s in smells)
@@ -149,4 +157,5 @@ def heuristic_result(
         suggested_rewrite=None,
         confidence=0.5,
         dart_triggered=dart,
+        retrieval=retrieval,
     )

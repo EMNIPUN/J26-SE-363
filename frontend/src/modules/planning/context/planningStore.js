@@ -6,12 +6,9 @@
 // Estimation / Sprint Management. Living outside the component tree, this
 // store survives navigation and only resets on a full page reload.
 import {
-  REQUIREMENTS,
   USER_STORIES_SEED,
   STORY_ESTIMATIONS_SEED,
   KANBAN_SEED,
-  QUALITY_DIMENSIONS,
-  ACTIVITY_FEED,
   PROJECT_INFO,
 } from '../data/mockData.js'
 
@@ -25,40 +22,22 @@ function nextDueDate(existingCount) {
   return new Date(start + span * slot).toISOString().slice(0, 10)
 }
 
-function statusFromScore(score) {
-  if (score >= 75) return 'Passing'
-  if (score >= 50) return 'Needs Review'
-  return 'Failing'
-}
-
 let idCounter = 2000
 function nextId(prefix) {
   idCounter += 1
   return `${prefix}-${idCounter}`
 }
 
-const initialHistory = Object.fromEntries(
-  REQUIREMENTS.map((r) => [
-    r.id,
-    [{ version: 1, score: r.overallScore, status: r.status, timestamp: r.lastChecked }],
-  ]),
-)
-
-const initialActivity = ACTIVITY_FEED.map((a) => ({
-  id: nextId('ACT'),
-  text: a.text,
-  tone: a.tone,
-  category: a.category,
-  timestamp: new Date().toISOString(),
-}))
-
+// Requirements start EMPTY and are filled only by the real backend (SRS upload,
+// re-check, or DB hydration). The story/estimation/kanban seeds remain as
+// placeholders for agents not yet built; they stay inert until a real SRS exists.
 let state = {
-  requirements: REQUIREMENTS,
+  requirements: [],
   userStories: USER_STORIES_SEED,
   estimations: STORY_ESTIMATIONS_SEED,
   kanbanTasks: KANBAN_SEED,
-  requirementHistory: initialHistory,
-  activityLog: initialActivity,
+  requirementHistory: {},
+  activityLog: [],
   decompositionEvaluations: {},
 }
 
@@ -110,39 +89,39 @@ export const actions = {
     })
   },
 
-  rescoreRequirement(id, delta) {
-    const current = state.requirements.find((r) => r.id === id)
-    if (!current) return
-    const dimensionScores = Object.fromEntries(
-      Object.entries(current.dimensionScores).map(([k, v]) => [k, Math.min(100, v + delta)]),
-    )
-    const overallScore = Math.min(
-      100,
-      Math.round(Object.values(dimensionScores).reduce((a, b) => a + b, 0) / QUALITY_DIMENSIONS.length),
-    )
-    const status = statusFromScore(overallScore)
+  // Write an ABSOLUTE backend re-score onto an existing requirement (replaces the
+  // scores — never adds a delta), clears the stale flag, and appends a history
+  // version. This is the real fix for the "score keeps climbing" bug.
+  applyRequirementResult(id, mapped) {
     const prevHistory = state.requirementHistory[id] || []
-
     setState({
       requirements: state.requirements.map((r) =>
-        r.id === id ? { ...r, dimensionScores, overallScore, status } : r,
+        r.id === id ? { ...r, ...mapped, stale: false } : r,
       ),
       requirementHistory: {
         ...state.requirementHistory,
         [id]: [
           ...prevHistory,
-          { version: prevHistory.length + 1, score: overallScore, status, timestamp: new Date().toISOString() },
+          {
+            version: prevHistory.length + 1,
+            score: mapped.overallScore,
+            status: mapped.status,
+            timestamp: mapped.lastChecked || new Date().toISOString(),
+          },
         ],
       },
       activityLog: withActivity(
-        `Quality Gate re-scored ${id} — now ${overallScore}% (${status}).`,
-        status === 'Passing' ? 'success' : status === 'Failing' ? 'danger' : 'warning',
+        `Quality Gate re-scored ${id} — now ${mapped.overallScore}% (${mapped.status}).`,
+        mapped.status === 'Passing' ? 'success' : mapped.status === 'Failing' ? 'danger' : 'warning',
       ),
     })
   },
 
+  // Local edit of the requirement text — marks it stale so the UI prompts a re-check.
   updateRequirementText(id, patch) {
-    setState({ requirements: state.requirements.map((r) => (r.id === id ? { ...r, ...patch } : r)) })
+    setState({
+      requirements: state.requirements.map((r) => (r.id === id ? { ...r, ...patch, stale: true } : r)),
+    })
   },
 
   getRequirementHistory(id) {

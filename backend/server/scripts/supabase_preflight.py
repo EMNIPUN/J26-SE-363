@@ -353,6 +353,24 @@ APP_TABLES: dict[str, TableSpec] = {
             "ix_agent_runs_status": Index(("status",)),
         },
     ),
+    "requirement_quality_results": TableSpec(
+        columns={
+            "id": (UUID, True),
+            "project_id": (varchar(255), True),
+            "requirement_ref": (varchar(64), True),
+            "requirement_text": (TEXT, True),
+            "result": (JSONB, True),
+            **TIMESTAMPS,
+        },
+        primary_key=("id",),
+        unique={},
+        foreign_keys={},
+        checks={},
+        indexes={
+            "ix_requirement_quality_results_project_id": Index(("project_id",)),
+            "ix_requirement_quality_results_requirement_ref": Index(("requirement_ref",)),
+        },
+    ),
 }
 
 # --- queries: catalog reads, one data read (the Alembic version), no writes ------------------
