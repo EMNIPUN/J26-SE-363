@@ -38,7 +38,7 @@ ACTION_ANALYZE_QUALITY = "planning.analyze_quality"
 ACTION_EXTRACT_REQUIREMENTS = "planning.extract_requirements"
 ACTION_ANALYZE_DECOMPOSITION = "planning.analyze_decomposition"
 
-# Keep concurrent LLM usage under the Groq free-tier tokens-per-minute limit.
+# Keep concurrent LLM usage under the provider's tokens-per-minute limit.
 _MAX_CONCURRENT_SCORING = 3
 
 

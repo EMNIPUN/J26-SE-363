@@ -1,8 +1,5 @@
-"""LLM access for the Project Planning agent (Groq)."""
+"""LLM access for the Project Planning agent (provider-agnostic, OpenAI-compatible)."""
 
-from app.agents.project_planning.llm.groq_client import (
-    PlanningGroqClient,
-    get_groq_client,
-)
+from app.agents.project_planning.llm.client import PlanningLLM, get_llm_client
 
-__all__ = ["PlanningGroqClient", "get_groq_client"]
+__all__ = ["PlanningLLM", "get_llm_client"]

@@ -1,16 +1,16 @@
 """Quality scoring primitives, shared by the ReAct graph and the direct fallback.
 
-- ``request_dimension_scores``: the Groq call behind the ``dimension_scorer`` tool.
+- ``request_dimension_scores``: the LLM call behind the ``dimension_scorer`` tool.
 - ``build_result``: turn raw LLM dimensions into a gated RequirementQualityResult.
 - ``score_requirement``: single-shot direct path — the fallback used when the ReAct
-  graph times out or errors, with a deterministic heuristic if Groq is unavailable.
+  graph times out or errors, with a deterministic heuristic if the LLM is unavailable.
 """
 
 from __future__ import annotations
 
 import logging
 
-from app.agents.project_planning.llm import get_groq_client
+from app.agents.project_planning.llm import get_llm_client
 from app.agents.project_planning.orchestrator.gates import evaluate_gate
 from app.agents.project_planning.schemas import (
     QUALITY_DIMENSIONS,
@@ -41,13 +41,13 @@ async def request_dimension_scores(
     other_texts: list[str],
     reflection_note: str | None = None,
 ) -> dict:
-    """Call Groq for the six-dimension scores. Returns the parsed JSON dict
+    """Call the LLM for the six-dimension scores. Returns the parsed JSON dict
     ({dimensions, confidence, suggested_rewrite}). Raises on failure/misconfig."""
-    client = get_groq_client()
+    client = get_llm_client()
     return await client.complete_json(
         SYSTEM_PROMPT,
         build_user_prompt(requirement_text, smell_spans, other_texts, reflection_note),
-        max_tokens=1200,
+        max_tokens=2500,
     )
 
 
@@ -97,7 +97,7 @@ async def score_requirement(
 ) -> RequirementQualityResult:
     """Direct single-shot scoring (the ReAct graph's fallback)."""
     smells = detect_smells(req.text)
-    client = get_groq_client()
+    client = get_llm_client()
 
     if client.configured:
         try:
@@ -106,7 +106,7 @@ async def score_requirement(
             )
             return build_result(req.id, smells, data, threshold)
         except Exception:
-            logger.exception("Groq scoring failed for %s; using heuristic fallback", req.id)
+            logger.exception("LLM scoring failed for %s; using heuristic fallback", req.id)
 
     return heuristic_result(req.id, smells, threshold)
 

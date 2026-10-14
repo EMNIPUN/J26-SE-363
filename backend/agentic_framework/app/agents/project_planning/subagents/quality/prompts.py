@@ -1,4 +1,4 @@
-"""Prompts for the Quality dimension scorer (Groq, JSON mode)."""
+"""Prompts for the Quality dimension scorer (LLM, JSON mode)."""
 
 from __future__ import annotations
 

@@ -21,7 +21,7 @@ import logging
 
 from langgraph.graph import END, START, StateGraph
 
-from app.agents.project_planning.llm import get_groq_client
+from app.agents.project_planning.llm import get_llm_client
 from app.agents.project_planning.schemas import (
     RequirementInput,
     RequirementQualityResult,
@@ -113,7 +113,7 @@ async def reflect(state: QualityState) -> QualityState:
         return {"reflection_note": None}
 
     reflect_count = state.get("reflect_count", 0) + 1
-    client = get_groq_client()
+    client = get_llm_client()
     data = state["dimensions_raw"]
     first_pass_confidence = float(data.get("confidence", 0.8) or 0.8)
     has_smells = bool(state.get("smell_spans"))
