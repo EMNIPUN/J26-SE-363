@@ -7,6 +7,7 @@ from app.models.decomposition import DecompositionRecord
 from app.models.group import Group, GroupMember
 from app.models.project import Project, ProjectDocument
 from app.models.requirement_quality import RequirementQualityRecord
+from app.models.sprint_task import SprintTaskRecord
 from app.models.user import User
 from app.models.user_story import UserStoryRecord
 
@@ -20,6 +21,7 @@ __all__ = [
     "Project",
     "ProjectDocument",
     "RequirementQualityRecord",
+    "SprintTaskRecord",
     "User",
     "UserStoryRecord",
 ]

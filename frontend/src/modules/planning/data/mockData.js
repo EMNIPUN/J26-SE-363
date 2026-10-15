@@ -351,18 +351,7 @@ export const USER_STORIES_SEED = {
 // been accepted in Decomposition. The AI side stays blank until the student
 // submits their own estimate first (aiRevealed unlocks it) — same shape the
 // page seeds automatically for any newly-accepted story.
-export const STORY_ESTIMATIONS_SEED = {
-  'US-101-2': {
-    studentPoints: null,
-    aiPoints: null,
-    aiConfidence: null,
-    aiFactors: null,
-    aiRevealed: false,
-    finalPoints: null,
-    reason: '',
-    confirmed: false,
-  },
-}
+export const STORY_ESTIMATIONS_SEED = {}
 
 export const STORY_POINT_SCALE = [1, 2, 3, 5, 8, 13, 21]
 
@@ -370,60 +359,7 @@ export const STORY_POINT_SCALE = [1, 2, 3, 5, 8, 13, 21]
 // Sprint Management — Kanban board, seeded with a few already-confirmed cards
 // so the board isn't empty on first load.
 // ---------------------------------------------------------------------------
-export const KANBAN_SEED = [
-  {
-    id: 'K-1',
-    title: 'Build free-text intake form',
-    requirementId: 'REQ-101',
-    storyId: 'US-101-1',
-    points: 3,
-    status: 'Done',
-    assigneeId: 'u1',
-    dueDate: '2026-09-17',
-  },
-  {
-    id: 'K-2',
-    title: 'Compute effort estimate with confidence interval',
-    requirementId: 'REQ-105',
-    storyId: 'US-105-1',
-    points: 8,
-    status: 'In Progress',
-    assigneeId: 'u3',
-    dueDate: '2026-09-23',
-  },
-  {
-    id: 'K-3',
-    title: 'Draft weekly supervisor digest job',
-    requirementId: 'REQ-102',
-    storyId: null,
-    points: 5,
-    status: 'Todo',
-    assigneeId: 'u2',
-    dueDate: '2026-09-25',
-  },
-  {
-    id: 'K-4',
-    title: 'Render six-dimension radar chart component',
-    requirementId: 'REQ-108',
-    storyId: null,
-    points: 3,
-    status: 'Done',
-    assigneeId: 'u4',
-    dueDate: '2026-09-18',
-  },
-  {
-    id: 'K-5',
-    title: 'Send weekly digest email to supervisor',
-    requirementId: 'REQ-102',
-    storyId: null,
-    points: 3,
-    status: 'Blocked',
-    assigneeId: 'u2',
-    blockedReason: 'Depends on K-3 (Draft weekly supervisor digest job), which is still To Do.',
-    dependsOn: 'K-3',
-    dueDate: '2026-09-27',
-  },
-]
+export const KANBAN_SEED = []
 
 export const KANBAN_COLUMNS = [
   { key: 'Todo', label: 'To Do' },

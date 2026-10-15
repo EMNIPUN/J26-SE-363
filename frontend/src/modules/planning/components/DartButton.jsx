@@ -384,6 +384,9 @@ export default function DartButton({ context = 'dashboard' }) {
                   <Link to={team('/planning/sprint-management')} className="text-xs text-primary hover:underline">
                     Review Sprint Board
                   </Link>
+                  <Link to={team('/planning/dart-showcase')} className="text-xs text-primary hover:underline font-semibold">
+                    DART Showcase →
+                  </Link>
                 </div>
               </div>
             )}

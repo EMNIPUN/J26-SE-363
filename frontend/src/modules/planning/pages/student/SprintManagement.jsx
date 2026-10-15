@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ListTodo,
@@ -68,6 +68,8 @@ import DartButton from "../../components/DartButton.jsx";
 import SupervisorConsultationModal from "../../components/SupervisorConsultationModal.jsx";
 import { COURSE_INFO } from "../../data/lmsAcademicData.js";
 import { usePlanningData } from "../../context/usePlanningData.js";
+import { useSprintTasks, useUpdateSprintTask } from "../../hooks/useSprint.js";
+import { mapSprintTasks } from "../../adapters/sprint.js";
 import {
   KANBAN_COLUMNS,
   BURNDOWN_SEED,
@@ -131,9 +133,6 @@ function IssueTypeIcon({ isStory, className = "h-3.5 w-3.5" }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Issue card (Kanban board)                                          */
-/* ------------------------------------------------------------------ */
 function tutorPromptForTask(task) {
   return `I'm working on the sprint task "${task.title}". What should I understand before I continue?`;
 }
@@ -196,16 +195,13 @@ function IssueCard({ task, member, requirements, onOpen }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Kanban columns — used for both the plain board and each swimlane   */
-/* ------------------------------------------------------------------ */
 function KanbanColumns({
   tasks,
   teamMembers,
   requirements,
   onOpen,
-  moveKanbanTask,
-  assignKanbanTask,
+  onMove,
+  onAssign,
   swimlaneAssigneeId,
   minHeight = 360,
 }) {
@@ -232,9 +228,9 @@ function KanbanColumns({
               e.preventDefault();
               const taskId = e.dataTransfer.getData("text/plain");
               if (taskId) {
-                moveKanbanTask(taskId, col.key);
+                onMove(taskId, col.key);
                 if (swimlaneAssigneeId !== undefined)
-                  assignKanbanTask(taskId, swimlaneAssigneeId);
+                  onAssign(taskId, swimlaneAssigneeId);
               }
               setDragOverCol(null);
             }}
@@ -284,9 +280,6 @@ function KanbanColumns({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Flat issue row — shared between the Board "List" view and Backlog  */
-/* ------------------------------------------------------------------ */
 function IssueRow({
   id,
   title,
@@ -462,10 +455,6 @@ function TaskDetailDialog({ task, onClose, teamMembers, onAssign, onMove }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Board tab — toolbar (search / assignee filter / group by / view    */
-/* toggle / complete sprint), then columns or swimlanes or list        */
-/* ------------------------------------------------------------------ */
 function BoardToolbar({
   search,
   setSearch,
@@ -552,14 +541,12 @@ function BoardToolbar({
   );
 }
 
-function BoardView() {
+function BoardView({ onMove, onAssign }) {
   const {
     requirements,
     kanbanTasks,
     teamMembers,
     projectInfo,
-    moveKanbanTask,
-    assignKanbanTask,
   } = usePlanningData();
   const [search, setSearch] = useState("");
   const [groupBy, setGroupBy] = useState("none");
@@ -684,8 +671,8 @@ function BoardView() {
                     teamMembers={teamMembers}
                     requirements={requirements}
                     onOpen={setOpenTask}
-                    moveKanbanTask={moveKanbanTask}
-                    assignKanbanTask={assignKanbanTask}
+                    onMove={onMove}
+                    onAssign={onAssign}
                     swimlaneAssigneeId={m.id}
                     minHeight={90}
                   />
@@ -700,8 +687,8 @@ function BoardView() {
           teamMembers={teamMembers}
           requirements={requirements}
           onOpen={setOpenTask}
-          moveKanbanTask={moveKanbanTask}
-          assignKanbanTask={assignKanbanTask}
+          onMove={onMove}
+          onAssign={onAssign}
           minHeight={380}
         />
       )}
@@ -710,17 +697,14 @@ function BoardView() {
         task={openTask}
         onClose={() => setOpenTask(null)}
         teamMembers={membersWithLoad}
-        onAssign={assignKanbanTask}
-        onMove={moveKanbanTask}
+        onAssign={onAssign}
+        onMove={onMove}
       />
     </>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Backlog tab — current sprint, then everything not yet pulled in     */
-/* ------------------------------------------------------------------ */
-function BacklogView() {
+function BacklogView({ onMove, onAssign }) {
   const navigate = useNavigate();
   const team = useTeamPath();
   const {
@@ -729,8 +713,6 @@ function BacklogView() {
     kanbanTasks,
     teamMembers,
     projectInfo,
-    moveKanbanTask,
-    assignKanbanTask,
   } = usePlanningData();
   const [openTask, setOpenTask] = useState(null);
 
@@ -841,16 +823,13 @@ function BacklogView() {
         task={openTask}
         onClose={() => setOpenTask(null)}
         teamMembers={membersWithLoad}
-        onAssign={assignKanbanTask}
-        onMove={moveKanbanTask}
+        onAssign={onAssign}
+        onMove={onMove}
       />
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Reports tab — Jira-style left nav of report types                  */
-/* ------------------------------------------------------------------ */
 const REPORTS_NAV = [
   { key: "sprint", label: "Sprint Report", icon: BarChart3 },
   { key: "burndown", label: "Burndown Chart", icon: TrendingDown },
@@ -1129,16 +1108,31 @@ function ReportsView() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Page                                                                */
-/* ------------------------------------------------------------------ */
 export default function SprintManagement() {
-  const { projectInfo, teamMembers, kanbanTasks, requirements } =
+  const { projectInfo, teamMembers, kanbanTasks, requirements, loadKanbanTasks, moveKanbanTask, assignKanbanTask } =
     usePlanningData();
+  const { data: tasksResp } = useSprintTasks();
+  const updateTask = useUpdateSprintTask();
   const [tab, setTab] = useState("board");
   const [today] = useState(() => Date.now());
   const [consultOpen, setConsultOpen] = useState(false);
   const [scrumGuideOpen, setScrumGuideOpen] = useState(false);
+
+  useEffect(() => {
+    if (!tasksResp?.data?.tasks) return;
+    const mapped = mapSprintTasks(tasksResp.data.tasks);
+    loadKanbanTasks(mapped);
+  }, [tasksResp]);
+
+  function handleMove(taskId, newStatus) {
+    moveKanbanTask(taskId, newStatus);
+    updateTask.mutate({ ref: taskId, patch: { status: newStatus } });
+  }
+
+  function handleAssign(taskId, assigneeId) {
+    assignKanbanTask(taskId, assigneeId);
+    updateTask.mutate({ ref: taskId, patch: { data: { assigneeId } } });
+  }
 
   const totalPoints = kanbanTasks.reduce((s, t) => s + t.points, 0);
   const donePoints = kanbanTasks
@@ -1157,7 +1151,6 @@ export default function SprintManagement() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Top Academic Breadcrumb Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
@@ -1176,7 +1169,6 @@ export default function SprintManagement() {
           </h1>
         </div>
 
-        {/* Action Toolbar */}
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             size="sm"
@@ -1211,7 +1203,6 @@ export default function SprintManagement() {
         </div>
       </div>
 
-      {/* LMS Project Banner Card with Round Progress Bar (no left border) */}
       <Card className="p-5 relative overflow-hidden bg-card/90">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div className="space-y-2 min-w-0 max-w-2xl">
@@ -1242,9 +1233,8 @@ export default function SprintManagement() {
 
             <p className="text-xs text-muted-foreground leading-relaxed">
               Track real-time sprint execution across backlog user stories,
-              subtasks, and Kanban columns. The DART audit engine monitors
-              velocity compliance and flags blocked dependencies for academic
-              evaluation.
+              subtasks, and Kanban columns. Drag cards between columns to update
+              status — changes persist to the backend automatically.
             </p>
 
             <div className="flex items-center gap-4 flex-wrap pt-1 text-xs text-muted-foreground">
@@ -1294,7 +1284,6 @@ export default function SprintManagement() {
             </div>
           </div>
 
-          {/* Round Circular SVG Progress Bar with Percentage in Middle */}
           <div className="flex flex-col items-center justify-center shrink-0 self-center sm:self-center px-3 py-1">
             <div
               className="relative flex items-center justify-center"
@@ -1366,10 +1355,10 @@ export default function SprintManagement() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="backlog" className="mt-4">
-          <BacklogView />
+          <BacklogView onMove={handleMove} onAssign={handleAssign} />
         </TabsContent>
         <TabsContent value="board" className="mt-4">
-          <BoardView />
+          <BoardView onMove={handleMove} onAssign={handleAssign} />
         </TabsContent>
         <TabsContent value="reports" className="mt-4">
           <ReportsView />
@@ -1378,14 +1367,12 @@ export default function SprintManagement() {
 
       <DartButton context="sprint" />
 
-      {/* Supervisor Consultation Modal */}
       <SupervisorConsultationModal
         open={consultOpen}
         onOpenChange={setConsultOpen}
         requirements={requirements}
       />
 
-      {/* Scrum Standards Guide Dialog */}
       <Dialog open={scrumGuideOpen} onOpenChange={setScrumGuideOpen}>
         <DialogContent className="sm:max-w-[620px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>

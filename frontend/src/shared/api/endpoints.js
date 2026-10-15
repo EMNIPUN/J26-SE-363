@@ -32,6 +32,9 @@ export const ENDPOINTS = {
     DART_CASES: '/planning/dart/cases',
     DART_CASE: (ref) => `/planning/dart/cases/${ref}`,
     DART_RESOLVE: (ref) => `/planning/dart/cases/${ref}/resolve`,
+    // Sprint Tasks
+    SPRINT_TASKS: '/planning/sprint-tasks',
+    SPRINT_TASK: (ref) => `/planning/sprint-tasks/${ref}`,
   },
   TUTOR: {
     SESSIONS: '/tutor/sessions',

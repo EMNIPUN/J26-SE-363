@@ -11,6 +11,7 @@ import InstructorProjects from './pages/instructor/Projects.jsx'
 import InstructorGroups from './pages/instructor/Groups.jsx'
 import GroupWorkspace from './pages/instructor/GroupWorkspace.jsx'
 import ArbitrationOversight from './pages/instructor/ArbitrationOversight.jsx'
+import DartShowcase from './pages/student/DartShowcase.jsx'
 
 
 export default function PlanningRoutes() {
@@ -22,6 +23,7 @@ export default function PlanningRoutes() {
       <Route path="requirements/decomposition" element={<Decomposition />} />
       <Route path="requirements/estimation" element={<Estimation />} />
       <Route path="sprint-management" element={<SprintManagement />} />
+      <Route path="dart-showcase" element={<DartShowcase />} />
       <Route element={<RequireRole allowedRoles={['instructor', 'admin']} />}>
         <Route path="instructor/dashboard" element={<InstructorDashboard />} />
         <Route path="instructor/projects" element={<InstructorProjects />} />

@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   ChevronDown,
   CheckCircle2,
-  Sparkles,
   Lock,
   ArrowRight,
   Gauge,
@@ -12,7 +11,9 @@ import {
   UserCheck,
   Check,
   KanbanSquare,
+  Sparkles,
 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import Card from '../../../../../shared/components/Card.jsx'
 import Badge from '../../../../../shared/components/Badge.jsx'
@@ -40,53 +41,61 @@ import DartButton from '../../../components/DartButton.jsx'
 import RequirementListPanel from '../../../components/RequirementListPanel.jsx'
 import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
+import { useStories, useUpdateStory } from '../../../hooks/useDecomposition.js'
+import { useCreateSprintTask } from '../../../hooks/useSprint.js'
+import { mapStoryRows } from '../../../adapters/decomposition.js'
 import { STORY_POINT_SCALE } from '../../../data/mockData.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
 import { showToast } from '@/shared/utils/toast.jsx'
 
-const CONFIDENCE_TONE = { High: 'success', Medium: 'primary', Low: 'warning' }
-
-function computeAiPoints(story) {
-  const taskCount = story.tasks.length
-  if (taskCount <= 1) return 3
-  if (taskCount === 2) return 5
-  return 8
-}
-
-function computeAiFactors(story) {
-  return [
-    `${story.tasks.length} implementation task(s) identified`,
-    story.tasks.length >= 3 ? 'Multiple dependent tasks increase coordination effort' : 'Small, well-scoped task set',
-    story.investResult?.overallPass ? 'Story passed INVEST validation cleanly' : 'Story required revision before it passed INVEST',
-  ]
-}
-
-function StoryRow({ req, story }) {
+function StoryRow({ req, story, storyRef }) {
   const { estimations, setEstimation, confirmEstimation } = usePlanningData()
+  const updateStory = useUpdateStory()
+  const createSprintTask = useCreateSprintTask()
+  const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState(false)
-  const [revealing, setRevealing] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const est = estimations[story.id]
-  const revealed = !!est?.aiRevealed
-  const diff = revealed && est?.studentPoints != null ? est.studentPoints - est.aiPoints : null
 
-  function getAiEstimate() {
-    setRevealing(true)
-    setTimeout(() => {
-      setEstimation(story.id, {
-        aiPoints: computeAiPoints(story),
-        aiConfidence: story.tasks.length >= 3 ? 'Medium' : 'High',
-        aiFactors: computeAiFactors(story),
-        aiRevealed: true,
-      })
-      setRevealing(false)
-      showToast.success('AI estimate ready', { description: `Compare it against your ${est?.studentPoints} SP estimate for ${story.id}.` })
-    }, 900)
-  }
-
-  function confirm() {
+  async function confirm() {
     const finalPoints = est?.finalPoints ?? est?.studentPoints ?? 3
-    confirmEstimation(req.id, story.id, story.title, finalPoints, est?.reason)
-    showToast.success('Effort assigned', { description: `${story.id} is now on the Sprint Management board at ${finalPoints} SP.` })
+    setConfirming(true)
+    try {
+      await updateStory.mutateAsync({
+        ref: story.id,
+        patch: {
+          estimation: {
+            studentPoints: est?.studentPoints,
+            finalPoints,
+            reason: est?.reason || '',
+            confirmed: true,
+            confirmedAt: new Date().toISOString(),
+          },
+        },
+      })
+
+      const taskRef = `K-${story.id}`
+      await createSprintTask.mutateAsync({
+        task_ref: taskRef,
+        story_ref: story.id,
+        requirement_ref: req.id,
+        status: 'Todo',
+        data: {
+          title: story.title,
+          points: finalPoints,
+          assigneeId: null,
+          dueDate: null,
+        },
+      })
+
+      confirmEstimation(req.id, story.id, story.title, finalPoints, est?.reason)
+      queryClient.invalidateQueries({ queryKey: ['planning-stories'] })
+      showToast.success('Effort confirmed', { description: `${story.id} is now on the Sprint Board at ${finalPoints} SP.` })
+    } catch {
+      showToast.error('Failed to confirm estimation')
+    } finally {
+      setConfirming(false)
+    }
   }
 
   return (
@@ -94,37 +103,27 @@ function StoryRow({ req, story }) {
       <button type="button" onClick={() => setExpanded((v) => !v)} className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-muted/30 transition-colors">
         <div className="min-w-0 flex-1">
           <p className="text-sm text-foreground truncate">{story.title}</p>
-          <p className="text-xs text-muted-foreground">{story.id} · {req.id}</p>
+          <p className="text-xs text-muted-foreground">{story.id} · {req.id} · {(story.tasks || []).length} task(s)</p>
         </div>
         <div className="flex items-center gap-4 shrink-0">
           <div className="text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Student</p>
-            <p className="text-sm font-semibold text-foreground">{est?.studentPoints ?? '—'}</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Points</p>
+            <p className="text-sm font-semibold text-foreground">{est?.confirmed ? `${est.finalPoints} SP` : est?.studentPoints ? `${est.studentPoints} SP` : '—'}</p>
           </div>
-          <div className="text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">AI</p>
-            <p className="text-sm font-semibold text-primary flex items-center justify-center gap-1">
-              {revealed ? `${est.aiPoints}` : <Lock className="h-3 w-3 text-muted-foreground" />}
-            </p>
-          </div>
-          <div className="text-center w-12">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Diff</p>
-            <p className={`text-sm font-semibold ${diff > 0 ? 'text-amber-600 dark:text-amber-400' : diff < 0 ? 'text-primary' : 'text-muted-foreground'}`}>
-              {diff == null ? '—' : diff > 0 ? `+${diff}` : diff}
-            </p>
-          </div>
+          {est?.confirmed && (
+            <Badge tone="success">Confirmed</Badge>
+          )}
           <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </div>
       </button>
 
-      {expanded && (
+      {expanded && !est?.confirmed && (
         <div className="px-4 pb-4 space-y-4 animate-fade-rise">
           <div className="p-3 rounded-lg border border-border">
-            <p className="text-xs font-semibold text-muted-foreground mb-2">Your estimate — give this first</p>
+            <p className="text-xs font-semibold text-muted-foreground mb-2">Assign story points</p>
             <Select
               value={String(est?.studentPoints ?? '')}
-              onValueChange={(v) => setEstimation(story.id, { studentPoints: Number(v) })}
-              disabled={revealed}
+              onValueChange={(v) => setEstimation(story.id, { studentPoints: Number(v), finalPoints: Number(v) })}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select story points" />
@@ -137,70 +136,45 @@ function StoryRow({ req, story }) {
             </Select>
           </div>
 
-          {!revealed ? (
-            <div className="p-4 rounded-lg border border-dashed border-border bg-muted/20 flex flex-col items-center text-center gap-2">
-              <Lock className="h-4 w-4 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground max-w-xs">
-                The AI estimate stays hidden until you commit your own — that way it can't anchor your judgment.
-              </p>
-              <Button
-                size="sm"
-                onClick={getAiEstimate}
-                disabled={est?.studentPoints == null || revealing}
-                className="active:scale-[0.98] mt-1"
-              >
-                <Gauge className={`h-3.5 w-3.5 ${revealing ? 'animate-pulse' : ''}`} />
-                {revealing ? 'AI is estimating…' : 'Get AI estimate'}
-              </Button>
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground mb-1.5">Reason (optional)</p>
+            <Textarea
+              value={est?.reason || ''}
+              onChange={(e) => setEstimation(story.id, { reason: e.target.value })}
+              placeholder="e.g. Complex API integration with multiple dependencies…"
+              className="text-xs"
+            />
+          </div>
+
+          {(story.tasks || []).length > 0 && (
+            <div className="p-3 rounded-lg border border-border bg-muted/20">
+              <p className="text-xs font-semibold text-muted-foreground mb-2">Tasks breakdown</p>
+              <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
+                {story.tasks.map((t) => (
+                  <li key={t.id}>{t.title} ({(t.subtasks || []).length} subtask{(t.subtasks || []).length === 1 ? '' : 's'})</li>
+                ))}
+              </ul>
             </div>
-          ) : (
-            <>
-              <div className="p-3 rounded-lg border border-primary/20 bg-primary/5">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-primary">AI estimate</p>
-                  <Badge tone={CONFIDENCE_TONE[est?.aiConfidence] || 'neutral'}>{est?.aiConfidence} confidence</Badge>
-                </div>
-                <p className="text-lg font-bold text-foreground mb-1">{est?.aiPoints} SP</p>
-                <ul className="text-[11px] text-muted-foreground list-disc list-inside space-y-0.5">
-                  {est?.aiFactors?.map((f) => <li key={f}>{f}</li>)}
-                </ul>
-              </div>
-
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">Final estimate</p>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <Select value={String(est?.finalPoints ?? est?.studentPoints ?? '')} onValueChange={(v) => setEstimation(story.id, { finalPoints: Number(v) })}>
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue placeholder="SP" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STORY_POINT_SCALE.map((p) => (
-                        <SelectItem key={p} value={String(p)}>{p} SP</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-xs text-muted-foreground">This is what goes to the sprint board — the AI number is a reference, not the final word.</span>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-1.5">Reason for your decision (optional)</p>
-                <Textarea
-                  value={est?.reason || ''}
-                  onChange={(e) => setEstimation(story.id, { reason: e.target.value })}
-                  placeholder="e.g. I kept my estimate because the API integration is already built…"
-                  className="text-xs"
-                />
-              </div>
-
-              <div className="flex justify-end">
-                <Button size="sm" onClick={confirm} className="active:scale-[0.98]">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Confirm estimate
-                </Button>
-              </div>
-            </>
           )}
+
+          <div className="flex justify-end">
+            <Button size="sm" onClick={confirm} disabled={est?.studentPoints == null || confirming} className="active:scale-[0.98]">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {confirming ? 'Confirming…' : 'Confirm & send to Sprint Board'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {expanded && est?.confirmed && (
+        <div className="px-4 pb-4 animate-fade-rise">
+          <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+            <div className="flex items-center gap-2 mb-1">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Estimation confirmed — {est.finalPoints} SP</p>
+            </div>
+            {est.reason && <p className="text-[11px] text-muted-foreground">{est.reason}</p>}
+          </div>
         </div>
       )}
     </Card>
@@ -208,8 +182,29 @@ function StoryRow({ req, story }) {
 }
 
 export default function Estimation() {
-  const { requirements, userStories, estimations, setEstimation } = usePlanningData()
+  const { requirements, userStories, estimations, setEstimation, loadStories, loadEstimations } = usePlanningData()
   const [selectedReqId, setSelectedReqId] = useState(requirements[0]?.id ?? '')
+  const { data: storiesResp } = useStories()
+
+  useEffect(() => {
+    if (!storiesResp?.data?.stories) return
+    const mapped = mapStoryRows(storiesResp.data.stories)
+    loadStories(mapped)
+
+    const estMap = {}
+    for (const row of storiesResp.data.stories) {
+      const d = row.data || {}
+      if (d.estimation) {
+        estMap[row.story_ref] = {
+          studentPoints: d.estimation.studentPoints ?? null,
+          finalPoints: d.estimation.finalPoints ?? null,
+          reason: d.estimation.reason || '',
+          confirmed: d.estimation.confirmed ?? false,
+        }
+      }
+    }
+    if (Object.keys(estMap).length > 0) loadEstimations(estMap)
+  }, [storiesResp])
 
   const acceptedStories = []
   for (const req of requirements) {
@@ -223,24 +218,17 @@ export default function Estimation() {
       if (!estimations[story.id]) {
         setEstimation(story.id, {
           studentPoints: null,
-          aiPoints: null,
-          aiConfidence: null,
-          aiFactors: null,
-          aiRevealed: false,
           finalPoints: null,
           reason: '',
           confirmed: false,
         })
       }
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [acceptedStories.length])
 
   const estimatedCount = acceptedStories.filter(({ story }) => estimations[story.id]?.confirmed).length
   const pendingCount = acceptedStories.length - estimatedCount
-  const totalStudentSP = acceptedStories.reduce((s, { story }) => s + (estimations[story.id]?.studentPoints ?? 0), 0)
-  const totalAiSP = acceptedStories.reduce((s, { story }) => s + (estimations[story.id]?.aiPoints ?? 0), 0)
-  const maxSP = Math.max(totalStudentSP, totalAiSP, 1)
+  const totalSP = acceptedStories.reduce((s, { story }) => s + (estimations[story.id]?.finalPoints ?? 0), 0)
 
   const requirement = requirements.find((r) => r.id === selectedReqId)
   const isEligible = requirement?.status === 'Passing'
@@ -268,7 +256,6 @@ export default function Estimation() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Top Academic Breadcrumb Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
@@ -285,7 +272,6 @@ export default function Estimation() {
           </h1>
         </div>
 
-        {/* Action Toolbar */}
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             size="sm"
@@ -313,7 +299,6 @@ export default function Estimation() {
         </div>
       </div>
 
-      {/* LMS Project Banner Card with Round Progress Bar (no left border) */}
       <Card className="p-5 relative overflow-hidden bg-card/90">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div className="space-y-2 min-w-0 max-w-2xl">
@@ -324,15 +309,15 @@ export default function Estimation() {
               <span>·</span>
               <span className="font-semibold text-foreground">{COURSE_INFO.department}</span>
               <span>·</span>
-              <span>Protocol: <strong className="text-foreground">Consensus Planning Poker</strong></span>
+              <span>Protocol: <strong className="text-foreground">Manual Story Point Assignment</strong></span>
             </div>
 
             <h2 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
-              Consensus-Based Effort Estimation Studio
+              Effort Estimation Studio
             </h2>
 
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Estimate each accepted user story yourself before revealing the AI agent reference point. This double-blind protocol prevents cognitive anchoring bias and builds calibrated engineering judgment.
+              Assign story points to accepted user stories using the Fibonacci scale. Confirmed stories flow directly to the Sprint Board for execution tracking.
             </p>
 
             <div className="flex items-center gap-4 flex-wrap pt-1 text-xs text-muted-foreground">
@@ -348,27 +333,17 @@ export default function Estimation() {
               <span className="h-1 w-1 rounded-full bg-border" />
               <span className="flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
-                {totalStudentSP} Story Points Assigned
+                {totalSP} Story Points Assigned
               </span>
             </div>
           </div>
 
-          {/* Round Progress Bar with Percentage in Middle */}
           <div className="flex flex-col items-center justify-center shrink-0 self-center sm:self-center px-3 py-1">
             <div className="relative flex items-center justify-center" style={{ width: 92, height: 92 }}>
               <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 92 92">
+                <circle cx="46" cy="46" r="38" className="stroke-muted" strokeWidth="7" fill="transparent" />
                 <circle
-                  cx="46"
-                  cy="46"
-                  r="38"
-                  className="stroke-muted"
-                  strokeWidth="7"
-                  fill="transparent"
-                />
-                <circle
-                  cx="46"
-                  cy="46"
-                  r="38"
+                  cx="46" cy="46" r="38"
                   className="stroke-primary transition-all duration-700 ease-out"
                   strokeWidth="7"
                   strokeDasharray={2 * Math.PI * 38}
@@ -399,29 +374,19 @@ export default function Estimation() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Student vs. AI</p>
-          <p className="text-[11px] text-muted-foreground mb-3">The AI estimate is a reference point, not the authority — you decide the final number.</p>
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground w-16 shrink-0">Student</span>
-              <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
-                <div className="h-full bg-foreground rounded-full transition-all" style={{ width: `${(totalStudentSP / maxSP) * 100}%` }} />
-              </div>
-              <span className="text-xs font-semibold text-foreground w-16 text-right shrink-0">{totalStudentSP} SP</span>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Story Point Summary</p>
+          <p className="text-[11px] text-muted-foreground mb-3">Total effort committed to the sprint backlog so far.</p>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground w-16 shrink-0">Total</span>
+            <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
+              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, (totalSP / Math.max(totalSP, 40)) * 100)}%` }} />
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground w-16 shrink-0">AI</span>
-              <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
-                <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(totalAiSP / maxSP) * 100}%` }} />
-              </div>
-              <span className="text-xs font-semibold text-primary w-16 text-right shrink-0">{totalAiSP} SP</span>
-            </div>
+            <span className="text-xs font-semibold text-foreground w-16 text-right shrink-0">{totalSP} SP</span>
           </div>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr] gap-5 items-start">
-        {/* Column 1 — Requirements */}
         <RequirementListPanel
           requirements={requirements}
           selectedId={selectedReqId}
@@ -429,7 +394,6 @@ export default function Estimation() {
           getItemMeta={getEstimationMeta}
         />
 
-        {/* Column 2 — Selected requirement's stories */}
         <div className="space-y-4">
           {requirement && !isEligible && (
             <EmptyState
@@ -491,14 +455,12 @@ export default function Estimation() {
 
       <DartButton context="effort" />
 
-      {/* Supervisor Consultation Modal */}
       <SupervisorConsultationModal
         open={consultOpen}
         onOpenChange={setConsultOpen}
         requirements={requirements}
       />
 
-      {/* Fibonacci Sizing Guide Dialog */}
       <Dialog open={guideOpen} onOpenChange={setGuideOpen}>
         <DialogContent className="sm:max-w-[620px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -509,7 +471,7 @@ export default function Estimation() {
               <DialogTitle className="text-lg font-bold">Agile Story Point Estimation &amp; Fibonacci Scale</DialogTitle>
             </div>
             <DialogDescription className="text-xs">
-              Academic principles for sizing software work units and mitigating estimation bias.
+              Academic principles for sizing software work units.
             </DialogDescription>
           </DialogHeader>
 
@@ -545,15 +507,6 @@ export default function Estimation() {
                   <span className="text-muted-foreground">Epic size: Must be decomposed before sprint.</span>
                 </div>
               </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl border border-amber-500/25 bg-amber-500/5 space-y-1 text-xs">
-              <h4 className="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5" /> Preventing Cognitive Anchoring Bias
-              </h4>
-              <p className="text-muted-foreground text-[11px] leading-relaxed">
-                Students must submit their own point estimate first. Seeing an AI or peer estimate beforehand anchors human judgment and degrades pedagogical estimation accuracy.
-              </p>
             </div>
           </div>
 

@@ -53,6 +53,7 @@ from app.modules.planning import (
     dart_service,
     decomposition_service,
     service,
+    sprint_task_service,
     story_service,
 )
 
@@ -97,6 +98,20 @@ class StoryPatch(BaseModel):
     invest_result: dict | None = None
     tasks: list[dict] | None = None
     bugs: list[dict] | None = None
+    estimation: dict | None = None
+
+
+class SprintTaskIn(BaseModel):
+    task_ref: str
+    story_ref: str
+    requirement_ref: str
+    status: str = "Todo"
+    data: dict = Field(default_factory=dict)
+
+
+class SprintTaskPatch(BaseModel):
+    status: str | None = None
+    data: dict | None = None
 
 
 class DecompositionRequest(BaseModel):
@@ -368,6 +383,74 @@ async def delete_story(
     deleted = await run_in_threadpool(story_service.delete_story, db, scope, story_ref)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Story not found.")
+    return {"ok": True}
+
+
+# --- Sprint Task CRUD endpoints ---------------------------------------------
+
+
+@router.get("/sprint-tasks", summary="List all sprint tasks")
+async def list_sprint_tasks(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    scope = _scope(x_team_id, project_id)
+    if not scope:
+        return {"project_id": None, "tasks": []}
+    rows = await run_in_threadpool(sprint_task_service.list_tasks, db, scope)
+    return {"project_id": scope, "tasks": rows}
+
+
+@router.post("/sprint-tasks", summary="Create a sprint task")
+async def create_sprint_task(
+    body: SprintTaskIn,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    scope = _scope(x_team_id, None)
+    if not scope:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Team-Id header required.")
+    row = await run_in_threadpool(
+        sprint_task_service.upsert_task,
+        db, scope, body.task_ref, body.story_ref, body.requirement_ref, body.status, body.data,
+    )
+    return {"ok": True, "task": row}
+
+
+@router.patch("/sprint-tasks/{task_ref}", summary="Patch a sprint task")
+async def patch_sprint_task(
+    task_ref: str,
+    body: SprintTaskPatch,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    scope = _scope(x_team_id, None)
+    if not scope:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Team-Id header required.")
+    patch = body.model_dump(exclude_none=True)
+    row = await run_in_threadpool(sprint_task_service.patch_task, db, scope, task_ref, patch)
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sprint task not found.")
+    return {"ok": True, "task": row}
+
+
+@router.delete("/sprint-tasks/{task_ref}", summary="Delete a sprint task")
+async def delete_sprint_task(
+    task_ref: str,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    scope = _scope(x_team_id, None)
+    if not scope:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Team-Id header required.")
+    deleted = await run_in_threadpool(sprint_task_service.delete_task, db, scope, task_ref)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sprint task not found.")
     return {"ok": True}
 
 

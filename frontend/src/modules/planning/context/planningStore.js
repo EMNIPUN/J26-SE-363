@@ -6,8 +6,6 @@
 // Estimation / Sprint Management. Living outside the component tree, this
 // store survives navigation and only resets on a full page reload.
 import {
-  STORY_ESTIMATIONS_SEED,
-  KANBAN_SEED,
   PROJECT_INFO,
 } from '../data/mockData.js'
 
@@ -33,8 +31,8 @@ function nextId(prefix) {
 let state = {
   requirements: [],
   userStories: {},
-  estimations: STORY_ESTIMATIONS_SEED,
-  kanbanTasks: KANBAN_SEED,
+  estimations: {},
+  kanbanTasks: [],
   requirementHistory: {},
   activityLog: [],
   decompositionEvaluations: {},
@@ -130,6 +128,16 @@ export const actions = {
   loadStories(map) {
     if (!map || Object.keys(map).length === 0) return
     setState({ userStories: { ...state.userStories, ...map } })
+  },
+
+  loadEstimations(map) {
+    if (!map || Object.keys(map).length === 0) return
+    setState({ estimations: { ...state.estimations, ...map } })
+  },
+
+  loadKanbanTasks(tasks) {
+    if (!tasks) return
+    setState({ kanbanTasks: tasks })
   },
 
   getStories(reqId) {
