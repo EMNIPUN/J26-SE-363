@@ -52,7 +52,7 @@ function RemediationList({ findings }) {
       </h3>
       <div className="space-y-2">
         {remediableFindings.map((f) => (
-          <Link key={f.id} to={`/teams/${teamCode}/security/remediation/${f.id}`}>
+          <Link key={f.id} to={`/teams/${teamCode}/security/remediation/${f.id}`} className="block">
             <Card className="p-4 bg-card border-border shadow-xs cursor-pointer card-hover-lift">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="min-w-0">
