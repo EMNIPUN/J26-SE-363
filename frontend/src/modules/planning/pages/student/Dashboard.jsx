@@ -50,7 +50,9 @@ import ExportPlanningReportModal from '../../components/ExportPlanningReportModa
 import NewRequirementModal from '../../components/NewRequirementModal.jsx'
 import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import { usePlanningData } from '../../context/usePlanningData.js'
-import { QUALITY_DIMENSIONS, ARBITRATION_CASES, GROUPS, getArbitrationForRequirement } from '../../data/mockData.js'
+import { QUALITY_DIMENSIONS, GROUPS } from '../../data/mockData.js'
+import { useDartCases } from '../../hooks/useDart.js'
+import { mapDartCases, getDartCasesForRequirement } from '../../adapters/dart.js'
 import { COURSE_INFO, STUDENT_ACADEMIC_PROFILES } from '../../data/lmsAcademicData.js'
 import { computeStageStats, getNextAction, STAGE_ORDER } from '../../stageStats.js'
 import { ARBITRATION_CATEGORY_TONE, GATE_STATUS_TONE, formatRelativeTime } from '../../utils.js'
@@ -58,7 +60,7 @@ import { ARBITRATION_CATEGORY_TONE, GATE_STATUS_TONE, formatRelativeTime } from 
 const PRIORITY_TONE = { High: 'danger', Medium: 'warning', Low: 'neutral' }
 const GATE_STATUS_LABEL = { Passing: 'Passed', 'Needs Review': 'Review', Failing: 'Blocked' }
 const ROW_STATUS_TONE = { ready: 'success', waiting: 'primary', attention: 'warning', blocked: 'danger' }
-const CATEGORY_ORDER = ['COMPOUND', 'AMBIGUOUS', 'STRUCTURAL', 'NOVEL']
+const CATEGORY_ORDER = ['compound', 'ambiguous', 'structural', 'novel']
 const STATUS_FILTERS = [
   { value: 'all', label: 'All statuses' },
   { value: 'ready', label: 'Ready for Sprint' },
@@ -166,6 +168,9 @@ export default function Dashboard() {
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [newReqModalOpen, setNewReqModalOpen] = useState(false)
 
+  const { data: dartData } = useDartCases()
+  const allDartCases = mapDartCases(dartData?.cases || [])
+
   const stats = computeStageStats({ requirements, userStories, estimations, kanbanTasks })
   const nextAction = getNextAction(stats)
   const pipelineStages = STAGE_ORDER.map((key) => stats[key])
@@ -198,7 +203,7 @@ export default function Dashboard() {
 
   const ownGroup = GROUPS.find((g) => g.id === projectInfo.groupId)
   const openFlags = ownGroup
-    ? ARBITRATION_CASES.filter((c) => c.status === 'Open' && ownGroup.requirementIds.includes(c.requirementId))
+    ? allDartCases.filter((c) => c.status === 'open' && ownGroup.requirementIds.includes(c.requirementId))
     : []
 
   const dartTally = CATEGORY_ORDER.reduce((acc, cat) => {
@@ -230,7 +235,7 @@ export default function Dashboard() {
     return a.category === activityCategoryFilter
   })
 
-  const selectedArbitration = selectedReq ? getArbitrationForRequirement(selectedReq.id) : []
+  const selectedArbitration = selectedReq ? getDartCasesForRequirement(allDartCases, selectedReq.id) : []
 
   return (
     <div className="space-y-6 pb-12">
@@ -592,9 +597,9 @@ export default function Dashboard() {
                     </p>
                   ) : (
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                      <span>Compound: {dartTally.COMPOUND || 0}</span>
-                      <span>Ambiguous: {dartTally.AMBIGUOUS || 0}</span>
-                      <span>Novel: {dartTally.NOVEL || 0}</span>
+                      <span>Compound: {dartTally.compound || 0}</span>
+                      <span>Ambiguous: {dartTally.ambiguous || 0}</span>
+                      <span>Novel: {dartTally.novel || 0}</span>
                     </div>
                   )}
                 </div>
@@ -1013,7 +1018,7 @@ export default function Dashboard() {
                     <div key={c.id} className="p-3 rounded-xl border border-border/80 bg-muted/20 space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5">
-                          <Badge tone={ARBITRATION_CATEGORY_TONE[c.category]}>{c.category}</Badge>
+                          <Badge tone={ARBITRATION_CATEGORY_TONE[c.category]}>{c.categoryLabel || c.category}</Badge>
                           <span className="font-mono text-xs font-semibold text-primary">{c.requirementId}</span>
                         </div>
                         <span className="text-[11px] font-semibold text-muted-foreground">
@@ -1022,7 +1027,7 @@ export default function Dashboard() {
                       </div>
 
                       <p className="text-xs font-semibold text-foreground leading-snug">{c.title}</p>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">{c.resolution}</p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{c.resolution?.actionableFeedback || ''}</p>
 
                       <div className="flex items-center justify-between pt-1 border-t border-border/50 text-xs">
                         <span className="text-[10px] text-muted-foreground">{c.createdAt?.slice(0, 10)}</span>

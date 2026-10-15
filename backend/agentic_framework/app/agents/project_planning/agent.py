@@ -31,11 +31,14 @@ from app.agents.project_planning.schemas import (
     AnalyzeDecompositionResult,
     AnalyzeQualityInput,
     AnalyzeQualityResult,
+    ArbitrateDartInput,
+    ArbitrateDartResult,
     ExtractRequirementsInput,
     ExtractRequirementsResult,
     RequirementInput,
     RequirementQualityResult,
 )
+from app.agents.project_planning.subagents.dart.graph import run_dart_agent
 from app.agents.project_planning.subagents.decomposition.graph import (
     run_decomposition_agent,
 )
@@ -46,6 +49,7 @@ ACTION_ANALYZE_QUALITY = "planning.analyze_quality"
 ACTION_EXTRACT_REQUIREMENTS = "planning.extract_requirements"
 ACTION_GET_SRS_TEMPLATE = "planning.get_srs_template"
 ACTION_ANALYZE_DECOMPOSITION = "planning.analyze_decomposition"
+ACTION_ARBITRATE_DART = "planning.arbitrate"
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +71,8 @@ class ProjectPlanningAgent:
             return self._get_srs_template(request)
         if request.action == ACTION_ANALYZE_DECOMPOSITION:
             return await self._analyze_decomposition(request)
+        if request.action == ACTION_ARBITRATE_DART:
+            return await self._arbitrate_dart(request)
 
         return self._failed(request, "action_not_implemented", f"Action '{request.action}' is not implemented yet.")
 
@@ -159,6 +165,27 @@ class ProjectPlanningAgent:
         )
 
     # ------------------------------------------------------------------
+    # planning.arbitrate  (DART — Diagnostic Arbitration using Reasoning Traces)
+    # ------------------------------------------------------------------
+    async def _arbitrate_dart(self, request: AgentRequest) -> AgentResponse:
+        payload = ArbitrateDartInput.model_validate(request.input)
+
+        try:
+            await asyncio.to_thread(warm_up_knowledge)
+        except Exception:
+            logger.exception("knowledge base warm-up failed; DART retrieval will be limited")
+
+        case = await run_dart_agent(payload)
+        wrapped = ArbitrateDartResult(case=case)
+        return AgentResponse(
+            request_id=request.request_id,
+            agent_name=self.name,
+            status=ResultStatus.COMPLETED,
+            result=wrapped.model_dump(),
+            evidence=[_dart_evidence(case)],
+        )
+
+    # ------------------------------------------------------------------
     # shared helpers
     # ------------------------------------------------------------------
     async def _score_requirements(
@@ -217,6 +244,27 @@ def _decomposition_evidence(r) -> Evidence:
             "dart_triggered": r.dart_triggered,
             "coverage": r.coverage,
             "gaps": [g.model_dump() for g in r.gaps],
+        },
+    )
+
+
+def _dart_evidence(c) -> Evidence:
+    from app.agents.project_planning.schemas import DartCaseResult
+
+    if not isinstance(c, DartCaseResult):
+        return Evidence(source="dart_agent", description="unknown result type", data={})
+    return Evidence(
+        source="dart_agent",
+        description=(
+            f"DART {c.case_id}: {c.category.value} → {c.resolution.action.value if c.resolution else 'pending'}; "
+            f"stage={c.source_stage}; status={c.status.value}"
+        ),
+        data={
+            "case_id": c.case_id,
+            "requirement_ref": c.requirement_ref,
+            "category": c.category.value,
+            "status": c.status.value,
+            "actionable_feedback": c.resolution.actionable_feedback if c.resolution else "",
         },
     )
 

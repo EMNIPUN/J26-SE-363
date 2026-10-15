@@ -49,7 +49,12 @@ from starlette.concurrency import run_in_threadpool
 from app.clients.ai_backend import AIBackendError, get_ai_backend_client
 from app.core.security import CurrentUser, get_current_user
 from app.database.session import get_db
-from app.modules.planning import decomposition_service, service, story_service
+from app.modules.planning import (
+    dart_service,
+    decomposition_service,
+    service,
+    story_service,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/planning", tags=["Project Planning"])
@@ -99,6 +104,20 @@ class DecompositionRequest(BaseModel):
     stories: list[dict] = Field(min_length=1)
     threshold: int = DEFAULT_THRESHOLD
     project_id: str | None = None
+
+
+class DartArbitrateRequest(BaseModel):
+    requirement: RequirementIn
+    trigger_reason: str = "manual"
+    source_stage: str = "quality"
+    source_result: dict = Field(default_factory=dict)
+    stories: list[dict] = Field(default_factory=list)
+    project_id: str | None = None
+
+
+class DartResolveRequest(BaseModel):
+    status: str = "resolved"
+    note: str = ""
 
 
 # --- helpers ----------------------------------------------------------------
@@ -172,7 +191,20 @@ async def analyze_quality(
     )
     result = await _orchestrate(request)
     text_by_ref = {r.id: r.text for r in body.requirements}
-    await _persist(db, _scope(x_team_id, body.project_id), _items_from_quality(result, text_by_ref))
+    scope = _scope(x_team_id, body.project_id)
+    await _persist(db, scope, _items_from_quality(result, text_by_ref))
+
+    dart_cases = []
+    for req_result in (result or {}).get("requirements", []):
+        if req_result.get("dart_triggered"):
+            req_in = next((r for r in body.requirements if r.id == req_result["id"]), None)
+            if req_in:
+                dart_result = await _auto_trigger_dart(user, db, scope, req_in, "quality", req_result)
+                if dart_result:
+                    dart_cases.append(dart_result.get("case", {}))
+    if dart_cases:
+        result["dart_cases"] = dart_cases
+
     return result
 
 
@@ -363,6 +395,14 @@ async def analyze_decomposition(
 
     scope = _scope(x_team_id, body.project_id)
     decomp_result = result.get("result")
+
+    if decomp_result and decomp_result.get("dart_triggered"):
+        dart_result = await _auto_trigger_dart(
+            user, db, scope, body.requirement, "decomposition", decomp_result, body.stories,
+        )
+        if dart_result:
+            result["dart_cases"] = [dart_result.get("case", {})]
+
     if scope and decomp_result:
         try:
             await run_in_threadpool(
@@ -420,3 +460,173 @@ async def get_decomposition_history(
     scope = _scope(x_team_id, project_id)
     versions = await run_in_threadpool(decomposition_service.history, db, scope, requirement_ref) if scope else []
     return {"requirement_ref": requirement_ref, "versions": versions}
+
+
+# --- DART auto-trigger helper -----------------------------------------------
+
+
+async def _auto_trigger_dart(
+    user: CurrentUser,
+    db: Session,
+    scope: str | None,
+    requirement: RequirementIn,
+    source_stage: str,
+    source_result: dict,
+    stories: list[dict] | None = None,
+) -> dict[str, Any] | None:
+    if not scope:
+        return None
+    try:
+        if await run_in_threadpool(dart_service.session_circuit_breaker, db, scope):
+            logger.warning("DART circuit breaker tripped for scope %s", scope)
+            return None
+    except Exception:
+        logger.exception("Circuit breaker check failed")
+        return None
+
+    dart_request = OrchestrationRequest(
+        requester=user.to_requester(),
+        action="planning.arbitrate",
+        project_id=scope,
+        input={
+            "requirement": {"id": requirement.id, "text": requirement.text, "type": requirement.type},
+            "trigger_reason": "low_confidence",
+            "source_stage": source_stage,
+            "source_result": source_result,
+            "stories": stories or [],
+        },
+    )
+    try:
+        dart_result = await _orchestrate(dart_request)
+    except Exception:
+        logger.exception("DART auto-trigger failed for %s", requirement.id)
+        return None
+
+    case = (dart_result or {}).get("case", {})
+    if case:
+        try:
+            await run_in_threadpool(
+                dart_service.save_case,
+                db, scope,
+                case.get("case_id", ""),
+                case.get("requirement_ref", requirement.id),
+                source_stage,
+                case.get("category", "ambiguous"),
+                case.get("status", "open"),
+                case,
+            )
+        except Exception:
+            logger.exception("Failed to persist DART case for %s", requirement.id)
+    return dart_result
+
+
+# --- DART endpoints ---------------------------------------------------------
+
+
+@router.post("/dart/arbitrate", summary="Manually trigger DART arbitration")
+async def dart_arbitrate(
+    body: DartArbitrateRequest,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    scope = _scope(x_team_id, body.project_id)
+    if scope:
+        tripped = await run_in_threadpool(dart_service.session_circuit_breaker, db, scope)
+        if tripped:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="DART circuit breaker: too many open arbitration cases. Resolve existing cases first.",
+            )
+
+    request = OrchestrationRequest(
+        requester=user.to_requester(),
+        action="planning.arbitrate",
+        project_id=body.project_id,
+        input={
+            "requirement": {"id": body.requirement.id, "text": body.requirement.text, "type": body.requirement.type},
+            "trigger_reason": body.trigger_reason,
+            "source_stage": body.source_stage,
+            "source_result": body.source_result,
+            "stories": body.stories,
+        },
+    )
+    result = await _orchestrate(request)
+
+    case = (result or {}).get("case", {})
+    if scope and case:
+        try:
+            await run_in_threadpool(
+                dart_service.save_case,
+                db, scope,
+                case.get("case_id", ""),
+                case.get("requirement_ref", body.requirement.id),
+                body.source_stage,
+                case.get("category", "ambiguous"),
+                case.get("status", "open"),
+                case,
+            )
+        except Exception:
+            logger.exception("Failed to persist DART case")
+
+    return result
+
+
+@router.get("/dart/cases", summary="List DART arbitration cases")
+async def list_dart_cases(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+    requirement_ref: Annotated[str | None, Query(alias="requirement_ref")] = None,
+    case_status: Annotated[str | None, Query(alias="status")] = None,
+) -> dict[str, Any]:
+    scope = _scope(x_team_id, project_id)
+    if not scope:
+        return {"project_id": None, "cases": []}
+
+    if requirement_ref:
+        rows = await run_in_threadpool(dart_service.cases_for_requirement, db, scope, requirement_ref)
+    elif case_status == "open":
+        rows = await run_in_threadpool(dart_service.open_cases, db, scope)
+    else:
+        rows = await run_in_threadpool(dart_service.latest_cases, db, scope)
+
+    return {"project_id": scope, "cases": rows}
+
+
+@router.get("/dart/cases/{case_ref}", summary="Single DART case with full reasoning chain")
+async def get_dart_case(
+    case_ref: str,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    scope = _scope(x_team_id, project_id)
+    if not scope:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Project scope required.")
+    case = await run_in_threadpool(dart_service.get_case, db, scope, case_ref)
+    if not case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="DART case not found.")
+    return case
+
+
+@router.patch("/dart/cases/{case_ref}/resolve", summary="Instructor resolves a DART case")
+async def resolve_dart_case(
+    case_ref: str,
+    body: DartResolveRequest,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    scope = _scope(x_team_id, project_id)
+    if not scope:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Project scope required.")
+    row = await run_in_threadpool(
+        dart_service.update_case_status, db, scope, case_ref, body.status, user.user_id,
+    )
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="DART case not found.")
+    return {"ok": True, "case_ref": case_ref, "status": body.status}

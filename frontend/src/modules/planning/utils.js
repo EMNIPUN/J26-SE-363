@@ -15,6 +15,11 @@ export const ARBITRATION_CATEGORY_TONE = {
   AMBIGUOUS: 'primary',
   STRUCTURAL: 'danger',
   NOVEL: 'neutral',
+  compound: 'warning',
+  ambiguous: 'primary',
+  structural: 'danger',
+  novel: 'neutral',
+  insufficient_evidence: 'neutral',
 }
 
 export const SUBTASK_STATUS_TONE = {

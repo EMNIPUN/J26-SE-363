@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
-import { Gavel, ChevronDown, AlertTriangle, GitBranch, CheckCircle2 } from 'lucide-react'
+import { Gavel, ChevronDown, AlertTriangle, GitBranch, CheckCircle2, Search, Tag, MessageCircleQuestion, MessageCircleReply, Scale } from 'lucide-react'
 import Badge from '../../../shared/components/Badge.jsx'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import AgentBadge from './AgentBadge.jsx'
 import { usePlanningData } from '../context/usePlanningData.js'
-import { ARBITRATION_CASES, TEAM_MEMBERS, GROUPS } from '../data/mockData.js'
+import { TEAM_MEMBERS, GROUPS } from '../data/mockData.js'
 import { ARBITRATION_CATEGORY_TONE } from '../utils.js'
+import { useDartCases } from '../hooks/useDart.js'
+import { mapDartCases } from '../adapters/dart.js'
 
 const CONTEXT_LABEL = {
   dashboard: 'Project Overview',
@@ -26,8 +28,71 @@ function isEscalated(c) {
   return c.category === 'NOVEL' || c.confidenceAgreement < 40
 }
 
+const PROTOCOL_STEPS = [
+  { key: 'gather', label: 'Gather', icon: Search },
+  { key: 'categorize', label: 'Categorize', icon: Tag },
+  { key: 'consult', label: 'Consult', icon: MessageCircleQuestion },
+  { key: 'respond', label: 'Respond', icon: MessageCircleReply },
+  { key: 'resolve', label: 'Resolve', icon: Scale },
+]
+
+function ProtocolStepper({ item }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1 overflow-x-auto py-1">
+        {PROTOCOL_STEPS.map((step, i) => {
+          const Icon = step.icon
+          return (
+            <div key={step.key} className="flex items-center gap-1">
+              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
+                <Icon className="h-3 w-3" />
+                <span className="text-[10px] font-medium whitespace-nowrap">{step.label}</span>
+              </div>
+              {i < PROTOCOL_STEPS.length - 1 && <span className="text-muted-foreground text-[10px]">→</span>}
+            </div>
+          )
+        })}
+      </div>
+
+      {item.hypothesis?.rationale && (
+        <div className="p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+          <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-0.5">Diagnosis</p>
+          <p className="text-xs text-foreground">{item.hypothesis.rationale}</p>
+        </div>
+      )}
+
+      {item.consultation?.question && (
+        <div className="p-2 rounded-md bg-blue-500/10 border border-blue-500/20">
+          <p className="text-[10px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-0.5">Targeted Question</p>
+          <p className="text-xs text-foreground italic">"{item.consultation.question}"</p>
+        </div>
+      )}
+
+      {item.response?.answer && (
+        <div className="p-2 rounded-md bg-muted/30">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Consultation Response</p>
+          <p className="text-xs text-foreground">{item.response.answer}</p>
+        </div>
+      )}
+
+      {item.resolution?.actionableFeedback && (
+        <div className="p-2 rounded-md border border-primary/20 bg-primary/5">
+          <div className="flex items-center gap-1 mb-0.5">
+            <Badge tone={item.resolution.action === 'escalate' ? 'danger' : 'success'}>
+              {(item.resolution.action || '').toUpperCase()}
+            </Badge>
+            <span className="text-[10px] text-muted-foreground">{item.resolution.confidenceAgreement}% agreement</span>
+          </div>
+          <p className="text-xs text-foreground leading-snug">{item.resolution.actionableFeedback}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ArbitrationCaseItem({ item }) {
   const [expanded, setExpanded] = useState(false)
+  const tone = ARBITRATION_CATEGORY_TONE[item.category?.toUpperCase?.()] || ARBITRATION_CATEGORY_TONE[item.category] || 'muted'
   return (
     <div className="rounded-lg border border-border overflow-hidden">
       <button
@@ -37,28 +102,17 @@ function ArbitrationCaseItem({ item }) {
       >
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-            <Badge tone={ARBITRATION_CATEGORY_TONE[item.category]}>{item.category}</Badge>
-            <span className="text-xs text-muted-foreground">{item.requirementId}</span>
+            <Badge tone={tone}>{item.categoryLabel || item.category}</Badge>
+            <span className="text-xs text-muted-foreground">{item.requirementId || item.caseRef}</span>
+            <Badge tone={item.status === 'open' ? 'warning' : item.status === 'escalated' ? 'danger' : 'success'}>{item.statusLabel || item.status}</Badge>
           </div>
           <p className="text-xs font-medium text-foreground leading-snug">{item.title}</p>
         </div>
         <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
       </button>
       {expanded && (
-        <div className="px-3 pb-3 space-y-2 animate-fade-rise">
-          {Object.entries(item.agentRationale).map(([agentKey, r]) => (
-            <div key={agentKey} className="p-2 rounded-md bg-muted/30">
-              <div className="flex items-center justify-between mb-1">
-                <AgentBadge agent={agentKey} />
-                <span className="text-[10px] text-muted-foreground">{r.confidence}% conf.</span>
-              </div>
-              <p className="text-xs text-foreground">{r.verdict}</p>
-              <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{r.rationale}</p>
-            </div>
-          ))}
-          <div className="p-2 rounded-md border border-primary/20 bg-primary/5">
-            <p className="text-xs text-foreground leading-snug">{item.resolution}</p>
-          </div>
+        <div className="px-3 pb-3 animate-fade-rise">
+          <ProtocolStepper item={item} />
         </div>
       )}
     </div>
@@ -95,24 +149,26 @@ export default function DartButton({ context = 'dashboard' }) {
   const team = (path) => (teamId ? `/teams/${teamId}${path}` : path)
   const [open, setOpen] = useState(false)
   const { requirements, userStories, estimations, kanbanTasks } = usePlanningData()
+  const { data: dartData } = useDartCases()
+  const allCases = mapDartCases(dartData?.cases || [])
 
-  const qualityCases = ARBITRATION_CASES.filter((c) => c.stage === 'quality')
-  const decompositionCases = ARBITRATION_CASES.filter((c) => c.stage === 'decomposition')
+  const qualityCases = allCases.filter((c) => c.stage === 'quality')
+  const decompositionCases = allCases.filter((c) => c.stage === 'decomposition')
   const effortInsights = buildEffortInsights(requirements, userStories, estimations)
   const sprintInsights = buildSprintInsights(kanbanTasks)
-  const openCount = ARBITRATION_CASES.filter((c) => c.status === 'Open').length
+  const openCount = allCases.filter((c) => c.status === 'open').length
 
-  const escalatedCases = ARBITRATION_CASES.filter((c) => c.status === 'Open' && isEscalated(c))
-  const categoryTally = ARBITRATION_CASES.reduce((acc, c) => {
-    acc[c.category] = (acc[c.category] || 0) + 1
+  const escalatedCases = allCases.filter((c) => c.status === 'open' && isEscalated(c))
+  const categoryTally = allCases.reduce((acc, c) => {
+    acc[c.categoryLabel || c.category] = (acc[c.categoryLabel || c.category] || 0) + 1
     return acc
   }, {})
 
   const badgeCount =
     context === 'quality'
-      ? qualityCases.filter((c) => c.status === 'Open').length
+      ? qualityCases.filter((c) => c.status === 'open').length
       : context === 'decomposition'
-        ? decompositionCases.filter((c) => c.status === 'Open').length
+        ? decompositionCases.filter((c) => c.status === 'open').length
         : context === 'effort'
           ? effortInsights.length
           : context === 'sprint'
@@ -127,13 +183,14 @@ export default function DartButton({ context = 'dashboard' }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="hidden fixed bottom-6 left-6 z-40 items-center gap-2 px-4 py-2.5 rounded-full bg-foreground text-background shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer group"
+          className="fixed bottom-6 left-6 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-foreground text-background shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer group"
         >
           <Gavel className="h-4 w-4 shrink-0" />
           <span className="text-xs font-semibold tracking-tight">DART</span>
           {badgeCount > 0 && (
-            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground px-1">
-              {badgeCount}
+            <span className="relative flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground px-1">
+              {openCount > 0 && <span className="absolute inset-0 rounded-full bg-destructive animate-ping opacity-40" />}
+              <span className="relative">{badgeCount}</span>
             </span>
           )}
         </button>,
@@ -293,13 +350,13 @@ export default function DartButton({ context = 'dashboard' }) {
                 <div className="flex items-start gap-2 text-xs">
                   <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
                   <span className="text-foreground">
-                    {qualityCases.filter((c) => c.status === 'Open').length} requirement(s) have unresolved quality conflicts.
+                    {qualityCases.filter((c) => c.status === 'open').length} requirement(s) have unresolved quality conflicts.
                   </span>
                 </div>
                 <div className="flex items-start gap-2 text-xs">
                   <GitBranch className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
                   <span className="text-foreground">
-                    {decompositionCases.filter((c) => c.status === 'Open').length} decomposition conflict(s) detected.
+                    {decompositionCases.filter((c) => c.status === 'open').length} decomposition conflict(s) detected.
                   </span>
                 </div>
                 <div className="flex items-start gap-2 text-xs">

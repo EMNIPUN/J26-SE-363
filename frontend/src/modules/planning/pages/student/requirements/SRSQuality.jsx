@@ -48,7 +48,9 @@ import { srsTemplateUrl } from '../../../services/qualityService.js'
 import { useUploadSrs, useAnalyzeQuality, useQualityResults } from '../../../hooks/useQuality.js'
 import { mapExtractResult, mapAnalyzeResult, mapPersistedRows } from '../../../adapters/quality.js'
 import QualityEvidencePanel from '../../../components/QualityEvidencePanel.jsx'
-import { QUALITY_DIMENSIONS, getArbitrationForRequirement } from '../../../data/mockData.js'
+import { QUALITY_DIMENSIONS } from '../../../data/mockData.js'
+import { useDartCases } from '../../../hooks/useDart.js'
+import { mapDartCases, getDartCasesForRequirement } from '../../../adapters/dart.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
 import { GATE_STATUS_TONE, QUALITY_GATE_THRESHOLD, DIMENSION_ISSUE, formatRelativeTime } from '../../../utils.js'
 import { showToast } from '@/shared/utils/toast.jsx'
@@ -119,6 +121,8 @@ export default function SRSQuality() {
   const uploadMut = useUploadSrs()
   const analyzeMut = useAnalyzeQuality()
   const resultsQuery = useQualityResults()
+  const { data: dartData } = useDartCases()
+  const allDartCases = mapDartCases(dartData?.cases || [])
   const [selectedId, setSelectedId] = useState(null)
   const [checkingId, setCheckingId] = useState(null)
   const [draft, setDraft] = useState(null)
@@ -256,7 +260,7 @@ export default function SRSQuality() {
     }
   }
 
-  const openCases = selected ? getArbitrationForRequirement(selected.id).filter((c) => c.status === 'Open') : []
+  const openCases = selected ? getDartCasesForRequirement(allDartCases, selected.id).filter((c) => c.status === 'open') : []
   const history = selected ? getRequirementHistory(selected.id) : []
   const scoreTrend = history.length >= 2 ? history[history.length - 1].score - history[history.length - 2].score : null
 
@@ -667,22 +671,39 @@ export default function SRSQuality() {
 
               {/* DART Reasoning Flag Callout */}
               {openCases.length > 0 && (
-                <Card className="p-4 border-amber-500/30 bg-amber-500/5">
-                  <div className="flex items-center gap-2 mb-1.5">
+                <Card className="p-4 border-amber-500/30 bg-amber-500/5 animate-pulse-slow">
+                  <div className="flex items-center gap-2 mb-2">
                     <Gavel className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                     <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-                      DART Diagnostic Conflict Flag
+                      DART Activated — Low Confidence ({selected ? `${Math.round((selected.confidence ?? 1) * 100)}%` : ''})
                     </span>
                   </div>
                   {openCases.map((c) => (
-                    <div key={c.id} className="text-xs text-foreground/90 space-y-1">
+                    <div key={c.id} className="text-xs text-foreground/90 space-y-2 mb-2 last:mb-0">
                       <div className="flex items-center gap-2">
-                        <Badge tone="warning">{c.category}</Badge>
-                        <span className="font-semibold text-foreground">{c.title}</span>
+                        <Badge tone="warning">{c.categoryLabel}</Badge>
+                        <span className="text-[10px] text-muted-foreground">{c.caseRef}</span>
                       </div>
-                      <p className="text-muted-foreground text-[11px] leading-relaxed">
-                        Reasoning agent consensus: <strong>{c.confidenceAgreement}%</strong> agreement. {c.resolution}
-                      </p>
+                      {c.hypothesis?.rationale && (
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          <strong>Diagnosis:</strong> {c.hypothesis.rationale}
+                        </p>
+                      )}
+                      {c.consultation?.question && (
+                        <p className="text-[11px] text-blue-700 dark:text-blue-400 italic leading-relaxed">
+                          <strong>Targeted question:</strong> "{c.consultation.question}"
+                        </p>
+                      )}
+                      {c.resolution?.actionableFeedback && (
+                        <div className="p-2 rounded-md bg-primary/5 border border-primary/20">
+                          <p className="text-xs text-foreground leading-snug">
+                            <strong>Feedback:</strong> {c.resolution.actionableFeedback}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            Confidence agreement: {c.resolution.confidenceAgreement}%
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </Card>

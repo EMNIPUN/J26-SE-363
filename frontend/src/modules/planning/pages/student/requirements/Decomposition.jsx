@@ -49,7 +49,8 @@ import RequirementListPanel from '../../../components/RequirementListPanel.jsx'
 import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
 import DecompositionEvidencePanel from '../../../components/DecompositionEvidencePanel.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
-import { getArbitrationForRequirement } from '../../../data/mockData.js'
+import { useDartCases } from '../../../hooks/useDart.js'
+import { mapDartCases, getDartCasesForRequirement } from '../../../adapters/dart.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
 import { useAnalyzeDecomposition, useStories, useDecompositionResults, useCreateStory, useUpdateStory } from '../../../hooks/useDecomposition.js'
 import { mapDecompositionResult, mapStoryRows, mapPersistedDecompositions } from '../../../adapters/decomposition.js'
@@ -424,6 +425,8 @@ export default function Decomposition() {
 
   const analyzeMutation = useAnalyzeDecomposition()
   const storiesQuery = useStories()
+  const { data: dartData } = useDartCases()
+  const allDartCases = mapDartCases(dartData?.cases || [])
   const decompositionQuery = useDecompositionResults()
 
   // Hydrate stories + decomposition results from DB on mount
@@ -496,7 +499,7 @@ export default function Decomposition() {
   ).length
   const overallDecompPercent = passingCount ? Math.round((decomposedCount / passingCount) * 100) : 0
 
-  const dartCases = getArbitrationForRequirement(selectedReqId).filter((c) => c.status === 'Open')
+  const dartCases = getDartCasesForRequirement(allDartCases, selectedReqId).filter((c) => c.status === 'open')
 
   return (
     <div className="space-y-6 pb-12">
@@ -750,19 +753,26 @@ export default function Decomposition() {
           )}
 
           {dartCases.length > 0 && (
-            <Card className="border-primary/20">
-              <div className="flex items-center gap-2 mb-1">
-                <Gavel className="h-3.5 w-3.5 text-primary" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-primary">DART flag</span>
+            <Card className="border-amber-500/30 bg-amber-500/5 animate-pulse-slow">
+              <div className="flex items-center gap-2 mb-2">
+                <Gavel className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                  DART Activated
+                </span>
               </div>
-              <p className="text-[11px] text-muted-foreground mb-2">
-                Raised by the Quality Agent against the raw requirement text — before any stories were written.
-              </p>
               {dartCases.map((c) => (
-                <p key={c.id} className="text-xs text-muted-foreground leading-relaxed">
-                  <Badge tone="warning" className="mr-1.5">{c.category}</Badge>
-                  {c.title}
-                </p>
+                <div key={c.id} className="text-xs space-y-1.5 mb-2 last:mb-0">
+                  <div className="flex items-center gap-2">
+                    <Badge tone="warning">{c.categoryLabel}</Badge>
+                    <span className="text-[10px] text-muted-foreground">{c.caseRef}</span>
+                  </div>
+                  {c.resolution?.actionableFeedback && (
+                    <p className="text-xs text-foreground leading-snug">{c.resolution.actionableFeedback}</p>
+                  )}
+                  {c.consultation?.question && (
+                    <p className="text-[11px] text-blue-700 dark:text-blue-400 italic">"{c.consultation.question}"</p>
+                  )}
+                </div>
               ))}
             </Card>
           )}

@@ -25,21 +25,26 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import DartButton from '../../components/DartButton.jsx'
-import { GROUPS, ARBITRATION_CASES, QUALITY_GATE_TREND } from '../../data/mockData.js'
+import { GROUPS, QUALITY_GATE_TREND } from '../../data/mockData.js'
+import { useDartCases } from '../../hooks/useDart.js'
+import { mapDartCases } from '../../adapters/dart.js'
 import { getGroupCompletion } from '../../stageStats.js'
 import { RISK_TONE } from '../../utils.js'
 
 const RISK_BAR_COLOR = { Low: 'var(--chart-3)', Medium: 'var(--chart-5)', High: 'var(--chart-4)' }
-const CATEGORY_ORDER = ['COMPOUND', 'AMBIGUOUS', 'STRUCTURAL', 'NOVEL']
+const CATEGORY_ORDER = ['compound', 'ambiguous', 'structural', 'novel']
 
 export default function InstructorDashboard() {
   const navigate = useNavigate()
   const { teamId } = useParams()
   const team = (path) => `/teams/${teamId}${path}`
 
+  const { data: dartData } = useDartCases()
+  const allDartCases = mapDartCases(dartData?.cases || [])
+
   const avgGate = Math.round(GROUPS.reduce((sum, g) => sum + g.qualityGate, 0) / GROUPS.length)
-  const escalated = ARBITRATION_CASES.filter((c) => c.status === 'Open' && (c.category === 'NOVEL' || c.confidenceAgreement < 40))
-  const openFlags = ARBITRATION_CASES.filter((c) => c.status === 'Open').length
+  const escalated = allDartCases.filter((c) => c.status === 'open' && (c.category === 'novel' || c.confidenceAgreement < 40))
+  const openFlags = allDartCases.filter((c) => c.status === 'open').length
 
   const groupsWithCompletion = GROUPS.map((g) => ({ ...g, completion: getGroupCompletion(g) }))
   const atRisk = groupsWithCompletion.filter((g) => g.risk === 'High' || (g.completion != null && g.completion < 40))
@@ -49,8 +54,8 @@ export default function InstructorDashboard() {
 
   const qualityComparison = [...GROUPS].sort((a, b) => b.qualityGate - a.qualityGate)
   const categoryTally = CATEGORY_ORDER.map((cat) => ({
-    category: cat,
-    count: ARBITRATION_CASES.filter((c) => c.category === cat).length,
+    category: cat.toUpperCase(),
+    count: allDartCases.filter((c) => c.category === cat).length,
   }))
 
   return (

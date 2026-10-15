@@ -27,6 +27,11 @@ export const ENDPOINTS = {
     STORY: (ref) => `/planning/stories/${ref}`,
     DECOMPOSITION: '/planning/decomposition',
     DECOMPOSITION_HISTORY: (ref) => `/planning/decomposition/${ref}/history`,
+    // DART — Diagnostic Arbitration using Reasoning Traces
+    DART_ARBITRATE: '/planning/dart/arbitrate',
+    DART_CASES: '/planning/dart/cases',
+    DART_CASE: (ref) => `/planning/dart/cases/${ref}`,
+    DART_RESOLVE: (ref) => `/planning/dart/cases/${ref}/resolve`,
   },
   TUTOR: {
     SESSIONS: '/tutor/sessions',

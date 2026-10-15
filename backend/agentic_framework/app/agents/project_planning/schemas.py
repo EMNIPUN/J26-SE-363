@@ -217,3 +217,104 @@ class DecompositionResult(BaseModel):
 class AnalyzeDecompositionResult(BaseModel):
     threshold: int = DEFAULT_DECOMPOSITION_THRESHOLD
     result: DecompositionResult | None = None
+
+
+# ---------------------------------------------------------------------------
+# DART — Diagnostic Arbitration using Reasoning Traces (Function 3 / Novelty)
+# ---------------------------------------------------------------------------
+
+
+class DartCategory(str, Enum):
+    COMPOUND = "compound"
+    AMBIGUOUS = "ambiguous"
+    STRUCTURAL = "structural"
+    NOVEL = "novel"
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+
+
+class DartResolutionAction(str, Enum):
+    RESOLVE = "resolve"
+    RETRIEVE = "retrieve"
+    REFINE = "refine"
+    ESCALATE = "escalate"
+
+
+class DartCaseStatus(str, Enum):
+    OPEN = "open"
+    RESOLVED = "resolved"
+    ESCALATED = "escalated"
+
+
+class DartTriggerReason(str, Enum):
+    LOW_CONFIDENCE = "low_confidence"
+    CONFLICTING_EVIDENCE = "conflicting_evidence"
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+    MANUAL = "manual"
+
+
+class AgentReasoningTrace(BaseModel):
+    agent_name: str
+    diagnosis: str = ""
+    evidence: list[str] = Field(default_factory=list)
+    criteria_used: list[str] = Field(default_factory=list)
+    confidence: float = 0.5
+    recommended_action: str = ""
+    uncertainty_type: str = ""
+
+
+class DiagnosticHypothesis(BaseModel):
+    category: DartCategory
+    rationale: str = ""
+    supporting_evidence: list[str] = Field(default_factory=list)
+    confidence: float = 0.5
+
+
+class ConsultationRequest(BaseModel):
+    target_agent: str = ""
+    question: str = ""
+    context: dict = Field(default_factory=dict)
+    category: DartCategory = DartCategory.AMBIGUOUS
+
+
+class ConsultationResponse(BaseModel):
+    agent_name: str = ""
+    answer: str = ""
+    evidence: list[str] = Field(default_factory=list)
+    confidence: float = 0.5
+    recommended_resolution: str = ""
+
+
+class DartResolution(BaseModel):
+    action: DartResolutionAction
+    rationale: str = ""
+    evidence_summary: list[str] = Field(default_factory=list)
+    confidence_agreement: float = 0.0
+    actionable_feedback: str = ""
+
+
+class ArbitrateDartInput(BaseModel):
+    requirement: RequirementInput
+    trigger_reason: DartTriggerReason = DartTriggerReason.LOW_CONFIDENCE
+    source_stage: str = "quality"
+    source_result: dict = Field(default_factory=dict)
+    stories: list[StoryInput] = Field(default_factory=list)
+
+
+class DartCaseResult(BaseModel):
+    case_id: str = ""
+    requirement_ref: str = ""
+    category: DartCategory = DartCategory.AMBIGUOUS
+    status: DartCaseStatus = DartCaseStatus.OPEN
+    trigger_reason: DartTriggerReason = DartTriggerReason.LOW_CONFIDENCE
+    source_stage: str = "quality"
+    traces: list[AgentReasoningTrace] = Field(default_factory=list)
+    hypothesis: DiagnosticHypothesis | None = None
+    consultation: ConsultationRequest | None = None
+    response: ConsultationResponse | None = None
+    resolution: DartResolution | None = None
+    iteration: int = 1
+    created_at: str = ""
+
+
+class ArbitrateDartResult(BaseModel):
+    case: DartCaseResult
