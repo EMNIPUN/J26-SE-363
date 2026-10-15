@@ -1,0 +1,84 @@
+[
+  {
+    "id": "pat-profile-mgmt",
+    "title": "User Profile Management",
+    "stories": [
+      "As a user, I want to view my profile details so that I can confirm my information is correct.",
+      "As a user, I want to edit my profile details so that I can keep my information up to date.",
+      "As a user, I want to delete my account so that I can remove my data when I no longer need the service.",
+      "As a user, I want to change my password so that I can maintain account security."
+    ],
+    "note": "Clean CRUD decomposition — each story is independent, testable, and maps to one capability."
+  },
+  {
+    "id": "pat-notif-prefs",
+    "title": "Notification Preferences",
+    "stories": [
+      "As a user, I want to enable or disable a notification channel so that I only receive alerts through channels I prefer.",
+      "As a user, I want to set the notification frequency so that I am not overwhelmed by too many messages.",
+      "As a user, I want to preview a sample notification so that I know what to expect before enabling a channel."
+    ],
+    "note": "Good separation of concerns — configuration, tuning, and preview are each a distinct user goal."
+  },
+  {
+    "id": "pat-data-export",
+    "title": "Data Export",
+    "stories": [
+      "As a user, I want to request an export of my data so that I can keep a personal backup.",
+      "As a user, I want to choose an export format (CSV, JSON, PDF) so that I can use the data in my preferred tool.",
+      "As a user, I want to receive a download link by email so that I can retrieve the export when it is ready."
+    ],
+    "note": "Covers initiation, configuration, and delivery — each independently testable."
+  },
+  {
+    "id": "pat-search-filter",
+    "title": "Search and Filter",
+    "stories": [
+      "As a user, I want to search records by keyword so that I can quickly find what I need.",
+      "As a user, I want to filter results by date range so that I can narrow down to a specific period.",
+      "As a user, I want to sort results by relevance or date so that the most useful records appear first.",
+      "As a user, I want to save a search filter as a preset so that I can reuse it without re-entering criteria."
+    ],
+    "note": "Each story adds one distinct search capability; none depends on the others to be useful."
+  },
+  {
+    "id": "pat-report-gen",
+    "title": "Report Generation",
+    "stories": [
+      "As a manager, I want to select a report template so that the output matches our standard format.",
+      "As a manager, I want to specify a date range for the report so that I get data for the relevant period.",
+      "As a manager, I want to download the generated report as a PDF so that I can share it offline."
+    ],
+    "note": "Template selection, parameterisation, and output are separate concerns with clear acceptance criteria."
+  },
+  {
+    "id": "pat-onboarding",
+    "title": "User Onboarding Flow",
+    "stories": [
+      "As a new user, I want to complete a guided setup wizard so that I can configure my workspace without reading documentation.",
+      "As a new user, I want to skip optional setup steps so that I can start using the system immediately.",
+      "As a new user, I want to see contextual tooltips on my first visit so that I understand key features."
+    ],
+    "note": "Progressive disclosure — each story is a self-contained onboarding capability."
+  },
+  {
+    "id": "pat-access-control",
+    "title": "Role-Based Access Control",
+    "stories": [
+      "As an admin, I want to create a new role with specific permissions so that I can control what each team can access.",
+      "As an admin, I want to assign a role to a user so that their access matches their responsibilities.",
+      "As an admin, I want to view an audit log of role changes so that I can track who modified permissions."
+    ],
+    "note": "Admin-facing — role definition, assignment, and auditability are independent capabilities."
+  },
+  {
+    "id": "pat-feedback-loop",
+    "title": "Student Feedback Collection",
+    "stories": [
+      "As a student, I want to rate a lecture on a 1-5 scale so that I can give quick feedback.",
+      "As a student, I want to add a written comment to my rating so that I can explain what worked or did not.",
+      "As an instructor, I want to view aggregated feedback per lecture so that I can identify areas to improve."
+    ],
+    "note": "Separates input (rating, comment) from consumption (instructor view) — different actors, different goals."
+  }
+]

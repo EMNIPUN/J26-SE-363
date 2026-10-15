@@ -137,3 +137,83 @@ class ExtractRequirementsResult(BaseModel):
     count: int
     requirements: list[RequirementInput] = Field(default_factory=list)
     quality: AnalyzeQualityResult | None = None
+
+
+# ---------------------------------------------------------------------------
+# Decomposition analysis — INVEST + coverage (Function 2)
+# ---------------------------------------------------------------------------
+
+INVEST_CRITERIA: tuple[str, ...] = (
+    "independent",
+    "negotiable",
+    "valuable",
+    "estimable",
+    "small",
+    "testable",
+)
+
+DEFAULT_DECOMPOSITION_THRESHOLD = 75
+
+
+class StoryInput(BaseModel):
+    id: str
+    title: str
+    acceptance_criteria: str = ""
+
+
+class DecompositionOptions(BaseModel):
+    threshold: int = DEFAULT_DECOMPOSITION_THRESHOLD
+
+
+class AnalyzeDecompositionInput(BaseModel):
+    """Payload for ``planning.analyze_decomposition``."""
+
+    requirement: RequirementInput
+    stories: list[StoryInput] = Field(default_factory=list)
+    options: DecompositionOptions = Field(default_factory=DecompositionOptions)
+
+
+# ----- result ----------------------------------------------------------------
+
+
+class InvestCriterion(BaseModel):
+    passed: bool
+    note: str = ""
+
+
+class StoryInvest(BaseModel):
+    story_id: str
+    independent: InvestCriterion = Field(default_factory=lambda: InvestCriterion(passed=True))
+    negotiable: InvestCriterion = Field(default_factory=lambda: InvestCriterion(passed=True))
+    valuable: InvestCriterion = Field(default_factory=lambda: InvestCriterion(passed=True))
+    estimable: InvestCriterion = Field(default_factory=lambda: InvestCriterion(passed=True))
+    small: InvestCriterion = Field(default_factory=lambda: InvestCriterion(passed=True))
+    testable: InvestCriterion = Field(default_factory=lambda: InvestCriterion(passed=True))
+    overall_pass: bool = True
+
+
+class CoverageAspect(BaseModel):
+    id: str
+    label: str
+    covered: bool = False
+
+
+class DecompositionResult(BaseModel):
+    requirement_ref: str
+    overall_score: int
+    status: GateStatus
+    gate_action: GateAction
+    coverage: float = 0.0
+    aspects: list[CoverageAspect] = Field(default_factory=list)
+    gaps: list[CoverageAspect] = Field(default_factory=list)
+    stories: list[StoryInvest] = Field(default_factory=list)
+    patterns: list[dict] = Field(default_factory=list)
+    summary: str = ""
+    confidence: float = 1.0
+    dart_triggered: bool = False
+    retrieval: dict = Field(default_factory=dict)
+
+
+class AnalyzeDecompositionResult(BaseModel):
+    threshold: int = DEFAULT_DECOMPOSITION_THRESHOLD
+    result: DecompositionResult | None = None

@@ -27,12 +27,17 @@ from app.agents.project_planning.extraction import extract_from_bytes
 from app.agents.project_planning.extraction.template import build_template_bytes
 from app.agents.project_planning.knowledge import warm_up as warm_up_knowledge
 from app.agents.project_planning.schemas import (
+    AnalyzeDecompositionInput,
+    AnalyzeDecompositionResult,
     AnalyzeQualityInput,
     AnalyzeQualityResult,
     ExtractRequirementsInput,
     ExtractRequirementsResult,
     RequirementInput,
     RequirementQualityResult,
+)
+from app.agents.project_planning.subagents.decomposition.graph import (
+    run_decomposition_agent,
 )
 from app.agents.project_planning.subagents.quality.graph import run_quality_agent
 
@@ -60,8 +65,9 @@ class ProjectPlanningAgent:
             return await self._extract_requirements(request)
         if request.action == ACTION_GET_SRS_TEMPLATE:
             return self._get_srs_template(request)
+        if request.action == ACTION_ANALYZE_DECOMPOSITION:
+            return await self._analyze_decomposition(request)
 
-        # Known-but-not-yet-built actions return a clear, typed failure.
         return self._failed(request, "action_not_implemented", f"Action '{request.action}' is not implemented yet.")
 
     # ------------------------------------------------------------------
@@ -130,6 +136,29 @@ class ProjectPlanningAgent:
         )
 
     # ------------------------------------------------------------------
+    # planning.analyze_decomposition
+    # ------------------------------------------------------------------
+    async def _analyze_decomposition(self, request: AgentRequest) -> AgentResponse:
+        payload = AnalyzeDecompositionInput.model_validate(request.input)
+        if not payload.stories:
+            return self._failed(request, "no_stories", "At least one user story is required.")
+
+        try:
+            await asyncio.to_thread(warm_up_knowledge)
+        except Exception:
+            logger.exception("knowledge base warm-up failed; retrieval tools will return empty")
+
+        result = await run_decomposition_agent(payload)
+        wrapped = AnalyzeDecompositionResult(threshold=payload.options.threshold, result=result)
+        return AgentResponse(
+            request_id=request.request_id,
+            agent_name=self.name,
+            status=ResultStatus.COMPLETED,
+            result=wrapped.model_dump(),
+            evidence=[_decomposition_evidence(result)],
+        )
+
+    # ------------------------------------------------------------------
     # shared helpers
     # ------------------------------------------------------------------
     async def _score_requirements(
@@ -166,6 +195,30 @@ class ProjectPlanningAgent:
             status=ResultStatus.FAILED,
             error=ErrorInfo(code=code, message=message, retryable=False),
         )
+
+
+def _decomposition_evidence(r) -> Evidence:
+    from app.agents.project_planning.schemas import DecompositionResult
+
+    if not isinstance(r, DecompositionResult):
+        return Evidence(source="decomposition_agent", description="unknown result type", data={})
+    passing_stories = sum(1 for s in r.stories if s.overall_pass)
+    return Evidence(
+        source="decomposition_agent",
+        description=(
+            f"{r.requirement_ref}: {r.overall_score}/100 ({r.status.value}); "
+            f"coverage {round(r.coverage * 100)}%; "
+            f"{passing_stories}/{len(r.stories)} stories pass INVEST; "
+            f"confidence {r.confidence:.2f}"
+        ),
+        data={
+            "requirement_ref": r.requirement_ref,
+            "gate_action": r.gate_action.value,
+            "dart_triggered": r.dart_triggered,
+            "coverage": r.coverage,
+            "gaps": [g.model_dump() for g in r.gaps],
+        },
+    )
 
 
 def _evidence_for(r: RequirementQualityResult) -> Evidence:

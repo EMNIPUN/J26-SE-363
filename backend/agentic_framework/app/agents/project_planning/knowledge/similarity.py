@@ -1,9 +1,8 @@
-"""cross_req_checker — semantic similarity across the SRS (SBERT/MiniLM + cosine).
+"""Semantic similarity utilities (SBERT/MiniLM + cosine).
 
-Uses ChromaDB's default all-MiniLM-L6-v2 (384-d) embedding to find other
-requirements that are near-duplicates of, or overlap with, the one being scored.
-High similarity to another requirement is evidence for the consistency and
-traceability dimensions (possible duplication, contradiction or overlap).
+- ``cross_req_check``: find near-duplicate requirements across the SRS.
+- ``aspect_coverage``: match extracted requirement aspects against story texts
+  for the Decomposition agent's coverage_analyzer tool.
 """
 
 from __future__ import annotations
@@ -45,3 +44,38 @@ def cross_req_check(
         for sim, text in ranked[:top]
         if sim >= threshold
     ]
+
+
+def aspect_coverage(
+    aspects: list[dict[str, str]],
+    story_texts: list[str],
+    threshold: float = 0.45,
+) -> list[dict[str, Any]]:
+    """For each aspect {id, label}, find the best-matching story text by cosine.
+
+    Returns a list of ``{id, label, covered, best_similarity}`` dicts.
+    An aspect is ``covered`` when ``best_similarity >= threshold``.
+    """
+    if not aspects or not story_texts:
+        return [{"id": a["id"], "label": a["label"], "covered": False, "best_similarity": 0.0} for a in aspects]
+
+    aspect_docs = [a["label"] for a in aspects]
+    all_docs = [*aspect_docs, *story_texts]
+    vectors = np.asarray(_embedder()(all_docs), dtype=float)
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True) + 1e-9
+    vectors /= norms
+
+    aspect_vecs = vectors[: len(aspect_docs)]
+    story_vecs = vectors[len(aspect_docs) :]
+    sims = aspect_vecs @ story_vecs.T  # (num_aspects, num_stories)
+
+    out: list[dict[str, Any]] = []
+    for i, a in enumerate(aspects):
+        best = float(sims[i].max()) if sims.shape[1] > 0 else 0.0
+        out.append({
+            "id": a["id"],
+            "label": a["label"],
+            "covered": best >= threshold,
+            "best_similarity": round(best, 3),
+        })
+    return out

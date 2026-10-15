@@ -18,10 +18,15 @@ export const ENDPOINTS = {
     TASK_DETAIL: (id) => `/planning/tasks/${id}`,
     TIMELINE: (projectId) => `/planning/projects/${projectId}/timeline`,
     // Requirement Quality Agent
-    SRS: '/planning/srs',               // POST multipart: upload .docx -> extract + score
-    SRS_TEMPLATE: '/planning/srs/template', // GET: backend-generated .docx template (public)
-    QUALITY: '/planning/quality',       // POST score typed-in reqs · GET latest stored results
+    SRS: '/planning/srs',
+    SRS_TEMPLATE: '/planning/srs/template',
+    QUALITY: '/planning/quality',
     QUALITY_HISTORY: (ref) => `/planning/quality/${ref}/history`,
+    // User Stories + Decomposition Agent
+    STORIES: '/planning/stories',
+    STORY: (ref) => `/planning/stories/${ref}`,
+    DECOMPOSITION: '/planning/decomposition',
+    DECOMPOSITION_HISTORY: (ref) => `/planning/decomposition/${ref}/history`,
   },
   TUTOR: {
     SESSIONS: '/tutor/sessions',

@@ -6,7 +6,6 @@
 // Estimation / Sprint Management. Living outside the component tree, this
 // store survives navigation and only resets on a full page reload.
 import {
-  USER_STORIES_SEED,
   STORY_ESTIMATIONS_SEED,
   KANBAN_SEED,
   PROJECT_INFO,
@@ -33,7 +32,7 @@ function nextId(prefix) {
 // placeholders for agents not yet built; they stay inert until a real SRS exists.
 let state = {
   requirements: [],
-  userStories: USER_STORIES_SEED,
+  userStories: {},
   estimations: STORY_ESTIMATIONS_SEED,
   kanbanTasks: KANBAN_SEED,
   requirementHistory: {},
@@ -128,6 +127,11 @@ export const actions = {
     return state.requirementHistory[id] || []
   },
 
+  loadStories(map) {
+    if (!map || Object.keys(map).length === 0) return
+    setState({ userStories: { ...state.userStories, ...map } })
+  },
+
   getStories(reqId) {
     return state.userStories[reqId] || []
   },
@@ -160,9 +164,7 @@ export const actions = {
     return state.decompositionEvaluations[reqId] || null
   },
 
-  // Records one full coverage_analyzer -> invest_validator -> pattern_retriever
-  // -> decomposition_scorer -> reflect pass (see decompositionEngine.js) against
-  // the requirement's current story set.
+  // Records one full decomposition agent pass against the requirement's current story set.
   recordDecompositionAnalysis(reqId, result) {
     setState({
       userStories: {

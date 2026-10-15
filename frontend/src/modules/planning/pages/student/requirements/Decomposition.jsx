@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Sparkles,
@@ -13,8 +13,6 @@ import {
   Bug,
   PenLine,
   Brain,
-  SkipForward,
-  RefreshCcw,
   GraduationCap,
   BookOpen,
   UserCheck,
@@ -49,11 +47,22 @@ import WorkflowStepper from '../../../components/WorkflowStepper.jsx'
 import DartButton from '../../../components/DartButton.jsx'
 import RequirementListPanel from '../../../components/RequirementListPanel.jsx'
 import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
+import DecompositionEvidencePanel from '../../../components/DecompositionEvidencePanel.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
 import { getArbitrationForRequirement } from '../../../data/mockData.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
-import { runDecompositionAnalysis, INVEST_CRITERIA } from '../../../decompositionEngine.js'
+import { useAnalyzeDecomposition, useStories, useDecompositionResults, useCreateStory, useUpdateStory } from '../../../hooks/useDecomposition.js'
+import { mapDecompositionResult, mapStoryRows, mapPersistedDecompositions } from '../../../adapters/decomposition.js'
 import { showToast } from '@/shared/utils/toast.jsx'
+
+const INVEST_CRITERIA = [
+  { key: 'independent', label: 'Independent', description: 'The story can be built and delivered independently of other stories.' },
+  { key: 'negotiable', label: 'Negotiable', description: 'The story describes the desired outcome, not a fixed implementation.' },
+  { key: 'valuable', label: 'Valuable', description: 'The story delivers clear value to a stakeholder.' },
+  { key: 'estimable', label: 'Estimable', description: 'The story is concrete enough for the team to estimate effort.' },
+  { key: 'small', label: 'Small', description: 'The story is scoped to be completable within a single sprint.' },
+  { key: 'testable', label: 'Testable', description: 'The story has clear acceptance criteria that can be verified.' },
+]
 
 let genIdCounter = 5000
 function genId(prefix) {
@@ -62,32 +71,6 @@ function genId(prefix) {
 }
 
 const BUG_SEVERITY_TONE = { Low: 'neutral', Medium: 'warning', High: 'danger' }
-
-const TOOL_ICON = {
-  coverage_analyzer: Brain,
-  invest_validator: CheckCircle2,
-  pattern_retriever: Sparkles,
-  decomposition_scorer: Gavel,
-}
-
-function TraceStep({ step }) {
-  const Icon = step.tool ? TOOL_ICON[step.tool] || Brain : step.phase === 'skip' ? SkipForward : RefreshCcw
-  const isSkip = step.phase === 'skip'
-  const isReflect = step.phase === 'reflect'
-  return (
-    <div className={`p-2.5 rounded-lg border animate-fade-rise ${isSkip ? 'border-dashed border-border bg-muted/20' : isReflect ? 'border-primary/20 bg-primary/5' : 'border-border bg-muted/30'}`}>
-      <div className="flex items-center gap-2 mb-1">
-        <Icon className={`h-3.5 w-3.5 shrink-0 ${isSkip ? 'text-muted-foreground' : isReflect ? 'text-primary' : 'text-foreground'}`} />
-        <span className="text-xs font-semibold text-foreground">
-          Iteration {step.iteration}{step.tool ? ` — ${step.tool}` : isReflect ? ' — reflect' : ' — adaptive skip'}
-        </span>
-        {step.toolType && <span className="text-[10px] text-muted-foreground ml-auto">{step.toolType}</span>}
-      </div>
-      <p className="text-xs text-muted-foreground leading-snug mb-1">{step.reasoning}</p>
-      <p className="text-xs text-foreground leading-snug font-medium">{step.result}</p>
-    </div>
-  )
-}
 
 function CoverageResults({ evaluation }) {
   return (
@@ -273,6 +256,7 @@ function InvestChecklist({ investResult }) {
 
 function StoryCard({ reqId, story }) {
   const { updateStoryText, acceptStory, addTask } = usePlanningData()
+  const updateMutation = useUpdateStory()
   const [editing, setEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState(story.title)
   const [draftCriteria, setDraftCriteria] = useState(story.acceptanceCriteria)
@@ -282,6 +266,7 @@ function StoryCard({ reqId, story }) {
 
   function saveEdits() {
     updateStoryText(reqId, story.id, { title: draftTitle, acceptanceCriteria: draftCriteria })
+    updateMutation.mutate({ ref: story.id, patch: { title: draftTitle, acceptance_criteria: draftCriteria } })
     setEditing(false)
     showToast.info('Story updated', { description: 'Run the decomposition analysis again to re-check coverage and INVEST.' })
   }
@@ -382,6 +367,7 @@ function StoryCard({ reqId, story }) {
 
 function NewStoryForm({ reqId, onDone }) {
   const { addStory } = usePlanningData()
+  const createMutation = useCreateStory()
   const [title, setTitle] = useState('')
   const [acceptanceCriteria, setAcceptanceCriteria] = useState('')
 
@@ -397,6 +383,13 @@ function NewStoryForm({ reqId, onDone }) {
       bugs: [],
     }
     addStory(reqId, story)
+    createMutation.mutate({
+      id: story.id,
+      requirement_ref: reqId,
+      title: story.title,
+      acceptance_criteria: story.acceptanceCriteria,
+      status: story.status,
+    })
     setTitle('')
     setAcceptanceCriteria('')
     onDone?.()
@@ -424,18 +417,37 @@ function NewStoryForm({ reqId, onDone }) {
 export default function Decomposition() {
   const navigate = useNavigate()
   const team = useTeamPath()
-  const { requirements, userStories, getStories, getDecompositionEvaluation, recordDecompositionAnalysis } = usePlanningData()
+  const { requirements, userStories, getStories, getDecompositionEvaluation, recordDecompositionAnalysis, loadStories } = usePlanningData()
   const passing = requirements.filter((r) => r.status === 'Passing')
   const [selectedReqId, setSelectedReqId] = useState(passing[0]?.id ?? requirements[0]?.id ?? '')
   const [showNewStoryForm, setShowNewStoryForm] = useState(false)
-  const [analyzing, setAnalyzing] = useState(false)
-  const [liveTrace, setLiveTrace] = useState([])
+
+  const analyzeMutation = useAnalyzeDecomposition()
+  const storiesQuery = useStories()
+  const decompositionQuery = useDecompositionResults()
+
+  // Hydrate stories + decomposition results from DB on mount
+  useEffect(() => {
+    if (storiesQuery.data?.stories) {
+      const mapped = mapStoryRows(storiesQuery.data.stories)
+      if (Object.keys(mapped).length > 0) loadStories(mapped)
+    }
+  }, [storiesQuery.data]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (decompositionQuery.data?.results) {
+      const mapped = mapPersistedDecompositions(decompositionQuery.data.results)
+      for (const [reqId, eval_] of Object.entries(mapped)) {
+        if (eval_) recordDecompositionAnalysis(reqId, eval_)
+      }
+    }
+  }, [decompositionQuery.data]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const requirement = requirements.find((r) => r.id === selectedReqId)
   const isEligible = requirement?.status === 'Passing'
   const stories = isEligible ? getStories(selectedReqId) : []
   const evaluation = isEligible ? getDecompositionEvaluation(selectedReqId) : null
-  const displayTrace = analyzing ? liveTrace : evaluation?.trace || []
+  const analyzing = analyzeMutation.isPending
 
   function getDecompositionMeta(r) {
     if (r.status !== 'Passing') return { percent: 0, tone: 'neutral', locked: true }
@@ -447,21 +459,32 @@ export default function Decomposition() {
   }
 
   function runAnalysis() {
-    const result = runDecompositionAnalysis(requirement, stories)
-    setAnalyzing(true)
-    setLiveTrace([])
-    result.trace.forEach((step, i) => {
-      setTimeout(() => {
-        setLiveTrace((prev) => [...prev, step])
-        if (i === result.trace.length - 1) {
-          recordDecompositionAnalysis(selectedReqId, result)
-          setAnalyzing(false)
-          showToast.success('Decomposition analysis complete', {
-            description: `Coverage ${Math.round(result.coverage * 100)}% · score ${result.score}/100 (${result.verdict}).`,
-          })
-        }
-      }, (i + 1) * 650)
-    })
+    if (!requirement || stories.length === 0) return
+    const storiesPayload = stories.map((s) => ({
+      id: s.id,
+      title: s.title,
+      acceptance_criteria: s.acceptanceCriteria || '',
+    }))
+    analyzeMutation.mutate(
+      {
+        requirement: { id: requirement.id, text: requirement.description || requirement.title },
+        stories: storiesPayload,
+      },
+      {
+        onSuccess: (data) => {
+          const mapped = mapDecompositionResult(data)
+          if (mapped) {
+            recordDecompositionAnalysis(selectedReqId, mapped)
+            showToast.success('Decomposition analysis complete', {
+              description: `Coverage ${Math.round(mapped.coverage * 100)}% · score ${mapped.score}/100 (${mapped.verdict}).`,
+            })
+          }
+        },
+        onError: (err) => {
+          showToast.error('Analysis failed', { description: err?.response?.data?.detail || err.message || 'Unknown error' })
+        },
+      },
+    )
   }
 
   const [investGuideOpen, setInvestGuideOpen] = useState(false)
@@ -677,34 +700,32 @@ export default function Decomposition() {
           )}
         </div>
 
-        {/* Column 3 — AI feedback: reasoning trace, coverage/INVEST results, DART (fixed while column 2 scrolls) */}
+        {/* Column 3 — AI feedback: coverage/INVEST results, evidence panel, DART (fixed while column 2 scrolls) */}
         <div className="space-y-4 xl:sticky xl:top-4 xl:self-start xl:max-h-[85vh] xl:overflow-y-auto column-scroll-contain xl:pr-1">
           {!isEligible ? (
             <Card>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">AI feedback</p>
               <p className="text-xs text-muted-foreground">This requirement isn't decomposable yet — resolve its quality gate first.</p>
             </Card>
-          ) : displayTrace.length === 0 && !evaluation ? (
+          ) : analyzing ? (
             <Card>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">AI feedback</p>
-              <p className="text-xs text-muted-foreground">Run the decomposition analysis to see coverage, INVEST and the agent's reasoning trace here.</p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Brain className="h-3.5 w-3.5 animate-pulse text-primary" />
+                Analyzing coverage and INVEST criteria…
+              </div>
+            </Card>
+          ) : !evaluation ? (
+            <Card>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">AI feedback</p>
+              <p className="text-xs text-muted-foreground">Run the decomposition analysis to see coverage, INVEST validation and the agent's feedback here.</p>
             </Card>
           ) : (
             <>
-              {displayTrace.length > 0 && (
-                <Card>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Agent reasoning trace</p>
-                  <div className="space-y-2">
-                    {displayTrace.map((step) => (
-                      <TraceStep key={step.iteration} step={step} />
-                    ))}
-                  </div>
-                </Card>
-              )}
+              <CoverageResults evaluation={evaluation} />
+              <DecompositionEvidencePanel evaluation={evaluation} />
 
-              {!analyzing && evaluation && <CoverageResults evaluation={evaluation} />}
-
-              {!analyzing && evaluation && stories.length > 0 && (
+              {stories.length > 0 && (
                 <Card>
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Story-by-story</p>
                   <ul className="space-y-1.5">
