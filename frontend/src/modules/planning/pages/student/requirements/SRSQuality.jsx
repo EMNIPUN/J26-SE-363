@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   UploadCloud,
   Download,
@@ -99,9 +99,16 @@ const IEEE_STANDARDS_INFO = [
 ]
 
 export default function SRSQuality() {
+  const navigate = useNavigate()
   const team = useTeamPath()
-  const { requirements, updateRequirementText, applyRequirementResult, getRequirementHistory, loadRequirements } =
-    usePlanningData()
+  const {
+    requirements,
+    updateRequirementText,
+    applyRequirementResult,
+    finalizeRequirement,
+    getRequirementHistory,
+    loadRequirements,
+  } = usePlanningData()
   const uploadMut = useUploadSrs()
   const analyzeMut = useAnalyzeQuality()
   const resultsQuery = useQualityResults()
@@ -131,6 +138,7 @@ export default function SRSQuality() {
 
   // Falls back to the first requirement until the student picks one.
   const selected = requirements.find((r) => r.id === selectedId) || requirements[0] || null
+  const isFinalized = Boolean(selected?.finalized || selected?.decompUnlocked)
   const historyQuery = useRequirementHistory(selected?.id)
   const currentDraft =
     draft && draft.id === selectedId
@@ -141,7 +149,7 @@ export default function SRSQuality() {
   const draftText = currentDraft.description.trim()
   const textChanged = !!selected && draftText !== (selected.description || '').trim()
   const checking = !!selected && checkingId === selected.id
-  const canRecheck = !!selected && !!draftText && (textChanged || selected.stale) && !checking
+  const canRecheck = !!selected && !isFinalized && !!draftText && (textChanged || selected.stale) && !checking
 
   const avgScore = requirements.length
     ? Math.round(requirements.reduce((sum, r) => sum + r.overallScore, 0) / requirements.length)
@@ -154,6 +162,16 @@ export default function SRSQuality() {
     setSelectedId(id)
     setDraft(null)
     setHistoryOpen(true)
+  }
+
+  function handleProceedToDecomposition(req) {
+    const target = req || selected
+    if (!target) return
+    finalizeRequirement(target.id)
+    showToast.success('Quality gate finalized', {
+      description: `${target.id} approved and unlocked for Backlog Decomposition.`,
+    })
+    navigate(team(`/planning/requirements/decomposition?req=${target.id}`))
   }
 
   // Intercept upload click: if an SRS document is already present, prompt with warning dialog.
@@ -489,6 +507,8 @@ export default function SRSQuality() {
                 getItemMeta={(r) => ({
                   percent: r.overallScore,
                   tone: r.status === 'Passing' ? 'success' : r.status === 'Needs Review' ? 'warning' : 'danger',
+                  locked: false,
+                  finalized: Boolean(r.finalized || r.decompUnlocked),
                 })}
               />
             </div>
@@ -532,15 +552,26 @@ export default function SRSQuality() {
 
                   {/* Right: Top-Right Corner "Go to Next Step" Button */}
                   <div className="flex items-center gap-2">
-                    {selected.status === 'Passing' ? (
+                    {isFinalized ? (
                       <Link
-                        to={team('/planning/requirements/decomposition')}
-                        className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all shrink-0"
-                        title="All IEEE dimensions meet the quality gate. Proceed to Decomposition."
+                        to={team(`/planning/requirements/decomposition?req=${selected.id}`)}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all shrink-0 cursor-pointer"
+                        title="Requirement quality is finalized. Go to Backlog Decomposition."
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        <span>View in Decomposition</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    ) : selected.status === 'Passing' ? (
+                      <Button
+                        size="sm"
+                        onClick={() => handleProceedToDecomposition(selected)}
+                        className="text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-sm transition-all shrink-0"
+                        title="Finalize IEEE 830 quality and proceed to Backlog Decomposition."
                       >
                         <span>Proceed to Decomposition</span>
                         <ArrowRight className="h-3.5 w-3.5" />
-                      </Link>
+                      </Button>
                     ) : (
                       <div
                         className="flex items-center gap-1.5"
@@ -571,11 +602,15 @@ export default function SRSQuality() {
                         <Badge tone={selected.priority === 'High' ? 'danger' : selected.priority === 'Medium' ? 'warning' : 'neutral'}>
                           {selected.priority} Priority
                         </Badge>
-                        {selected.stale && (
+                        {isFinalized ? (
+                          <Badge tone="success" className="text-xs font-semibold px-2 py-0.5 gap-1">
+                            <ShieldCheck className="h-3 w-3" /> Finalized &amp; Locked
+                          </Badge>
+                        ) : selected.stale ? (
                           <Badge tone="warning" className="text-[10px] gap-1">
                             <AlertTriangle className="h-3 w-3" /> Edited — re-check needed
                           </Badge>
-                        )}
+                        ) : null}
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
@@ -596,6 +631,29 @@ export default function SRSQuality() {
                       </div>
                     </div>
 
+                    {/* Finalized Approved Banner */}
+                    {isFinalized && (
+                      <div className="mb-4 flex items-center justify-between gap-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-300">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <ShieldCheck className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold truncate">Requirement Quality Finalized &amp; Locked</p>
+                            <p className="text-[11px] opacity-90 leading-tight">
+                              This specification passed IEEE 830 verification and was finalized for Backlog Decomposition. Direct editing is disabled.
+                            </p>
+                          </div>
+                        </div>
+                        <Link
+                          to={team(`/planning/requirements/decomposition?req=${selected.id}`)}
+                          className="text-xs font-semibold underline hover:no-underline shrink-0 flex items-center gap-1 text-emerald-700 dark:text-emerald-300"
+                        >
+                          View in Decomposition <ArrowRight className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    )}
+
                     {/* Original Specification Text (Read-Only Highlighted) */}
                     <div className="mb-4">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
@@ -608,84 +666,119 @@ export default function SRSQuality() {
                     </div>
 
                     {/* Single Textarea Input for Refinement */}
-                    <div className="space-y-2 mb-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                          Student Revision &amp; Refinement Editor
-                        </p>
-                        <span className="text-[10px] text-muted-foreground">
-                          Single specification input (IEEE 830 format)
-                        </span>
+                    {isFinalized ? (
+                      <div className="space-y-2 mb-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                            <Lock className="h-3 w-3 text-muted-foreground" />
+                            Specification Text (Locked — View Only)
+                          </p>
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            Approved Baseline
+                          </span>
+                        </div>
+                        <Textarea
+                          value={selected.description}
+                          disabled
+                          rows={5}
+                          className="text-xs leading-relaxed font-sans bg-muted/40 text-muted-foreground cursor-not-allowed opacity-90 border-border/80 resize-none select-text"
+                        />
                       </div>
-                      <Textarea
-                        value={currentDraft.description}
-                        onChange={(e) =>
-                          setDraft({
-                            id: selected.id,
-                            title: currentDraft.title || selected.title,
-                            description: e.target.value,
-                          })
-                        }
-                        placeholder="Enter IEEE compliant requirement specification (e.g. 'The system shall...')..."
-                        rows={5}
-                        className="text-xs leading-relaxed font-sans"
-                      />
-                    </div>
-
-                    {/* Editor Action Toolbar */}
-                    <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-border/60">
-                      {selected.suggestedRewrite ? (
-                        <button
-                          type="button"
-                          className="text-xs font-semibold text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
-                          onClick={() =>
+                    ) : (
+                      <div className="space-y-2 mb-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                            Student Revision &amp; Refinement Editor
+                          </p>
+                          <span className="text-[10px] text-muted-foreground">
+                            Single specification input (IEEE 830 format)
+                          </span>
+                        </div>
+                        <Textarea
+                          value={currentDraft.description}
+                          onChange={(e) =>
                             setDraft({
                               id: selected.id,
                               title: currentDraft.title || selected.title,
-                              description: selected.suggestedRewrite,
+                              description: e.target.value,
                             })
                           }
-                        >
-                          <Sparkles className="h-3.5 w-3.5 text-primary" /> Apply AI Rewrite Suggestion
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-muted-foreground">Editor in sync with baseline</span>
-                      )}
+                          placeholder="Enter IEEE compliant requirement specification (e.g. 'The system shall...')..."
+                          rows={5}
+                          className="text-xs leading-relaxed font-sans"
+                        />
+                      </div>
+                    )}
 
-                      <div className="flex items-center gap-2 ml-auto">
-                        {draft && (
+                    {/* Editor Action Toolbar */}
+                    {isFinalized ? (
+                      <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-border/60">
+                        <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                          <Lock className="h-3 w-3" /> Specification locked in read-only mode — quality gate verified.
+                        </span>
+                        <Link
+                          to={team(`/planning/requirements/decomposition?req=${selected.id}`)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                        >
+                          <span>Proceed to User Story Decomposition</span>
+                          <ArrowRight className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-border/60">
+                        {selected.suggestedRewrite ? (
+                          <button
+                            type="button"
+                            className="text-xs font-semibold text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
+                            onClick={() =>
+                              setDraft({
+                                id: selected.id,
+                                title: currentDraft.title || selected.title,
+                                description: selected.suggestedRewrite,
+                              })
+                            }
+                          >
+                            <Sparkles className="h-3.5 w-3.5 text-primary" /> Apply AI Rewrite Suggestion
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground">Editor in sync with baseline</span>
+                        )}
+
+                        <div className="flex items-center gap-2 ml-auto">
+                          {draft && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setDraft(null)}
+                              className="text-xs cursor-pointer"
+                            >
+                              Reset
+                            </Button>
+                          )}
                           <Button
                             size="sm"
-                            variant="ghost"
-                            onClick={() => setDraft(null)}
-                            className="text-xs cursor-pointer"
+                            className="text-xs cursor-pointer gap-1.5"
+                            disabled={!canRecheck}
+                            title={
+                              !draftText
+                                ? 'Add requirement text first'
+                                : !textChanged && !selected.stale
+                                  ? 'Edit the requirement to run a new check'
+                                  : undefined
+                            }
+                            onClick={() =>
+                              runQualityCheck(selected.id, {
+                                title: currentDraft.title || selected.title,
+                                description: currentDraft.description,
+                              })
+                            }
                           >
-                            Reset
+                            <RefreshCw className={`h-3.5 w-3.5 ${checking ? 'animate-spin' : ''}`} />
+                            {checking ? 'Re-scoring…' : 'Save & Re-check Quality'}
                           </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          className="text-xs cursor-pointer gap-1.5"
-                          disabled={!canRecheck}
-                          title={
-                            !draftText
-                              ? 'Add requirement text first'
-                              : !textChanged && !selected.stale
-                                ? 'Edit the requirement to run a new check'
-                                : undefined
-                          }
-                          onClick={() =>
-                            runQualityCheck(selected.id, {
-                              title: currentDraft.title || selected.title,
-                              description: currentDraft.description,
-                            })
-                          }
-                        >
-                          <RefreshCw className={`h-3.5 w-3.5 ${checking ? 'animate-spin' : ''}`} />
-                          {checking ? 'Re-scoring…' : 'Save & Re-check Quality'}
-                        </Button>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </Card>
                 )}
 

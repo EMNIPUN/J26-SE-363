@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Sparkles,
   Plus,
@@ -18,6 +18,13 @@ import {
   UserCheck,
   Check,
   ShieldCheck,
+  Layers,
+  FileEdit,
+  Lightbulb,
+  History,
+  Trash2,
+  AlertTriangle,
+  CheckSquare,
 } from 'lucide-react'
 import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import Card from '../../../../../shared/components/Card.jsx'
@@ -27,7 +34,6 @@ import AvatarComp from '../../../../../shared/components/Avatar.jsx'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -41,7 +47,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog'
 import WorkflowStepper from '../../../components/WorkflowStepper.jsx'
 import DartButton from '../../../components/DartButton.jsx'
@@ -50,19 +55,32 @@ import SupervisorConsultationModal from '../../../components/SupervisorConsultat
 import DecompositionEvidencePanel from '../../../components/DecompositionEvidencePanel.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
 import { useDartCases } from '../../../hooks/useDart.js'
+import { useQualityResults } from '../../../hooks/useQuality.js'
 import { mapDartCases, getDartCasesForRequirement } from '../../../adapters/dart.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
-import { useAnalyzeDecomposition, useStories, useDecompositionResults, useCreateStory, useUpdateStory } from '../../../hooks/useDecomposition.js'
-import { mapDecompositionResult, mapStoryRows, mapPersistedDecompositions } from '../../../adapters/decomposition.js'
+import {
+  useAnalyzeDecomposition,
+  useStories,
+  useDecompositionResults,
+  useCreateStory,
+  useUpdateStory,
+  useDeleteStory,
+} from '../../../hooks/useDecomposition.js'
+import {
+  mapDecompositionResult,
+  mapStoryRows,
+  mapPersistedDecompositions,
+} from '../../../adapters/decomposition.js'
 import { showToast } from '@/shared/utils/toast.jsx'
+import { QUALITY_GATE_THRESHOLD, formatRelativeTime } from '../../../utils.js'
 
 const INVEST_CRITERIA = [
-  { key: 'independent', label: 'Independent', description: 'The story can be built and delivered independently of other stories.' },
-  { key: 'negotiable', label: 'Negotiable', description: 'The story describes the desired outcome, not a fixed implementation.' },
-  { key: 'valuable', label: 'Valuable', description: 'The story delivers clear value to a stakeholder.' },
-  { key: 'estimable', label: 'Estimable', description: 'The story is concrete enough for the team to estimate effort.' },
-  { key: 'small', label: 'Small', description: 'The story is scoped to be completable within a single sprint.' },
-  { key: 'testable', label: 'Testable', description: 'The story has clear acceptance criteria that can be verified.' },
+  { key: 'independent', code: 'I', label: 'Independent', description: 'The story can be built and delivered independently of other stories.' },
+  { key: 'negotiable', code: 'N', label: 'Negotiable', description: 'The story describes the desired outcome, not a fixed technical implementation.' },
+  { key: 'valuable', code: 'V', label: 'Valuable', description: 'The story delivers clear, stated value to a stakeholder or user persona.' },
+  { key: 'estimable', code: 'E', label: 'Estimable', description: 'The story is concrete enough for the team to size effort with confidence.' },
+  { key: 'small', code: 'S', label: 'Small', description: 'The story is scoped to a single concern and completable within a single sprint.' },
+  { key: 'testable', code: 'T', label: 'Testable', description: 'The story has concrete acceptance criteria that can be verified.' },
 ]
 
 let genIdCounter = 5000
@@ -73,191 +91,234 @@ function genId(prefix) {
 
 const BUG_SEVERITY_TONE = { Low: 'neutral', Medium: 'warning', High: 'danger' }
 
-function CoverageResults({ evaluation }) {
-  return (
-    <Card className="border-primary/20">
-      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-        <h3 className="text-sm font-semibold text-foreground">Decomposition analysis</h3>
-        <Badge tone={evaluation.verdict === 'Validated' ? 'success' : 'warning'} className="text-sm px-2.5 py-1">
-          Score {evaluation.score}/100 — {evaluation.verdict}
-        </Badge>
-      </div>
-      <p className="text-xs text-muted-foreground mb-3">{evaluation.summary}</p>
-
-      <div className="mb-3">
-        <div className="flex items-center justify-between text-xs mb-1">
-          <span className="font-medium text-foreground">Coverage</span>
-          <span className="text-muted-foreground">{Math.round(evaluation.coverage * 100)}%</span>
-        </div>
-        <div className="h-2 rounded-full bg-muted overflow-hidden">
-          <div className="h-full bg-primary rounded-full" style={{ width: `${Math.round(evaluation.coverage * 100)}%` }} />
-        </div>
-      </div>
-
-      {evaluation.gaps.length > 0 ? (
-        <div className="p-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 mb-3">
-          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">Missing from your stories</p>
-          <ul className="text-xs text-foreground list-disc list-inside space-y-0.5">
-            {evaluation.gaps.map((g) => (
-              <li key={g.id}>{g.label}</li>
-            ))}
-          </ul>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 p-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 mb-3">
-          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-          <span className="text-xs text-emerald-700 dark:text-emerald-400">Every aspect of this requirement is represented.</span>
-        </div>
-      )}
-
-      {evaluation.patternExamples && (
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            Similar decompositions from the knowledge base
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {evaluation.patternExamples.map((ex) => (
-              <div key={ex.id} className="p-2.5 rounded-lg border border-border bg-card">
-                <p className="text-xs font-semibold text-foreground mb-1">{ex.title}</p>
-                <ul className="text-[11px] text-muted-foreground list-disc list-inside space-y-0.5">
-                  {ex.stories.map((s) => (
-                    <li key={s}>{s}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </Card>
-  )
-}
-
-function TaskRow({ reqId, storyId, task }) {
+function TaskRow({ reqId, storyId, task, readOnly = false }) {
   const { addSubtask, toggleSubtask } = usePlanningData()
   const [expanded, setExpanded] = useState(true)
   const [newSubtask, setNewSubtask] = useState('')
 
   return (
     <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
-      <button type="button" onClick={() => setExpanded((v) => !v)} className="w-full flex items-center gap-2 text-left cursor-pointer">
-        {expanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-        <span className="text-sm text-foreground flex-1">{task.title}</span>
-        <Badge tone={task.status === 'Done' ? 'success' : task.status === 'In Progress' ? 'primary' : 'neutral'}>{task.status}</Badge>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center gap-2 text-left cursor-pointer"
+      >
+        {expanded ? (
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+        )}
+        <span className="text-xs font-semibold text-foreground flex-1">{task.title}</span>
+        <Badge
+          tone={task.status === 'Done' ? 'success' : task.status === 'In Progress' ? 'primary' : 'neutral'}
+          className="text-[10px] px-1.5 py-0"
+        >
+          {task.status}
+        </Badge>
       </button>
       {expanded && (
-        <div className="mt-2 ml-5 space-y-1.5">
+        <div className="mt-2.5 ml-5 space-y-1.5">
           {task.subtasks.map((st) => (
-            <label key={st.id} className="flex items-center gap-2 text-xs cursor-pointer">
-              <Checkbox checked={st.done} onCheckedChange={() => toggleSubtask(reqId, storyId, task.id, st.id)} />
-              <span className={st.done ? 'text-muted-foreground line-through' : 'text-foreground'}>{st.title}</span>
+            <label
+              key={st.id}
+              className={`flex items-center gap-2 text-xs text-foreground cursor-pointer ${
+                st.done ? 'line-through text-muted-foreground' : ''
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={st.done}
+                disabled={readOnly}
+                onChange={() => toggleSubtask(reqId, storyId, task.id, st.id)}
+                className="rounded border-border"
+              />
+              {st.title}
             </label>
           ))}
-          <div className="flex items-center gap-2 pt-1">
-            <Input value={newSubtask} onChange={(e) => setNewSubtask(e.target.value)} placeholder="Add a sub-task…" className="h-7 text-xs" />
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 px-2"
-              disabled={!newSubtask.trim()}
-              onClick={() => {
-                addSubtask(reqId, storyId, task.id, newSubtask.trim())
-                setNewSubtask('')
-              }}
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+          {!readOnly && (
+            <div className="flex items-center gap-2 pt-1">
+              <Input
+                value={newSubtask}
+                onChange={(e) => setNewSubtask(e.target.value)}
+                placeholder="Add a sub-task…"
+                className="h-7 text-xs"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs shrink-0"
+                disabled={!newSubtask.trim()}
+                onClick={() => {
+                  addSubtask(reqId, storyId, task.id, newSubtask.trim())
+                  setNewSubtask('')
+                }}
+              >
+                <Plus className="h-3 w-3" />
+                Sub-task
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
   )
 }
 
-function BugSection({ reqId, storyId, bugs }) {
+function BugSection({ reqId, storyId, bugs, readOnly = false }) {
   const { addBug, toggleBugStatus } = usePlanningData()
   const [title, setTitle] = useState('')
   const [severity, setSeverity] = useState('Medium')
 
   return (
-    <div className="space-y-2 mb-4">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bugs</p>
+    <div className="border-t border-border pt-3 mb-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Bug className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Known issues &amp; bugs ({bugs.length})
+        </span>
+      </div>
       {bugs.length > 0 && (
-        <ul className="space-y-1.5">
+        <ul className="space-y-1.5 mb-3">
           {bugs.map((b) => (
-            <li key={b.id} className="flex items-center gap-2 p-2 rounded-lg border border-border/70 bg-muted/20">
-              <Bug className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span className={`text-sm flex-1 ${b.status === 'Fixed' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+            <li
+              key={b.id}
+              className="flex items-center justify-between p-2 rounded-lg border border-border bg-card text-xs gap-2"
+            >
+              <span className={`flex-1 ${b.status === 'Fixed' ? 'line-through text-muted-foreground' : 'text-foreground font-medium'}`}>
                 {b.title}
               </span>
-              <Badge tone={BUG_SEVERITY_TONE[b.severity]}>{b.severity}</Badge>
-              <button type="button" onClick={() => toggleBugStatus(reqId, storyId, b.id)} className="cursor-pointer">
-                <Badge tone={b.status === 'Fixed' ? 'success' : 'danger'}>{b.status}</Badge>
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge tone={BUG_SEVERITY_TONE[b.severity]} className="text-[10px] px-1.5 py-0">{b.severity}</Badge>
+                <Badge
+                  tone={b.status === 'Fixed' ? 'success' : 'warning'}
+                  onClick={() => !readOnly && toggleBugStatus(reqId, storyId, b.id)}
+                  className={`text-[10px] px-1.5 py-0 ${!readOnly ? 'cursor-pointer' : ''}`}
+                >
+                  {b.status}
+                </Badge>
+              </div>
             </li>
           ))}
         </ul>
       )}
-      <div className="flex items-center gap-2">
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Report a bug…" className="h-8 text-xs" />
-        <Select value={severity} onValueChange={setSeverity}>
-          <SelectTrigger className="w-[100px] h-8 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Low">Low</SelectItem>
-            <SelectItem value="Medium">Medium</SelectItem>
-            <SelectItem value="High">High</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8 shrink-0"
-          disabled={!title.trim()}
-          onClick={() => {
-            addBug(reqId, storyId, title.trim(), severity)
-            setTitle('')
-          }}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Bug
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="flex items-center gap-2">
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Report a potential issue / bug…"
+            className="h-8 text-xs"
+          />
+          <Select value={severity} onValueChange={setSeverity}>
+            <SelectTrigger className="w-[105px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Low">Low</SelectItem>
+              <SelectItem value="Medium">Medium</SelectItem>
+              <SelectItem value="High">High</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs shrink-0 gap-1"
+            disabled={!title.trim()}
+            onClick={() => {
+              addBug(reqId, storyId, title.trim(), severity)
+              setTitle('')
+            }}
+          >
+            <Plus className="h-3 w-3" />
+            Bug
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
 
-function InvestChecklist({ investResult }) {
+function InvestBadges({ investResult }) {
+  const [expandedKey, setExpandedKey] = useState(null)
+  if (!investResult) return null
+
   return (
-    <div className="mb-4 space-y-1.5">
-      <div className="flex items-center justify-between mb-1">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">INVEST</p>
-        <Badge tone={investResult.overallPass ? 'success' : 'warning'}>
-          {Object.keys(investResult).filter((k) => k !== 'overallPass' && investResult[k].pass).length}/6 pass
+    <div className="space-y-2 mt-3 pt-2.5 border-t border-border/60">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          <Sparkles className="h-3 w-3 text-primary" />
+          INVEST 6-Criterion Verification
+        </span>
+        <Badge
+          tone={investResult.overallPass ? 'success' : 'warning'}
+          className="text-[10px] font-semibold px-2 py-0.5"
+        >
+          {Object.keys(investResult).filter((k) => k !== 'overallPass' && investResult[k]?.pass).length}/6 Pass
         </Badge>
       </div>
-      {INVEST_CRITERIA.map(({ key, label }) => {
-        const c = investResult[key]
-        return (
-          <div key={key} className="flex items-start gap-2 text-xs">
-            {c.pass ? (
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
-            ) : (
-              <XCircle className="h-3.5 w-3.5 text-destructive mt-0.5 shrink-0" />
-            )}
-            <div>
-              <span className="font-medium text-foreground">{label}</span>
-              <span className="text-muted-foreground"> — {c.note}</span>
-            </div>
+
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {INVEST_CRITERIA.map(({ key, code, label }) => {
+          const c = investResult[key] || { pass: false, note: 'Not evaluated' }
+          const isSelected = expandedKey === key
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setExpandedKey(isSelected ? null : key)}
+              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md cursor-pointer transition-all border ${
+                c.pass
+                  ? isSelected
+                    ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 ring-1 ring-emerald-500/30'
+                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                  : isSelected
+                    ? 'bg-destructive/20 text-destructive border-destructive/40 ring-1 ring-destructive/30'
+                    : 'bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20'
+              }`}
+              title={`${label}: ${c.note}`}
+            >
+              <span className="font-bold text-[10px]">{code}</span>
+              <span>{label}</span>
+              {c.pass ? (
+                <Check className="h-2.5 w-2.5 stroke-[3]" />
+              ) : (
+                <XCircle className="h-2.5 w-2.5 stroke-[2.5]" />
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {expandedKey && (
+        <div
+          className={`p-2.5 rounded-lg border text-xs leading-relaxed transition-all ${
+            investResult[expandedKey]?.pass
+              ? 'bg-emerald-500/5 border-emerald-500/20 text-foreground'
+              : 'bg-destructive/5 border-destructive/20 text-foreground'
+          }`}
+        >
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <span className="font-bold capitalize">{expandedKey} Criterion:</span>
+            <Badge
+              tone={investResult[expandedKey]?.pass ? 'success' : 'danger'}
+              className="text-[9px] px-1.5 py-0"
+            >
+              {investResult[expandedKey]?.pass ? 'Pass' : 'Needs Work'}
+            </Badge>
           </div>
-        )
-      })}
+          <p className="text-muted-foreground text-[11px]">
+            {investResult[expandedKey]?.note || 'No notes provided by agent.'}
+          </p>
+        </div>
+      )}
     </div>
   )
 }
 
-function StoryCard({ reqId, story }) {
-  const { updateStoryText, acceptStory, addTask } = usePlanningData()
+function StoryCard({ reqId, story, readOnly = false }) {
+  const { updateStoryText, acceptStory, addTask, deleteStory } = usePlanningData()
   const updateMutation = useUpdateStory()
+  const deleteMutation = useDeleteStory()
   const [editing, setEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState(story.title)
   const [draftCriteria, setDraftCriteria] = useState(story.acceptanceCriteria)
@@ -269,107 +330,200 @@ function StoryCard({ reqId, story }) {
     updateStoryText(reqId, story.id, { title: draftTitle, acceptanceCriteria: draftCriteria })
     updateMutation.mutate({ ref: story.id, patch: { title: draftTitle, acceptance_criteria: draftCriteria } })
     setEditing(false)
-    showToast.info('Story updated', { description: 'Run the decomposition analysis again to re-check coverage and INVEST.' })
+    showToast.info('Story updated', { description: 'Run decomposition analysis to re-check coverage and INVEST criteria.' })
+  }
+
+  function handleDelete() {
+    deleteStory(reqId, story.id)
+    deleteMutation.mutate(story.id)
+    showToast.info('Story removed', { description: `${story.id} has been deleted from this requirement.` })
   }
 
   return (
-    <Card className="p-4">
+    <Card className="p-4 border-border/80 bg-card">
       <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
-        <span className="text-xs font-semibold text-muted-foreground">{story.id}</span>
-        <Badge tone={story.status === 'Accepted' ? 'primary' : story.investResult ? (story.investResult.overallPass ? 'success' : 'warning') : 'neutral'}>
-          {story.status === 'Accepted' ? 'Accepted' : story.investResult ? (story.investResult.overallPass ? 'Well-formed' : 'Needs work') : 'Not yet evaluated'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-primary/10 text-primary">
+            {story.id}
+          </span>
+          <Badge
+            tone={
+              story.status === 'Accepted'
+                ? 'success'
+                : story.investResult
+                  ? story.investResult.overallPass
+                    ? 'success'
+                    : 'warning'
+                  : 'neutral'
+            }
+            className="text-[10px] px-2 py-0.5 font-medium"
+          >
+            {story.status === 'Accepted'
+              ? 'Accepted Baseline'
+              : story.investResult
+                ? story.investResult.overallPass
+                  ? 'Well-formed (Passes INVEST)'
+                  : 'Needs Revision'
+                : 'Not Evaluated'}
+          </Badge>
+        </div>
+
+        {!readOnly && (
+          <div className="flex items-center gap-1.5 ml-auto">
+            {!editing && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs px-2 cursor-pointer gap-1 text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setDraftTitle(story.title)
+                  setDraftCriteria(story.acceptanceCriteria)
+                  setEditing(true)
+                }}
+              >
+                <PenLine className="h-3 w-3" /> Edit
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs px-2 cursor-pointer gap-1 text-destructive hover:bg-destructive/10"
+              onClick={handleDelete}
+              title="Delete user story"
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {editing ? (
-        <div className="space-y-2 mb-3">
-          <Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} className="text-sm font-medium" placeholder="As a …, I want …, so that …" />
-          <Textarea value={draftCriteria} onChange={(e) => setDraftCriteria(e.target.value)} className="text-xs" placeholder="Given …, when …, then …" />
-          <div className="flex gap-2 justify-end">
-            <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
-            <Button size="sm" onClick={saveEdits} disabled={!draftTitle.trim()}>Save</Button>
+        <div className="space-y-2.5 my-3 p-3 rounded-xl border border-primary/20 bg-muted/20">
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+              User Story Specification
+            </label>
+            <Input
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              className="text-xs font-medium"
+              placeholder="As a [persona], I want [action], so that [business value]…"
+            />
           </div>
-        </div>
-      ) : (
-        <div className="mb-3">
-          <p className="text-sm font-medium text-foreground">{story.title}</p>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{story.acceptanceCriteria}</p>
-          <button
-            type="button"
-            className="text-xs text-primary hover:underline mt-1 cursor-pointer inline-flex items-center gap-1"
-            onClick={() => {
-              setDraftTitle(story.title)
-              setDraftCriteria(story.acceptanceCriteria)
-              setEditing(true)
-            }}
-          >
-            <PenLine className="h-3 w-3" />
-            Edit
-          </button>
-        </div>
-      )}
-
-      {!editing && story.investResult ? (
-        <InvestChecklist investResult={story.investResult} />
-      ) : (
-        !editing && (
-          <p className="text-xs text-muted-foreground italic mb-4">
-            Not yet evaluated — run the decomposition analysis below to check INVEST and coverage.
-          </p>
-        )
-      )}
-
-      {unlocked ? (
-        <>
-          <div className="space-y-2 mb-3">
-            {story.tasks.map((task) => (
-              <TaskRow key={task.id} reqId={reqId} storyId={story.id} task={task} />
-            ))}
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+              Acceptance Criteria (Given / When / Then)
+            </label>
+            <Textarea
+              value={draftCriteria}
+              onChange={(e) => setDraftCriteria(e.target.value)}
+              rows={3}
+              className="text-xs leading-relaxed font-sans"
+              placeholder="Given [precondition], when [action], then [outcome]…"
+            />
           </div>
-
-          <div className="flex items-center gap-2 mb-4">
-            <Input value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="Add a task…" className="h-8 text-xs" />
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 shrink-0"
-              disabled={!newTask.trim()}
-              onClick={() => {
-                addTask(reqId, story.id, newTask.trim())
-                setNewTask('')
-              }}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Task
+          <div className="flex gap-2 justify-end pt-1">
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" className="h-7 text-xs" onClick={saveEdits} disabled={!draftTitle.trim()}>
+              Save Story
             </Button>
           </div>
-
-          <BugSection reqId={reqId} storyId={story.id} bugs={story.bugs || []} />
-
-          {story.status !== 'Accepted' && (
-            <div className="flex justify-end">
-              <Button size="sm" onClick={() => { acceptStory(reqId, story.id); showToast.success('Story accepted', { description: 'Ready for effort estimation.' }) }}>
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Accept — ready for estimation
-              </Button>
-            </div>
+        </div>
+      ) : (
+        <div className="mb-3 space-y-1.5">
+          <p className="text-xs font-semibold text-foreground leading-snug">{story.title}</p>
+          {story.acceptanceCriteria && (
+            <p className="text-[11px] text-muted-foreground leading-relaxed p-2.5 rounded-lg bg-muted/30 border border-border/60">
+              <span className="font-semibold text-foreground block mb-0.5">Acceptance Criteria:</span>
+              {story.acceptanceCriteria}
+            </p>
           )}
-        </>
+        </div>
+      )}
+
+      {/* INVEST Criterion Chips */}
+      {!editing && story.investResult ? (
+        <InvestBadges investResult={story.investResult} />
       ) : (
         !editing && (
-          <p className="text-xs text-muted-foreground italic">
-            Tasks, sub-tasks and bugs unlock once this story passes INVEST.
+          <p className="text-[11px] text-muted-foreground italic my-2">
+            Not yet evaluated — click "Run Decomposition Analysis" to check INVEST compliance and coverage.
           </p>
         )
       )}
+
+      {/* Sprint Tasks & Subtasks */}
+      <div className="mt-3.5 pt-3 border-t border-border/60">
+        {unlocked ? (
+          <>
+            <div className="space-y-2 mb-3">
+              {story.tasks.map((task) => (
+                <TaskRow key={task.id} reqId={reqId} storyId={story.id} task={task} readOnly={readOnly} />
+              ))}
+            </div>
+
+            {!readOnly && (
+              <div className="flex items-center gap-2 mb-3">
+                <Input
+                  value={newTask}
+                  onChange={(e) => setNewTask(e.target.value)}
+                  placeholder="Add a sprint implementation task…"
+                  className="h-8 text-xs"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs shrink-0 gap-1 cursor-pointer"
+                  disabled={!newTask.trim()}
+                  onClick={() => {
+                    addTask(reqId, story.id, newTask.trim())
+                    setNewTask('')
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Task
+                </Button>
+              </div>
+            )}
+
+            <BugSection reqId={reqId} storyId={story.id} bugs={story.bugs || []} readOnly={readOnly} />
+
+            {!readOnly && story.status !== 'Accepted' && (
+              <div className="flex justify-end pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-7 gap-1.5 cursor-pointer text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                  onClick={() => {
+                    acceptStory(reqId, story.id)
+                    showToast.success('Story accepted', { description: `${story.id} accepted for effort estimation.` })
+                  }}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  Accept Story
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          !editing && (
+            <p className="text-[11px] text-muted-foreground italic flex items-center gap-1.5">
+              <Lock className="h-3 w-3" />
+              Tasks, sub-tasks and bug tracking unlock once this story passes all INVEST criteria.
+            </p>
+          )
+        )}
+      </div>
     </Card>
   )
 }
 
-function NewStoryForm({ reqId, onDone }) {
+function NewStoryForm({ reqId, initialTitle = '', onDone }) {
   const { addStory } = usePlanningData()
   const createMutation = useCreateStory()
-  const [title, setTitle] = useState('')
+  const [title, setTitle] = useState(initialTitle)
   const [acceptanceCriteria, setAcceptanceCriteria] = useState('')
 
   function submit() {
@@ -394,22 +548,309 @@ function NewStoryForm({ reqId, onDone }) {
     setTitle('')
     setAcceptanceCriteria('')
     onDone?.()
-    showToast.success('Story added', { description: 'Run the decomposition analysis when your story set is ready.' })
+    showToast.success('User story created', {
+      description: 'Run decomposition analysis to evaluate INVEST criteria and parent coverage.',
+    })
+  }
+
+  function insertTemplate() {
+    if (!title.trim()) {
+      setTitle('As a [registered user], I want [capability], so that [business value].')
+    }
+    if (!acceptanceCriteria.trim()) {
+      setAcceptanceCriteria(
+        'Given [precondition is met],\nWhen [action is performed],\nThen [system outcome occurs successfully].',
+      )
+    }
   }
 
   return (
-    <Card>
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Write a user story</p>
-      <p className="text-xs text-muted-foreground mb-3">You write it — the Decomposition agent only checks coverage and INVEST, it never writes stories for you.</p>
-      <div className="space-y-2.5">
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="As a …, I want …, so that …" />
-        <Textarea value={acceptanceCriteria} onChange={(e) => setAcceptanceCriteria(e.target.value)} placeholder="Given …, when …, then … (acceptance criteria)" />
-      </div>
-      <div className="flex justify-end mt-3">
-        <Button size="sm" onClick={submit} disabled={!title.trim()} className="active:scale-[0.98]">
-          <Plus className="h-3.5 w-3.5" />
-          Add story
+    <Card className="p-4 border-primary/30 bg-primary/5 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+            <Plus className="h-3.5 w-3.5" />
+            Write User Story (Agile Format)
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Model concrete personas and testable acceptance criteria to achieve high INVEST and coverage scores.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={insertTemplate}
+          className="text-xs h-7 px-2 cursor-pointer gap-1 text-primary border-primary/30"
+          type="button"
+        >
+          <Sparkles className="h-3 w-3" /> Insert Template
         </Button>
+      </div>
+
+      <div className="space-y-2.5">
+        <div>
+          <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+            Story Title (As a … I want … So that …)
+          </label>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="As a [persona], I want [action], so that [outcome]…"
+            className="text-xs bg-background"
+          />
+        </div>
+        <div>
+          <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+            Acceptance Criteria (Given / When / Then)
+          </label>
+          <Textarea
+            value={acceptanceCriteria}
+            onChange={(e) => setAcceptanceCriteria(e.target.value)}
+            placeholder="Given …, when …, then … (verifiable conditions)"
+            rows={3}
+            className="text-xs leading-relaxed font-sans bg-background"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/60">
+        <Button size="sm" variant="ghost" onClick={onDone} className="text-xs h-8 cursor-pointer">
+          Cancel
+        </Button>
+        <Button
+          size="sm"
+          onClick={submit}
+          disabled={!title.trim()}
+          className="text-xs h-8 cursor-pointer gap-1.5"
+        >
+          <Plus className="h-3.5 w-3.5" /> Save User Story
+        </Button>
+      </div>
+    </Card>
+  )
+}
+
+function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
+  if (!evaluation) return null
+  const coveragePercent = Math.round((evaluation.coverage || 0) * 100)
+  const gaps = evaluation.gaps || []
+  const covered = evaluation.covered || []
+
+  return (
+    <div className="space-y-4">
+      {/* Functional Scope Coverage Card */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+          <div>
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <CheckSquare className="h-4 w-4 text-primary" />
+              Functional Scope Coverage Analysis
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              MiniLM cosine similarity matching parent requirement capabilities against your user stories.
+            </p>
+          </div>
+          <Badge
+            tone={coveragePercent >= 80 ? 'success' : 'warning'}
+            className="text-xs font-bold px-2.5 py-1"
+          >
+            {coveragePercent}% Scope Covered
+          </Badge>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="mb-4 mt-2">
+          <div className="h-2 rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full transition-all duration-700 ease-out rounded-full ${
+                coveragePercent >= 80 ? 'bg-emerald-500' : 'bg-amber-500'
+              }`}
+              style={{ width: `${coveragePercent}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Missing Scope Callout */}
+        {gaps.length > 0 ? (
+          <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 mb-3">
+            <div className="flex items-center gap-2 mb-1.5">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                Unrepresented Scope ({gaps.length} capability gaps detected)
+              </p>
+            </div>
+            <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
+              The agent extracted these obligations from the parent requirement, but found no matching user story covering them:
+            </p>
+            <ul className="space-y-1.5 text-xs text-foreground">
+              {gaps.map((g) => (
+                <li
+                  key={g.id}
+                  className="flex items-center justify-between gap-2 p-2 rounded-lg bg-background/80 border border-border"
+                >
+                  <span className="font-medium text-foreground text-xs">{g.label}</span>
+                  {onAddGapStory && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onAddGapStory(g.label)}
+                      className="text-[11px] h-6 px-2 shrink-0 cursor-pointer text-primary border-primary/30"
+                    >
+                      <Plus className="h-3 w-3" /> Add Story for Gap
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2.5 p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 mb-3">
+            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                Complete Functional Coverage
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Every capability and operational aspect of this requirement is represented in your user story backlog.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Covered Aspects List */}
+        {covered.length > 0 && (
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Verified Covered Capabilities ({covered.length})
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {covered.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex items-center gap-2 p-2 rounded-lg border border-border/70 bg-card text-xs text-muted-foreground"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  <span className="truncate text-foreground font-medium">{c.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* INVEST 6-Dimension Quality Summary Matrix */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            INVEST Agile Rubric Compliance Summary
+          </h3>
+          <span className="text-xs text-muted-foreground font-medium">
+            Gate Rule: 100% Passing Target
+          </span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {INVEST_CRITERIA.map(({ key, code, label, description }) => {
+            const investEntries = Object.values(evaluation.investResults || {})
+            const total = investEntries.length
+            const passedCount = investEntries.filter((r) => r[key]?.pass).length
+            const passPct = total ? Math.round((passedCount / total) * 100) : 100
+            const isPassing = passPct === 100
+
+            return (
+              <div
+                key={key}
+                className="p-3 rounded-xl border border-border/80 bg-muted/20 space-y-1.5"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <span className="h-5 w-5 rounded-md bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                      {code}
+                    </span>
+                    {label}
+                  </span>
+                  <Badge
+                    tone={isPassing ? 'success' : 'warning'}
+                    className="text-[10px] font-semibold px-1.5 py-0"
+                  >
+                    {passedCount}/{total}
+                  </Badge>
+                </div>
+                <div className="h-1 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 rounded-full ${
+                      isPassing ? 'bg-emerald-500' : 'bg-amber-500'
+                    }`}
+                    style={{ width: `${passPct}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground line-clamp-2 leading-tight">
+                  {description}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function RevisionHistorySection({ history }) {
+  if (!history || history.length === 0) {
+    return (
+      <Card className="p-5 text-center text-xs text-muted-foreground">
+        No revision history yet. Run a decomposition analysis to begin tracking iteration progress.
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="p-5 space-y-3">
+      <div className="flex items-center justify-between pb-2 border-b border-border/60">
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+          <History className="h-4 w-4 text-primary" />
+          Decomposition Iteration &amp; Re-score History
+        </h3>
+        <span className="text-xs text-muted-foreground font-medium">
+          {history.length} Analysis Iteration{history.length > 1 ? 's' : ''}
+        </span>
+      </div>
+
+      <div className="space-y-2.5">
+        {history.map((entry, idx) => (
+          <div
+            key={idx}
+            className="flex items-start justify-between gap-3 p-3 rounded-xl border border-border/70 bg-card text-xs"
+          >
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10 text-[11px]">
+                  Rev {entry.version}
+                </span>
+                <Badge
+                  tone={entry.verdict === 'Validated' ? 'success' : 'warning'}
+                  className="text-[10px] font-semibold px-2 py-0"
+                >
+                  {entry.score}% · {entry.verdict}
+                </Badge>
+                {entry.coverage !== undefined && (
+                  <span className="text-[11px] text-muted-foreground">
+                    Coverage: {Math.round(entry.coverage * 100)}%
+                  </span>
+                )}
+              </div>
+              {entry.summary && (
+                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                  {entry.summary}
+                </p>
+              )}
+            </div>
+            <span className="text-[11px] text-muted-foreground shrink-0">
+              {formatRelativeTime(entry.timestamp)}
+            </span>
+          </div>
+        ))}
       </div>
     </Card>
   )
@@ -418,12 +859,49 @@ function NewStoryForm({ reqId, onDone }) {
 export default function Decomposition() {
   const navigate = useNavigate()
   const team = useTeamPath()
-  const { requirements, userStories, getStories, getDecompositionEvaluation, recordDecompositionAnalysis, loadStories } = usePlanningData()
-  const passing = requirements.filter((r) => r.status === 'Passing')
-  const [selectedReqId, setSelectedReqId] = useState(passing[0]?.id ?? requirements[0]?.id ?? '')
+  const [searchParams] = useSearchParams()
+  const reqParam = searchParams.get('req')
+
+  const {
+    requirements,
+    getStories,
+    getDecompositionEvaluation,
+    recordDecompositionAnalysis,
+    getDecompositionHistory,
+    finalizeDecomposition,
+    loadStories,
+  } = usePlanningData()
+
+  // An active requirement in Decomposition must pass IEEE 830 quality (>=75%) AND have proceeded/finalized
+  const isReqUnlocked = (r) => Boolean(r && r.status === 'Passing' && (r.finalized || r.decompUnlocked))
+
+  // Sort requirements: only quality passed and proceeded requirements appear at the top.
+  // Other requirements appear below and are greyed out / locked until "Proceed to Decomposition" is clicked.
+  const sortedRequirements = [...requirements].sort((a, b) => {
+    const aUnlocked = isReqUnlocked(a)
+    const bUnlocked = isReqUnlocked(b)
+    if (aUnlocked && !bUnlocked) return -1
+    if (!aUnlocked && bUnlocked) return 1
+    return 0
+  })
+
+  const unlockedReqs = sortedRequirements.filter(isReqUnlocked)
+
+  const [userSelectedReqId, setUserSelectedReqId] = useState(null)
   const [showNewStoryForm, setShowNewStoryForm] = useState(false)
+  const [gapInitialTitle, setGapInitialTitle] = useState('')
+  const [mainTab, setMainTab] = useState('all')
+
+  // Derive active requirement ID: student manual pick -> URL query param -> first unlocked -> first in catalog
+  const selectedReqId =
+    (userSelectedReqId && requirements.some((r) => r.id === userSelectedReqId) ? userSelectedReqId : null) ||
+    (reqParam && requirements.some((r) => r.id === reqParam) ? reqParam : null) ||
+    unlockedReqs[0]?.id ||
+    sortedRequirements[0]?.id ||
+    ''
 
   const analyzeMutation = useAnalyzeDecomposition()
+  const qualityQuery = useQualityResults()
   const storiesQuery = useStories()
   const { data: dartData } = useDartCases()
   const allDartCases = mapDartCases(dartData?.cases || [])
@@ -446,19 +924,45 @@ export default function Decomposition() {
     }
   }, [decompositionQuery.data]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const requirement = requirements.find((r) => r.id === selectedReqId)
-  const isEligible = requirement?.status === 'Passing'
+  const requirement = requirements.find((r) => r.id === selectedReqId) || null
+  const isEligible = isReqUnlocked(requirement)
   const stories = isEligible ? getStories(selectedReqId) : []
   const evaluation = isEligible ? getDecompositionEvaluation(selectedReqId) : null
   const analyzing = analyzeMutation.isPending
 
+  const isDecompFinalized = Boolean(requirement?.decompFinalized)
+  const decompScore = evaluation?.score ?? 0
+  const isDecompPassed = decompScore >= QUALITY_GATE_THRESHOLD && evaluation?.verdict === 'Validated'
+
+  // History tracking for the active requirement
+  const rawHistory = getDecompositionHistory(selectedReqId) || []
+  const history = [...rawHistory].sort((a, b) => {
+    const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0
+    const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0
+    if (timeA && timeB && timeA !== timeB) return timeB - timeA
+    return (b.version || 0) - (a.version || 0)
+  })
+  const scoreTrend = history.length >= 2 ? history[0].score - history[1].score : null
+
   function getDecompositionMeta(r) {
-    if (r.status !== 'Passing') return { percent: 0, tone: 'neutral', locked: true }
-    const s = userStories[r.id] || []
-    if (s.length === 0) return { percent: 0, tone: 'neutral', locked: false }
-    const accepted = s.filter((story) => story.status === 'Accepted').length
-    const percent = Math.round((accepted / s.length) * 100)
-    return { percent, tone: percent === 100 ? 'success' : 'warning', locked: false }
+    const unlocked = isReqUnlocked(r)
+    if (!unlocked) {
+      return {
+        percent: r.overallScore || 0,
+        tone: 'neutral',
+        locked: true,
+        finalized: false,
+      }
+    }
+    const eval_ = getDecompositionEvaluation(r.id)
+    const isFinal = Boolean(r.decompFinalized)
+    const score = eval_?.score ?? 0
+    return {
+      percent: score,
+      tone: isFinal ? 'success' : score >= QUALITY_GATE_THRESHOLD ? 'success' : score > 0 ? 'warning' : 'neutral',
+      locked: false,
+      finalized: isFinal,
+    }
   }
 
   function runAnalysis() {
@@ -484,22 +988,53 @@ export default function Decomposition() {
           }
         },
         onError: (err) => {
-          showToast.error('Analysis failed', { description: err?.response?.data?.detail || err.message || 'Unknown error' })
+          showToast.error('Analysis failed', {
+            description: err?.response?.data?.detail || err.message || 'Unknown error',
+          })
         },
       },
     )
   }
 
+  function handleProceedToEstimation(targetReq) {
+    const target = targetReq || requirement
+    if (!target) return
+    finalizeDecomposition(target.id)
+    showToast.success('Decomposition gate finalized', {
+      description: `${target.id} stories finalized & locked for Effort Estimation.`,
+    })
+    navigate(team(`/planning/requirements/estimation?req=${target.id}`))
+  }
+
+  function handleAddGapStory(gapLabel) {
+    setGapInitialTitle(`As a user, I want ${gapLabel.toLowerCase()}, so that system integrity is maintained.`)
+    setShowNewStoryForm(true)
+    setMainTab('stories')
+  }
+
   const [investGuideOpen, setInvestGuideOpen] = useState(false)
   const [consultOpen, setConsultOpen] = useState(false)
 
-  const passingCount = passing.length
-  const decomposedCount = passing.filter(
-    (r) => (userStories[r.id] || []).length > 0 && (userStories[r.id] || []).every((s) => s.status === 'Accepted'),
+  const eligibleCount = unlockedReqs.length
+  const decomposedCount = unlockedReqs.filter(
+    (r) => Boolean(r.decompFinalized) || (getDecompositionEvaluation(r.id)?.score >= QUALITY_GATE_THRESHOLD),
   ).length
-  const overallDecompPercent = passingCount ? Math.round((decomposedCount / passingCount) * 100) : 0
+  const overallDecompPercent = eligibleCount ? Math.round((decomposedCount / eligibleCount) * 100) : 0
 
   const dartCases = getDartCasesForRequirement(allDartCases, selectedReqId).filter((c) => c.status === 'open')
+
+  const DECOMP_TABS = [
+    { id: 'all', label: 'All', icon: Layers },
+    { id: 'stories', label: 'Stories & Tasks', icon: FileEdit, count: stories.length },
+    {
+      id: 'coverage',
+      label: 'Coverage & INVEST Radar',
+      icon: Sparkles,
+      count: evaluation ? `${Math.round(evaluation.coverage * 100)}%` : undefined,
+    },
+    { id: 'evidence', label: 'Agent Evidence & Patterns', icon: Lightbulb },
+    { id: 'history', label: 'Revision History', icon: History, count: history.length },
+  ]
 
   return (
     <div className="space-y-6 pb-12">
@@ -515,7 +1050,7 @@ export default function Decomposition() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
             Backlog Decomposition &amp; INVEST Story Modeling
             <Badge tone="primary" className="text-xs font-medium">
-              INVEST Target: 100%
+              INVEST Gate: &gt;= {QUALITY_GATE_THRESHOLD}% Pass
             </Badge>
           </h1>
         </div>
@@ -538,10 +1073,14 @@ export default function Decomposition() {
           >
             <UserCheck className="h-3.5 w-3.5 text-primary" /> Supervisor Advisory
           </Button>
-          {isEligible && (
+          {isEligible && !isDecompFinalized && (
             <Button
               size="sm"
-              onClick={() => setShowNewStoryForm(true)}
+              onClick={() => {
+                setGapInitialTitle('')
+                setShowNewStoryForm(true)
+                setMainTab('stories')
+              }}
               className="text-xs cursor-pointer gap-1.5"
             >
               <Plus className="h-3.5 w-3.5" /> + Write User Story
@@ -550,7 +1089,7 @@ export default function Decomposition() {
         </div>
       </div>
 
-      {/* LMS Project Banner Card with Round Progress Bar (no left border) */}
+      {/* LMS Project Banner Card with Round Progress Bar */}
       <Card className="p-5 relative overflow-hidden bg-card/90">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div className="space-y-2 min-w-0 max-w-2xl">
@@ -580,12 +1119,12 @@ export default function Decomposition() {
               <span className="h-1 w-1 rounded-full bg-border" />
               <span className="flex items-center gap-1.5">
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                {passingCount} Eligible Requirements
+                {eligibleCount} of {requirements.length} Requirements Unlocked
               </span>
               <span className="h-1 w-1 rounded-full bg-border" />
               <span className="flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
-                {decomposedCount} of {passingCount} Fully Decomposed
+                {decomposedCount} of {eligibleCount} Passing Gate
               </span>
             </div>
           </div>
@@ -625,159 +1164,362 @@ export default function Decomposition() {
 
       <WorkflowStepper current="decomposition" />
 
-      <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr_300px] gap-5 items-start">
-        {/* Column 1 — Requirements (fixed while column 2 scrolls) */}
-        <div className="xl:sticky xl:top-4 xl:self-start">
-          <RequirementListPanel
-            requirements={requirements}
-            selectedId={selectedReqId}
-            onSelect={(id) => { setSelectedReqId(id); setShowNewStoryForm(false) }}
-            getItemMeta={getDecompositionMeta}
-            maxHeight="calc(85vh - 90px)"
-          />
-        </div>
-
-        {/* Column 2 — Work breakdown (the only part that scrolls) */}
-        <div className="space-y-4 xl:max-h-[85vh] xl:overflow-y-auto column-scroll-contain xl:pr-1">
-          {requirement && !isEligible && (
-            <EmptyState
-              icon={Lock}
-              title={`${requirement.id} is blocked`}
-              description={`This requirement is ${requirement.status === 'Failing' ? 'failing' : 'still under review'} in SRS Quality (${requirement.overallScore}%). It must pass the quality gate before it can be decomposed.`}
-              actionLabel="Go to SRS Quality"
-              onAction={() => navigate(team('/planning/requirements/srs-quality'))}
+      {requirements.length === 0 && qualityQuery.isLoading ? (
+        <Card className="p-12 text-center flex flex-col items-center justify-center space-y-4">
+          <div className="relative flex items-center justify-center">
+            <div className="h-10 w-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Loading requirements...</h3>
+            <p className="text-xs text-muted-foreground mt-1">Retrieving IEEE 830 quality scores and decomposition backlog.</p>
+          </div>
+        </Card>
+      ) : requirements.length === 0 ? (
+        <EmptyState
+          icon={Lock}
+          title="No requirements available"
+          description="Upload an SRS document or add requirements in SRS Quality first to begin backlog decomposition."
+          actionLabel="Go to SRS Quality"
+          onAction={() => navigate(team('/planning/requirements/srs-quality'))}
+        />
+      ) : (
+        /* 2-Column Responsive Layout mirroring SRS Quality */
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] xl:grid-cols-[320px_1fr] gap-6 items-start">
+          {/* Column 1 — Requirements Directory (Sticky on scroll) */}
+          <div className="space-y-3 lg:sticky lg:top-4 self-start">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Requirements Catalog
+              </span>
+              <span className="text-xs text-muted-foreground font-medium">
+                {eligibleCount}/{requirements.length} Unlocked
+              </span>
+            </div>
+            <RequirementListPanel
+              requirements={sortedRequirements}
+              selectedId={selectedReqId}
+              onSelect={(id) => {
+                setUserSelectedReqId(id)
+                setShowNewStoryForm(false)
+              }}
+              getItemMeta={getDecompositionMeta}
+              maxHeight="calc(100vh - 12rem)"
             />
-          )}
+          </div>
 
-          {requirement && isEligible && (
-            <>
-              <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{requirement.id}</p>
-                  <h3 className="text-sm font-semibold text-foreground">{requirement.title}</h3>
-                </div>
-                <Link to={team('/planning/requirements/estimation')} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline shrink-0">
-                  Go to Effort Estimation <ArrowRight className="h-3 w-3" />
-                </Link>
-              </Card>
-
-              {stories.length === 0 && !showNewStoryForm ? (
-                <EmptyState
-                  title="No user stories yet"
-                  description="Write your own user story for this requirement — the agent will check coverage and INVEST, not write it for you."
-                  actionLabel="Write a user story"
-                  onAction={() => setShowNewStoryForm(true)}
-                />
-              ) : (
-                <>
-                  <Card className="flex items-center justify-between gap-3 flex-wrap">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Run decomposition analysis</p>
-                      <p className="text-xs text-muted-foreground">Checks coverage across all {stories.length} stor{stories.length === 1 ? 'y' : 'ies'} and INVEST on each one.</p>
-                    </div>
-                    <Button size="sm" onClick={runAnalysis} disabled={analyzing || stories.length === 0} className="active:scale-[0.98] shrink-0">
-                      <Brain className={`h-3.5 w-3.5 ${analyzing ? 'animate-pulse' : ''}`} />
-                      {analyzing ? 'Analyzing…' : 'Run decomposition analysis'}
-                    </Button>
-                  </Card>
-
-                  <div className="space-y-4">
-                    {stories.map((story) => (
-                      <StoryCard key={story.id} reqId={selectedReqId} story={story} />
-                    ))}
+          {/* Column 2 — Main Decomposition Studio */}
+          {requirement ? (
+            !isEligible ? (
+              <EmptyState
+                icon={Lock}
+                title={`${requirement.id} is locked for decomposition`}
+                description={
+                  requirement.status === 'Passing'
+                    ? `This requirement scored ${requirement.overallScore}% in SRS Quality and meets the IEEE 830 quality threshold, but has not been finalized yet. Open SRS Quality and click "Proceed to Decomposition" to unlock it.`
+                    : `This requirement scored ${requirement.overallScore}% in SRS Quality (${requirement.status}). Requirements must achieve ≥${QUALITY_GATE_THRESHOLD}% quality and be finalized before backlog decomposition.`
+                }
+                actionLabel="Go to SRS Quality"
+                onAction={() => navigate(team('/planning/requirements/srs-quality'))}
+              />
+            ) : (
+              <div className="space-y-4">
+                {/* Top Filter Tabs + Top-Right "Go to Next Step" Button */}
+                <div className="flex items-center justify-between gap-3 flex-wrap pb-1">
+                  {/* Left: Tab Switcher to filter visible sections */}
+                  <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border/50 flex-wrap">
+                    {DECOMP_TABS.map((tab) => {
+                      const Icon = tab.icon
+                      const isActive = mainTab === tab.id
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setMainTab(tab.id)}
+                          className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-background text-foreground shadow-xs border border-border/80'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                          }`}
+                        >
+                          <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <span>{tab.label}</span>
+                          {tab.count !== undefined && (
+                            <span
+                              className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                                isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                              }`}
+                            >
+                              {tab.count}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
 
-                  {showNewStoryForm ? (
-                    <NewStoryForm reqId={selectedReqId} onDone={() => setShowNewStoryForm(false)} />
-                  ) : (
-                    <div className="flex justify-end">
-                      <Button size="sm" variant="outline" onClick={() => setShowNewStoryForm(true)} className="active:scale-[0.98]">
-                        <Plus className="h-3.5 w-3.5" />
-                        Write another user story
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Column 3 — AI feedback: coverage/INVEST results, evidence panel, DART (fixed while column 2 scrolls) */}
-        <div className="space-y-4 xl:sticky xl:top-4 xl:self-start xl:max-h-[85vh] xl:overflow-y-auto column-scroll-contain xl:pr-1">
-          {!isEligible ? (
-            <Card>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">AI feedback</p>
-              <p className="text-xs text-muted-foreground">This requirement isn't decomposable yet — resolve its quality gate first.</p>
-            </Card>
-          ) : analyzing ? (
-            <Card>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">AI feedback</p>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Brain className="h-3.5 w-3.5 animate-pulse text-primary" />
-                Analyzing coverage and INVEST criteria…
-              </div>
-            </Card>
-          ) : !evaluation ? (
-            <Card>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">AI feedback</p>
-              <p className="text-xs text-muted-foreground">Run the decomposition analysis to see coverage, INVEST validation and the agent's feedback here.</p>
-            </Card>
-          ) : (
-            <>
-              <CoverageResults evaluation={evaluation} />
-              <DecompositionEvidencePanel evaluation={evaluation} />
-
-              {stories.length > 0 && (
-                <Card>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Story-by-story</p>
-                  <ul className="space-y-1.5">
-                    {stories.map((s) => (
-                      <li key={s.id} className="flex items-center justify-between gap-2 text-xs">
-                        <span className="text-foreground truncate">{s.id}</span>
-                        {s.status === 'Accepted' ? (
-                          <Badge tone="primary">Accepted</Badge>
-                        ) : s.investResult ? (
-                          <Badge tone={s.investResult.overallPass ? 'success' : 'warning'}>
-                            {Object.keys(s.investResult).filter((k) => k !== 'overallPass' && s.investResult[k].pass).length}/6
-                          </Badge>
-                        ) : (
-                          <Badge tone="neutral">Pending</Badge>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
-              )}
-            </>
-          )}
-
-          {dartCases.length > 0 && (
-            <Card className="border-amber-500/30 bg-amber-500/5 animate-pulse-slow">
-              <div className="flex items-center gap-2 mb-2">
-                <Gavel className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-                  DART Activated
-                </span>
-              </div>
-              {dartCases.map((c) => (
-                <div key={c.id} className="text-xs space-y-1.5 mb-2 last:mb-0">
+                  {/* Right: Top-Right Corner "Go to Next Step" Button */}
                   <div className="flex items-center gap-2">
-                    <Badge tone="warning">{c.categoryLabel}</Badge>
-                    <span className="text-[10px] text-muted-foreground">{c.caseRef}</span>
+                    {isDecompFinalized ? (
+                      <Link
+                        to={team(`/planning/requirements/estimation?req=${requirement.id}`)}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all shrink-0 cursor-pointer"
+                        title="Decomposition quality is finalized. Go to Effort Estimation."
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        <span>View in Effort Estimation</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    ) : isDecompPassed ? (
+                      <Button
+                        size="sm"
+                        onClick={() => handleProceedToEstimation(requirement)}
+                        className="text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-sm transition-all shrink-0"
+                        title="Finalize decomposition quality and proceed to Effort Estimation."
+                      >
+                        <span>Proceed to Effort Estimation</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    ) : (
+                      <div
+                        className="flex items-center gap-1.5"
+                        title={`Decomposition gate locked: requirement must achieve ≥${QUALITY_GATE_THRESHOLD}% score and pass INVEST & coverage to unlock effort estimation.`}
+                      >
+                        <Button
+                          disabled
+                          size="sm"
+                          variant="outline"
+                          className="text-xs gap-1.5 opacity-60 cursor-not-allowed bg-muted text-muted-foreground"
+                        >
+                          <Lock className="h-3.5 w-3.5" />
+                          Proceed to Estimation (Locked)
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  {c.resolution?.actionableFeedback && (
-                    <p className="text-xs text-foreground leading-snug">{c.resolution.actionableFeedback}</p>
-                  )}
-                  {c.consultation?.question && (
-                    <p className="text-[11px] text-blue-700 dark:text-blue-400 italic">"{c.consultation.question}"</p>
-                  )}
                 </div>
-              ))}
+
+                {/* Requirement Overview Card */}
+                <Card className="p-5">
+                  <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-primary/10 text-primary">
+                        {requirement.id}
+                      </span>
+                      <Badge tone={requirement.priority === 'High' ? 'danger' : requirement.priority === 'Medium' ? 'warning' : 'neutral'}>
+                        {requirement.priority} Priority
+                      </Badge>
+                      {isDecompFinalized ? (
+                        <Badge tone="success" className="text-xs font-semibold px-2 py-0.5 gap-1">
+                          <ShieldCheck className="h-3 w-3" /> Decomposition Finalized &amp; Locked
+                        </Badge>
+                      ) : null}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {scoreTrend !== null && scoreTrend !== 0 && (
+                        <span
+                          className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            scoreTrend > 0
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-destructive/10 text-destructive'
+                          }`}
+                        >
+                          {scoreTrend > 0 ? '↑ +' : '↓ '}{scoreTrend}% Delta
+                        </span>
+                      )}
+                      {evaluation ? (
+                        <Badge
+                          tone={evaluation.verdict === 'Validated' ? 'success' : 'warning'}
+                          className="text-xs font-semibold px-2.5 py-0.5"
+                        >
+                          {evaluation.score}% · {evaluation.verdict}
+                        </Badge>
+                      ) : (
+                        <Badge tone="neutral" className="text-xs">Not Evaluated</Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Finalized Approved Banner */}
+                  {isDecompFinalized && (
+                    <div className="mb-4 flex items-center justify-between gap-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-300">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
+                          <ShieldCheck className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate">Decomposition Quality Gate Approved &amp; Locked</p>
+                          <p className="text-[11px] opacity-90 leading-tight">
+                            User stories have passed coverage and INVEST verification and are frozen for Effort Estimation. Story editing is disabled.
+                          </p>
+                        </div>
+                      </div>
+                      <Link
+                        to={team(`/planning/requirements/estimation?req=${requirement.id}`)}
+                        className="text-xs font-semibold underline hover:no-underline shrink-0 flex items-center gap-1 text-emerald-700 dark:text-emerald-300"
+                      >
+                        View in Estimation <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                  )}
+
+                  {/* Parent Requirement Specification Preview */}
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                      Parent IEEE 830 Specification Baseline
+                    </p>
+                    <p className="text-xs text-foreground leading-relaxed p-3.5 rounded-xl bg-muted/30 border border-border/80 font-sans">
+                      {requirement.description || requirement.title}
+                    </p>
+                  </div>
+                </Card>
+
+                {/* SECTION 1: User Stories Breakdown & Refinement (shown on 'all' or 'stories') */}
+                {(mainTab === 'all' || mainTab === 'stories') && (
+                  <div className="space-y-4">
+                    {/* Story Action Bar */}
+                    <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="text-xs font-bold text-foreground">
+                          User Story Backlog ({stories.length} stor{stories.length === 1 ? 'y' : 'ies'})
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {isDecompFinalized
+                            ? 'All user stories are finalized and approved for Effort Estimation.'
+                            : 'Write atomic stories covering all requirement capabilities. Re-analyze to verify INVEST compliance.'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          size="sm"
+                          onClick={runAnalysis}
+                          disabled={analyzing || stories.length === 0}
+                          className="text-xs cursor-pointer gap-1.5"
+                          title="Evaluate current user stories against INVEST and coverage"
+                        >
+                          <Brain className={`h-3.5 w-3.5 ${analyzing ? 'animate-pulse' : ''}`} />
+                          {analyzing ? 'Analyzing with Agent…' : 'Run Decomposition Analysis'}
+                        </Button>
+
+                        {!isDecompFinalized && !showNewStoryForm && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setGapInitialTitle('')
+                              setShowNewStoryForm(true)
+                            }}
+                            className="text-xs cursor-pointer gap-1.5"
+                          >
+                            <Plus className="h-3.5 w-3.5" /> + Write Story
+                          </Button>
+                        )}
+                      </div>
+                    </Card>
+
+                    {/* New Story Form */}
+                    {showNewStoryForm && !isDecompFinalized && (
+                      <NewStoryForm
+                        reqId={selectedReqId}
+                        initialTitle={gapInitialTitle}
+                        onDone={() => {
+                          setShowNewStoryForm(false)
+                          setGapInitialTitle('')
+                        }}
+                      />
+                    )}
+
+                    {/* Empty Stories State */}
+                    {stories.length === 0 && !showNewStoryForm ? (
+                      <EmptyState
+                        title="No user stories created yet"
+                        description="Write your first user story for this requirement using the agile INVEST framework. The agent will verify testability, independence, and capability coverage."
+                        actionLabel="Write a user story"
+                        onAction={() => setShowNewStoryForm(true)}
+                      />
+                    ) : (
+                      /* Stories List */
+                      <div className="space-y-3.5">
+                        {stories.map((story) => (
+                          <StoryCard
+                            key={story.id}
+                            reqId={selectedReqId}
+                            story={story}
+                            readOnly={isDecompFinalized}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* SECTION 2: Coverage Analysis & INVEST Matrix (shown on 'all' or 'coverage') */}
+                {(mainTab === 'all' || mainTab === 'coverage') && (
+                  evaluation ? (
+                    <CoverageAndInvestSection
+                      evaluation={evaluation}
+                      onAddGapStory={!isDecompFinalized ? handleAddGapStory : null}
+                    />
+                  ) : (
+                    <Card className="p-6 text-center space-y-2">
+                      <Sparkles className="h-6 w-6 text-muted-foreground mx-auto" />
+                      <p className="text-xs font-semibold text-foreground">No Coverage Analysis Yet</p>
+                      <p className="text-[11px] text-muted-foreground max-w-md mx-auto">
+                        Add user stories and click "Run Decomposition Analysis" above to view capability coverage and INVEST validation.
+                      </p>
+                    </Card>
+                  )
+                )}
+
+                {/* SECTION 3: Agent Evidence & Patterns (shown on 'all' or 'evidence') */}
+                {(mainTab === 'all' || mainTab === 'evidence') && (
+                  <div className="space-y-4">
+                    {evaluation && <DecompositionEvidencePanel evaluation={evaluation} />}
+
+                    {/* DART Reasoning Flag Callout (if active) */}
+                    {dartCases.length > 0 && (
+                      <Card className="p-4 border-amber-500/30 bg-amber-500/5 animate-pulse-slow">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Gavel className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                            DART Activated — Ambiguity or Low Confidence Detected
+                          </span>
+                        </div>
+                        {dartCases.map((c) => (
+                          <div key={c.id} className="text-xs space-y-1.5 mb-2 last:mb-0">
+                            <div className="flex items-center gap-2">
+                              <Badge tone="warning">{c.categoryLabel}</Badge>
+                              <span className="text-[10px] text-muted-foreground">{c.caseRef}</span>
+                            </div>
+                            {c.resolution?.actionableFeedback && (
+                              <p className="text-xs text-foreground leading-snug">{c.resolution.actionableFeedback}</p>
+                            )}
+                            {c.consultation?.question && (
+                              <p className="text-[11px] text-blue-700 dark:text-blue-400 italic">
+                                "{c.consultation.question}"
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </Card>
+                    )}
+                  </div>
+                )}
+
+                {/* SECTION 4: Revision History (shown on 'all' or 'history') */}
+                {(mainTab === 'all' || mainTab === 'history') && (
+                  <RevisionHistorySection history={history} />
+                )}
+              </div>
+            )
+          ) : (
+            <Card className="p-8 text-center text-xs text-muted-foreground">
+              Select a requirement from the catalog on the left to begin story decomposition.
             </Card>
           )}
         </div>
-      </div>
+      )}
 
       <DartButton context="decomposition" />
 
@@ -790,47 +1532,34 @@ export default function Decomposition() {
 
       {/* INVEST Standards Guide Dialog */}
       <Dialog open={investGuideOpen} onOpenChange={setInvestGuideOpen}>
-        <DialogContent className="sm:max-w-[620px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[640px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-2 mb-1">
               <span className="p-1 rounded bg-primary/10 text-primary">
                 <BookOpen className="h-4 w-4" />
               </span>
-              <DialogTitle className="text-lg font-bold">INVEST User Story Quality Standards</DialogTitle>
+              <DialogTitle className="text-lg font-bold">INVEST Agile Story Quality Standards</DialogTitle>
             </div>
             <DialogDescription className="text-xs">
-              Academic guidelines used by the Decomposition Agent to validate agile user story quality.
+              Academic guidelines used by the Decomposition Agent to evaluate user stories and unlock the quality gate.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 text-xs">
-            {INVEST_CRITERIA.map((crit) => (
-              <div key={crit.key} className="p-3 rounded-xl border border-border bg-card space-y-1">
+          <div className="space-y-4 pt-2">
+            {INVEST_CRITERIA.map((criterion) => (
+              <div key={criterion.key} className="p-3 rounded-lg border border-border bg-card space-y-1">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
-                    <Check className="h-3.5 w-3.5 text-primary" /> {crit.label}
-                  </h4>
-                  <Badge tone="primary" className="text-[10px] px-1.5 py-0">INVEST Principle</Badge>
+                  <span className="text-xs font-bold text-foreground flex items-center gap-2">
+                    <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono text-[11px]">
+                      {criterion.code}
+                    </span>
+                    {criterion.label}
+                  </span>
                 </div>
-                <p className="text-muted-foreground text-[11px] leading-relaxed">{crit.description}</p>
-                <div className="p-2 rounded bg-muted/40 text-[11px] text-foreground font-medium border border-border/50">
-                  <span className="text-primary font-bold">Standard: </span>
-                  {crit.key === 'independent' && 'Avoid temporal or implementation couplings to other unfinished stories.'}
-                  {crit.key === 'negotiable' && 'Describe what the user wants and why, without prescribing immutable UI/DB mechanics.'}
-                  {crit.key === 'valuable' && 'Articulate clear business or pedagogical value for students, tutors, or supervisors.'}
-                  {crit.key === 'estimable' && 'Provide enough clarity for team members to assign Fibonacci story points.'}
-                  {crit.key === 'small' && 'Scope the deliverable so it can be designed, coded, and verified within one sprint.'}
-                  {crit.key === 'testable' && 'Formulate clear Given / When / Then acceptance criteria.'}
-                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{criterion.description}</p>
               </div>
             ))}
           </div>
-
-          <DialogFooter className="pt-2">
-            <Button size="sm" onClick={() => setInvestGuideOpen(false)} className="text-xs cursor-pointer">
-              Understood
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -25,15 +25,110 @@ function nextId(prefix) {
   return `${prefix}-${idCounter}`
 }
 
-// Requirements start EMPTY and are filled only by the real backend (SRS upload,
-// re-check, or DB hydration). The story/estimation/kanban seeds remain as
-// placeholders for agents not yet built; they stay inert until a real SRS exists.
+const FINALIZED_STORAGE_KEY = 'selvia_finalized_requirements'
+const FINALIZED_DECOMP_STORAGE_KEY = 'selvia_finalized_decompositions'
+const CACHED_REQUIREMENTS_KEY = 'selvia_cached_requirements'
+const CACHED_USER_STORIES_KEY = 'selvia_cached_user_stories'
+
+function readFinalizedIds() {
+  try {
+    const raw = localStorage.getItem(FINALIZED_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveFinalizedIds(ids) {
+  try {
+    localStorage.setItem(FINALIZED_STORAGE_KEY, JSON.stringify(ids))
+  } catch {
+    // ignore
+  }
+}
+
+function readFinalizedDecompIds() {
+  try {
+    const raw = localStorage.getItem(FINALIZED_DECOMP_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveFinalizedDecompIds(ids) {
+  try {
+    localStorage.setItem(FINALIZED_DECOMP_STORAGE_KEY, JSON.stringify(ids))
+  } catch {
+    // ignore
+  }
+}
+
+function readCachedRequirements() {
+  try {
+    const raw = localStorage.getItem(CACHED_REQUIREMENTS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed) || parsed.length === 0) return []
+    const finalizedSet = new Set(readFinalizedIds())
+    const finalizedDecompSet = new Set(readFinalizedDecompIds())
+    return parsed.map((r) => ({
+      ...r,
+      finalized: finalizedSet.has(r.id),
+      decompUnlocked: finalizedSet.has(r.id),
+      decompFinalized: finalizedDecompSet.has(r.id),
+    }))
+  } catch {
+    return []
+  }
+}
+
+function saveCachedRequirements(reqs) {
+  try {
+    if (Array.isArray(reqs)) {
+      localStorage.setItem(CACHED_REQUIREMENTS_KEY, JSON.stringify(reqs))
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function readCachedUserStories() {
+  try {
+    const raw = localStorage.getItem(CACHED_USER_STORIES_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveCachedUserStories(stories) {
+  try {
+    if (stories && typeof stories === 'object') {
+      localStorage.setItem(CACHED_USER_STORIES_KEY, JSON.stringify(stories))
+    }
+  } catch {
+    // ignore
+  }
+}
+
+const initialRequirements = readCachedRequirements()
+const initialStories = readCachedUserStories()
+
+// Synchronously hydrated from local cache on initial load/reload so the UI never
+// flashes 0% or empty state before background network queries resolve.
 let state = {
-  requirements: [],
-  userStories: {},
+  requirements: initialRequirements,
+  userStories: initialStories,
   estimations: {},
   kanbanTasks: [],
-  requirementHistory: {},
+  requirementHistory: Object.fromEntries(
+    initialRequirements.map((r) => [
+      r.id,
+      [{ version: 1, score: r.overallScore, status: r.status, timestamp: r.lastChecked }],
+    ]),
+  ),
+  decompositionHistory: {},
   activityLog: [],
   decompositionEvaluations: {},
 }
@@ -42,6 +137,12 @@ const listeners = new Set()
 
 function setState(patch) {
   state = { ...state, ...patch }
+  if (patch.requirements) {
+    saveCachedRequirements(state.requirements)
+  }
+  if (patch.userStories) {
+    saveCachedUserStories(state.userStories)
+  }
   listeners.forEach((listener) => listener())
 }
 
@@ -63,14 +164,58 @@ export const actions = {
   // (e.g. after an SRS upload). Resets per-requirement history to version 1.
   loadRequirements(reqs) {
     if (!reqs || reqs.length === 0) return
+    const finalizedSet = new Set(readFinalizedIds())
+    const finalizedDecompSet = new Set(readFinalizedDecompIds())
+    const hydrated = reqs.map((r) => ({
+      ...r,
+      finalized: finalizedSet.has(r.id),
+      decompUnlocked: finalizedSet.has(r.id),
+      decompFinalized: finalizedDecompSet.has(r.id),
+    }))
     setState({
-      requirements: reqs,
+      requirements: hydrated,
       requirementHistory: Object.fromEntries(
-        reqs.map((r) => [r.id, [{ version: 1, score: r.overallScore, status: r.status, timestamp: r.lastChecked }]]),
+        hydrated.map((r) => [r.id, [{ version: 1, score: r.overallScore, status: r.status, timestamp: r.lastChecked }]]),
       ),
       activityLog: withActivity(
-        `SRS processed — ${reqs.length} requirement(s) extracted and scored by the Quality Analysis agent.`,
+        `SRS processed — ${hydrated.length} requirement(s) extracted and scored by the Quality Analysis agent.`,
         'primary',
+      ),
+    })
+  },
+
+  finalizeRequirement(id) {
+    const set = new Set(readFinalizedIds())
+    set.add(id)
+    saveFinalizedIds(Array.from(set))
+
+    setState({
+      requirements: state.requirements.map((r) =>
+        r.id === id ? { ...r, finalized: true, decompUnlocked: true } : r,
+      ),
+      activityLog: withActivity(
+        `Requirement ${id} finalized and unlocked for Backlog Decomposition.`,
+        'success',
+      ),
+    })
+  },
+
+  finalizeDecomposition(id) {
+    const set = new Set(readFinalizedDecompIds())
+    set.add(id)
+    saveFinalizedDecompIds(Array.from(set))
+
+    setState({
+      requirements: state.requirements.map((r) =>
+        r.id === id ? { ...r, decompFinalized: true } : r,
+      ),
+      userStories: {
+        ...state.userStories,
+        [id]: (state.userStories[id] || []).map((s) => ({ ...s, status: 'Accepted' })),
+      },
+      activityLog: withActivity(
+        `Requirement ${id} decomposition finalized & locked — ready for Effort Estimation.`,
+        'success',
       ),
     })
   },
@@ -174,6 +319,15 @@ export const actions = {
 
   // Records one full decomposition agent pass against the requirement's current story set.
   recordDecompositionAnalysis(reqId, result) {
+    const prevHistory = state.decompositionHistory[reqId] || []
+    const newEntry = {
+      version: prevHistory.length + 1,
+      score: result.score,
+      coverage: result.coverage,
+      verdict: result.verdict,
+      timestamp: result.evaluatedAt || new Date().toISOString(),
+      summary: result.summary,
+    }
     setState({
       userStories: {
         ...state.userStories,
@@ -183,10 +337,29 @@ export const actions = {
         })),
       },
       decompositionEvaluations: { ...state.decompositionEvaluations, [reqId]: result },
+      decompositionHistory: {
+        ...state.decompositionHistory,
+        [reqId]: [newEntry, ...prevHistory],
+      },
       activityLog: withActivity(
         `Decomposition Agent analyzed ${reqId} — coverage ${Math.round(result.coverage * 100)}%, score ${result.score}/100 (${result.verdict}).`,
         result.verdict === 'Validated' ? 'success' : 'warning',
       ),
+    })
+  },
+
+  getDecompositionHistory(reqId) {
+    return state.decompositionHistory[reqId] || []
+  },
+
+  deleteStory(reqId, storyId) {
+    setState({
+      userStories: {
+        ...state.userStories,
+        [reqId]: (state.userStories[reqId] || []).filter((s) => s.id !== storyId),
+      },
+      decompositionEvaluations: { ...state.decompositionEvaluations, [reqId]: null },
+      activityLog: withActivity(`Story ${storyId} deleted from ${reqId}.`, 'primary', 'student'),
     })
   },
 

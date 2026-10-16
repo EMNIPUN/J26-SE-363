@@ -16,7 +16,6 @@ import {
 import DartButton from '../../components/DartButton.jsx'
 import { GROUPS } from '../../data/mockData.js'
 import { ARBITRATION_CATEGORY_TONE } from '../../utils.js'
-import { useAuth } from '../../../../shared/auth/useAuth.js'
 import { showToast } from '@/shared/utils/toast.jsx'
 import { useDartCases, useResolveCase } from '../../hooks/useDart.js'
 import { mapDartCases } from '../../adapters/dart.js'
@@ -201,7 +200,6 @@ function CaseRow({ item, onResolve }) {
 }
 
 export default function ArbitrationOversight() {
-  const { user } = useAuth()
   const { data: dartData, isLoading } = useDartCases()
   const resolveMutation = useResolveCase()
   const cases = mapDartCases(dartData?.cases || [])

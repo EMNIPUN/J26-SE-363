@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ChevronDown,
   CheckCircle2,
@@ -47,7 +47,7 @@ import { STORY_POINT_SCALE } from '../../../data/mockData.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
 import { showToast } from '@/shared/utils/toast.jsx'
 
-function StoryRow({ req, story, storyRef }) {
+function StoryRow({ req, story }) {
   const { estimations, setEstimation, confirmEstimation } = usePlanningData()
   const saveEstimate = useSaveEstimate()
   const confirmEstimateMut = useConfirmEstimate()
@@ -161,7 +161,28 @@ function StoryRow({ req, story, storyRef }) {
 
 export default function Estimation() {
   const { requirements, userStories, estimations, setEstimation, loadStories, loadEstimations } = usePlanningData()
-  const [selectedReqId, setSelectedReqId] = useState(requirements[0]?.id ?? '')
+  const [searchParams] = useSearchParams()
+  const reqParam = searchParams.get('req')
+
+  // Sort requirements: finalized decompositions first, then passing SRS, then others
+  const sortedRequirements = [...requirements].sort((a, b) => {
+    const aFinal = a.decompFinalized ? 1 : 0
+    const bFinal = b.decompFinalized ? 1 : 0
+    if (aFinal !== bFinal) return bFinal - aFinal
+    const aPassing = a.status === 'Passing' ? 1 : 0
+    const bPassing = b.status === 'Passing' ? 1 : 0
+    return bPassing - aPassing
+  })
+
+  const eligibleReqs = sortedRequirements.filter(
+    (r) => r.decompFinalized || (r.status === 'Passing' && (userStories[r.id] || []).some((s) => s.status === 'Accepted'))
+  )
+  const defaultReqId = (reqParam && requirements.some((r) => r.id === reqParam))
+    ? reqParam
+    : (eligibleReqs[0]?.id || sortedRequirements[0]?.id || '')
+
+  const [userSelectedReqId, setUserSelectedReqId] = useState(null)
+  const selectedReqId = userSelectedReqId || defaultReqId
   const { data: storiesResp } = useStories()
   const { data: estimatesResp } = useEstimates()
 
@@ -207,7 +228,7 @@ export default function Estimation() {
         })
       }
     })
-  }, [acceptedStories.length])
+  }, [acceptedStories.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const estimatedCount = acceptedStories.filter(({ story }) => estimations[story.id]?.confirmed).length
   const pendingCount = acceptedStories.length - estimatedCount
@@ -231,6 +252,9 @@ export default function Estimation() {
   function getEstimationMeta(r) {
     if (r.status !== 'Passing') return { percent: 0, tone: 'neutral', locked: true }
     const accepted = (userStories[r.id] || []).filter((s) => s.status === 'Accepted')
+    if (!r.decompFinalized && accepted.length === 0) {
+      return { percent: 0, tone: 'neutral', locked: true }
+    }
     if (accepted.length === 0) return { percent: 0, tone: 'neutral', locked: false }
     const done = accepted.filter((s) => estimations[s.id]?.confirmed).length
     const percent = Math.round((done / accepted.length) * 100)
@@ -371,9 +395,9 @@ export default function Estimation() {
 
       <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr] gap-5 items-start">
         <RequirementListPanel
-          requirements={requirements}
+          requirements={sortedRequirements}
           selectedId={selectedReqId}
-          onSelect={setSelectedReqId}
+          onSelect={setUserSelectedReqId}
           getItemMeta={getEstimationMeta}
         />
 
@@ -382,9 +406,9 @@ export default function Estimation() {
             <EmptyState
               icon={Lock}
               title={`${requirement.id} is blocked`}
-              description={`This requirement hasn't passed SRS Quality yet (${requirement.overallScore}%). It must clear the quality gate — and be decomposed — before it can be estimated.`}
+              description={`This requirement hasn't passed SRS Quality yet (${requirement.overallScore}%). It must clear the SRS quality gate and be decomposed before it can be estimated.`}
               actionLabel="Go to SRS Quality"
-              onAction={() => navigate(team('/planning/requirements/srs-quality'))}
+              onAction={() => navigate(team(`/planning/requirements/srs-quality?req=${requirement.id}`))}
             />
           )}
 
@@ -392,9 +416,9 @@ export default function Estimation() {
             <EmptyState
               icon={Sparkles}
               title="Nothing to estimate yet"
-              description={`No accepted user stories for ${requirement.id} yet. Accept a story in Decomposition first.`}
+              description={`No accepted user stories for ${requirement.id} yet. Clear the Decomposition Quality Gate and finalize decomposition first.`}
               actionLabel="Go to Decomposition"
-              onAction={() => navigate(team('/planning/requirements/decomposition'))}
+              onAction={() => navigate(team(`/planning/requirements/decomposition?req=${requirement.id}`))}
             />
           )}
 

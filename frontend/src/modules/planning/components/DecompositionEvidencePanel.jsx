@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { ChevronDown, BookOpen, Lightbulb, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
+import { ChevronDown, BookOpen, Lightbulb, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import Card from '../../../shared/components/Card.jsx'
 import Badge from '../../../shared/components/Badge.jsx'
 
 export default function DecompositionEvidencePanel({ evaluation }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
   if (!evaluation) return null
 
   const { investResults, gaps, covered, patternExamples, summary, coverage, score, verdict, confidence } = evaluation
@@ -13,7 +13,7 @@ export default function DecompositionEvidencePanel({ evaluation }) {
   const failingStories = investEntries.filter(([, r]) => !r.overallPass)
 
   return (
-    <Card className="p-0 overflow-hidden border-border">
+    <Card className="p-0 overflow-hidden border-border bg-card">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -21,13 +21,18 @@ export default function DecompositionEvidencePanel({ evaluation }) {
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Lightbulb className="h-4 w-4 text-primary" />
-          Why this score? — what the agent used
+          Agent Reasoning Evidence &amp; Retrieval Patterns
         </span>
-        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-2">
+          <Badge tone={verdict === 'Validated' ? 'success' : 'warning'} className="text-[10px] px-2 py-0.5">
+            {score}% · {verdict}
+          </Badge>
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+        </div>
       </button>
 
       {open && (
-        <div className="px-4 pb-4 space-y-4 border-t border-border/60 pt-4">
+        <div className="px-5 pb-5 space-y-4 border-t border-border/60 pt-4">
           {/* Summary */}
           <section>
             <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">Summary</h4>

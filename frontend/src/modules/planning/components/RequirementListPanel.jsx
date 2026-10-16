@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, CheckCircle2, AlertTriangle, XCircle, Circle, Lock } from 'lucide-react'
+import { Search, CheckCircle2, AlertTriangle, XCircle, Circle, Lock, ShieldCheck } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import Card from '../../../shared/components/Card.jsx'
@@ -10,8 +10,9 @@ const FILTER_TABS = [
   { key: 'passed', label: 'Passed' },
 ]
 
-function StatusIcon({ tone, locked }) {
+function StatusIcon({ tone, locked, finalized }) {
   if (locked) return <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+  if (finalized) return <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
   if (tone === 'success') return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
   if (tone === 'warning') return <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
   if (tone === 'danger') return <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
@@ -75,17 +76,25 @@ export default function RequirementListPanel({ requirements, selectedId, onSelec
             <button
               type="button"
               onClick={() => onSelect(req.id)}
-              className={`w-full text-left p-3 cursor-pointer transition-colors hover:bg-muted/40 ${
-                selectedId === req.id ? 'bg-muted/60' : ''
+              className={`w-full text-left p-3 cursor-pointer transition-colors ${
+                meta.locked
+                  ? 'opacity-55 bg-muted/20 hover:opacity-80'
+                  : 'hover:bg-muted/40'
+              } ${
+                selectedId === req.id ? 'bg-muted/60 ring-1 ring-border/80' : ''
               }`}
             >
               <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="text-xs font-medium text-muted-foreground">{req.id}</span>
-                <StatusIcon tone={meta.tone} locked={meta.locked} />
+                <span className={`text-xs font-medium ${meta.locked ? 'text-muted-foreground/80' : 'text-muted-foreground'}`}>
+                  {req.id}
+                </span>
+                <StatusIcon tone={meta.tone} locked={meta.locked} finalized={meta.finalized} />
               </div>
-              <p className="text-sm text-foreground line-clamp-2 leading-snug">{req.title}</p>
+              <p className={`text-sm line-clamp-2 leading-snug ${meta.locked ? 'text-muted-foreground font-normal' : 'text-foreground'}`}>
+                {req.title}
+              </p>
               <div className="flex items-center gap-2 mt-2">
-                <Progress value={meta.percent} className="h-1 flex-1" />
+                <Progress value={meta.percent} className={`h-1 flex-1 ${meta.locked ? 'opacity-30' : ''}`} />
                 <span className="text-xs font-medium text-muted-foreground w-9 text-right">{meta.percent}%</span>
               </div>
             </button>

@@ -12,24 +12,26 @@ import InstructorGroups from './pages/instructor/Groups.jsx'
 import GroupWorkspace from './pages/instructor/GroupWorkspace.jsx'
 import ArbitrationOversight from './pages/instructor/ArbitrationOversight.jsx'
 import DartShowcase from './pages/student/DartShowcase.jsx'
-
+import PlanningLayout from './components/PlanningLayout.jsx'
 
 export default function PlanningRoutes() {
   return (
     <Routes>
-      <Route index element={<Navigate to="dashboard" replace />} />
-      <Route path="dashboard" element={<Dashboard />} />
-      <Route path="requirements/srs-quality" element={<SRSQuality />} />
-      <Route path="requirements/decomposition" element={<Decomposition />} />
-      <Route path="requirements/estimation" element={<Estimation />} />
-      <Route path="sprint-management" element={<SprintManagement />} />
-      <Route path="dart-showcase" element={<DartShowcase />} />
-      <Route element={<RequireRole allowedRoles={['instructor', 'admin']} />}>
-        <Route path="instructor/dashboard" element={<InstructorDashboard />} />
-        <Route path="instructor/projects" element={<InstructorProjects />} />
-        <Route path="instructor/groups" element={<InstructorGroups />} />
-        <Route path="instructor/groups/:groupId" element={<GroupWorkspace />} />
-        <Route path="instructor/arbitration" element={<ArbitrationOversight />} />
+      <Route element={<PlanningLayout />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="requirements/srs-quality" element={<SRSQuality />} />
+        <Route path="requirements/decomposition" element={<Decomposition />} />
+        <Route path="requirements/estimation" element={<Estimation />} />
+        <Route path="sprint-management" element={<SprintManagement />} />
+        <Route path="dart-showcase" element={<DartShowcase />} />
+        <Route element={<RequireRole allowedRoles={['instructor', 'admin']} />}>
+          <Route path="instructor/dashboard" element={<InstructorDashboard />} />
+          <Route path="instructor/projects" element={<InstructorProjects />} />
+          <Route path="instructor/groups" element={<InstructorGroups />} />
+          <Route path="instructor/groups/:groupId" element={<GroupWorkspace />} />
+          <Route path="instructor/arbitration" element={<ArbitrationOversight />} />
+        </Route>
       </Route>
     </Routes>
   )
