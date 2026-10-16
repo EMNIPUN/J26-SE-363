@@ -7,8 +7,17 @@ Agents that are not registered yet answer with status "unavailable".
 
 from shared.contracts import AgentName
 
+from app.agents.adaptive_tutor.agent import AdaptiveTutorAgent
 from app.agents.base import BaseAgent
+from app.core.config import settings
+from app.core.tutor_token_context import RequestScopedTutorTokenProvider
 
 
 def build_agent_registry() -> dict[AgentName, BaseAgent]:
-    return {}
+    """Build the live agent map. Construction must not open network connections."""
+    return {
+        AgentName.ADAPTIVE_TUTOR: AdaptiveTutorAgent(
+            mcp_url=settings.TUTOR_MCP_URL,
+            token_provider=RequestScopedTutorTokenProvider(),
+        ),
+    }

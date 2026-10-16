@@ -65,6 +65,15 @@ class Settings(BaseSettings):
     # AI Backend (internal service that runs the Main Orchestrator)
     AI_BACKEND_URL: str = "http://localhost:8003"
     AI_BACKEND_TIMEOUT_SECONDS: float = 60.0
+    # Shared Core→AI Backend service credential (not Keycloak, not tutor MCP tokens).
+    # Must match AI Backend AI_BACKEND_INTERNAL_TOKEN. No default; fail closed when unset.
+    AI_BACKEND_INTERNAL_TOKEN: Optional[str] = None
+
+    # SLAP internal tutor-access-token mint (Core API only; never expose to browsers or AI Backend).
+    # No default URL or credential: minting fails closed until both are set.
+    SLAP_BASE_URL: Optional[str] = None
+    INTERNAL_TUTOR_MINT_TOKEN: Optional[str] = None
+    SLAP_TUTOR_MINT_TIMEOUT_SECONDS: float = 8.0
 
     model_config = SettingsConfigDict(
         env_file=SERVER_ENV_FILE,
@@ -72,10 +81,17 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    @field_validator("SERVER_DATABASE_URL", "SERVER_DIRECT_URL", mode="before")
+    @field_validator(
+        "SERVER_DATABASE_URL",
+        "SERVER_DIRECT_URL",
+        "SLAP_BASE_URL",
+        "INTERNAL_TUTOR_MINT_TOKEN",
+        "AI_BACKEND_INTERNAL_TOKEN",
+        mode="before",
+    )
     @classmethod
     def blank_url_is_unset(cls, value: Optional[str]) -> Optional[str]:
-        """`SERVER_DATABASE_URL=` (or only spaces) means "not set", not an empty URL."""
+        """Blank or whitespace-only env values mean "not set", not an empty URL/secret."""
         if isinstance(value, str) and not value.strip():
             return None
         return value
@@ -105,6 +121,16 @@ class Settings(BaseSettings):
     @property
     def keycloak_jwks_url(self) -> str:
         return self.KEYCLOAK_JWKS_URL or f"{self.keycloak_issuer}/protocol/openid-connect/certs"
+
+    @property
+    def slap_tutor_mint_configured(self) -> bool:
+        """True only when both SLAP base URL and the internal mint credential are set."""
+        return bool(self.SLAP_BASE_URL and self.INTERNAL_TUTOR_MINT_TOKEN)
+
+    @property
+    def ai_backend_internal_token_configured(self) -> bool:
+        """True when the Core→AI Backend shared service credential is set."""
+        return bool(self.AI_BACKEND_INTERNAL_TOKEN)
 
 
 settings = Settings()

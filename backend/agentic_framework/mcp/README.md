@@ -1,2 +1,6 @@
-# J26-SE-363
-A multi-agent generative AI framework for supporting project-based learning and intelligent lecturer monitoring through learning analytics.
+# MCP (legacy folder)
+
+External MCP **clients** belong under `app/integrations/` (for example
+`app/integrations/selvia_tutor_mcp/`).
+
+Do not add new MCP client code in this directory.

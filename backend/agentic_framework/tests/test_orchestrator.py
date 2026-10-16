@@ -67,9 +67,18 @@ def test_router_does_not_route_free_text_yet():
     assert select_agent(make_request(action=None, message="What groups are falling behind?")) is None
 
 
-def test_registry_is_empty_until_agents_register():
-    assert build_agent_registry() == {}
+def test_registry_registers_adaptive_tutor_only():
+    from app.agents.adaptive_tutor.agent import AdaptiveTutorAgent
+    from app.orchestrator.factory import get_orchestrator
+
+    get_orchestrator.cache_clear()
+    registry = build_agent_registry()
+    assert set(registry.keys()) == {AgentName.ADAPTIVE_TUTOR}
+    assert isinstance(registry[AgentName.ADAPTIVE_TUTOR], AdaptiveTutorAgent)
     assert isinstance(FakeAgent(AgentName.ADAPTIVE_TUTOR), BaseAgent)
+    assert AgentName.PROJECT_PLANNING not in registry
+    assert AgentName.PERFORMANCE_ASSESSMENT not in registry
+    assert AgentName.AEGIS not in registry
 
 
 @pytest.mark.asyncio

@@ -3,6 +3,7 @@
 A multi-agent generative AI framework for supporting project-based learning and intelligent lecturer monitoring through learning analytics.
 
 ## Guides & Architecture
+- [MCP Live-Test Environment Checklist](./MCP_LIVE_TEST_CHECKLIST.md) — Cross-repo prerequisites for a dedicated local/test MCP smoke run (SLAP ↔ J26). Placeholders only; keeps the public tutor route fail-closed.
 - [Environment Selection & Configuration Architecture](./ENVIRONMENT_GUIDE.md) — Comprehensive guide on `.env.*` resolution, Vite modes, Docker Compose interpolation, Keycloak/Kong credential propagation, and backend environment management.
 - [Server Database & Migration Guide](./SERVER_DATABASE_GUIDE.md) — Guide on Supabase dual-connection pooling (ports 6543 vs 5432), environment variables, Alembic migration commands, and running the server.
 - [Database Setup: Implementation Report](./DATABASE_SETUP_IMPLEMENTATION.md) — What was built to run the backend on Supabase: architecture, database objects, security design (row level security, revoked browser roles, connection guards, verified TLS), the setup steps and their results, team onboarding, testing and open items.
