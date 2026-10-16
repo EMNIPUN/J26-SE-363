@@ -29,7 +29,14 @@ if TYPE_CHECKING:
 
 class QualityAssessment(TimestampMixin, Base):
     __tablename__ = "rqa_quality_assessments"
-    __table_args__ = (UniqueConstraint("requirement_id", "pipeline_session_id"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "requirement_id",
+            "pipeline_session_id",
+            "revision_number",
+            name="uq_rqa_quality_assessments_req_session_revision",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     requirement_id: Mapped[uuid.UUID] = mapped_column(
@@ -38,6 +45,9 @@ class QualityAssessment(TimestampMixin, Base):
     pipeline_session_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("rqa_pipeline_sessions.id", ondelete="CASCADE"), index=True
     )
+    # Immutable snapshot of the requirement at the time it was assessed.
+    revision_number: Mapped[int] = mapped_column(Integer)
+    requirement_text_snapshot: Mapped[str] = mapped_column(Text)
     composite_score: Mapped[float] = mapped_column(Numeric(5, 2))
     confidence_level: Mapped[ConfidenceLevel] = mapped_column(
         string_enum(ConfidenceLevel, "qa_confidence_level")

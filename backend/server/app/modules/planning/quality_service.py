@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.enums import (
@@ -38,10 +38,26 @@ def save_assessment(
     requirement_id: uuid.UUID,
     session_id: uuid.UUID,
     agent_result: dict[str, Any],
+    requirement_text: str,
 ) -> QualityAssessment:
+    next_revision = (
+        db.scalar(
+            select(
+                func.coalesce(
+                    func.max(QualityAssessment.revision_number), 0
+                )
+            ).where(
+                QualityAssessment.requirement_id == requirement_id,
+                QualityAssessment.pipeline_session_id == session_id,
+            )
+        )
+        or 0
+    ) + 1
     assessment = QualityAssessment(
         requirement_id=requirement_id,
         pipeline_session_id=session_id,
+        revision_number=next_revision,
+        requirement_text_snapshot=requirement_text,
         composite_score=agent_result.get("overall_score", 0),
         confidence_level=CONFIDENCE_MAP.get(
             str(agent_result.get("confidence", "moderate")).lower(),
@@ -130,7 +146,13 @@ def save_assessments(
         if not req_id:
             continue
         result = item.get("result", item)
-        save_assessment(db, req_id, session_id, result)
+        save_assessment(
+            db,
+            req_id,
+            session_id,
+            result,
+            item.get("text", ""),
+        )
     db.commit()
 
 
@@ -154,25 +176,33 @@ def save_gate_decision(
     decision = (
         GateDecision.PASS if avg >= threshold else GateDecision.BLOCK
     )
-    row = QualityGateDecision(
-        pipeline_session_id=session_id,
-        composite_score=avg,
-        threshold=threshold,
-        decision=decision,
-        total_requirements=len(assessments),
-        requirements_above_threshold=above,
-        requirements_below_threshold=below,
-        decided_at=datetime.now(timezone.utc),
-    )
-    db.add(row)
+    row = db.scalars(
+        select(QualityGateDecision).where(
+            QualityGateDecision.pipeline_session_id == session_id
+        )
+    ).first()
+    if not row:
+        row = QualityGateDecision(pipeline_session_id=session_id)
+        db.add(row)
+
+    row.composite_score = avg
+    row.threshold = threshold
+    row.decision = decision
+    row.total_requirements = len(assessments)
+    row.requirements_above_threshold = above
+    row.requirements_below_threshold = below
+    row.decided_at = datetime.now(timezone.utc)
     db.flush()
     return row
 
 
 def get_assessments(
-    db: Session, session_id: uuid.UUID
+    db: Session,
+    session_id: uuid.UUID,
+    *,
+    latest_only: bool = True,
 ) -> list[QualityAssessment]:
-    return list(
+    assessments = list(
         db.scalars(
             select(QualityAssessment)
             .where(
@@ -182,8 +212,19 @@ def get_assessments(
                 selectinload(QualityAssessment.dimension_scores),
                 selectinload(QualityAssessment.tool_outputs),
             )
+            .order_by(
+                QualityAssessment.requirement_id,
+                QualityAssessment.revision_number.desc(),
+            )
         ).all()
     )
+    if not latest_only:
+        return assessments
+
+    latest: dict[uuid.UUID, QualityAssessment] = {}
+    for assessment in assessments:
+        latest.setdefault(assessment.requirement_id, assessment)
+    return list(latest.values())
 
 
 def get_gate_decision(
@@ -224,6 +265,8 @@ def assessment_to_dict(
     ]
     return {
         "id": str(row.requirement_id),
+        "revision_number": row.revision_number,
+        "requirement_text_snapshot": row.requirement_text_snapshot,
         "overall_score": float(row.composite_score),
         "confidence": row.confidence_level.value,
         "confidence_basis": row.confidence_basis,

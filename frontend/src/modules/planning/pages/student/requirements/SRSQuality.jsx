@@ -45,8 +45,8 @@ import SupervisorConsultationModal from '../../../components/SupervisorConsultat
 import EmptyState from '../../../../../shared/components/EmptyState.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
 import { srsTemplateUrl } from '../../../services/qualityService.js'
-import { useUploadSrs, useAnalyzeQuality, useQualityResults } from '../../../hooks/useQuality.js'
-import { mapExtractResult, mapAnalyzeResult, mapPersistedRows } from '../../../adapters/quality.js'
+import { useUploadSrs, useAnalyzeQuality, useQualityResults, useRequirementHistory } from '../../../hooks/useQuality.js'
+import { mapExtractResult, mapAnalyzeResult, mapPersistedRows, mapQualityResult } from '../../../adapters/quality.js'
 import QualityEvidencePanel from '../../../components/QualityEvidencePanel.jsx'
 import { QUALITY_DIMENSIONS } from '../../../data/mockData.js'
 import { useDartCases } from '../../../hooks/useDart.js'
@@ -146,6 +146,7 @@ export default function SRSQuality() {
 
   // Falls back to the first requirement until the student picks one.
   const selected = requirements.find((r) => r.id === selectedId) || requirements[0] || null
+  const historyQuery = useRequirementHistory(selected?.id)
   const currentDraft =
     draft && draft.id === selectedId
       ? draft
@@ -261,7 +262,25 @@ export default function SRSQuality() {
   }
 
   const openCases = selected ? getDartCasesForRequirement(allDartCases, selected.id).filter((c) => c.status === 'open') : []
-  const history = selected ? getRequirementHistory(selected.id) : []
+  const persistedHistory = historyQuery.data?.versions || []
+  const history = persistedHistory.length
+    ? persistedHistory.map((version) => {
+        const mapped = mapQualityResult(
+          version,
+          version.requirement_text_snapshot,
+          { lastChecked: version.assessed_at || version.created_at },
+        )
+        return {
+          version: version.revision_number,
+          score: mapped.overallScore,
+          status: mapped.status,
+          text: version.requirement_text_snapshot,
+          timestamp: mapped.lastChecked,
+        }
+      })
+    : selected
+      ? getRequirementHistory(selected.id)
+      : []
   const scoreTrend = history.length >= 2 ? history[history.length - 1].score - history[history.length - 2].score : null
 
   return (
@@ -725,13 +744,16 @@ export default function SRSQuality() {
                 {historyOpen && (
                   <div className="px-3.5 pb-3.5 space-y-2 border-t border-border/60 bg-muted/10 animate-fade-rise">
                     {history.map((h) => (
-                      <div key={h.version} className="flex items-center gap-3 text-xs p-2 rounded-lg bg-card border border-border/60">
-                        <span className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                          v{h.version}
-                        </span>
-                        <span className="font-bold text-foreground">{h.score}%</span>
-                        <Badge tone={GATE_STATUS_TONE[h.status]} className="text-[10px] px-1.5 py-0">{h.status}</Badge>
-                        <span className="text-muted-foreground text-[11px] ml-auto">{formatRelativeTime(h.timestamp)}</span>
+                      <div key={h.version} className="text-xs p-2 rounded-lg bg-card border border-border/60">
+                        <div className="flex items-center gap-3">
+                          <span className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                            v{h.version}
+                          </span>
+                          <span className="font-bold text-foreground">{h.score}%</span>
+                          <Badge tone={GATE_STATUS_TONE[h.status]} className="text-[10px] px-1.5 py-0">{h.status}</Badge>
+                          <span className="text-muted-foreground text-[11px] ml-auto">{formatRelativeTime(h.timestamp)}</span>
+                        </div>
+                        {h.text && <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{h.text}</p>}
                       </div>
                     ))}
                   </div>

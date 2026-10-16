@@ -1,10 +1,16 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { qualityService } from '../services/qualityService.js'
+import { queryClient } from '@/shared/api/queryClient.js'
 
 /** Upload an SRS .docx -> extract + score (mutation). */
 export function useUploadSrs() {
   return useMutation({
     mutationFn: ({ file, threshold = 75 }) => qualityService.uploadSrs(file, threshold),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quality-results'] })
+      queryClient.invalidateQueries({ queryKey: ['quality-history'] })
+      queryClient.invalidateQueries({ queryKey: ['quality-gate'] })
+    },
   })
 }
 
@@ -12,6 +18,11 @@ export function useUploadSrs() {
 export function useAnalyzeQuality() {
   return useMutation({
     mutationFn: ({ requirements, threshold = 75 }) => qualityService.analyzeQuality(requirements, threshold),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quality-results'] })
+      queryClient.invalidateQueries({ queryKey: ['quality-history'] })
+      queryClient.invalidateQueries({ queryKey: ['quality-gate'] })
+    },
   })
 }
 

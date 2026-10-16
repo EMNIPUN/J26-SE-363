@@ -87,9 +87,10 @@ from app.clients.ai_backend import (
 from app.core.security import CurrentUser, get_current_user
 from app.database.session import get_db
 from app.models.enums import ParseStatus, PipelineStage
-from app.models.group import Group
+from app.models.group import Group, GroupMember
 from app.models.pipeline_session import PipelineSession
 from app.models.project import Project
+from app.models.requirement import Requirement
 from app.models.srs_document import SrsDocument
 from app.models.user import User
 from app.modules.planning import (
@@ -114,6 +115,13 @@ DOCX_MEDIA_TYPE = (
     "application/vnd.openxmlformats-officedocument"
     ".wordprocessingml.document"
 )
+
+# Temporary bootstrap context until the real user/group/project provisioning
+# flow is connected. Remove this fallback once those records are created by
+# the academic administration/import workflow.
+TEMPORARY_SHARED_GROUP_CODE = "J26-SE-363"
+TEMPORARY_SHARED_GROUP_NAME = "Group 07 — SELVIA Platform"
+TEMPORARY_SHARED_PROJECT_TITLE = "Multi-agent Engineering Network for Task Orchestration & Review"
 
 
 # ── request / response bodies ────────────────────────────────
@@ -251,6 +259,70 @@ def _resolve_user_db_id(
     ).first()
 
 
+def _ensure_temporary_context(
+    db: Session,
+    user: CurrentUser,
+    x_team_id: str | None,
+) -> tuple[_uuid.UUID, _uuid.UUID, _uuid.UUID] | None:
+    """Provision the temporary shared planning context for the logged user.
+
+    This is intentionally local to planning session creation. It lets the
+    authenticated Keycloak user own the session while the shared academic
+    records are still absent from the database.
+    """
+    requested_code = _normalize_team_code(x_team_id or "")
+    if requested_code and requested_code != TEMPORARY_SHARED_GROUP_CODE:
+        return None
+
+    user_row = db.scalars(
+        select(User).where(User.keycloak_sub == user.user_id)
+    ).first()
+    if not user_row:
+        user_row = User(
+            keycloak_sub=user.user_id,
+            role=user.role,
+            name=user.name or user.username or user.email or "SELVIA User",
+            student_number=None,
+        )
+        db.add(user_row)
+        db.flush()
+
+    group = db.scalars(
+        select(Group).where(Group.code == TEMPORARY_SHARED_GROUP_CODE)
+    ).first()
+    if not group:
+        group = Group(
+            code=TEMPORARY_SHARED_GROUP_CODE,
+            name=TEMPORARY_SHARED_GROUP_NAME,
+        )
+        db.add(group)
+        db.flush()
+
+    membership = db.scalars(
+        select(GroupMember).where(
+            GroupMember.group_id == group.id,
+            GroupMember.user_id == user_row.id,
+        )
+    ).first()
+    if not membership:
+        db.add(GroupMember(group_id=group.id, user_id=user_row.id))
+
+    project = db.scalars(
+        select(Project).where(Project.group_id == group.id)
+    ).first()
+    if not project:
+        project = Project(
+            group_id=group.id,
+            created_by_id=user_row.id,
+            title=TEMPORARY_SHARED_PROJECT_TITLE,
+            description="Temporary shared project context for SELVIA planning.",
+        )
+        db.add(project)
+        db.flush()
+
+    return user_row.id, group.id, project.id
+
+
 def _get_session(
     db: Session,
     x_team_id: str | None,
@@ -262,16 +334,28 @@ def _get_session(
     ids = _resolve_group_project(
         db, x_team_id, project_id
     )
-    if not ids:
-        return None
-    group_id, proj_id = ids
+    if ids:
+        group_id, proj_id = ids
+        user_db_id = _resolve_user_db_id(db, user)
+        if not user_db_id:
+            temporary_context = _ensure_temporary_context(
+                db, user, x_team_id
+            )
+            if temporary_context:
+                user_db_id, group_id, proj_id = temporary_context
+    else:
+        temporary_context = _ensure_temporary_context(
+            db, user, x_team_id
+        )
+        if not temporary_context:
+            return None
+        user_db_id, group_id, proj_id = temporary_context
 
     if not create:
         return pipeline_session_service.get_active_session(
             db, proj_id, group_id
         )
 
-    user_db_id = _resolve_user_db_id(db, user)
     if not user_db_id:
         return None
     return pipeline_session_service.get_or_create_session(
@@ -312,7 +396,15 @@ def _build_req_map(
     )
     ref_map = {r.requirement_ref: r.id for r in reqs}
     for item in items:
-        if item.id not in ref_map:
+        requirement_id = ref_map.get(item.id)
+        if requirement_id:
+            # Re-checks are edits to an existing requirement. Persist the
+            # revised text so a page reload shows the evaluated version.
+            requirement = next(
+                r for r in reqs if r.id == requirement_id
+            )
+            requirement.requirement_text = item.text
+        else:
             rows = requirement_service.create_requirements(
                 db,
                 session.id,
@@ -324,6 +416,7 @@ def _build_req_map(
             )
             if rows:
                 ref_map[item.id] = rows[0].id
+    db.flush()
     return ref_map
 
 
@@ -368,8 +461,15 @@ def _persist_quality(
     for qr in quality_results:
         req_id = req_map.get(qr.get("id", ""))
         if req_id:
+            requirement = db.get(Requirement, req_id)
+            if not requirement:
+                continue
             quality_service.save_assessment(
-                db, req_id, session.id, qr
+                db,
+                req_id,
+                session.id,
+                qr,
+                requirement.requirement_text,
             )
     assessments = quality_service.get_assessments(
         db, session.id
@@ -709,6 +809,11 @@ async def analyze_quality(
             logger.exception(
                 "Failed to persist quality results"
             )
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Quality result could not be saved. Please try again.",
+            ) from None
 
         dart_cases: list[dict[str, Any]] = []
         for req_result in (result or {}).get(
@@ -840,7 +945,10 @@ async def get_quality_history(
             "versions": [],
         }
     assessments = await run_in_threadpool(
-        quality_service.get_assessments, db, session.id
+        quality_service.get_assessments,
+        db,
+        session.id,
+        latest_only=False,
     )
     req = await run_in_threadpool(
         requirement_service.get_by_ref,
@@ -850,11 +958,14 @@ async def get_quality_history(
     )
     versions = []
     if req:
-        versions = [
-            quality_service.assessment_to_dict(a)
-            for a in assessments
-            if a.requirement_id == req.id
-        ]
+        versions = sorted(
+            (
+                quality_service.assessment_to_dict(a)
+                for a in assessments
+                if a.requirement_id == req.id
+            ),
+            key=lambda item: item["revision_number"],
+        )
     return {
         "requirement_ref": requirement_ref,
         "versions": versions,
