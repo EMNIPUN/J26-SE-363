@@ -1119,19 +1119,20 @@ export default function SprintManagement() {
   const [scrumGuideOpen, setScrumGuideOpen] = useState(false);
 
   useEffect(() => {
-    if (!tasksResp?.data?.tasks) return;
-    const mapped = mapSprintTasks(tasksResp.data.tasks);
+    const items = tasksResp?.data?.items || tasksResp?.data?.tasks || tasksResp?.items || tasksResp?.tasks;
+    if (!items) return;
+    const mapped = mapSprintTasks(items);
     loadKanbanTasks(mapped);
-  }, [tasksResp]);
+  }, [tasksResp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleMove(taskId, newStatus) {
     moveKanbanTask(taskId, newStatus);
-    updateTask.mutate({ ref: taskId, patch: { status: newStatus } });
+    updateTask.mutate({ id: taskId, patch: { status: newStatus } });
   }
 
   function handleAssign(taskId, assigneeId) {
     assignKanbanTask(taskId, assigneeId);
-    updateTask.mutate({ ref: taskId, patch: { data: { assigneeId } } });
+    updateTask.mutate({ id: taskId, patch: { assigned_to: assigneeId } });
   }
 
   const totalPoints = kanbanTasks.reduce((s, t) => s + t.points, 0);

@@ -10,24 +10,35 @@ function titleFromText(text) {
 }
 
 /**
- * Map one backend RequirementQualityResult (+ its source text) to a UI requirement.
- * Keeps both flat dimension scores (for the radar) and per-dimension details
- * (rationale/issues) plus smells and retrieval evidence (for the evidence panel).
+ * Map one backend quality assessment to a UI requirement.
+ * Handles both the agent's raw JSONB shape (from POST /quality)
+ * and the normalized shape (from GET /quality's assessment_to_dict).
  */
 export function mapQualityResult(q, text, extra = {}) {
   const dims = q?.dimension_scores || {}
   const dimensionScores = {}
   const dimensionDetails = {}
   for (const [key, v] of Object.entries(dims)) {
-    dimensionScores[key] = v?.score ?? 0
-    dimensionDetails[key] = { score: v?.score ?? 0, rationale: v?.rationale || '', issues: v?.issues || [] }
+    const score = typeof v === 'object' ? (v?.score ?? 0) : (v ?? 0)
+    dimensionScores[key] = score
+    dimensionDetails[key] = {
+      score,
+      rationale: v?.justification || v?.rationale || '',
+      issues: v?.issues || [],
+      standardReference: v?.standard_reference || null,
+    }
   }
+
+  const assessmentStatus = q.status || ''
+  const uiStatus = BACKEND_STATUS_MAP[assessmentStatus]
+    || (q.overall_score >= 75 ? 'Passing' : 'Needs Review')
+
   return {
     id: q.id,
     title: extra.title || titleFromText(text),
-    description: text || '',
+    description: text || q.text || '',
     priority: extra.priority || 'Medium',
-    status: BACKEND_STATUS_MAP[q.status] || 'Needs Review',
+    status: uiStatus,
     overallScore: q.overall_score,
     dimensionScores,
     dimensionDetails,
@@ -35,8 +46,11 @@ export function mapQualityResult(q, text, extra = {}) {
     retrieval: q.retrieval || { standards: [], exemplars: [], cross_req_hits: [] },
     suggestedRewrite: q.suggested_rewrite || null,
     confidence: q.confidence,
+    diagnosis: q.diagnosis || null,
+    recommendedAction: q.recommended_action || null,
+    toolOutputs: q.tool_outputs || [],
     dartTriggered: q.dart_triggered,
-    lastChecked: extra.lastChecked || new Date().toISOString(),
+    lastChecked: extra.lastChecked || q.assessed_at || q.created_at || new Date().toISOString(),
     stale: false,
   }
 }
@@ -54,9 +68,31 @@ export function mapAnalyzeResult(result, text, extra = {}) {
   return q ? mapQualityResult(q, text, extra) : null
 }
 
-/** Map persisted rows from GET /planning/quality into UI requirements. */
+/**
+ * Map persisted rows from GET /planning/quality into UI requirements.
+ * Handles both old shape (row.result wrapper) and new normalized shape.
+ */
 export function mapPersistedRows(rows) {
-  return (rows || []).map((row) =>
-    mapQualityResult(row.result, row.requirement_text, { lastChecked: row.created_at }),
-  )
+  return (rows || []).map((row) => {
+    if (row.result) {
+      return mapQualityResult(row.result, row.requirement_text, { lastChecked: row.created_at })
+    }
+    return mapQualityResult(row, row.text, { lastChecked: row.created_at || row.assessed_at })
+  })
+}
+
+/** Map a quality gate decision response. */
+export function mapGateDecision(gate) {
+  if (!gate) return null
+  return {
+    decision: gate.decision,
+    passed: gate.decision === 'pass',
+    compositeScore: gate.composite_score,
+    threshold: gate.threshold,
+    totalRequirements: gate.total_requirements,
+    aboveThreshold: gate.above_threshold,
+    belowThreshold: gate.below_threshold,
+    summary: gate.gate_summary,
+    decidedAt: gate.decided_at,
+  }
 }

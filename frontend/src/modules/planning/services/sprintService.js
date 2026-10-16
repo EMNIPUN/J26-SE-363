@@ -2,13 +2,19 @@ import apiClient from '@/shared/api/apiClient.js'
 import { ENDPOINTS } from '@/shared/api/endpoints.js'
 
 export const sprintService = {
-  listTasks: () => apiClient.get(ENDPOINTS.PLANNING.SPRINT_TASKS),
+  listItems: () => apiClient.get(ENDPOINTS.PLANNING.BACKLOG),
 
-  createTask: (body) => apiClient.post(ENDPOINTS.PLANNING.SPRINT_TASKS, body),
+  createItem: (body) => apiClient.post(ENDPOINTS.PLANNING.BACKLOG, body),
 
-  updateTask: (ref, patch) => apiClient.patch(ENDPOINTS.PLANNING.SPRINT_TASK(ref), patch),
+  updateItem: (id, patch) => apiClient.patch(ENDPOINTS.PLANNING.BACKLOG_ITEM(id), patch),
 
-  deleteTask: (ref) => apiClient.delete(ENDPOINTS.PLANNING.SPRINT_TASK(ref)),
+  deleteItem: (id) => apiClient.delete(ENDPOINTS.PLANNING.BACKLOG_ITEM(id)),
+
+  // Backward compat aliases
+  listTasks: () => apiClient.get(ENDPOINTS.PLANNING.BACKLOG),
+  createTask: (body) => apiClient.post(ENDPOINTS.PLANNING.BACKLOG, body),
+  updateTask: (id, patch) => apiClient.patch(ENDPOINTS.PLANNING.BACKLOG_ITEM(id), patch),
+  deleteTask: (id) => apiClient.delete(ENDPOINTS.PLANNING.BACKLOG_ITEM(id)),
 }
 
 export default sprintService

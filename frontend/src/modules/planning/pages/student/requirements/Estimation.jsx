@@ -13,7 +13,6 @@ import {
   KanbanSquare,
   Sparkles,
 } from 'lucide-react'
-import { useQueryClient } from '@tanstack/react-query'
 import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import Card from '../../../../../shared/components/Card.jsx'
 import Badge from '../../../../../shared/components/Badge.jsx'
@@ -41,8 +40,8 @@ import DartButton from '../../../components/DartButton.jsx'
 import RequirementListPanel from '../../../components/RequirementListPanel.jsx'
 import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
-import { useStories, useUpdateStory } from '../../../hooks/useDecomposition.js'
-import { useCreateSprintTask } from '../../../hooks/useSprint.js'
+import { useStories } from '../../../hooks/useDecomposition.js'
+import { useEstimates, useSaveEstimate, useConfirmEstimate } from '../../../hooks/useEstimates.js'
 import { mapStoryRows } from '../../../adapters/decomposition.js'
 import { STORY_POINT_SCALE } from '../../../data/mockData.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
@@ -50,9 +49,8 @@ import { showToast } from '@/shared/utils/toast.jsx'
 
 function StoryRow({ req, story, storyRef }) {
   const { estimations, setEstimation, confirmEstimation } = usePlanningData()
-  const updateStory = useUpdateStory()
-  const createSprintTask = useCreateSprintTask()
-  const queryClient = useQueryClient()
+  const saveEstimate = useSaveEstimate()
+  const confirmEstimateMut = useConfirmEstimate()
   const [expanded, setExpanded] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const est = estimations[story.id]
@@ -61,35 +59,15 @@ function StoryRow({ req, story, storyRef }) {
     const finalPoints = est?.finalPoints ?? est?.studentPoints ?? 3
     setConfirming(true)
     try {
-      await updateStory.mutateAsync({
-        ref: story.id,
-        patch: {
-          estimation: {
-            studentPoints: est?.studentPoints,
-            finalPoints,
-            reason: est?.reason || '',
-            confirmed: true,
-            confirmedAt: new Date().toISOString(),
-          },
-        },
+      await saveEstimate.mutateAsync({
+        story_ref: story.id,
+        estimated_story_points: finalPoints,
+        estimation_basis: est?.reason || '',
       })
 
-      const taskRef = `K-${story.id}`
-      await createSprintTask.mutateAsync({
-        task_ref: taskRef,
-        story_ref: story.id,
-        requirement_ref: req.id,
-        status: 'Todo',
-        data: {
-          title: story.title,
-          points: finalPoints,
-          assigneeId: null,
-          dueDate: null,
-        },
-      })
+      await confirmEstimateMut.mutateAsync(story.id)
 
       confirmEstimation(req.id, story.id, story.title, finalPoints, est?.reason)
-      queryClient.invalidateQueries({ queryKey: ['planning-stories'] })
       showToast.success('Effort confirmed', { description: `${story.id} is now on the Sprint Board at ${finalPoints} SP.` })
     } catch {
       showToast.error('Failed to confirm estimation')
@@ -185,26 +163,31 @@ export default function Estimation() {
   const { requirements, userStories, estimations, setEstimation, loadStories, loadEstimations } = usePlanningData()
   const [selectedReqId, setSelectedReqId] = useState(requirements[0]?.id ?? '')
   const { data: storiesResp } = useStories()
+  const { data: estimatesResp } = useEstimates()
 
   useEffect(() => {
-    if (!storiesResp?.data?.stories) return
-    const mapped = mapStoryRows(storiesResp.data.stories)
+    const stories = storiesResp?.data?.stories || storiesResp?.stories
+    if (!stories) return
+    const mapped = mapStoryRows(stories)
     loadStories(mapped)
+  }, [storiesResp]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const rows = estimatesResp?.data?.estimates || estimatesResp?.estimates
+    if (!rows || rows.length === 0) return
     const estMap = {}
-    for (const row of storiesResp.data.stories) {
-      const d = row.data || {}
-      if (d.estimation) {
-        estMap[row.story_ref] = {
-          studentPoints: d.estimation.studentPoints ?? null,
-          finalPoints: d.estimation.finalPoints ?? null,
-          reason: d.estimation.reason || '',
-          confirmed: d.estimation.confirmed ?? false,
-        }
+    for (const row of rows) {
+      const storyRef = row.story_ref || row.user_story_id
+      if (!storyRef) continue
+      estMap[storyRef] = {
+        studentPoints: row.estimated_story_points ?? row.studentPoints ?? null,
+        finalPoints: row.final_story_points ?? row.finalPoints ?? row.estimated_story_points ?? null,
+        reason: row.estimation_basis ?? row.reason ?? '',
+        confirmed: row.confirmed ?? false,
       }
     }
     if (Object.keys(estMap).length > 0) loadEstimations(estMap)
-  }, [storiesResp])
+  }, [estimatesResp]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const acceptedStories = []
   for (const req of requirements) {

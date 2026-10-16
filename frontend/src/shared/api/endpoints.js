@@ -17,24 +17,37 @@ export const ENDPOINTS = {
     TASKS: '/planning/tasks',
     TASK_DETAIL: (id) => `/planning/tasks/${id}`,
     TIMELINE: (projectId) => `/planning/projects/${projectId}/timeline`,
+    // Pipeline session
+    SESSIONS: '/planning/sessions',
+    SESSION_ACTIVE: '/planning/sessions/active',
+    SESSION_DETAIL: (id) => `/planning/sessions/${id}`,
     // Requirement Quality Agent
     SRS: '/planning/srs',
     SRS_TEMPLATE: '/planning/srs/template',
     QUALITY: '/planning/quality',
+    QUALITY_GATE: '/planning/quality/gate',
     QUALITY_HISTORY: (ref) => `/planning/quality/${ref}/history`,
     // User Stories + Decomposition Agent
     STORIES: '/planning/stories',
     STORY: (ref) => `/planning/stories/${ref}`,
     DECOMPOSITION: '/planning/decomposition',
     DECOMPOSITION_HISTORY: (ref) => `/planning/decomposition/${ref}/history`,
+    // Estimation
+    ESTIMATES: '/planning/estimates',
+    ESTIMATE_CONFIRM: (ref) => `/planning/estimates/${ref}/confirm`,
+    // Sprint Backlog
+    BACKLOG: '/planning/backlog',
+    BACKLOG_ITEM: (id) => `/planning/backlog/${id}`,
     // DART — Diagnostic Arbitration using Reasoning Traces
     DART_ARBITRATE: '/planning/dart/arbitrate',
     DART_CASES: '/planning/dart/cases',
     DART_CASE: (ref) => `/planning/dart/cases/${ref}`,
     DART_RESOLVE: (ref) => `/planning/dart/cases/${ref}/resolve`,
-    // Sprint Tasks
-    SPRINT_TASKS: '/planning/sprint-tasks',
-    SPRINT_TASK: (ref) => `/planning/sprint-tasks/${ref}`,
+    // Feedback & instructor alerts
+    FEEDBACK: '/planning/feedback',
+    FEEDBACK_VIEW: (id) => `/planning/feedback/${id}/view`,
+    INSTRUCTOR_ALERTS: '/planning/instructor/alerts',
+    INSTRUCTOR_ALERT: (id) => `/planning/instructor/alerts/${id}`,
   },
   TUTOR: {
     SESSIONS: '/tutor/sessions',

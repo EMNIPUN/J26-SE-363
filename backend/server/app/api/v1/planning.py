@@ -1,28 +1,61 @@
 """Project Planning REST endpoints (Core API side).
 
-The frontend calls these; they build an OrchestrationRequest with a ``planning.*``
-action and forward it to the AI Backend's Main Orchestrator over HTTP (fast path),
-persist the result, then return it. The requester identity always comes from the
-verified Keycloak token, never from the request body.
+Endpoints forward to the AI Backend for agent execution, then
+persist results in normalized ``rqa_*`` tables via service modules.
 
-    POST /api/v1/planning/srs                                upload an SRS .docx -> extract + quality
-    POST /api/v1/planning/quality                            score typed-in requirements
-    GET  /api/v1/planning/quality                            latest stored result per requirement
-    GET  /api/v1/planning/quality/{ref}/history              all stored versions of one requirement
-    GET  /api/v1/planning/srs/template                       download the backend-generated SRS template (public)
-    GET  /api/v1/planning/stories                            list all persisted user stories
-    POST /api/v1/planning/stories                            create/update a user story
-    PATCH /api/v1/planning/stories/{story_ref}               patch a user story
-    DELETE /api/v1/planning/stories/{story_ref}              delete a user story
-    POST /api/v1/planning/decomposition                      run decomposition analysis
-    GET  /api/v1/planning/decomposition                      latest stored result per requirement
-    GET  /api/v1/planning/decomposition/{ref}/history        all stored versions of one requirement
+Session management
+    POST /planning/sessions                create pipeline session
+    GET  /planning/sessions/active         active session for scope
+    GET  /planning/sessions/{id}           session detail
+
+SRS & quality
+    POST /planning/srs                     upload SRS .docx -> extract + quality
+    GET  /planning/srs/template            download backend-generated SRS template
+    POST /planning/quality                 analyze requirement quality
+    GET  /planning/quality                 latest stored quality results
+    GET  /planning/quality/gate            quality gate decision
+    GET  /planning/quality/{ref}/history   stored quality versions
+
+Stories
+    GET  /planning/stories                 list user stories
+    POST /planning/stories                 create / update a user story
+    PATCH /planning/stories/{ref}          patch a user story
+    DELETE /planning/stories/{ref}         soft-delete a user story
+
+Decomposition
+    POST /planning/decomposition           run decomposition analysis
+    GET  /planning/decomposition           latest stored results
+
+Estimation
+    POST /planning/estimates               save student effort estimate
+    GET  /planning/estimates               list estimates for session
+    POST /planning/estimates/{ref}/confirm confirm estimate -> backlog
+
+Backlog
+    GET  /planning/backlog                 list sprint backlog items
+    POST /planning/backlog                 create backlog item
+    PATCH /planning/backlog/{id}           update item
+    DELETE /planning/backlog/{id}          delete item
+
+DART
+    POST /planning/dart/arbitrate          trigger DART arbitration
+    GET  /planning/dart/cases              list DART sessions
+    GET  /planning/dart/cases/{id}         single DART session
+    PATCH /planning/dart/cases/{id}/resolve resolve a DART session
+
+Feedback & alerts
+    GET  /planning/feedback                list feedback for session
+    PATCH /planning/feedback/{id}/view     mark feedback viewed
+    GET  /planning/instructor/alerts       list instructor alerts
+    PATCH /planning/instructor/alerts/{id} resolve alert
 """
 
 from __future__ import annotations
 
 import base64
 import logging
+import uuid as _uuid
+from datetime import datetime, timezone
 from typing import Annotated, Any
 
 from fastapi import (
@@ -43,29 +76,47 @@ from shared.contracts import (
     ResultStatus,
     UserRole,
 )
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.clients.ai_backend import AIBackendError, get_ai_backend_client
+from app.clients.ai_backend import (
+    AIBackendError,
+    get_ai_backend_client,
+)
 from app.core.security import CurrentUser, get_current_user
 from app.database.session import get_db
+from app.models.enums import ParseStatus, PipelineStage
+from app.models.group import Group
+from app.models.pipeline_session import PipelineSession
+from app.models.project import Project
+from app.models.srs_document import SrsDocument
+from app.models.user import User
 from app.modules.planning import (
     dart_service,
     decomposition_service,
-    service,
-    sprint_task_service,
-    story_service,
+    estimation_service,
+    feedback_service,
+    pipeline_session_service,
+    quality_service,
+    requirement_service,
+    sprint_backlog_service,
 )
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/planning", tags=["Project Planning"])
+router = APIRouter(
+    prefix="/planning", tags=["Project Planning"]
+)
 
 DEFAULT_THRESHOLD = 75
-MAX_SRS_BYTES = 5 * 1024 * 1024  # 5 MB
-DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+MAX_SRS_BYTES = 5 * 1024 * 1024
+DOCX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument"
+    ".wordprocessingml.document"
+)
 
 
-# --- request bodies ---------------------------------------------------------
+# ── request / response bodies ────────────────────────────────
 
 
 class RequirementIn(BaseModel):
@@ -84,34 +135,22 @@ class StoryIn(BaseModel):
     id: str
     requirement_ref: str
     title: str
-    acceptance_criteria: str = ""
-    status: str = "Draft"
-    invest_result: dict | None = None
-    tasks: list[dict] = Field(default_factory=list)
-    bugs: list[dict] = Field(default_factory=list)
+    as_a: str | None = None
+    i_want: str | None = None
+    so_that: str | None = None
+    description: str | None = None
+    acceptance_criteria: list[dict] | str | None = None
+    priority: str = "medium"
 
 
 class StoryPatch(BaseModel):
     title: str | None = None
-    acceptance_criteria: str | None = None
-    status: str | None = None
-    invest_result: dict | None = None
-    tasks: list[dict] | None = None
-    bugs: list[dict] | None = None
-    estimation: dict | None = None
-
-
-class SprintTaskIn(BaseModel):
-    task_ref: str
-    story_ref: str
-    requirement_ref: str
-    status: str = "Todo"
-    data: dict = Field(default_factory=dict)
-
-
-class SprintTaskPatch(BaseModel):
-    status: str | None = None
-    data: dict | None = None
+    as_a: str | None = None
+    i_want: str | None = None
+    so_that: str | None = None
+    description: str | None = None
+    acceptance_criteria: list[dict] | str | None = None
+    priority: str | None = None
 
 
 class DecompositionRequest(BaseModel):
@@ -119,6 +158,31 @@ class DecompositionRequest(BaseModel):
     stories: list[dict] = Field(min_length=1)
     threshold: int = DEFAULT_THRESHOLD
     project_id: str | None = None
+
+
+class EstimateIn(BaseModel):
+    story_ref: str
+    story_points: int
+    hours: float | None = None
+    basis: str | None = None
+    technique: str = "fibonacci"
+
+
+class BacklogItemIn(BaseModel):
+    user_story_id: str
+    requirement_id: str
+    story_points: int
+    description: str | None = None
+    hours: float | None = None
+    estimation_source: str = "student_only"
+
+
+class BacklogItemPatch(BaseModel):
+    status: str | None = None
+    priority: str | None = None
+    assigned_to: str | None = None
+    sprint_id: str | None = None
+    task_description: str | None = None
 
 
 class DartArbitrateRequest(BaseModel):
@@ -135,17 +199,141 @@ class DartResolveRequest(BaseModel):
     note: str = ""
 
 
-# --- helpers ----------------------------------------------------------------
+# ── helpers ──────────────────────────────────────────────────
 
 
-def _scope(x_team_id: str | None, project_id: str | None) -> str | None:
-    """Persistence scope: an explicit project id, else the team id the frontend sends."""
-    return (project_id or x_team_id or "").strip() or None
+def _normalize_team_code(raw: str) -> str:
+    s = raw.strip()
+    if s.lower().startswith("grp-"):
+        s = s[4:]
+    return s.upper()
 
 
-async def _orchestrate(request: OrchestrationRequest) -> dict[str, Any]:
+def _resolve_group_project(
+    db: Session,
+    x_team_id: str | None,
+    project_id: str | None = None,
+) -> tuple[_uuid.UUID, _uuid.UUID] | None:
+    if not x_team_id:
+        return None
+    code = _normalize_team_code(x_team_id)
+    group = db.scalars(
+        select(Group).where(Group.code == code)
+    ).first()
+    if not group:
+        return None
+
+    proj = None
+    if project_id:
+        try:
+            pid = _uuid.UUID(project_id)
+            proj = db.get(Project, pid)
+        except ValueError:
+            pass
+    if not proj:
+        proj = db.scalars(
+            select(Project).where(
+                Project.group_id == group.id
+            )
+        ).first()
+    if not proj:
+        return None
+    return group.id, proj.id
+
+
+def _resolve_user_db_id(
+    db: Session, user: CurrentUser
+) -> _uuid.UUID | None:
+    return db.scalars(
+        select(User.id).where(
+            User.keycloak_sub == user.user_id
+        )
+    ).first()
+
+
+def _get_session(
+    db: Session,
+    x_team_id: str | None,
+    project_id: str | None,
+    user: CurrentUser,
+    *,
+    create: bool = True,
+) -> PipelineSession | None:
+    ids = _resolve_group_project(
+        db, x_team_id, project_id
+    )
+    if not ids:
+        return None
+    group_id, proj_id = ids
+
+    if not create:
+        return pipeline_session_service.get_active_session(
+            db, proj_id, group_id
+        )
+
+    user_db_id = _resolve_user_db_id(db, user)
+    if not user_db_id:
+        return None
+    return pipeline_session_service.get_or_create_session(
+        db, proj_id, group_id, user_db_id
+    )
+
+
+def _require_session(
+    db: Session,
+    x_team_id: str | None,
+    project_id: str | None,
+    user: CurrentUser,
+    *,
+    create: bool = True,
+) -> PipelineSession:
+    session = _get_session(
+        db, x_team_id, project_id, user, create=create
+    )
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Could not resolve pipeline session. "
+                "Ensure X-Team-Id header is set and the "
+                "group/project exist."
+            ),
+        )
+    return session
+
+
+def _build_req_map(
+    db: Session,
+    session: PipelineSession,
+    items: list[RequirementIn],
+) -> dict[str, _uuid.UUID]:
+    reqs = requirement_service.list_requirements(
+        db, session.id
+    )
+    ref_map = {r.requirement_ref: r.id for r in reqs}
+    for item in items:
+        if item.id not in ref_map:
+            rows = requirement_service.create_requirements(
+                db,
+                session.id,
+                None,
+                session.project_id,
+                session.group_id,
+                [{"id": item.id, "text": item.text,
+                  "type": item.type}],
+            )
+            if rows:
+                ref_map[item.id] = rows[0].id
+    return ref_map
+
+
+async def _orchestrate(
+    request: OrchestrationRequest,
+) -> dict[str, Any]:
     try:
-        response = await get_ai_backend_client().orchestrate(request)
+        response = await get_ai_backend_client().orchestrate(
+            request
+        )
     except AIBackendError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -158,37 +346,320 @@ async def _orchestrate(request: OrchestrationRequest) -> dict[str, Any]:
             detail="The planning agent is not available.",
         )
     if response.status is ResultStatus.FAILED:
-        message = response.error.message if response.error else "Planning agent failed."
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=message)
+        message = (
+            response.error.message
+            if response.error
+            else "Planning agent failed."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=message,
+        )
     return response.result
 
 
-async def _persist(db: Session, scope: str | None, items: list[dict[str, Any]]) -> None:
-    """Best-effort: a storage hiccup must not fail an already-successful analysis."""
-    if not scope or not items:
-        return
+def _persist_quality(
+    db: Session,
+    session: PipelineSession,
+    quality_results: list[dict[str, Any]],
+    req_map: dict[str, _uuid.UUID],
+    threshold: float = DEFAULT_THRESHOLD,
+) -> None:
+    for qr in quality_results:
+        req_id = req_map.get(qr.get("id", ""))
+        if req_id:
+            quality_service.save_assessment(
+                db, req_id, session.id, qr
+            )
+    assessments = quality_service.get_assessments(
+        db, session.id
+    )
+    if assessments:
+        quality_service.save_gate_decision(
+            db, session.id, assessments, threshold
+        )
+    db.commit()
+
+
+async def _auto_trigger_dart(
+    user: CurrentUser,
+    db: Session,
+    session: PipelineSession,
+    requirement: RequirementIn,
+    source_stage: str,
+    source_result: dict[str, Any],
+    stories: list[dict] | None = None,
+) -> dict[str, Any] | None:
     try:
-        await run_in_threadpool(service.save_results, db, scope, items)
+        tripped = await run_in_threadpool(
+            dart_service.session_circuit_breaker,
+            db,
+            session.id,
+        )
+        if tripped:
+            logger.warning(
+                "DART circuit breaker tripped for %s",
+                session.id,
+            )
+            return None
     except Exception:
-        logger.exception("Failed to persist quality results for scope %s", scope)
+        logger.exception("Circuit breaker check failed")
+        return None
+
+    dart_request = OrchestrationRequest(
+        requester=user.to_requester(),
+        action="planning.arbitrate",
+        project_id=str(session.project_id),
+        input={
+            "requirement": {
+                "id": requirement.id,
+                "text": requirement.text,
+                "type": requirement.type,
+            },
+            "trigger_reason": "low_confidence",
+            "source_stage": source_stage,
+            "source_result": source_result,
+            "stories": stories or [],
+        },
+    )
+    try:
+        dart_result = await _orchestrate(dart_request)
+    except Exception:
+        logger.exception(
+            "DART auto-trigger failed for %s",
+            requirement.id,
+        )
+        return None
+
+    if dart_result:
+        try:
+            await run_in_threadpool(
+                dart_service.create_session,
+                db,
+                session.id,
+                dart_result,
+                source_stage,
+                "low_confidence",
+            )
+            await run_in_threadpool(
+                pipeline_session_service.increment_dart_count,
+                db,
+                session.id,
+            )
+            db.commit()
+        except Exception:
+            logger.exception(
+                "Failed to persist DART session for %s",
+                requirement.id,
+            )
+    return dart_result
 
 
-def _items_from_quality(quality: dict[str, Any] | None, text_by_ref: dict[str, str]) -> list[dict[str, Any]]:
-    results = (quality or {}).get("requirements", []) if quality else []
-    return [
-        {
-            "requirement_ref": r["id"],
-            "requirement_text": text_by_ref.get(r["id"], ""),
-            "result": r,
-        }
-        for r in results
-    ]
+# ── Session management ───────────────────────────────────────
 
 
-# --- endpoints --------------------------------------------------------------
+@router.post(
+    "/sessions",
+    summary="Create or get active pipeline session",
+)
+async def create_session(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, project_id, user
+    )
+    return pipeline_session_service.session_to_dict(session)
 
 
-@router.post("/quality", summary="Analyze requirement quality (6 IEEE 830 dimensions)")
+@router.get(
+    "/sessions/active",
+    summary="Get the active pipeline session",
+)
+async def get_active_session(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _get_session,
+        db,
+        x_team_id,
+        project_id,
+        user,
+        create=False,
+    )
+    if not session:
+        return {"session": None}
+    return pipeline_session_service.session_to_dict(session)
+
+
+@router.get(
+    "/sessions/{session_id}",
+    summary="Get pipeline session details",
+)
+async def get_session_detail(
+    session_id: _uuid.UUID,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, Any]:
+    session = pipeline_session_service.get_session(
+        db, session_id
+    )
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        )
+    return pipeline_session_service.session_to_dict(session)
+
+
+# ── SRS & quality ────────────────────────────────────────────
+
+
+@router.post(
+    "/srs",
+    summary="Upload SRS .docx, extract + score requirements",
+)
+async def upload_srs(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    file: Annotated[
+        UploadFile,
+        File(description="SRS document (.docx)"),
+    ],
+    threshold: Annotated[int, Query()] = DEFAULT_THRESHOLD,
+    project_id: Annotated[str | None, Query()] = None,
+    x_team_id: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    filename = (file.filename or "").lower()
+    if not filename.endswith(".docx"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Only .docx files are supported. "
+                "Download the SRS template and upload "
+                "it filled in."
+            ),
+        )
+
+    data = await file.read()
+    if not data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The uploaded file is empty.",
+        )
+    if len(data) > MAX_SRS_BYTES:
+        raise HTTPException(
+            status_code=(
+                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+            ),
+            detail="File too large (max 5 MB).",
+        )
+
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, project_id, user
+    )
+    user_db_id = await run_in_threadpool(
+        _resolve_user_db_id, db, user
+    )
+
+    srs_doc = SrsDocument(
+        pipeline_session_id=session.id,
+        group_id=session.group_id,
+        uploaded_by=user_db_id or session.initiated_by,
+        original_filename=file.filename or "srs.docx",
+        file_size_bytes=len(data),
+        mime_type=DOCX_MEDIA_TYPE,
+        parse_status=ParseStatus.PENDING,
+    )
+    db.add(srs_doc)
+    db.flush()
+
+    request = OrchestrationRequest(
+        requester=user.to_requester(),
+        action="planning.extract_requirements",
+        project_id=str(session.project_id),
+        input={
+            "file_base64": base64.b64encode(data).decode(),
+            "filename": file.filename,
+            "options": {
+                "analyze_quality": True,
+                "threshold": threshold,
+            },
+        },
+    )
+    result = await _orchestrate(request)
+
+    try:
+        extracted = result.get("requirements", [])
+        srs_doc.parse_status = ParseStatus.PARSED
+        srs_doc.total_requirements_extracted = len(extracted)
+        srs_doc.parsed_at = datetime.now(timezone.utc)
+
+        reqs = requirement_service.create_requirements(
+            db,
+            session.id,
+            srs_doc.id,
+            session.project_id,
+            session.group_id,
+            extracted,
+        )
+        req_map = {r.requirement_ref: r.id for r in reqs}
+
+        quality_data = (
+            (result.get("quality") or {})
+            .get("requirements", [])
+        )
+        if quality_data:
+            _persist_quality(
+                db, session, quality_data, req_map, threshold
+            )
+
+        pipeline_session_service.advance_stage(
+            db, session.id, PipelineStage.QUALITY
+        )
+        db.commit()
+    except Exception:
+        logger.exception(
+            "Failed to persist SRS/quality results"
+        )
+
+    return result
+
+
+@router.get(
+    "/srs/template",
+    summary="Download the SRS template (.docx)",
+)
+async def srs_template() -> Response:
+    request = OrchestrationRequest(
+        requester=RequesterContext(
+            user_id="public", role=UserRole.STUDENT
+        ),
+        action="planning.get_srs_template",
+        input={},
+    )
+    result = await _orchestrate(request)
+    data = base64.b64decode(result["file_base64"])
+    return Response(
+        content=data,
+        media_type=DOCX_MEDIA_TYPE,
+        headers={
+            "Content-Disposition": (
+                'attachment; filename="SRS_Template.docx"'
+            )
+        },
+    )
+
+
+@router.post(
+    "/quality",
+    summary="Analyze requirement quality",
+)
 async def analyze_quality(
     body: QualityRequest,
     user: Annotated[CurrentUser, Depends(get_current_user)],
@@ -200,153 +671,280 @@ async def analyze_quality(
         action="planning.analyze_quality",
         project_id=body.project_id,
         input={
-            "requirements": [r.model_dump() for r in body.requirements],
+            "requirements": [
+                r.model_dump() for r in body.requirements
+            ],
             "options": {"threshold": body.threshold},
         },
     )
     result = await _orchestrate(request)
-    text_by_ref = {r.id: r.text for r in body.requirements}
-    scope = _scope(x_team_id, body.project_id)
-    await _persist(db, scope, _items_from_quality(result, text_by_ref))
 
-    dart_cases = []
-    for req_result in (result or {}).get("requirements", []):
-        if req_result.get("dart_triggered"):
-            req_in = next((r for r in body.requirements if r.id == req_result["id"]), None)
-            if req_in:
-                dart_result = await _auto_trigger_dart(user, db, scope, req_in, "quality", req_result)
-                if dart_result:
-                    dart_cases.append(dart_result.get("case", {}))
-    if dart_cases:
-        result["dart_cases"] = dart_cases
-
-    return result
-
-
-@router.post("/srs", summary="Upload an SRS .docx and extract + score its requirements")
-async def upload_srs(
-    user: Annotated[CurrentUser, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-    file: Annotated[UploadFile, File(description="SRS document (.docx)")],
-    threshold: Annotated[int, Query()] = DEFAULT_THRESHOLD,
-    project_id: Annotated[str | None, Query()] = None,
-    x_team_id: Annotated[str | None, Header()] = None,
-) -> dict[str, Any]:
-    filename = (file.filename or "").lower()
-    if not filename.endswith(".docx"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only .docx files are supported. Download the SRS template and upload it filled in.",
-        )
-
-    data = await file.read()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The uploaded file is empty.")
-    if len(data) > MAX_SRS_BYTES:
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File too large (max 5 MB).")
-
-    request = OrchestrationRequest(
-        requester=user.to_requester(),
-        action="planning.extract_requirements",
-        project_id=project_id,
-        input={
-            "file_base64": base64.b64encode(data).decode(),
-            "filename": file.filename,
-            "options": {"analyze_quality": True, "threshold": threshold},
-        },
+    session = await run_in_threadpool(
+        _get_session,
+        db,
+        x_team_id,
+        body.project_id,
+        user,
     )
-    result = await _orchestrate(request)
-    text_by_ref = {r["id"]: r.get("text", "") for r in result.get("requirements", [])}
-    await _persist(db, _scope(x_team_id, project_id), _items_from_quality(result.get("quality"), text_by_ref))
+    if session:
+        try:
+            req_map = await run_in_threadpool(
+                _build_req_map,
+                db,
+                session,
+                body.requirements,
+            )
+            quality_data = (result or {}).get(
+                "requirements", []
+            )
+            await run_in_threadpool(
+                _persist_quality,
+                db,
+                session,
+                quality_data,
+                req_map,
+                float(body.threshold),
+            )
+        except Exception:
+            logger.exception(
+                "Failed to persist quality results"
+            )
+
+        dart_cases: list[dict[str, Any]] = []
+        for req_result in (result or {}).get(
+            "requirements", []
+        ):
+            if req_result.get("dart_triggered"):
+                req_in = next(
+                    (
+                        r
+                        for r in body.requirements
+                        if r.id == req_result["id"]
+                    ),
+                    None,
+                )
+                if req_in:
+                    dart_result = await _auto_trigger_dart(
+                        user,
+                        db,
+                        session,
+                        req_in,
+                        "quality",
+                        req_result,
+                    )
+                    if dart_result:
+                        dart_cases.append(
+                            dart_result.get("case", {})
+                        )
+        if dart_cases:
+            result["dart_cases"] = dart_cases
+
     return result
 
 
-@router.get("/quality", summary="Latest stored quality result per requirement")
+@router.get(
+    "/quality",
+    summary="Latest quality results for session",
+)
 async def get_quality(
     user: Annotated[CurrentUser, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     x_team_id: Annotated[str | None, Header()] = None,
     project_id: Annotated[str | None, Query()] = None,
 ) -> dict[str, Any]:
-    scope = _scope(x_team_id, project_id)
-    if not scope:
+    session = await run_in_threadpool(
+        _get_session,
+        db,
+        x_team_id,
+        project_id,
+        user,
+        create=False,
+    )
+    if not session:
         return {"project_id": None, "requirements": []}
-    rows = await run_in_threadpool(service.latest_results, db, scope)
-    return {"project_id": scope, "requirements": rows}
+
+    assessments = await run_in_threadpool(
+        quality_service.get_assessments, db, session.id
+    )
+    reqs = await run_in_threadpool(
+        requirement_service.list_requirements, db, session.id
+    )
+    ref_lookup = {r.id: r for r in reqs}
+
+    results = []
+    for a in assessments:
+        d = quality_service.assessment_to_dict(a)
+        req = ref_lookup.get(a.requirement_id)
+        if req:
+            d["id"] = req.requirement_ref
+            d["text"] = req.requirement_text
+            d["type"] = req.requirement_category.value
+        results.append(d)
+
+    return {
+        "project_id": str(session.project_id),
+        "requirements": results,
+    }
 
 
-@router.get("/quality/{requirement_ref}/history", summary="Stored versions of one requirement")
-async def get_history(
+@router.get(
+    "/quality/gate",
+    summary="Quality gate decision for session",
+)
+async def get_quality_gate(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _get_session,
+        db,
+        x_team_id,
+        project_id,
+        user,
+        create=False,
+    )
+    if not session:
+        return {"gate": None}
+    gate = await run_in_threadpool(
+        quality_service.get_gate_decision, db, session.id
+    )
+    if not gate:
+        return {"gate": None}
+    return {"gate": quality_service.gate_to_dict(gate)}
+
+
+@router.get(
+    "/quality/{requirement_ref}/history",
+    summary="Stored quality versions for one requirement",
+)
+async def get_quality_history(
     requirement_ref: str,
     user: Annotated[CurrentUser, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     x_team_id: Annotated[str | None, Header()] = None,
     project_id: Annotated[str | None, Query()] = None,
 ) -> dict[str, Any]:
-    scope = _scope(x_team_id, project_id)
-    versions = await run_in_threadpool(service.history, db, scope, requirement_ref) if scope else []
-    return {"requirement_ref": requirement_ref, "versions": versions}
-
-
-@router.get("/srs/template", summary="Download the backend-generated SRS template (.docx)")
-async def srs_template() -> Response:
-    request = OrchestrationRequest(
-        requester=RequesterContext(user_id="public", role=UserRole.STUDENT),
-        action="planning.get_srs_template",
-        input={},
+    session = await run_in_threadpool(
+        _get_session,
+        db,
+        x_team_id,
+        project_id,
+        user,
+        create=False,
     )
-    result = await _orchestrate(request)
-    data = base64.b64decode(result["file_base64"])
-    return Response(
-        content=data,
-        media_type=DOCX_MEDIA_TYPE,
-        headers={"Content-Disposition": 'attachment; filename="SRS_Template.docx"'},
+    if not session:
+        return {
+            "requirement_ref": requirement_ref,
+            "versions": [],
+        }
+    assessments = await run_in_threadpool(
+        quality_service.get_assessments, db, session.id
     )
+    req = await run_in_threadpool(
+        requirement_service.get_by_ref,
+        db,
+        session.id,
+        requirement_ref,
+    )
+    versions = []
+    if req:
+        versions = [
+            quality_service.assessment_to_dict(a)
+            for a in assessments
+            if a.requirement_id == req.id
+        ]
+    return {
+        "requirement_ref": requirement_ref,
+        "versions": versions,
+    }
 
 
-# --- Story CRUD endpoints ---------------------------------------------------
+# ── Story CRUD ───────────────────────────────────────────────
 
 
-@router.get("/stories", summary="List all persisted user stories")
+@router.get(
+    "/stories", summary="List all user stories"
+)
 async def list_stories(
     user: Annotated[CurrentUser, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     x_team_id: Annotated[str | None, Header()] = None,
     project_id: Annotated[str | None, Query()] = None,
 ) -> dict[str, Any]:
-    scope = _scope(x_team_id, project_id)
-    if not scope:
+    session = await run_in_threadpool(
+        _get_session,
+        db,
+        x_team_id,
+        project_id,
+        user,
+        create=False,
+    )
+    if not session:
         return {"project_id": None, "stories": []}
-    rows = await run_in_threadpool(story_service.list_stories, db, scope)
-    return {"project_id": scope, "stories": rows}
+    rows = await run_in_threadpool(
+        decomposition_service.list_stories, db, session.id
+    )
+    return {
+        "project_id": str(session.project_id),
+        "stories": [
+            decomposition_service.story_to_dict(r)
+            for r in rows
+        ],
+    }
 
 
-@router.post("/stories", summary="Create or update a user story")
+@router.post(
+    "/stories", summary="Create or update a user story"
+)
 async def create_story(
     body: StoryIn,
     user: Annotated[CurrentUser, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     x_team_id: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
-    scope = _scope(x_team_id, None)
-    if not scope:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Team-Id header required.")
-    data = {
-        "id": body.id,
-        "title": body.title,
-        "acceptance_criteria": body.acceptance_criteria,
-        "status": body.status,
-        "invest_result": body.invest_result,
-        "tasks": body.tasks,
-        "bugs": body.bugs,
-    }
-    row = await run_in_threadpool(
-        story_service.upsert_story, db, scope, body.requirement_ref, body.id, data
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, None, user
     )
-    return {"ok": True, "story": row}
+    req = await run_in_threadpool(
+        requirement_service.get_by_ref,
+        db,
+        session.id,
+        body.requirement_ref,
+    )
+    if not req:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"Requirement '{body.requirement_ref}' "
+                "not found in this session."
+            ),
+        )
+    user_db_id = await run_in_threadpool(
+        _resolve_user_db_id, db, user
+    )
+    story_data = body.model_dump(exclude={"requirement_ref"})
+    story_data["story_ref"] = story_data.pop("id")
+    row = await run_in_threadpool(
+        decomposition_service.upsert_story,
+        db,
+        req.id,
+        session.id,
+        story_data,
+        user_db_id,
+    )
+    db.commit()
+    return {
+        "ok": True,
+        "story": decomposition_service.story_to_dict(row),
+    }
 
 
-@router.patch("/stories/{story_ref}", summary="Patch a user story")
+@router.patch(
+    "/stories/{story_ref}",
+    summary="Patch a user story",
+)
 async def patch_story(
     story_ref: str,
     body: StoryPatch,
@@ -354,110 +952,67 @@ async def patch_story(
     db: Annotated[Session, Depends(get_db)],
     x_team_id: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
-    scope = _scope(x_team_id, None)
-    if not scope:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Team-Id header required.")
-    rows = await run_in_threadpool(story_service.list_stories, db, scope)
-    existing = next((r for r in rows if r["story_ref"] == story_ref), None)
-    if not existing:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Story not found.")
-    data = existing["data"]
-    patch = body.model_dump(exclude_none=True)
-    data.update(patch)
-    row = await run_in_threadpool(
-        story_service.upsert_story, db, scope, existing["requirement_ref"], story_ref, data
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, None, user
     )
-    return {"ok": True, "story": row}
+    row = await run_in_threadpool(
+        decomposition_service.get_story_by_ref,
+        db,
+        session.id,
+        story_ref,
+    )
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Story not found.",
+        )
+    patch = body.model_dump(exclude_none=True)
+    for field, val in patch.items():
+        if hasattr(row, field):
+            setattr(row, field, val)
+    db.flush()
+    db.commit()
+    return {
+        "ok": True,
+        "story": decomposition_service.story_to_dict(row),
+    }
 
 
-@router.delete("/stories/{story_ref}", summary="Delete a user story")
+@router.delete(
+    "/stories/{story_ref}",
+    summary="Soft-delete a user story",
+)
 async def delete_story(
     story_ref: str,
     user: Annotated[CurrentUser, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     x_team_id: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
-    scope = _scope(x_team_id, None)
-    if not scope:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Team-Id header required.")
-    deleted = await run_in_threadpool(story_service.delete_story, db, scope, story_ref)
-    if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Story not found.")
-    return {"ok": True}
-
-
-# --- Sprint Task CRUD endpoints ---------------------------------------------
-
-
-@router.get("/sprint-tasks", summary="List all sprint tasks")
-async def list_sprint_tasks(
-    user: Annotated[CurrentUser, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-    x_team_id: Annotated[str | None, Header()] = None,
-    project_id: Annotated[str | None, Query()] = None,
-) -> dict[str, Any]:
-    scope = _scope(x_team_id, project_id)
-    if not scope:
-        return {"project_id": None, "tasks": []}
-    rows = await run_in_threadpool(sprint_task_service.list_tasks, db, scope)
-    return {"project_id": scope, "tasks": rows}
-
-
-@router.post("/sprint-tasks", summary="Create a sprint task")
-async def create_sprint_task(
-    body: SprintTaskIn,
-    user: Annotated[CurrentUser, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-    x_team_id: Annotated[str | None, Header()] = None,
-) -> dict[str, Any]:
-    scope = _scope(x_team_id, None)
-    if not scope:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Team-Id header required.")
-    row = await run_in_threadpool(
-        sprint_task_service.upsert_task,
-        db, scope, body.task_ref, body.story_ref, body.requirement_ref, body.status, body.data,
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, None, user
     )
-    return {"ok": True, "task": row}
-
-
-@router.patch("/sprint-tasks/{task_ref}", summary="Patch a sprint task")
-async def patch_sprint_task(
-    task_ref: str,
-    body: SprintTaskPatch,
-    user: Annotated[CurrentUser, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-    x_team_id: Annotated[str | None, Header()] = None,
-) -> dict[str, Any]:
-    scope = _scope(x_team_id, None)
-    if not scope:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Team-Id header required.")
-    patch = body.model_dump(exclude_none=True)
-    row = await run_in_threadpool(sprint_task_service.patch_task, db, scope, task_ref, patch)
-    if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sprint task not found.")
-    return {"ok": True, "task": row}
-
-
-@router.delete("/sprint-tasks/{task_ref}", summary="Delete a sprint task")
-async def delete_sprint_task(
-    task_ref: str,
-    user: Annotated[CurrentUser, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-    x_team_id: Annotated[str | None, Header()] = None,
-) -> dict[str, Any]:
-    scope = _scope(x_team_id, None)
-    if not scope:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Team-Id header required.")
-    deleted = await run_in_threadpool(sprint_task_service.delete_task, db, scope, task_ref)
+    deleted = await run_in_threadpool(
+        decomposition_service.delete_story,
+        db,
+        session.id,
+        story_ref,
+    )
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sprint task not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Story not found.",
+        )
+    db.commit()
     return {"ok": True}
 
 
-# --- Decomposition endpoints ------------------------------------------------
+# ── Decomposition ────────────────────────────────────────────
 
 
-@router.post("/decomposition", summary="Run decomposition analysis on stories against a requirement")
+@router.post(
+    "/decomposition",
+    summary="Run decomposition analysis",
+)
 async def analyze_decomposition(
     body: DecompositionRequest,
     user: Annotated[CurrentUser, Depends(get_current_user)],
@@ -469,165 +1024,403 @@ async def analyze_decomposition(
         action="planning.analyze_decomposition",
         project_id=body.project_id,
         input={
-            "requirement": {"id": body.requirement.id, "text": body.requirement.text, "type": body.requirement.type},
+            "requirement": {
+                "id": body.requirement.id,
+                "text": body.requirement.text,
+                "type": body.requirement.type,
+            },
             "stories": body.stories,
             "options": {"threshold": body.threshold},
         },
     )
     result = await _orchestrate(request)
 
-    scope = _scope(x_team_id, body.project_id)
+    session = await run_in_threadpool(
+        _get_session,
+        db,
+        x_team_id,
+        body.project_id,
+        user,
+    )
     decomp_result = result.get("result")
 
-    if decomp_result and decomp_result.get("dart_triggered"):
-        dart_result = await _auto_trigger_dart(
-            user, db, scope, body.requirement, "decomposition", decomp_result, body.stories,
-        )
-        if dart_result:
-            result["dart_cases"] = [dart_result.get("case", {})]
-
-    if scope and decomp_result:
-        try:
-            await run_in_threadpool(
-                decomposition_service.save_result,
-                db, scope, body.requirement.id, body.requirement.text, decomp_result,
+    if session and decomp_result:
+        if decomp_result.get("dart_triggered"):
+            dart_result = await _auto_trigger_dart(
+                user,
+                db,
+                session,
+                body.requirement,
+                "decomposition",
+                decomp_result,
+                body.stories,
             )
-        except Exception:
-            logger.exception("Failed to persist decomposition result for scope %s", scope)
+            if dart_result:
+                result["dart_cases"] = [
+                    dart_result.get("case", {})
+                ]
 
-        stories_invest = decomp_result.get("stories", [])
-        for si in stories_invest:
-            sid = si.get("story_id", "")
-            invest_data = {
-                k: si[k] for k in ("independent", "negotiable", "valuable", "estimable", "small", "testable", "overall_pass")
-                if k in si
-            }
-            if sid and invest_data:
-                try:
-                    rows = await run_in_threadpool(story_service.list_stories, db, scope)
-                    match = next((r for r in rows if r["story_ref"] == sid), None)
-                    if match:
-                        match["data"]["invest_result"] = invest_data
-                        await run_in_threadpool(
-                            story_service.upsert_story, db, scope,
-                            match["requirement_ref"], sid, match["data"],
-                        )
-                except Exception:
-                    logger.exception("Failed to back-fill invest_result for story %s", sid)
+        try:
+            req = await run_in_threadpool(
+                requirement_service.get_by_ref,
+                db,
+                session.id,
+                body.requirement.id,
+            )
+            if req:
+                stories = await run_in_threadpool(
+                    decomposition_service.list_stories,
+                    db,
+                    session.id,
+                )
+                await run_in_threadpool(
+                    decomposition_service.save_assessment,
+                    db,
+                    req.id,
+                    session.id,
+                    decomp_result,
+                    stories,
+                )
+                pipeline_session_service.advance_stage(
+                    db,
+                    session.id,
+                    PipelineStage.DECOMPOSITION,
+                )
+                db.commit()
+        except Exception:
+            logger.exception(
+                "Failed to persist decomposition result"
+            )
 
     return result
 
 
-@router.get("/decomposition", summary="Latest stored decomposition result per requirement")
+@router.get(
+    "/decomposition",
+    summary="Latest decomposition results",
+)
 async def get_decomposition(
     user: Annotated[CurrentUser, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     x_team_id: Annotated[str | None, Header()] = None,
     project_id: Annotated[str | None, Query()] = None,
 ) -> dict[str, Any]:
-    scope = _scope(x_team_id, project_id)
-    if not scope:
+    session = await run_in_threadpool(
+        _get_session,
+        db,
+        x_team_id,
+        project_id,
+        user,
+        create=False,
+    )
+    if not session:
         return {"project_id": None, "results": []}
-    rows = await run_in_threadpool(decomposition_service.latest_results, db, scope)
-    return {"project_id": scope, "results": rows}
+    rows = await run_in_threadpool(
+        decomposition_service.get_assessments,
+        db,
+        session.id,
+    )
+    return {
+        "project_id": str(session.project_id),
+        "results": [
+            decomposition_service.assessment_to_dict(r)
+            for r in rows
+        ],
+    }
 
 
-@router.get("/decomposition/{requirement_ref}/history", summary="Stored versions of one requirement's decomposition")
-async def get_decomposition_history(
-    requirement_ref: str,
+# ── Estimation ───────────────────────────────────────────────
+
+
+@router.post(
+    "/estimates",
+    summary="Save a student effort estimate",
+)
+async def save_estimate(
+    body: EstimateIn,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, None, user
+    )
+    story = await run_in_threadpool(
+        decomposition_service.get_story_by_ref,
+        db,
+        session.id,
+        body.story_ref,
+    )
+    if not story:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Story not found.",
+        )
+    user_db_id = await run_in_threadpool(
+        _resolve_user_db_id, db, user
+    )
+    row = await run_in_threadpool(
+        estimation_service.save_student_estimate,
+        db,
+        story.id,
+        session.id,
+        user_db_id,
+        body.story_points,
+        body.hours,
+        body.basis,
+        body.technique,
+    )
+    db.commit()
+    return {
+        "ok": True,
+        "estimate": estimation_service.estimate_to_dict(row),
+    }
+
+
+@router.get(
+    "/estimates",
+    summary="List estimates for session",
+)
+async def list_estimates(
     user: Annotated[CurrentUser, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     x_team_id: Annotated[str | None, Header()] = None,
     project_id: Annotated[str | None, Query()] = None,
 ) -> dict[str, Any]:
-    scope = _scope(x_team_id, project_id)
-    versions = await run_in_threadpool(decomposition_service.history, db, scope, requirement_ref) if scope else []
-    return {"requirement_ref": requirement_ref, "versions": versions}
-
-
-# --- DART auto-trigger helper -----------------------------------------------
-
-
-async def _auto_trigger_dart(
-    user: CurrentUser,
-    db: Session,
-    scope: str | None,
-    requirement: RequirementIn,
-    source_stage: str,
-    source_result: dict,
-    stories: list[dict] | None = None,
-) -> dict[str, Any] | None:
-    if not scope:
-        return None
-    try:
-        if await run_in_threadpool(dart_service.session_circuit_breaker, db, scope):
-            logger.warning("DART circuit breaker tripped for scope %s", scope)
-            return None
-    except Exception:
-        logger.exception("Circuit breaker check failed")
-        return None
-
-    dart_request = OrchestrationRequest(
-        requester=user.to_requester(),
-        action="planning.arbitrate",
-        project_id=scope,
-        input={
-            "requirement": {"id": requirement.id, "text": requirement.text, "type": requirement.type},
-            "trigger_reason": "low_confidence",
-            "source_stage": source_stage,
-            "source_result": source_result,
-            "stories": stories or [],
-        },
+    session = await run_in_threadpool(
+        _get_session,
+        db,
+        x_team_id,
+        project_id,
+        user,
+        create=False,
     )
-    try:
-        dart_result = await _orchestrate(dart_request)
-    except Exception:
-        logger.exception("DART auto-trigger failed for %s", requirement.id)
-        return None
-
-    case = (dart_result or {}).get("case", {})
-    if case:
-        try:
-            await run_in_threadpool(
-                dart_service.save_case,
-                db, scope,
-                case.get("case_id", ""),
-                case.get("requirement_ref", requirement.id),
-                source_stage,
-                case.get("category", "ambiguous"),
-                case.get("status", "open"),
-                case,
-            )
-        except Exception:
-            logger.exception("Failed to persist DART case for %s", requirement.id)
-    return dart_result
+    if not session:
+        return {"estimates": []}
+    rows = await run_in_threadpool(
+        estimation_service.list_estimates, db, session.id
+    )
+    return {
+        "estimates": [
+            estimation_service.estimate_to_dict(r)
+            for r in rows
+        ],
+    }
 
 
-# --- DART endpoints ---------------------------------------------------------
+@router.post(
+    "/estimates/{story_ref}/confirm",
+    summary="Confirm estimate and create backlog item",
+)
+async def confirm_estimate(
+    story_ref: str,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, None, user
+    )
+    story = await run_in_threadpool(
+        decomposition_service.get_story_by_ref,
+        db,
+        session.id,
+        story_ref,
+    )
+    if not story:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Story not found.",
+        )
+    estimates = await run_in_threadpool(
+        estimation_service.list_estimates, db, session.id
+    )
+    est = next(
+        (e for e in estimates if e.user_story_id == story.id),
+        None,
+    )
+    points = est.estimated_story_points if est else 0
+    hours = (
+        float(est.estimated_hours)
+        if est and est.estimated_hours
+        else None
+    )
+    item = await run_in_threadpool(
+        sprint_backlog_service.create_item,
+        db,
+        session.id,
+        story.id,
+        story.requirement_id,
+        points,
+        story.title,
+        hours,
+    )
+    pipeline_session_service.advance_stage(
+        db,
+        session.id,
+        PipelineStage.EFFORT_ESTIMATION,
+    )
+    db.commit()
+    return {
+        "ok": True,
+        "item": sprint_backlog_service.item_to_dict(item),
+    }
 
 
-@router.post("/dart/arbitrate", summary="Manually trigger DART arbitration")
+# ── Backlog ──────────────────────────────────────────────────
+
+
+@router.get(
+    "/backlog", summary="List sprint backlog items"
+)
+async def list_backlog(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _get_session,
+        db,
+        x_team_id,
+        project_id,
+        user,
+        create=False,
+    )
+    if not session:
+        return {"items": []}
+    rows = await run_in_threadpool(
+        sprint_backlog_service.list_items, db, session.id
+    )
+    return {
+        "items": [
+            sprint_backlog_service.item_to_dict(r)
+            for r in rows
+        ],
+    }
+
+
+@router.post(
+    "/backlog", summary="Create a backlog item"
+)
+async def create_backlog_item(
+    body: BacklogItemIn,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, None, user
+    )
+    row = await run_in_threadpool(
+        sprint_backlog_service.create_item,
+        db,
+        session.id,
+        _uuid.UUID(body.user_story_id),
+        _uuid.UUID(body.requirement_id),
+        body.story_points,
+        body.description,
+        body.hours,
+        body.estimation_source,
+    )
+    db.commit()
+    return {
+        "ok": True,
+        "item": sprint_backlog_service.item_to_dict(row),
+    }
+
+
+@router.patch(
+    "/backlog/{item_id}",
+    summary="Update a backlog item",
+)
+async def patch_backlog_item(
+    item_id: _uuid.UUID,
+    body: BacklogItemPatch,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, Any]:
+    patch = body.model_dump(exclude_none=True)
+    row = await run_in_threadpool(
+        sprint_backlog_service.patch_item, db, item_id, patch
+    )
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Backlog item not found.",
+        )
+    db.commit()
+    return {
+        "ok": True,
+        "item": sprint_backlog_service.item_to_dict(row),
+    }
+
+
+@router.delete(
+    "/backlog/{item_id}",
+    summary="Delete a backlog item",
+)
+async def delete_backlog_item(
+    item_id: _uuid.UUID,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, Any]:
+    deleted = await run_in_threadpool(
+        sprint_backlog_service.delete_item, db, item_id
+    )
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Backlog item not found.",
+        )
+    db.commit()
+    return {"ok": True}
+
+
+# ── DART ─────────────────────────────────────────────────────
+
+
+@router.post(
+    "/dart/arbitrate",
+    summary="Trigger DART arbitration",
+)
 async def dart_arbitrate(
     body: DartArbitrateRequest,
     user: Annotated[CurrentUser, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     x_team_id: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
-    scope = _scope(x_team_id, body.project_id)
-    if scope:
-        tripped = await run_in_threadpool(dart_service.session_circuit_breaker, db, scope)
-        if tripped:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="DART circuit breaker: too many open arbitration cases. Resolve existing cases first.",
-            )
+    session = await run_in_threadpool(
+        _require_session,
+        db,
+        x_team_id,
+        body.project_id,
+        user,
+    )
+    tripped = await run_in_threadpool(
+        dart_service.session_circuit_breaker,
+        db,
+        session.id,
+    )
+    if tripped:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                "DART circuit breaker: too many open "
+                "sessions. Resolve existing ones first."
+            ),
+        )
 
     request = OrchestrationRequest(
         requester=user.to_requester(),
         action="planning.arbitrate",
-        project_id=body.project_id,
+        project_id=str(session.project_id),
         input={
-            "requirement": {"id": body.requirement.id, "text": body.requirement.text, "type": body.requirement.type},
+            "requirement": {
+                "id": body.requirement.id,
+                "text": body.requirement.text,
+                "type": body.requirement.type,
+            },
             "trigger_reason": body.trigger_reason,
             "source_stage": body.source_stage,
             "source_result": body.source_result,
@@ -636,80 +1429,227 @@ async def dart_arbitrate(
     )
     result = await _orchestrate(request)
 
-    case = (result or {}).get("case", {})
-    if scope and case:
+    if result:
         try:
             await run_in_threadpool(
-                dart_service.save_case,
-                db, scope,
-                case.get("case_id", ""),
-                case.get("requirement_ref", body.requirement.id),
+                dart_service.create_session,
+                db,
+                session.id,
+                result,
                 body.source_stage,
-                case.get("category", "ambiguous"),
-                case.get("status", "open"),
-                case,
+                body.trigger_reason,
             )
+            await run_in_threadpool(
+                pipeline_session_service.increment_dart_count,
+                db,
+                session.id,
+            )
+            db.commit()
         except Exception:
-            logger.exception("Failed to persist DART case")
+            logger.exception(
+                "Failed to persist DART session"
+            )
 
     return result
 
 
-@router.get("/dart/cases", summary="List DART arbitration cases")
-async def list_dart_cases(
+@router.get(
+    "/dart/cases",
+    summary="List DART sessions",
+)
+async def list_dart_sessions(
     user: Annotated[CurrentUser, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     x_team_id: Annotated[str | None, Header()] = None,
     project_id: Annotated[str | None, Query()] = None,
-    requirement_ref: Annotated[str | None, Query(alias="requirement_ref")] = None,
-    case_status: Annotated[str | None, Query(alias="status")] = None,
 ) -> dict[str, Any]:
-    scope = _scope(x_team_id, project_id)
-    if not scope:
+    session = await run_in_threadpool(
+        _get_session,
+        db,
+        x_team_id,
+        project_id,
+        user,
+        create=False,
+    )
+    if not session:
         return {"project_id": None, "cases": []}
+    rows = await run_in_threadpool(
+        dart_service.list_sessions, db, session.id
+    )
+    return {
+        "project_id": str(session.project_id),
+        "cases": [
+            dart_service.session_to_dict(r) for r in rows
+        ],
+    }
 
-    if requirement_ref:
-        rows = await run_in_threadpool(dart_service.cases_for_requirement, db, scope, requirement_ref)
-    elif case_status == "open":
-        rows = await run_in_threadpool(dart_service.open_cases, db, scope)
-    else:
-        rows = await run_in_threadpool(dart_service.latest_cases, db, scope)
 
-    return {"project_id": scope, "cases": rows}
-
-
-@router.get("/dart/cases/{case_ref}", summary="Single DART case with full reasoning chain")
-async def get_dart_case(
-    case_ref: str,
+@router.get(
+    "/dart/cases/{session_id}",
+    summary="Single DART session with full chain",
+)
+async def get_dart_session(
+    session_id: _uuid.UUID,
     user: Annotated[CurrentUser, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
-    x_team_id: Annotated[str | None, Header()] = None,
-    project_id: Annotated[str | None, Query()] = None,
 ) -> dict[str, Any]:
-    scope = _scope(x_team_id, project_id)
-    if not scope:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Project scope required.")
-    case = await run_in_threadpool(dart_service.get_case, db, scope, case_ref)
-    if not case:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="DART case not found.")
-    return case
+    rows = await run_in_threadpool(
+        dart_service.list_sessions, db, session_id
+    )
+    if not rows:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="DART session not found.",
+        )
+    return dart_service.session_to_dict(rows[0])
 
 
-@router.patch("/dart/cases/{case_ref}/resolve", summary="Instructor resolves a DART case")
-async def resolve_dart_case(
-    case_ref: str,
+@router.patch(
+    "/dart/cases/{dart_session_id}/resolve",
+    summary="Resolve a DART session",
+)
+async def resolve_dart_session(
+    dart_session_id: _uuid.UUID,
     body: DartResolveRequest,
     user: Annotated[CurrentUser, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
+) -> dict[str, Any]:
+    row = await run_in_threadpool(
+        dart_service.resolve_session,
+        db,
+        dart_session_id,
+        body.status,
+        user.user_id,
+    )
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="DART session not found.",
+        )
+    db.commit()
+    return {
+        "ok": True,
+        "id": str(dart_session_id),
+        "status": body.status,
+    }
+
+
+# ── Feedback & instructor alerts ─────────────────────────────
+
+
+@router.get(
+    "/feedback", summary="List feedback for session"
+)
+async def list_feedback(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
     x_team_id: Annotated[str | None, Header()] = None,
     project_id: Annotated[str | None, Query()] = None,
 ) -> dict[str, Any]:
-    scope = _scope(x_team_id, project_id)
-    if not scope:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Project scope required.")
+    session = await run_in_threadpool(
+        _get_session,
+        db,
+        x_team_id,
+        project_id,
+        user,
+        create=False,
+    )
+    if not session:
+        return {"feedback": []}
+    user_db_id = await run_in_threadpool(
+        _resolve_user_db_id, db, user
+    )
+    rows = await run_in_threadpool(
+        feedback_service.list_feedback,
+        db,
+        session.id,
+        user_db_id,
+    )
+    return {
+        "feedback": [
+            feedback_service.feedback_to_dict(r)
+            for r in rows
+        ],
+    }
+
+
+@router.patch(
+    "/feedback/{feedback_id}/view",
+    summary="Mark feedback as viewed",
+)
+async def mark_feedback_viewed(
+    feedback_id: _uuid.UUID,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, Any]:
     row = await run_in_threadpool(
-        dart_service.update_case_status, db, scope, case_ref, body.status, user.user_id,
+        feedback_service.mark_viewed, db, feedback_id
     )
     if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="DART case not found.")
-    return {"ok": True, "case_ref": case_ref, "status": body.status}
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Feedback not found.",
+        )
+    db.commit()
+    return {"ok": True}
+
+
+@router.get(
+    "/instructor/alerts",
+    summary="List instructor alerts",
+)
+async def list_instructor_alerts(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    resolved: Annotated[bool | None, Query()] = None,
+) -> dict[str, Any]:
+    user_db_id = await run_in_threadpool(
+        _resolve_user_db_id, db, user
+    )
+    if not user_db_id:
+        return {"alerts": []}
+    rows = await run_in_threadpool(
+        feedback_service.list_alerts,
+        db,
+        user_db_id,
+        resolved,
+    )
+    return {
+        "alerts": [
+            feedback_service.alert_to_dict(r) for r in rows
+        ],
+    }
+
+
+@router.patch(
+    "/instructor/alerts/{alert_id}",
+    summary="Resolve an instructor alert",
+)
+async def resolve_instructor_alert(
+    alert_id: _uuid.UUID,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    notes: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    user_db_id = await run_in_threadpool(
+        _resolve_user_db_id, db, user
+    )
+    if not user_db_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User not found.",
+        )
+    row = await run_in_threadpool(
+        feedback_service.resolve_alert,
+        db,
+        alert_id,
+        user_db_id,
+        notes,
+    )
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alert not found.",
+        )
+    db.commit()
+    return {"ok": True}

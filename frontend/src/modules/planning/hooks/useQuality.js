@@ -24,6 +24,15 @@ export function useQualityResults(enabled = true) {
   })
 }
 
+/** Quality gate decision for the active session. */
+export function useQualityGate(enabled = true) {
+  return useQuery({
+    queryKey: ['quality-gate'],
+    queryFn: () => qualityService.getGate(),
+    enabled,
+  })
+}
+
 /** Stored versions of one requirement (history drawer). */
 export function useRequirementHistory(requirementRef) {
   return useQuery({

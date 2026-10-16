@@ -1,36 +1,42 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { sprintService } from '../services/sprintService.js'
 
-const KEY = ['sprint-tasks']
+const KEY = ['backlog-items']
 
-export function useSprintTasks(enabled = true) {
+export function useBacklogItems(enabled = true) {
   return useQuery({
     queryKey: KEY,
-    queryFn: () => sprintService.listTasks(),
+    queryFn: () => sprintService.listItems(),
     enabled,
   })
 }
 
-export function useCreateSprintTask() {
+export function useCreateBacklogItem() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body) => sprintService.createTask(body),
+    mutationFn: (body) => sprintService.createItem(body),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   })
 }
 
-export function useUpdateSprintTask() {
+export function useUpdateBacklogItem() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ ref, patch }) => sprintService.updateTask(ref, patch),
+    mutationFn: ({ id, patch }) => sprintService.updateItem(id, patch),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   })
 }
 
-export function useDeleteSprintTask() {
+export function useDeleteBacklogItem() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (ref) => sprintService.deleteTask(ref),
+    mutationFn: (id) => sprintService.deleteItem(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   })
 }
+
+// Backward compat exports
+export const useSprintTasks = useBacklogItems
+export const useCreateSprintTask = useCreateBacklogItem
+export const useUpdateSprintTask = useUpdateBacklogItem
+export const useDeleteSprintTask = useDeleteBacklogItem

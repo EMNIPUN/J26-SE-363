@@ -39,6 +39,9 @@ export const qualityService = {
   /** Latest stored result per requirement for the active team (hydrates the page). */
   getResults: () => apiClient.get(ENDPOINTS.PLANNING.QUALITY),
 
+  /** Quality gate decision for the active session. */
+  getGate: () => apiClient.get(ENDPOINTS.PLANNING.QUALITY_GATE),
+
   /** All stored versions of one requirement (history drawer). */
   getHistory: (requirementRef) => apiClient.get(ENDPOINTS.PLANNING.QUALITY_HISTORY(requirementRef)),
 }
