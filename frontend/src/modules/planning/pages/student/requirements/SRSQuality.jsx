@@ -6,9 +6,7 @@ import {
   FileText,
   Plus,
   RefreshCw,
-  CheckCircle2,
   AlertTriangle,
-  XCircle,
   Lock,
   ArrowRight,
   History,
@@ -19,6 +17,8 @@ import {
   UserCheck,
   ShieldCheck,
   Check,
+  Layers,
+  FileEdit,
 } from 'lucide-react'
 import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import Card from '../../../../../shared/components/Card.jsx'
@@ -26,7 +26,6 @@ import Badge from '../../../../../shared/components/Badge.jsx'
 import LoadingState from '../../../../../shared/components/LoadingState.jsx'
 import AvatarComp from '../../../../../shared/components/Avatar.jsx'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
@@ -39,7 +38,6 @@ import {
 import WorkflowStepper from '../../../components/WorkflowStepper.jsx'
 import DartButton from '../../../components/DartButton.jsx'
 import RequirementListPanel from '../../../components/RequirementListPanel.jsx'
-import QualityRadarChart from '../../../components/QualityRadarChart.jsx'
 import HighlightedRequirementText from '../../../components/HighlightedRequirementText.jsx'
 import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
 import EmptyState from '../../../../../shared/components/EmptyState.jsx'
@@ -48,24 +46,12 @@ import { srsTemplateUrl } from '../../../services/qualityService.js'
 import { useUploadSrs, useAnalyzeQuality, useQualityResults, useRequirementHistory } from '../../../hooks/useQuality.js'
 import { mapExtractResult, mapAnalyzeResult, mapPersistedRows, mapQualityResult } from '../../../adapters/quality.js'
 import QualityEvidencePanel from '../../../components/QualityEvidencePanel.jsx'
-import { QUALITY_DIMENSIONS } from '../../../data/mockData.js'
+import NewRequirementModal from '../../../components/NewRequirementModal.jsx'
 import { useDartCases } from '../../../hooks/useDart.js'
 import { mapDartCases, getDartCasesForRequirement } from '../../../adapters/dart.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
-import { GATE_STATUS_TONE, QUALITY_GATE_THRESHOLD, DIMENSION_ISSUE, formatRelativeTime } from '../../../utils.js'
+import { GATE_STATUS_TONE, QUALITY_GATE_THRESHOLD, formatRelativeTime } from '../../../utils.js'
 import { showToast } from '@/shared/utils/toast.jsx'
-
-function dimTier(score) {
-  if (score >= 80) return 'pass'
-  if (score >= 60) return 'warn'
-  return 'fail'
-}
-
-const DIM_ICON = {
-  pass: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />,
-  warn: <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />,
-  fail: <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />,
-}
 
 const IEEE_STANDARDS_INFO = [
   {
@@ -112,11 +98,9 @@ const IEEE_STANDARDS_INFO = [
   },
 ]
 
-let manualIdCounter = 200
-
 export default function SRSQuality() {
   const team = useTeamPath()
-  const { requirements, addRequirement, updateRequirementText, applyRequirementResult, getRequirementHistory, loadRequirements } =
+  const { requirements, updateRequirementText, applyRequirementResult, getRequirementHistory, loadRequirements } =
     usePlanningData()
   const uploadMut = useUploadSrs()
   const analyzeMut = useAnalyzeQuality()
@@ -128,10 +112,11 @@ export default function SRSQuality() {
   const [draft, setDraft] = useState(null)
   const [docName, setDocName] = useState('')
   const [addOpen, setAddOpen] = useState(false)
-  const [newReq, setNewReq] = useState({ title: '', description: '', priority: 'High' })
-  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(true)
   const [guideOpen, setGuideOpen] = useState(false)
   const [consultOpen, setConsultOpen] = useState(false)
+  const [reuploadWarningOpen, setReuploadWarningOpen] = useState(false)
+  const [mainTab, setMainTab] = useState('all')
   const fileInputRef = useRef(null)
   const uploading = uploadMut.isPending
 
@@ -152,12 +137,9 @@ export default function SRSQuality() {
       ? draft
       : { id: selectedId, title: selected?.title || '', description: selected?.description || '' }
 
-  // Re-check button validation: needs text, and either an edit or a stale flag.
+  // Re-check button validation: needs description text and either a text change or stale flag.
   const draftText = currentDraft.description.trim()
-  const textChanged =
-    !!selected &&
-    (draftText !== (selected.description || '').trim() ||
-      currentDraft.title.trim() !== (selected.title || '').trim())
+  const textChanged = !!selected && draftText !== (selected.description || '').trim()
   const checking = !!selected && checkingId === selected.id
   const canRecheck = !!selected && !!draftText && (textChanged || selected.stale) && !checking
 
@@ -171,11 +153,19 @@ export default function SRSQuality() {
   function selectRequirement(id) {
     setSelectedId(id)
     setDraft(null)
-    setHistoryOpen(false)
+    setHistoryOpen(true)
   }
 
-  // Re-check: calls the REAL backend and writes ABSOLUTE scores (fixes the
-  // climbing-score bug). Only runs on non-empty text.
+  // Intercept upload click: if an SRS document is already present, prompt with warning dialog.
+  function handleUploadButtonClick() {
+    if (requirements.length > 0 || Boolean(docName)) {
+      setReuploadWarningOpen(true)
+    } else {
+      fileInputRef.current?.click()
+    }
+  }
+
+  // Re-check: calls the REAL backend and writes ABSOLUTE scores. Only runs on non-empty text.
   async function runQualityCheck(reqId, patch) {
     if (patch) updateRequirementText(reqId, patch)
     const text = (patch?.description ?? selected?.description ?? '').trim()
@@ -234,36 +224,11 @@ export default function SRSQuality() {
     }
   }
 
-  // Manual add: score the new requirement with the REAL agent before storing it.
-  async function submitManualRequirement() {
-    const title = newReq.title.trim()
-    const description = (newReq.description || '').trim()
-    if (!title || !description) return
-    const id = `REQ-1${manualIdCounter++}`
-    try {
-      const result = await analyzeMut.mutateAsync({
-        requirements: [{ id, text: description, type: 'functional' }],
-        threshold: QUALITY_GATE_THRESHOLD,
-      })
-      const mapped = mapAnalyzeResult(result, description, { title, priority: newReq.priority })
-      if (!mapped) throw new Error('No score returned by the agent.')
-      addRequirement(mapped)
-      setNewReq({ title: '', description: '', priority: 'High' })
-      setAddOpen(false)
-      setSelectedId(id)
-      showToast.success('Requirement added and scored', {
-        description: `${id}: ${mapped.overallScore}% (${mapped.status}).`,
-      })
-    } catch (err) {
-      showToast.error('Scoring failed', {
-        description: err?.message || 'Could not reach the Quality agent.',
-      })
-    }
-  }
-
   const openCases = selected ? getDartCasesForRequirement(allDartCases, selected.id).filter((c) => c.status === 'open') : []
+  
+  // History: sorted by time descending (latest one at top)
   const persistedHistory = historyQuery.data?.versions || []
-  const history = persistedHistory.length
+  const rawHistory = persistedHistory.length
     ? persistedHistory.map((version) => {
         const mapped = mapQualityResult(
           version,
@@ -275,13 +240,31 @@ export default function SRSQuality() {
           score: mapped.overallScore,
           status: mapped.status,
           text: version.requirement_text_snapshot,
-          timestamp: mapped.lastChecked,
+          timestamp: mapped.lastChecked || version.assessed_at || version.created_at,
         }
       })
     : selected
       ? getRequirementHistory(selected.id)
       : []
-  const scoreTrend = history.length >= 2 ? history[history.length - 1].score - history[history.length - 2].score : null
+
+  // Ensure history is sorted latest on top
+  const history = [...rawHistory].sort((a, b) => {
+    const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0
+    const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0
+    if (timeA && timeB && timeA !== timeB) return timeB - timeA
+    return (b.version || 0) - (a.version || 0)
+  })
+
+  // Delta score trend: latest iteration minus previous iteration
+  const scoreTrend = history.length >= 2 ? history[0].score - history[1].score : null
+
+  // Tab definitions for filtering sections in the main column
+  const MAIN_TABS = [
+    { id: 'all', label: 'All', icon: Layers },
+    { id: 'editor', label: 'Specification & Editor', icon: FileEdit },
+    { id: 'feedback', label: 'Radar & Agent Evidence', icon: Sparkles },
+    { id: 'history', label: 'Revision History', icon: History, count: history.length },
+  ]
 
   return (
     <div className="space-y-6 pb-12">
@@ -333,7 +316,7 @@ export default function SRSQuality() {
         </div>
       </div>
 
-      {/* LMS Project Banner Card with Round Progress Bar (no left border) */}
+      {/* LMS Project Banner Card with Round Progress Bar */}
       <Card className="p-5 relative overflow-hidden bg-card/90">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
           <div className="space-y-2 min-w-0 max-w-2xl">
@@ -352,13 +335,13 @@ export default function SRSQuality() {
             </h2>
 
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Every functional requirement is evaluated against 6 rigorous dimensions. Specifications must satisfy the 70% threshold to pass the quality gate and unlock backlog decomposition for sprint planning.
+              Every functional requirement is evaluated against 6 rigorous dimensions. Specifications must satisfy the {QUALITY_GATE_THRESHOLD}% threshold to pass the quality gate and unlock backlog decomposition for sprint planning.
             </p>
 
             <div className="flex items-center gap-4 flex-wrap pt-1 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5 font-medium text-foreground">
                 <FileText className="h-3.5 w-3.5 text-primary" />
-                Dossier: <span className="underline decoration-dotted">{docName}</span>
+                Dossier: <span className="underline decoration-dotted">{docName || 'Active Baseline'}</span>
               </span>
               <span className="h-1 w-1 rounded-full bg-border" />
               <span className="flex items-center gap-1.5">
@@ -377,7 +360,6 @@ export default function SRSQuality() {
           <div className="flex flex-col items-center justify-center shrink-0 self-center sm:self-center px-3 py-1">
             <div className="relative flex items-center justify-center" style={{ width: 92, height: 92 }}>
               <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 92 92">
-                {/* Background track */}
                 <circle
                   cx="46"
                   cy="46"
@@ -386,7 +368,6 @@ export default function SRSQuality() {
                   strokeWidth="7"
                   fill="transparent"
                 />
-                {/* Progress ring */}
                 <circle
                   cx="46"
                   cy="46"
@@ -461,7 +442,7 @@ export default function SRSQuality() {
             size="sm"
             variant="outline"
             disabled={uploading}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleUploadButtonClick}
             className="text-xs cursor-pointer gap-1.5"
           >
             <UploadCloud className={`h-3.5 w-3.5 ${uploading ? 'animate-pulse' : ''}`} />
@@ -477,7 +458,7 @@ export default function SRSQuality() {
         </div>
       </Card>
 
-      {/* Main 3-Column Studio */}
+      {/* Main 2-Column Studio */}
       <LoadingState loading={uploading || resultsQuery.isLoading} variant="card" className="h-24">
         {requirements.length === 0 ? (
           <EmptyState
@@ -485,455 +466,418 @@ export default function SRSQuality() {
             title="Upload your SRS to begin"
             description="Download the template, fill in your functional (FR) and non-functional (NFR) requirements, then upload it. The Quality agent scores each requirement against the six IEEE 830 dimensions and gates it at ≥75."
             actionLabel="Upload SRS (.docx)"
-            onAction={() => fileInputRef.current?.click()}
+            onAction={handleUploadButtonClick}
           />
         ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-[290px_1fr_310px] gap-5 items-start">
-          {/* Column 1 — Requirements Directory */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Requirements Catalog
-              </span>
-              <span className="text-xs text-muted-foreground font-medium">
-                {passingCount}/{requirements.length} Ready
-              </span>
+          <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] xl:grid-cols-[320px_1fr] gap-6 items-start">
+            {/* Column 1 — Requirements Directory (Sticky on scroll) */}
+            <div className="space-y-3 lg:sticky lg:top-4 self-start">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Requirements Catalog
+                </span>
+                <span className="text-xs text-muted-foreground font-medium">
+                  {passingCount}/{requirements.length} Ready
+                </span>
+              </div>
+
+              <RequirementListPanel
+                requirements={requirements}
+                selectedId={selected?.id}
+                onSelect={selectRequirement}
+                maxHeight="calc(100vh - 12rem)"
+                getItemMeta={(r) => ({
+                  percent: r.overallScore,
+                  tone: r.status === 'Passing' ? 'success' : r.status === 'Needs Review' ? 'warning' : 'danger',
+                })}
+              />
             </div>
 
-            <RequirementListPanel
-              requirements={requirements}
-              selectedId={selected?.id}
-              onSelect={selectRequirement}
-              maxHeight={620}
-              getItemMeta={(r) => ({
-                percent: r.overallScore,
-                tone: r.status === 'Passing' ? 'success' : r.status === 'Needs Review' ? 'warning' : 'danger',
-              })}
-            />
-          </div>
+            {/* Column 2 — Main Column */}
+            {selected ? (
+              <div className="space-y-4">
+                {/* Top Filter Tabs + Top-Right "Go to Next Step" Button */}
+                <div className="flex items-center justify-between gap-3 flex-wrap pb-1">
+                  {/* Left: Tab Switcher to filter visible sections */}
+                  <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border/50 flex-wrap">
+                    {MAIN_TABS.map((tab) => {
+                      const Icon = tab.icon
+                      const isActive = mainTab === tab.id
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setMainTab(tab.id)}
+                          className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-background text-foreground shadow-xs border border-border/80'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                          }`}
+                        >
+                          <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <span>{tab.label}</span>
+                          {tab.count !== undefined && tab.count > 0 && (
+                            <span
+                              className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                                isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                              }`}
+                            >
+                              {tab.count}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
 
-          {/* Column 2 — Requirement Revision Studio */}
-          {selected ? (
-            <div className="space-y-4">
-              <Card className="p-5">
-                <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+                  {/* Right: Top-Right Corner "Go to Next Step" Button */}
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-primary/10 text-primary">
-                      {selected.id}
-                    </span>
-                    <Badge tone={selected.priority === 'High' ? 'danger' : selected.priority === 'Medium' ? 'warning' : 'neutral'}>
-                      {selected.priority} Priority
-                    </Badge>
-                    {selected.stale && (
-                      <Badge tone="warning" className="text-[10px] gap-1">
-                        <AlertTriangle className="h-3 w-3" /> Edited — re-check needed
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {scoreTrend !== null && scoreTrend !== 0 && (
-                      <span
-                        className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                          scoreTrend > 0
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                            : 'bg-destructive/10 text-destructive'
-                        }`}
-                      >
-                        {scoreTrend > 0 ? '↑ +' : '↓ '}{scoreTrend}% Delta
-                      </span>
-                    )}
-                    <Badge tone={GATE_STATUS_TONE[selected.status]} className="text-xs font-semibold px-2.5 py-0.5">
-                      {selected.overallScore}% · {selected.status}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                    IEEE 830 Original Specification Text
-                  </p>
-                  <HighlightedRequirementText
-                    text={selected.description}
-                    className="text-xs text-foreground leading-relaxed p-3.5 rounded-xl bg-muted/30 border border-border/80 font-sans"
-                  />
-                </div>
-
-                <div className="space-y-2 mb-3">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                    Student Revision &amp; Refinement Editor
-                  </p>
-                  <Input
-                    value={currentDraft.title}
-                    onChange={(e) => setDraft({ ...currentDraft, title: e.target.value })}
-                    placeholder="Requirement short title..."
-                    className="text-xs font-semibold h-9"
-                  />
-                  <Textarea
-                    value={currentDraft.description}
-                    onChange={(e) => setDraft({ ...currentDraft, description: e.target.value })}
-                    placeholder="Enter IEEE compliant requirement specification..."
-                    rows={4}
-                    className="text-xs leading-relaxed"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-border/60">
-                  {selected.suggestedRewrite ? (
-                    <button
-                      type="button"
-                      className="text-xs font-semibold text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
-                      onClick={() =>
-                        setDraft({
-                          id: selected.id,
-                          title: currentDraft.title,
-                          description: selected.suggestedRewrite,
-                        })
-                      }
-                    >
-                      <Sparkles className="h-3.5 w-3.5 text-primary" /> Apply AI Rewrite Suggestion
-                    </button>
-                  ) : (
-                    <span className="text-[11px] text-muted-foreground">Editor in sync with baseline</span>
-                  )}
-
-                  <div className="flex items-center gap-2 ml-auto">
-                    {draft && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setDraft(null)}
-                        className="text-xs cursor-pointer"
-                      >
-                        Reset
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      className="text-xs cursor-pointer gap-1.5"
-                      disabled={!canRecheck}
-                      title={
-                        !draftText
-                          ? 'Add requirement text first'
-                          : !textChanged && !selected.stale
-                            ? 'Edit the requirement to run a new check'
-                            : undefined
-                      }
-                      onClick={() =>
-                        runQualityCheck(selected.id, {
-                          title: currentDraft.title,
-                          description: currentDraft.description,
-                        })
-                      }
-                    >
-                      <RefreshCw className={`h-3.5 w-3.5 ${checking ? 'animate-spin' : ''}`} />
-                      {checking ? 'Re-scoring…' : 'Save & Re-check Quality'}
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Requirement-Level Quality Gate Verdict Card */}
-              <Card
-                className={`p-4 border transition-all ${
-                  selected.status === 'Passing'
-                    ? 'border-emerald-500/30 bg-emerald-500/5'
-                    : 'border-amber-500/30 bg-amber-500/5'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <div className="flex items-center gap-2.5">
                     {selected.status === 'Passing' ? (
-                      <div className="h-8 w-8 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                        <CheckCircle2 className="h-5 w-5" />
-                      </div>
+                      <Link
+                        to={team('/planning/requirements/decomposition')}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all shrink-0"
+                        title="All IEEE dimensions meet the quality gate. Proceed to Decomposition."
+                      >
+                        <span>Proceed to Decomposition</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
                     ) : (
-                      <div className="h-8 w-8 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-                        <Lock className="h-4 w-4" />
+                      <div
+                        className="flex items-center gap-1.5"
+                        title={`Quality gate locked: requirement must score ≥${QUALITY_GATE_THRESHOLD}% to unlock next step.`}
+                      >
+                        <Button
+                          disabled
+                          size="sm"
+                          variant="outline"
+                          className="text-xs gap-1.5 opacity-60 cursor-not-allowed bg-muted text-muted-foreground"
+                        >
+                          <Lock className="h-3.5 w-3.5" />
+                          Proceed to Decomposition (Locked)
+                        </Button>
                       </div>
                     )}
-                    <div>
-                      <p className="text-sm font-bold text-foreground">
-                        Quality Gate — {selected.status === 'Passing' ? 'PASSED (UNLOCKED)' : 'BLOCKED (NEEDS REVISION)'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {selected.status === 'Passing'
-                          ? `All required IEEE dimensions satisfy the ${QUALITY_GATE_THRESHOLD}% gate threshold.`
-                          : `${
-                              QUALITY_DIMENSIONS.filter((d) => (selected.dimensionScores?.[d.key] ?? 0) < QUALITY_GATE_THRESHOLD).length
-                            } dimension(s) score below ${QUALITY_GATE_THRESHOLD}%. Refine specification text to unlock decomposition.`}
-                      </p>
-                    </div>
                   </div>
-
-                  {selected.status === 'Passing' ? (
-                    <Link
-                      to={team('/planning/requirements/decomposition')}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline shrink-0 bg-primary/10 px-3 py-1.5 rounded-lg"
-                    >
-                      Proceed to Decomposition <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setConsultOpen(true)}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-300 hover:underline shrink-0 cursor-pointer"
-                    >
-                      Consult Supervisor <ArrowRight className="h-3 w-3" />
-                    </button>
-                  )}
                 </div>
-              </Card>
 
-              {/* Glass-box: what the agent used for this score (NFR-05) */}
-              <QualityEvidencePanel requirement={selected} />
-
-              {/* DART Reasoning Flag Callout */}
-              {openCases.length > 0 && (
-                <Card className="p-4 border-amber-500/30 bg-amber-500/5 animate-pulse-slow">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Gavel className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-                      DART Activated — Low Confidence ({selected ? `${Math.round((selected.confidence ?? 1) * 100)}%` : ''})
-                    </span>
-                  </div>
-                  {openCases.map((c) => (
-                    <div key={c.id} className="text-xs text-foreground/90 space-y-2 mb-2 last:mb-0">
+                {/* SECTION 1: Specification & Refinement Editor (shown on 'all' or 'editor') */}
+                {(mainTab === 'all' || mainTab === 'editor') && (
+                  <Card className="p-5">
+                    <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
                       <div className="flex items-center gap-2">
-                        <Badge tone="warning">{c.categoryLabel}</Badge>
-                        <span className="text-[10px] text-muted-foreground">{c.caseRef}</span>
+                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-primary/10 text-primary">
+                          {selected.id}
+                        </span>
+                        <Badge tone={selected.priority === 'High' ? 'danger' : selected.priority === 'Medium' ? 'warning' : 'neutral'}>
+                          {selected.priority} Priority
+                        </Badge>
+                        {selected.stale && (
+                          <Badge tone="warning" className="text-[10px] gap-1">
+                            <AlertTriangle className="h-3 w-3" /> Edited — re-check needed
+                          </Badge>
+                        )}
                       </div>
-                      {c.hypothesis?.rationale && (
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          <strong>Diagnosis:</strong> {c.hypothesis.rationale}
-                        </p>
-                      )}
-                      {c.consultation?.question && (
-                        <p className="text-[11px] text-blue-700 dark:text-blue-400 italic leading-relaxed">
-                          <strong>Targeted question:</strong> "{c.consultation.question}"
-                        </p>
-                      )}
-                      {c.resolution?.actionableFeedback && (
-                        <div className="p-2 rounded-md bg-primary/5 border border-primary/20">
-                          <p className="text-xs text-foreground leading-snug">
-                            <strong>Feedback:</strong> {c.resolution.actionableFeedback}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            Confidence agreement: {c.resolution.confidenceAgreement}%
-                          </p>
-                        </div>
-                      )}
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {scoreTrend !== null && scoreTrend !== 0 && (
+                          <span
+                            className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                              scoreTrend > 0
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-destructive/10 text-destructive'
+                            }`}
+                          >
+                            {scoreTrend > 0 ? '↑ +' : '↓ '}{scoreTrend}% Delta
+                          </span>
+                        )}
+                        <Badge tone={GATE_STATUS_TONE[selected.status]} className="text-xs font-semibold px-2.5 py-0.5">
+                          {selected.overallScore}% · {selected.status}
+                        </Badge>
+                      </div>
                     </div>
-                  ))}
-                </Card>
-              )}
 
-              {/* Version History Drawer */}
-              <Card className="p-0 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setHistoryOpen((v) => !v)}
-                  className="w-full flex items-center justify-between p-3.5 cursor-pointer hover:bg-muted/30 transition-colors"
-                >
-                  <span className="flex items-center gap-2 text-xs font-bold text-foreground">
-                    <History className="h-3.5 w-3.5 text-primary" />
-                    Specification Revision History ({history.length} iterations)
-                  </span>
-                  <span className="text-xs text-primary font-medium">{historyOpen ? 'Collapse' : 'Expand'}</span>
-                </button>
-                {historyOpen && (
-                  <div className="px-3.5 pb-3.5 space-y-2 border-t border-border/60 bg-muted/10 animate-fade-rise">
-                    {history.map((h) => (
-                      <div key={h.version} className="text-xs p-2 rounded-lg bg-card border border-border/60">
-                        <div className="flex items-center gap-3">
-                          <span className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                            v{h.version}
-                          </span>
-                          <span className="font-bold text-foreground">{h.score}%</span>
-                          <Badge tone={GATE_STATUS_TONE[h.status]} className="text-[10px] px-1.5 py-0">{h.status}</Badge>
-                          <span className="text-muted-foreground text-[11px] ml-auto">{formatRelativeTime(h.timestamp)}</span>
-                        </div>
-                        {h.text && <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{h.text}</p>}
+                    {/* Original Specification Text (Read-Only Highlighted) */}
+                    <div className="mb-4">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        IEEE 830 Original Specification Text
+                      </p>
+                      <HighlightedRequirementText
+                        text={selected.description}
+                        className="text-xs text-foreground leading-relaxed p-3.5 rounded-xl bg-muted/30 border border-border/80 font-sans"
+                      />
+                    </div>
+
+                    {/* Single Textarea Input for Refinement */}
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Student Revision &amp; Refinement Editor
+                        </p>
+                        <span className="text-[10px] text-muted-foreground">
+                          Single specification input (IEEE 830 format)
+                        </span>
                       </div>
-                    ))}
-                  </div>
+                      <Textarea
+                        value={currentDraft.description}
+                        onChange={(e) =>
+                          setDraft({
+                            id: selected.id,
+                            title: currentDraft.title || selected.title,
+                            description: e.target.value,
+                          })
+                        }
+                        placeholder="Enter IEEE compliant requirement specification (e.g. 'The system shall...')..."
+                        rows={5}
+                        className="text-xs leading-relaxed font-sans"
+                      />
+                    </div>
+
+                    {/* Editor Action Toolbar */}
+                    <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-border/60">
+                      {selected.suggestedRewrite ? (
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-primary hover:underline cursor-pointer inline-flex items-center gap-1"
+                          onClick={() =>
+                            setDraft({
+                              id: selected.id,
+                              title: currentDraft.title || selected.title,
+                              description: selected.suggestedRewrite,
+                            })
+                          }
+                        >
+                          <Sparkles className="h-3.5 w-3.5 text-primary" /> Apply AI Rewrite Suggestion
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">Editor in sync with baseline</span>
+                      )}
+
+                      <div className="flex items-center gap-2 ml-auto">
+                        {draft && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDraft(null)}
+                            className="text-xs cursor-pointer"
+                          >
+                            Reset
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          className="text-xs cursor-pointer gap-1.5"
+                          disabled={!canRecheck}
+                          title={
+                            !draftText
+                              ? 'Add requirement text first'
+                              : !textChanged && !selected.stale
+                                ? 'Edit the requirement to run a new check'
+                                : undefined
+                          }
+                          onClick={() =>
+                            runQualityCheck(selected.id, {
+                              title: currentDraft.title || selected.title,
+                              description: currentDraft.description,
+                            })
+                          }
+                        >
+                          <RefreshCw className={`h-3.5 w-3.5 ${checking ? 'animate-spin' : ''}`} />
+                          {checking ? 'Re-scoring…' : 'Save & Re-check Quality'}
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
                 )}
-              </Card>
-            </div>
-          ) : (
-            <Card className="p-8 text-center text-xs text-muted-foreground">
-              Select a requirement from the catalog on the left to review its IEEE 830 quality profile.
-            </Card>
-          )}
 
-          {/* Column 3 — Multi-Agent AI Reasoning Studio */}
-          {selected && (
-            <div className="space-y-4">
-              <Card className="p-4">
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-border">
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      IEEE 830 Radar Studio
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground">Six-dimension reasoning profile</p>
-                  </div>
-                  <Badge tone={selected.status === 'Passing' ? 'success' : 'warning'}>
-                    {selected.status}
-                  </Badge>
-                </div>
-
-                <QualityRadarChart scores={selected.dimensionScores} height={170} />
-
-                <div className="space-y-2.5 mt-3">
-                  {QUALITY_DIMENSIONS.map((dim) => {
-                    const score = selected.dimensionScores?.[dim.key] ?? 0
-                    const tier = dimTier(score)
-                    // Prefer the agent's OWN rationale/issues for this exact requirement;
-                    // fall back to the generic static copy only when the real data is missing
-                    // (e.g. a requirement scored before this field existed).
-                    const real = selected.dimensionDetails?.[dim.key]
-                    const fallback = DIMENSION_ISSUE[dim.key]
-                    const issueText = real?.issues?.[0] || real?.rationale || fallback?.issue
-                    const remedyText = selected.suggestedRewrite ? null : fallback?.suggestion
-
-                    return (
-                      <div
-                        key={dim.key}
-                        className={`p-2.5 rounded-xl border transition-all ${
-                          tier === 'pass'
-                            ? 'border-border/60 bg-card'
-                            : tier === 'warn'
-                              ? 'border-amber-500/25 bg-amber-500/5'
-                              : 'border-destructive/25 bg-destructive/5'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="flex items-center gap-1.5 font-bold text-foreground text-[11px]">
-                            {DIM_ICON[tier]}
-                            {dim.label}
-                          </span>
-                          <span className="font-bold text-foreground text-xs">{score}%</span>
+                {/* DART Reasoning Flag Callout (if active) */}
+                {openCases.length > 0 && (mainTab === 'all' || mainTab === 'editor' || mainTab === 'feedback') && (
+                  <Card className="p-4 border-amber-500/30 bg-amber-500/5 animate-pulse-slow">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Gavel className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                        DART Activated — Low Confidence ({selected ? `${Math.round((selected.confidence ?? 1) * 100)}%` : ''})
+                      </span>
+                    </div>
+                    {openCases.map((c) => (
+                      <div key={c.id} className="text-xs text-foreground/90 space-y-2 mb-2 last:mb-0">
+                        <div className="flex items-center gap-2">
+                          <Badge tone="warning">{c.categoryLabel}</Badge>
+                          <span className="text-[10px] text-muted-foreground">{c.caseRef}</span>
                         </div>
-
-                        {tier !== 'pass' && (issueText || remedyText) && (
-                          <div className="mt-1 pt-1 border-t border-border/40 space-y-1 text-[11px] text-muted-foreground">
-                            {issueText && (
-                              <p className="text-foreground font-medium">
-                                <span className="text-destructive font-semibold">Issue: </span>
-                                {issueText}
-                              </p>
-                            )}
-                            {remedyText && (
-                              <p>
-                                <span className="font-semibold text-foreground">Remedy: </span>
-                                {remedyText}
-                              </p>
-                            )}
+                        {c.hypothesis?.rationale && (
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            <strong>Diagnosis:</strong> {c.hypothesis.rationale}
+                          </p>
+                        )}
+                        {c.consultation?.question && (
+                          <p className="text-[11px] text-blue-700 dark:text-blue-400 italic leading-relaxed">
+                            <strong>Targeted question:</strong> "{c.consultation.question}"
+                          </p>
+                        )}
+                        {c.resolution?.actionableFeedback && (
+                          <div className="p-2 rounded-md bg-primary/5 border border-primary/20">
+                            <p className="text-xs text-foreground leading-snug">
+                              <strong>Feedback:</strong> {c.resolution.actionableFeedback}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              Confidence agreement: {c.resolution.confidenceAgreement}%
+                            </p>
                           </div>
                         )}
                       </div>
-                    )
-                  })}
-                </div>
+                    ))}
+                  </Card>
+                )}
 
-                <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs">
-                  <span className="text-[11px] text-muted-foreground">Unsure how to fix?</span>
-                  <button
-                    type="button"
-                    onClick={() => setConsultOpen(true)}
-                    className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1 cursor-pointer"
-                  >
-                    <UserCheck className="h-3 w-3" /> Book Advisory
-                  </button>
-                </div>
+                {/* SECTION 2: Combined Radar Studio & Quality Evidence (shown on 'all' or 'feedback') */}
+                {(mainTab === 'all' || mainTab === 'feedback') && (
+                  <QualityEvidencePanel
+                    requirement={selected}
+                    onApplyRewrite={(rewrite) => {
+                      setDraft({
+                        id: selected.id,
+                        title: currentDraft.title || selected.title,
+                        description: rewrite,
+                      })
+                      setMainTab('editor')
+                    }}
+                    onConsult={() => setConsultOpen(true)}
+                    defaultOpen={true}
+                  />
+                )}
+
+                {/* SECTION 3: Version History (shown on 'all' or 'history') */}
+                {(mainTab === 'all' || mainTab === 'history') && (
+                  <Card className="p-0 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setHistoryOpen((v) => !v)}
+                      className="w-full flex items-center justify-between p-3.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                    >
+                      <span className="flex items-center gap-2 text-xs font-bold text-foreground">
+                        <History className="h-3.5 w-3.5 text-primary" />
+                        Specification Revision History ({history.length} iteration{history.length !== 1 ? 's' : ''})
+                        <span className="text-[10px] text-muted-foreground font-normal">(sorted latest on top)</span>
+                      </span>
+                      <span className="text-xs text-primary font-medium">{historyOpen || mainTab === 'history' ? 'Collapse' : 'Expand'}</span>
+                    </button>
+                    {(historyOpen || mainTab === 'history') && (
+                      <div className="px-3.5 pb-3.5 space-y-2 border-t border-border/60 bg-muted/10 animate-fade-rise">
+                        {history.length === 0 ? (
+                          <p className="text-xs text-muted-foreground py-3 text-center">No revision history recorded yet.</p>
+                        ) : (
+                          history.map((h, index) => (
+                            <div
+                              key={h.version || index}
+                              className={`text-xs p-3 rounded-lg bg-card border ${
+                                index === 0 ? 'border-primary/40 shadow-xs' : 'border-border/60'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                                  v{h.version}
+                                </span>
+                                <span className="font-bold text-foreground">{h.score}%</span>
+                                <Badge tone={GATE_STATUS_TONE[h.status]} className="text-[10px] px-1.5 py-0">
+                                  {h.status}
+                                </Badge>
+                                {index === 0 && (
+                                  <Badge tone="success" className="text-[9px] px-1.5 py-0 font-bold">
+                                    Latest
+                                  </Badge>
+                                )}
+                                <span className="text-muted-foreground text-[11px] ml-auto">
+                                  {h.timestamp ? formatRelativeTime(h.timestamp) : 'Baseline'}
+                                </span>
+                              </div>
+                              {h.text && (
+                                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground bg-muted/20 p-2 rounded border border-border/40 font-sans">
+                                  {h.text}
+                                </p>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </Card>
+                )}
+              </div>
+            ) : (
+              <Card className="p-8 text-center text-xs text-muted-foreground">
+                Select a requirement from the catalog on the left to review its IEEE 830 quality profile.
               </Card>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         )}
       </LoadingState>
 
       <DartButton context="quality" />
 
-      {/* Manual Add Requirement Dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+      {/* Re-upload SRS Warning Dialog */}
+      <Dialog open={reuploadWarningOpen} onOpenChange={setReuploadWarningOpen}>
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <div className="flex items-center gap-2 mb-1">
-              <span className="p-1 rounded bg-primary/10 text-primary">
-                <Plus className="h-4 w-4" />
+              <span className="p-1.5 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="h-4 w-4" />
               </span>
-              <DialogTitle className="text-lg font-bold">Add Requirement to SRS Baseline</DialogTitle>
+              <DialogTitle className="text-base font-bold">Replace Existing SRS Baseline?</DialogTitle>
             </div>
-            <DialogDescription className="text-xs">
-              Directly submit a new specification. The automated Quality Gatekeeper will score all 6 IEEE dimensions immediately.
+            <DialogDescription className="text-xs text-muted-foreground leading-relaxed pt-1">
+              An SRS document is already active{' '}
+              {docName ? (
+                <strong className="text-foreground">({docName})</strong>
+              ) : (
+                <strong className="text-foreground">({requirements.length} requirements loaded)</strong>
+              )}
+              . Uploading a new file will overwrite your existing requirements catalog, manual revisions, and evaluation scores.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3.5 text-xs">
-            <div>
-              <label className="font-semibold text-foreground block mb-1">Requirement Title</label>
-              <Input
-                value={newReq.title}
-                onChange={(e) => setNewReq((f) => ({ ...f, title: e.target.value }))}
-                placeholder="e.g. Student can view automated burndown charts"
-                className="text-xs h-9"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Priority</label>
-                <select
-                  value={newReq.priority}
-                  onChange={(e) => setNewReq((f) => ({ ...f, priority: e.target.value }))}
-                  className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-xs"
-                >
-                  <option value="High">High (Must Have)</option>
-                  <option value="Medium">Medium (Should Have)</option>
-                  <option value="Low">Low (Nice to Have)</option>
-                </select>
-              </div>
-              <div>
-                <label className="font-semibold text-foreground block mb-1">Standard</label>
-                <Input value="IEEE 830 / ISO 29148" disabled className="text-xs h-9 bg-muted/40" />
-              </div>
-            </div>
-
-            <div>
-              <label className="font-semibold text-foreground block mb-1">
-                Specification Description (<span className="font-mono text-primary font-normal">The system shall...</span>)
-              </label>
-              <Textarea
-                value={newReq.description}
-                onChange={(e) => setNewReq((f) => ({ ...f, description: e.target.value }))}
-                placeholder="The system shall calculate sprint burndown points every 24 hours and render an interactive curve..."
-                rows={4}
-                className="text-xs leading-relaxed"
-              />
-            </div>
+          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/25 text-xs space-y-1">
+            <p className="font-semibold text-amber-900 dark:text-amber-200">
+              Warning: Session Progress Replacement
+            </p>
+            <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+              Any revisions or score improvements you achieved in this session will be replaced by the extracted specifications from the new file.
+            </p>
           </div>
 
           <DialogFooter className="pt-2 gap-2">
-            <Button variant="outline" size="sm" onClick={() => setAddOpen(false)} className="text-xs cursor-pointer">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setReuploadWarningOpen(false)}
+              className="text-xs cursor-pointer"
+            >
               Cancel
             </Button>
             <Button
+              variant="destructive"
               size="sm"
-              onClick={submitManualRequirement}
-              disabled={!newReq.title.trim() || !newReq.description.trim() || analyzeMut.isPending}
+              onClick={() => {
+                setReuploadWarningOpen(false)
+                fileInputRef.current?.click()
+              }}
               className="text-xs cursor-pointer gap-1.5"
             >
-              {analyzeMut.isPending ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Plus className="h-3.5 w-3.5" />
-              )}
-              {analyzeMut.isPending ? 'Scoring…' : 'Submit & Score'}
+              <UploadCloud className="h-3.5 w-3.5" />
+              Proceed &amp; Upload New File
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add Single Requirement Modal (Category Enum & Database Persistence) */}
+      <NewRequirementModal
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        existingRequirements={requirements}
+        onCreated={(created) => {
+          setSelectedId(created.id)
+        }}
+      />
 
       {/* IEEE 830 Rubric & Dimension Guide Dialog */}
       <Dialog open={guideOpen} onOpenChange={setGuideOpen}>
