@@ -38,9 +38,13 @@ def build_student_project_context(
         student_id=student_id,
         project_id=project_id,
         project_title=snapshot.project_title,
+        project_description=snapshot.project_description,
+        technology_stack=list(snapshot.technology_stack),
         group_id=request.group_id,
         sprint_id=sprint_id,
         sprint_name=snapshot.sprint_name,
+        sprint_goal=snapshot.sprint_goal,
+        sprint_status=snapshot.sprint_status,
         sprint_number=snapshot.sprint_number,
         start_date=snapshot.start_date,
         end_date=snapshot.end_date,
@@ -121,7 +125,7 @@ def _assigned_tasks_for_student(
 ) -> list[SprintTask]:
     assigned: list[SprintTask] = []
     for task in snapshot.tasks:
-        if task.sprint_id != sprint_id:
+        if task.sprint_id is not None and task.sprint_id != sprint_id:
             continue
         if student_id not in task.assignee_ids:
             continue

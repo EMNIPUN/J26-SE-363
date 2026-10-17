@@ -1,7 +1,8 @@
 """Adaptive AI Tutor — single orchestrator agent entry point.
 
-Retrieves learning-platform evidence/activities via the shared MCP client when
-configured. Does not run competency, decision, or adaptation algorithms yet.
+Supports:
+- ``tutor.chat``: MCP evidence/activity retrieval (no adaptive decision yet)
+- ``tutor.identify_required_knowledge``: map assigned tasks to Neo4j course concepts
 """
 
 from __future__ import annotations
@@ -17,11 +18,24 @@ from shared.contracts import (
     ResultStatus,
 )
 
+from app.agents.adaptive_tutor.context import (
+    ContextBuildError,
+    SprintDataProvider,
+    SprintDataProviderError,
+)
 from app.agents.adaptive_tutor.evidence.normalizer import (
     EvidenceNormalizationError,
     normalize_performance_evidence,
 )
+from app.agents.adaptive_tutor.knowledge import (
+    ConceptSelector,
+    KnowledgeIdentificationError,
+    KnowledgeLlmError,
+    OpenAIConceptSelector,
+    identify_required_knowledge,
+)
 from app.agents.adaptive_tutor.schemas import TutorChatInput
+from app.core.config import settings
 from app.core.tutor_token_context import RequestScopedTutorTokenProvider
 from app.integrations.selvia_tutor_mcp import (
     SelviaMcpAuthError,
@@ -32,8 +46,17 @@ from app.integrations.selvia_tutor_mcp import (
     SelviaTutorMcpClient,
     TokenProvider,
 )
+from app.knowledge_graph import (
+    CourseKnowledgeRepository,
+    KnowledgeGraphConfigError,
+    KnowledgeGraphError,
+    KnowledgeGraphQueryError,
+    Neo4jCourseKnowledgeRepository,
+    UnknownCourseError,
+)
 
 SUPPORTED_CHAT_ACTION = "tutor.chat"
+SUPPORTED_KNOWLEDGE_ACTION = "tutor.identify_required_knowledge"
 
 
 class AdaptiveTutorAgent:
@@ -47,6 +70,9 @@ class AdaptiveTutorAgent:
         mcp_url: str | None = None,
         token_provider: TokenProvider | None = None,
         mcp_client: SelviaTutorMcpClient | None = None,
+        sprint_provider: SprintDataProvider | None = None,
+        course_repository: CourseKnowledgeRepository | None = None,
+        concept_selector: ConceptSelector | None = None,
     ) -> None:
         # Token provider reads the request-scoped ContextVar per call; never store a token here.
         self._token_provider: TokenProvider = (
@@ -62,14 +88,129 @@ class AdaptiveTutorAgent:
         else:
             self._mcp_client = None
 
+        # Sprint provider is injected by the registry (fixture-backed until Planning is wired).
+        self._sprint_provider = sprint_provider
+        self._course_repository = course_repository
+        self._concept_selector = concept_selector
+
     async def handle(self, request: AgentRequest) -> AgentResponse:
+        if request.action == SUPPORTED_KNOWLEDGE_ACTION:
+            return await self._handle_identify_required_knowledge(request)
         if request.action != SUPPORTED_CHAT_ACTION:
             return self._response(
                 request,
                 status=ResultStatus.UNAVAILABLE,
                 result={"detail": f"Action {request.action!r} is not supported yet."},
             )
+        return await self._handle_chat(request)
 
+    async def _handle_identify_required_knowledge(
+        self,
+        request: AgentRequest,
+    ) -> AgentResponse:
+        if self._sprint_provider is None:
+            return self._response(
+                request,
+                status=ResultStatus.UNAVAILABLE,
+                result={
+                    "detail": "Sprint data provider is not configured for required-knowledge identification."
+                },
+                error=ErrorInfo(
+                    code="sprint_provider_not_configured",
+                    message="Sprint data provider is not configured.",
+                ),
+            )
+
+        try:
+            course_repository = self._resolve_course_repository()
+            concept_selector = self._resolve_concept_selector()
+            result = await identify_required_knowledge(
+                request,
+                sprint_provider=self._sprint_provider,
+                course_repository=course_repository,
+                concept_selector=concept_selector,
+            )
+        except ContextBuildError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(code=exc.code, message=str(exc)),
+            )
+        except SprintDataProviderError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(code=exc.code, message=str(exc)),
+            )
+        except UnknownCourseError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(code=exc.code, message=str(exc)),
+            )
+        except KnowledgeGraphConfigError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.UNAVAILABLE,
+                result={"detail": str(exc)},
+                error=ErrorInfo(code=exc.code, message=str(exc), retryable=False),
+            )
+        except KnowledgeGraphQueryError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(code=exc.code, message=str(exc), retryable=True),
+            )
+        except KnowledgeGraphError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(code=exc.code, message=str(exc)),
+            )
+        except KnowledgeLlmError as exc:
+            status = (
+                ResultStatus.UNAVAILABLE
+                if exc.code == "openai_not_configured"
+                else ResultStatus.FAILED
+            )
+            return self._response(
+                request,
+                status=status,
+                result={"detail": str(exc)},
+                error=ErrorInfo(
+                    code=exc.code,
+                    message=str(exc),
+                    retryable=exc.code == "openai_selection_failed",
+                ),
+            )
+        except KnowledgeIdentificationError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(code=exc.code, message=str(exc)),
+            )
+
+        return self._response(
+            request,
+            status=ResultStatus.COMPLETED,
+            result=result.model_dump(mode="json"),
+        )
+
+    def _resolve_course_repository(self) -> CourseKnowledgeRepository:
+        if self._course_repository is not None:
+            return self._course_repository
+        if not settings.neo4j_configured:
+            raise KnowledgeGraphConfigError(
+                "Neo4j is not configured for required-knowledge identification."
+            )
+        return Neo4jCourseKnowledgeRepository()
+
+    def _resolve_concept_selector(self) -> ConceptSelector:
+        if self._concept_selector is not None:
+            return self._concept_selector
+        return OpenAIConceptSelector()
+
+    async def _handle_chat(self, request: AgentRequest) -> AgentResponse:
         try:
             chat_input = TutorChatInput.model_validate(request.input)
         except ValidationError:

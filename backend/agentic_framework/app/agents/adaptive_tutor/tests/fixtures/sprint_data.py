@@ -1,96 +1,96 @@
-"""Mock sprint snapshots for Student & Project Context tests.
+"""Mock nested sprint datasets for Student & Project Context tests.
 
 Replaceable later by a shared database or Project Planning provider.
 """
 
 from datetime import date
 
-from app.agents.adaptive_tutor.schemas import SprintSnapshot, SprintTask
+from app.agents.adaptive_tutor.schemas import (
+    FixtureStudent,
+    ProjectInfo,
+    SprintDataset,
+    SprintInfo,
+    SprintSnapshot,
+    SprintTask,
+)
 
 PROJECT_ID = "P-CAMPUS"
 SPRINT_ID = "sprint-02"
 
-CAMPUS_SPRINT_SNAPSHOT = SprintSnapshot(
-    project_id=PROJECT_ID,
-    project_title="SELVIA Campus Portal (sample)",
-    sprint_id=SPRINT_ID,
-    sprint_name="Sprint 2 — Access control",
-    sprint_number=2,
-    start_date=date(2026, 10, 1),
-    end_date=date(2026, 10, 14),
+CAMPUS_SPRINT_DATASET = SprintDataset(
+    project=ProjectInfo(
+        project_id=PROJECT_ID,
+        project_name="SELVIA Campus Portal",
+        description="A campus portal for student services",
+        technology_stack=["Python", "FastAPI", "React", "PostgreSQL"],
+    ),
+    sprint=SprintInfo(
+        sprint_id=SPRINT_ID,
+        name="Authentication and Profile Management",
+        goal="Implement secure authentication and student profiles",
+        start_date=date(2026, 10, 5),
+        end_date=date(2026, 10, 19),
+        status="active",
+    ),
+    students=[
+        FixtureStudent(student_id="STU-001", name="Student One"),
+        FixtureStudent(student_id="STU-002", name="Student Two"),
+    ],
     tasks=[
         SprintTask(
             task_id="task-jwt",
-            title="Implement JWT authentication",
-            sprint_id=SPRINT_ID,
+            title="Implement JWT Authentication",
+            description=(
+                "Implement token-based authentication for protected REST API endpoints."
+            ),
+            status="in_progress",
+            priority="high",
             assignee_ids=["STU-001"],
-            description=None,  # optional metadata intentionally missing
-            requirements=[
-                "Sign-in returns a signed JWT.",
-                "Protected routes reject a missing or expired token.",
-            ],
             acceptance_criteria=[
-                "A valid token reaches a protected endpoint.",
-                "An expired token returns 401.",
+                "Valid credentials produce an access token",
+                "Protected endpoints validate tokens",
+                "Invalid or expired tokens are rejected",
             ],
-            concept_ids=["concept-rest", "concept-auth", "concept-jwt"],
-            status="In progress",
+            labels=["backend", "authentication"],
+            story_points=5,
         ),
         SprintTask(
             task_id="task-profile",
-            title="Build the student profile API",
-            sprint_id=SPRINT_ID,
-            assignee_ids=["STU-001"],
+            title="Implement Student Profile API",
             description=(
-                "Expose the signed-in student profile after authentication, "
-                "without returning secrets."
+                "Allow authenticated students to retrieve and update their own profiles."
             ),
-            requirements=[
-                "GET /me returns the signed-in profile.",
-                "The response never includes a password hash.",
-            ],
+            status="todo",
+            priority="medium",
+            assignee_ids=["STU-001"],
             acceptance_criteria=[
-                "The JSON matches the profile contract.",
-                "Secrets are absent from the payload.",
+                "Students can retrieve their own profiles",
+                "Students can update permitted profile fields",
+                "Students cannot modify other students' profiles",
             ],
-            concept_ids=["concept-rest", "concept-resource"],
-            status="Not started",
+            labels=["backend", "api"],
+            story_points=3,
         ),
         SprintTask(
             task_id="task-dashboard",
-            title="Student dashboard widgets",
-            sprint_id=SPRINT_ID,
+            title="Implement Student Dashboard API",
+            description=(
+                "Return the student's assigned projects and sprint task progress."
+            ),
+            status="todo",
+            priority="medium",
             assignee_ids=["STU-002"],
-            description="Show sprint progress widgets for the signed-in student.",
-            requirements=["Widgets load for enrolled students only."],
-            acceptance_criteria=["Unauthenticated requests receive 401."],
-            concept_ids=["concept-rest"],
-            status="Not started",
-        ),
-        SprintTask(
-            task_id="task-admin-roles",
-            title="Lecturer role guards",
-            sprint_id=SPRINT_ID,
-            assignee_ids=["STU-003"],
-            description="Restrict lecturer routes using a role claim.",
-            requirements=["A student token cannot open lecturer routes."],
-            acceptance_criteria=["Forbidden access returns 403."],
-            concept_ids=["concept-authz"],
-            status="Not started",
-        ),
-        SprintTask(
-            task_id="task-unassigned",
-            title="Spike: refresh-token rotation",
-            sprint_id=SPRINT_ID,
-            assignee_ids=[],
-            description="Investigate refresh-token rotation options.",
-            requirements=None,
-            acceptance_criteria=None,
-            concept_ids=None,
-            status="Backlog",
+            acceptance_criteria=[
+                "Return the authenticated student's tasks",
+                "Include task completion status",
+            ],
+            labels=["backend", "dashboard"],
+            story_points=3,
         ),
     ],
 )
+
+CAMPUS_SPRINT_SNAPSHOT = SprintSnapshot.from_dataset(CAMPUS_SPRINT_DATASET)
 
 SPRINT_SNAPSHOTS: dict[tuple[str, str], SprintSnapshot] = {
     (PROJECT_ID, SPRINT_ID): CAMPUS_SPRINT_SNAPSHOT,

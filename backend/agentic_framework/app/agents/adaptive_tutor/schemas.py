@@ -77,6 +77,52 @@ class RequiredConcept(TutorModel):
     prerequisite_concept_ids: list[str] = Field(default_factory=list)
 
 
+class IdentifyRequiredKnowledgeInput(TutorModel):
+    """Validated ``AgentRequest.input`` for ``tutor.identify_required_knowledge``."""
+
+    course_id: str = Field(min_length=1)
+
+    @field_validator("course_id")
+    @classmethod
+    def course_id_must_not_be_blank(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("course_id must not be empty")
+        return stripped
+
+
+class SelectedRequiredConcept(TutorModel):
+    """One Neo4j-grounded concept selected as required for a task."""
+
+    concept_id: str = Field(min_length=1)
+    concept_name: str | None = None
+    concept_code: str | None = None
+    selection_role: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+    source_lesson_ids: list[str] = Field(default_factory=list)
+    provenance: list[str] = Field(default_factory=list)
+
+
+class TaskRequiredKnowledge(TutorModel):
+    """Required concepts identified for one assigned sprint task."""
+
+    task_id: str = Field(min_length=1)
+    task_title: str | None = None
+    required_concepts: list[SelectedRequiredConcept] = Field(default_factory=list)
+
+
+class RequiredKnowledgeResult(TutorModel):
+    """Structured output of the Required Knowledge Identification mechanism."""
+
+    student_id: str = Field(min_length=1)
+    project_id: str = Field(min_length=1)
+    sprint_id: str = Field(min_length=1)
+    course_id: str = Field(min_length=1)
+    course_code: str | None = None
+    course_title: str | None = None
+    tasks: list[TaskRequiredKnowledge] = Field(default_factory=list)
+
+
 class EvidenceItem(TutorModel):
     """A normalized item of student learning or assessment evidence."""
 
@@ -178,31 +224,97 @@ class LearningBehaviourRecord(ExternalEvidenceModel):
     created_at: datetime = Field(alias="createdAt")
 
 
+class ProjectInfo(TutorModel):
+    """Project metadata for a sprint-scoped tutoring dataset."""
+
+    project_id: str = Field(min_length=1)
+    project_name: str = Field(min_length=1)
+    description: str | None = None
+    technology_stack: list[str] = Field(default_factory=list)
+
+
+class SprintInfo(TutorModel):
+    """Sprint metadata for a sprint-scoped tutoring dataset."""
+
+    sprint_id: str = Field(min_length=1)
+    name: str | None = None
+    goal: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    status: str | None = None
+
+
+class FixtureStudent(TutorModel):
+    """A student enrolled in the fixture project/sprint."""
+
+    student_id: str = Field(min_length=1)
+    name: str | None = None
+
+
 class SprintTask(TutorModel):
     """A project task within a sprint snapshot (tutor-local; richer than shared TaskContext)."""
 
     task_id: str = Field(min_length=1)
     title: str | None = None
-    sprint_id: str = Field(min_length=1)
+    sprint_id: str | None = None
     assignee_ids: list[str] = Field(default_factory=list)
     description: str | None = None
     requirements: list[str] | None = None
     acceptance_criteria: list[str] | None = None
     concept_ids: list[str] | None = None
     status: str | None = None
+    priority: str | None = None
+    labels: list[str] = Field(default_factory=list)
+    story_points: int | None = Field(default=None, ge=0)
+
+
+class SprintDataset(TutorModel):
+    """Nested project/sprint/students/tasks payload (fixture or future planning provider)."""
+
+    project: ProjectInfo
+    sprint: SprintInfo
+    students: list[FixtureStudent] = Field(default_factory=list)
+    tasks: list[SprintTask] = Field(default_factory=list)
 
 
 class SprintSnapshot(TutorModel):
-    """Sprint-scoped task list supplied by a data provider (fixture or future DB)."""
+    """Flattened sprint-scoped view used by the context builder and providers."""
 
     project_id: str = Field(min_length=1)
     project_title: str | None = None
+    project_description: str | None = None
+    technology_stack: list[str] = Field(default_factory=list)
     sprint_id: str = Field(min_length=1)
     sprint_name: str | None = None
+    sprint_goal: str | None = None
+    sprint_status: str | None = None
     sprint_number: int | None = None
     start_date: date | None = None
     end_date: date | None = None
+    students: list[FixtureStudent] = Field(default_factory=list)
     tasks: list[SprintTask] = Field(default_factory=list)
+
+    @classmethod
+    def from_dataset(cls, dataset: SprintDataset) -> "SprintSnapshot":
+        """Flatten a nested SprintDataset into the builder-facing snapshot shape."""
+        sprint_id = dataset.sprint.sprint_id
+        return cls(
+            project_id=dataset.project.project_id,
+            project_title=dataset.project.project_name,
+            project_description=dataset.project.description,
+            technology_stack=list(dataset.project.technology_stack),
+            sprint_id=sprint_id,
+            sprint_name=dataset.sprint.name,
+            sprint_goal=dataset.sprint.goal,
+            sprint_status=dataset.sprint.status,
+            start_date=dataset.sprint.start_date,
+            end_date=dataset.sprint.end_date,
+            students=list(dataset.students),
+            tasks=[
+                task.model_copy(update={"sprint_id": task.sprint_id or sprint_id})
+                for task in dataset.tasks
+            ],
+        )
 
 
 class StudentProjectContext(TutorModel):
@@ -211,9 +323,13 @@ class StudentProjectContext(TutorModel):
     student_id: str = Field(min_length=1)
     project_id: str = Field(min_length=1)
     project_title: str | None = None
+    project_description: str | None = None
+    technology_stack: list[str] = Field(default_factory=list)
     group_id: str | None = None
     sprint_id: str = Field(min_length=1)
     sprint_name: str | None = None
+    sprint_goal: str | None = None
+    sprint_status: str | None = None
     sprint_number: int | None = None
     start_date: date | None = None
     end_date: date | None = None

@@ -77,9 +77,8 @@ def client():
     app.dependency_overrides.clear()
 
 
-def test_handoff_unavailable_while_adaptive_tutor_not_ready():
-    assert is_adaptive_tutor_execution_ready() is False
-    assert is_tutor_token_handoff_available() is False
+def test_adaptive_tutor_execution_ready_gate_is_open():
+    assert is_adaptive_tutor_execution_ready() is True
 
 
 def test_handoff_requires_internal_token_and_tutor_ready(monkeypatch):
@@ -340,7 +339,7 @@ def test_mint_failures_map_via_route(client, exc, expected_status):
     assert "Authorization" not in body
 
 
-def test_public_route_fails_closed_before_mint_when_tutor_not_ready(client):
+def test_public_route_fails_closed_before_mint_when_handoff_unavailable(client):
     mint = MagicMock()
     mint.mint_tutor_access_token = AsyncMock()
     ai = MagicMock()
@@ -348,7 +347,7 @@ def test_public_route_fails_closed_before_mint_when_tutor_not_ready(client):
     service = TutorChatService(
         mint_client_factory=lambda: mint,
         ai_client_factory=lambda: ai,
-        handoff_available=is_tutor_token_handoff_available,
+        handoff_available=lambda: False,
     )
     app.dependency_overrides[get_tutor_chat_service] = lambda: service
 

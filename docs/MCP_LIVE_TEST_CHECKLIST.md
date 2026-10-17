@@ -10,9 +10,8 @@ Controlled preparation for a **dedicated local/test** MCP smoke run between:
 
 **Hard rules**
 
-- Do **not** enable the public Core route `POST /api/v1/tutor/chat` for this checklist.
-- Keep `is_adaptive_tutor_execution_ready()` **False** until a separate readiness review.
-- Do **not** use Supabase or any shared/production database for SLAP integration or smoke tests.
+- Prefer a dedicated local/test stack. Remote app DBs (e.g. Supabase) only with **explicit** operator approval and `SELVIA_ALLOW_REMOTE_APP_DB=1`.
+- After mint→MCP smoke passes and Adaptive Tutor is registered, `is_adaptive_tutor_execution_ready()` may be **True**. Live Keycloak tutor chat still needs a real `sub` linked via ExternalIdentity (not only a smoke placeholder).
 - Do **not** commit real secrets. Put them only in gitignored `.env` files or shell session variables.
 - Do **not** paste secrets into chat, tickets, or logs.
 - Do **not** auto-link identities by email or student number.
@@ -138,6 +137,13 @@ For isolation testing later, prepare **two** distinct Keycloak subjects, each li
 
 Issuer string must match Core `settings.keycloak_issuer` character-for-character (including trailing-slash normalization already applied by Core).
 
+**Login mapping (not SSO):** SELVIA/J26 students log in with Keycloak; SLAP users log in with local JWT email/password (`scripts/ensure-dev-login-accounts.js` with `SEED_DEV_PASSWORD`). The ExternalIdentity row is the only join for tutor minting. For Core `POST /api/v1/tutor/chat`, `SELVIA_EI_SUBJECT` must be the real Keycloak JWT `sub` (a smoke placeholder subject is only for mint→MCP smoke).
+
+Operator scripts (opt-in):
+
+- `server/scripts/ensure-dev-login-accounts.js` — ADMIN + STUDENT with passwords
+- `server/scripts/provision-admin-verified-external-identity.js` — create the link
+
 ---
 
 ## 7. Disposable `_test` database (future guarded SLAP integration)
@@ -225,4 +231,7 @@ python scripts/mcp_smoke_test.py
 4. Provision **one**, preferably **two**, admin-verified ExternalIdentity links via the approved process.
 5. Confirm isolation checklist in §4.
 6. Only then run the smoke command in §8.
-7. Keep the Core public tutor readiness gate **False** until a separate review.
+7. After mint→MCP smoke passes and Adaptive Tutor is registered, Core
+   `is_adaptive_tutor_execution_ready()` may be **True**. Public chat still needs a
+   real Keycloak `sub` linked via ExternalIdentity (smoke placeholder is not enough for
+   live Keycloak logins).

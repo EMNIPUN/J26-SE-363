@@ -8,9 +8,12 @@ Secure Core→AI channels (when enabled):
 - Service auth: `Authorization: Bearer <AI_BACKEND_INTERNAL_TOKEN>`
 - Tutor MCP token: `X-SELVIA-Tutor-Token` (never in JSON)
 
-Public tutor chat remains fail-closed until the Adaptive Tutor is registered and
-operational (`is_adaptive_tutor_execution_ready()`), even though the header handoff
-is implemented.
+Public tutor chat is enabled when `is_adaptive_tutor_execution_ready()` is true and
+`AI_BACKEND_INTERNAL_TOKEN` is configured. The Adaptive Tutor is registered in the AI
+Backend; minting still requires an `ADMIN_VERIFIED` ExternalIdentity link on SLAP.
 
-Live MCP test environment checklist (no secrets; readiness gate stays false):
+Login model: SELVIA (J26) uses Keycloak; SLAP uses local email/password. Same person is
+joined only via ExternalIdentity (not SSO).
+
+Live MCP test environment checklist (no secrets):
 `docs/MCP_LIVE_TEST_CHECKLIST.md`.

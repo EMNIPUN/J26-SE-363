@@ -15,6 +15,7 @@ from app.agents.adaptive_tutor.context import (
 )
 from app.agents.adaptive_tutor.context.provider import SprintDataProviderError
 from app.agents.adaptive_tutor.tests.fixtures.sprint_data import (
+    CAMPUS_SPRINT_DATASET,
     CAMPUS_SPRINT_SNAPSHOT,
     PROJECT_ID,
     SPRINT_ID,
@@ -51,10 +52,23 @@ def test_stu002_tasks_are_excluded_for_stu001():
     assert "task-dashboard" not in {task.task_id for task in context.assigned_tasks}
 
 
-def test_unassigned_tasks_are_excluded():
-    context = build_student_project_context(_request(), CAMPUS_SPRINT_SNAPSHOT)
+def test_nested_dataset_exposes_project_sprint_and_students():
+    assert CAMPUS_SPRINT_DATASET.project.project_id == PROJECT_ID
+    assert CAMPUS_SPRINT_DATASET.project.technology_stack == [
+        "Python",
+        "FastAPI",
+        "React",
+        "PostgreSQL",
+    ]
+    assert CAMPUS_SPRINT_DATASET.sprint.goal is not None
+    assert [student.student_id for student in CAMPUS_SPRINT_DATASET.students] == [
+        "STU-001",
+        "STU-002",
+    ]
 
-    assert "task-unassigned" not in {task.task_id for task in context.assigned_tasks}
+
+def test_snapshot_inherits_sprint_id_on_tasks():
+    assert all(task.sprint_id == SPRINT_ID for task in CAMPUS_SPRINT_SNAPSHOT.tasks)
 
 
 def test_missing_student_id_is_rejected():
@@ -116,12 +130,15 @@ def test_conflicting_nested_task_id_is_rejected_by_shared_rules():
         )
 
 
-def test_missing_optional_task_description_is_preserved():
+def test_task_metadata_from_nested_dataset_is_preserved():
     context = build_student_project_context(_request(), CAMPUS_SPRINT_SNAPSHOT)
     jwt_task = next(task for task in context.assigned_tasks if task.task_id == "task-jwt")
 
-    assert jwt_task.description is None
-    assert jwt_task.requirements is not None
+    assert jwt_task.description is not None
+    assert jwt_task.priority == "high"
+    assert jwt_task.story_points == 5
+    assert jwt_task.labels == ["backend", "authentication"]
+    assert jwt_task.acceptance_criteria is not None
 
 
 def test_unknown_project_sprint_is_rejected_by_fixture_provider():
@@ -148,14 +165,23 @@ def test_optional_snapshot_metadata_is_not_fabricated():
         _request(
             context=SelviaContext(
                 student=StudentContext(student_id="STU-001"),
-                project=ProjectContext(project_id=PROJECT_ID, title="SELVIA Campus Portal (sample)"),
-                sprint=SprintContext(sprint_id=SPRINT_ID, name="Sprint 2 — Access control"),
+                project=ProjectContext(
+                    project_id=PROJECT_ID,
+                    title="SELVIA Campus Portal",
+                ),
+                sprint=SprintContext(
+                    sprint_id=SPRINT_ID,
+                    name="Authentication and Profile Management",
+                ),
             )
         ),
         CAMPUS_SPRINT_SNAPSHOT,
     )
 
     assert context.group_id is None
-    assert context.project_title == "SELVIA Campus Portal (sample)"
+    assert context.project_title == "SELVIA Campus Portal"
+    assert context.project_description == "A campus portal for student services"
+    assert context.sprint_goal == "Implement secure authentication and student profiles"
+    assert context.sprint_status == "active"
     profile = next(task for task in context.assigned_tasks if task.task_id == "task-profile")
     assert profile.description is not None

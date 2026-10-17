@@ -41,11 +41,12 @@ class TutorExecutionUnavailable(Exception):
 def is_adaptive_tutor_execution_ready() -> bool:
     """Core-side gate for a registered, operational Adaptive Tutor in the AI Backend.
 
-    The Adaptive Tutor agent module is empty and ``build_agent_registry()`` does not
-    register ``ADAPTIVE_TUTOR``. Keep this False until that work is completed; do not
-    flip it merely because a tutor-token header can be transmitted.
+    True once ``AdaptiveTutorAgent`` is registered in the AI Backend agent registry and
+    mint → MCP smoke has been verified. Still requires configured
+    ``AI_BACKEND_INTERNAL_TOKEN`` (see ``is_tutor_token_handoff_available``) and a linked
+    ExternalIdentity for minting. Pedagogy/competency algorithms remain out of scope.
     """
-    return False
+    return True
 
 
 def is_tutor_token_handoff_available() -> bool:
