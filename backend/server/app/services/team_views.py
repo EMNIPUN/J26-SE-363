@@ -13,6 +13,7 @@ from app.schemas.team import (
     TeamRole,
     TeamSummary,
 )
+from app.services import avatars
 from app.services import team_rules as rules
 
 
@@ -78,6 +79,7 @@ def detail(group: Group, viewer: User, viewer_role: UserRole | None) -> TeamDeta
             role=role_of(group, m),
             email=m.user.email if staff else None,
             github_username=m.user.github_username,
+            picture=avatars.picture_of(m.user),
             joined_at=rules.as_utc(m.joined_at),
         )
         for m in sorted(

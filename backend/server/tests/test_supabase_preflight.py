@@ -46,7 +46,8 @@ SERVER_DIR = Path(__file__).resolve().parents[1]
 INITIAL_REVISION = "c9da91ebdddb"
 SECURITY_REVISION = "4f6d2a9c8e1b"
 REGISTRATION_REVISION = "ec66f4d17052"
-TERMS_REVISION = "d8a41c7e5b90"  # head
+TERMS_REVISION = "d8a41c7e5b90"
+AVATARS_REVISION = "e5b7a1c3d924"  # head
 REF = "abcdefghijklmnopqrst"
 PASSWORD = "not-a-real-secret"
 # Nothing connects with it, but it must look like a PEM certificate. Its path must never be printed.
@@ -60,7 +61,10 @@ SECRET_PARTS = (PASSWORD, REF, f"postgres.{REF}", CA_FILE)
 ROLE = "postgres"
 EXPECT = pf.Expectations(
     pf.Roles(ROLE, ROLE, ROLE),
-    pf.Revisions((INITIAL_REVISION, SECURITY_REVISION, REGISTRATION_REVISION, TERMS_REVISION), (TERMS_REVISION,)),
+    pf.Revisions(
+        (INITIAL_REVISION, SECURITY_REVISION, REGISTRATION_REVISION, TERMS_REVISION, AVATARS_REVISION),
+        (AVATARS_REVISION,),
+    ),
     pf.QueueSpec(
         "3.10.0",
         frozenset(pf.QUEUE_TABLES),
@@ -221,8 +225,14 @@ def test_expected_tables_match_the_models():
 
 def test_revisions_come_from_the_repository():
     revisions = pf.load_revisions()
-    assert revisions.ordered == (INITIAL_REVISION, SECURITY_REVISION, REGISTRATION_REVISION, TERMS_REVISION)
-    assert revisions.heads == (TERMS_REVISION,)
+    assert revisions.ordered == (
+        INITIAL_REVISION,
+        SECURITY_REVISION,
+        REGISTRATION_REVISION,
+        TERMS_REVISION,
+        AVATARS_REVISION,
+    )
+    assert revisions.heads == (AVATARS_REVISION,)
 
 
 def test_queue_expectations_come_from_the_installed_procrastinate():
@@ -1161,8 +1171,8 @@ def grant_access(s: pf.Snapshot, table: str, browser_privileges) -> None:
     s.column_access[(table, ROLE)] = frozenset(pf.COLUMN_PRIVILEGES)
 
 
-def add_core_tables(s: pf.Snapshot, revision: str | None = TERMS_REVISION, owner=ROLE) -> pf.Snapshot:
-    secured = revision in (SECURITY_REVISION, REGISTRATION_REVISION, TERMS_REVISION)
+def add_core_tables(s: pf.Snapshot, revision: str | None = AVATARS_REVISION, owner=ROLE) -> pf.Snapshot:
+    secured = revision in (SECURITY_REVISION, REGISTRATION_REVISION, TERMS_REVISION, AVATARS_REVISION)
     for name, spec in pf.APP_TABLES.items():
         s.relations[name] = pf.Relation("r", owner, secured, False)
         s.columns[name] = {column: pf.ColumnInfo(*definition) for column, definition in spec.columns.items()}
@@ -1208,7 +1218,7 @@ def test_service_role_bypassrls_is_reported_and_browser_bypass_fails():
 def test_a_migrated_and_secured_database_passes():
     findings = all_findings(add_queue(add_core_tables(fresh_snapshot())))
     assert not levels(findings) & pf.BLOCKING, messages(findings)
-    assert f"at head {TERMS_REVISION}" in messages(findings, pf.PASS)
+    assert f"at head {AVATARS_REVISION}" in messages(findings, pf.PASS)
     assert messages(findings, pf.PASS).count("match the models") == len(pf.APP_TABLES)
     # every application table, the Alembic version table and the four queue tables
     assert messages(findings, pf.PASS).count("RLS on, not forced") == len(pf.APP_TABLES) + 1 + 4
@@ -1253,7 +1263,7 @@ def test_recorded_revision_with_missing_tables_fails():
 
 def test_pending_revisions_are_listed_and_browser_access_only_warns_before_securing():
     s = add_core_tables(fresh_snapshot(), revision=INITIAL_REVISION)
-    assert f"pending: {SECURITY_REVISION}, {REGISTRATION_REVISION}, {TERMS_REVISION}" in messages(pf.evaluate_alembic(s, EXPECT), pf.INFO)
+    assert f"pending: {SECURITY_REVISION}, {REGISTRATION_REVISION}, {TERMS_REVISION}, {AVATARS_REVISION}" in messages(pf.evaluate_alembic(s, EXPECT), pf.INFO)
     rls = pf.evaluate_rls(s, EXPECT)
     assert pf.FAIL not in levels(rls)
     assert "the security migration revokes this" in messages(rls, pf.WARN)
@@ -2208,7 +2218,7 @@ def test_preflight_reports_a_migrated_local_database(test_database_url):
     assert snapshot.limited == {}
     assert not levels(findings) & pf.BLOCKING, messages(findings)
     passed = messages(findings, pf.PASS)
-    assert f"at head {TERMS_REVISION}" in passed
+    assert f"at head {AVATARS_REVISION}" in passed
     assert passed.count("columns, constraints and indexes match the models") == len(pf.APP_TABLES)
     for table in [*pf.APP_TABLES, pf.VERSION_TABLE]:
         assert f"{table} | RLS on, not forced" in passed

@@ -101,6 +101,8 @@ class AccountOut(BaseModel):
     role: UserRole | None
     onboarding_completed: bool
     profile: ProfileOut
+    # Where to find the profile picture: an API path (an upload) or an address (from the provider).
+    picture: str | None
     consent_version: str | None
     current_consent_version: str = Field(
         description="Terms version the next sign-up must accept"

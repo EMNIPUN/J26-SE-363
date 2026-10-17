@@ -38,7 +38,14 @@ class User(TimestampMixin, Base):
     github_username: Mapped[str | None] = mapped_column(String(64), unique=True)
     consent_version: Mapped[str | None] = mapped_column(String(32))
     consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    onboarding_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    # The picture the sign-in provider (Google, GitHub) gave, as an address. Kept current at each
+    # sign-in; an uploaded picture (user_avatars) wins over it.
+    picture_url: Mapped[str | None] = mapped_column(String(1024))
+    # When the person last uploaded a picture; empty means they have not. Doubles as a cache key.
+    avatar_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     memberships: Mapped[list["GroupMember"]] = relationship(
         back_populates="user", cascade="all, delete-orphan", passive_deletes=True

@@ -17,6 +17,7 @@ from app.core.errors import ApiError, conflict, forbidden
 from app.core.security import CurrentUser
 from app.models import User
 from app.schemas.account import OnboardingRequest, ProfileFields, ProfileUpdate
+from app.services import avatars
 
 # Bump when the terms or the data-processing consent change; everyone then has to accept again.
 CONSENT_VERSION = "2026-10"
@@ -47,6 +48,7 @@ def provision(db: Session, identity: CurrentUser) -> User:
             keycloak_sub=identity.user_id,
             name=_initial_name(identity),
             email=normalise_email(identity.email),
+            picture_url=avatars.clean_address(identity.picture),
         )
         db.add(user)
         try:
@@ -61,6 +63,11 @@ def provision(db: Session, identity: CurrentUser) -> User:
         email = normalise_email(identity.email)
         if email and email != user.email:
             user.email = email
+            db.commit()
+        # A password sign-in carries no picture: do not wipe the one a provider gave earlier.
+        picture = avatars.clean_address(identity.picture)
+        if picture and picture != user.picture_url:
+            user.picture_url = picture
             db.commit()
     return user
 

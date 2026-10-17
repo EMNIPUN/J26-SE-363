@@ -189,6 +189,7 @@ TEXT = "text"
 JSONB = "jsonb"
 TIMESTAMPTZ = "timestamp with time zone"
 BOOLEAN = "boolean"
+BYTEA = "bytea"
 
 
 def varchar(length: int) -> str:
@@ -259,6 +260,8 @@ APP_TABLES: dict[str, TableSpec] = {
             "consent_version": (varchar(32), False),
             "consent_at": (TIMESTAMPTZ, False),
             "onboarding_completed_at": (TIMESTAMPTZ, False),
+            "picture_url": (varchar(1024), False),
+            "avatar_updated_at": (TIMESTAMPTZ, False),
             **TIMESTAMPS,
         },
         primary_key=("id",),
@@ -350,6 +353,21 @@ APP_TABLES: dict[str, TableSpec] = {
             "ix_team_invitations_email": Index(("email",)),
             "ix_team_invitations_group_id": Index(("group_id",)),
         },
+    ),
+    "user_avatars": TableSpec(
+        columns={
+            "user_id": (UUID, True),
+            "content_type": (varchar(32), True),
+            "data": (BYTEA, True),
+            **TIMESTAMPS,
+        },
+        primary_key=("user_id",),
+        unique={},
+        foreign_keys={
+            "fk_user_avatars_user_id_users": ForeignKey(("user_id",), "users", ("id",), FK_CASCADE),
+        },
+        checks={},
+        indexes={},
     ),
     "terms": TableSpec(
         columns={

@@ -26,7 +26,7 @@ SERVER_DIR = Path(__file__).resolve().parents[1]
 # The tables the security revision secures; later tables enable RLS in their own migration, which
 # test_every_model_table_and_the_version_table_get_rls checks.
 SECURITY_TABLES = {"users", "groups", "group_members", "projects", "project_documents", "agent_runs"}
-APP_TABLES = SECURITY_TABLES | {"team_invitations", "terms"}
+APP_TABLES = SECURITY_TABLES | {"team_invitations", "terms", "user_avatars"}
 INITIAL_REVISION = "c9da91ebdddb"
 SECURITY_REVISION = "4f6d2a9c8e1b"
 SECURED_TABLES = SECURITY_TABLES | {"alembic_version"}

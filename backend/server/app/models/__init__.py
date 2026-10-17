@@ -7,6 +7,7 @@ from app.models.project import Project, ProjectDocument
 from app.models.team_invitation import InvitationStatus, TeamInvitation
 from app.models.term import Term
 from app.models.user import User
+from app.models.user_avatar import UserAvatar
 
 __all__ = [
     "AgentRun",
@@ -21,4 +22,5 @@ __all__ = [
     "TeamStatus",
     "Term",
     "User",
+    "UserAvatar",
 ]

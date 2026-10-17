@@ -153,6 +153,7 @@ class MemberOut(PersonOut):
     # Shown to lecturers only.
     email: str | None
     github_username: str | None
+    picture: str | None
     joined_at: datetime | None
 
 

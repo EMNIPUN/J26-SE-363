@@ -29,6 +29,7 @@ APP_TABLES = {
     "agent_runs",
     "team_invitations",
     "terms",
+    "user_avatars",
 }
 
 

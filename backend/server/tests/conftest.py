@@ -52,6 +52,7 @@ class Api:
         name: str | None = None,
         verified: bool = True,
         admin: bool = False,
+        picture: str | None = None,
     ) -> None:
         self.identity = CurrentUser(
             user_id=sub,
@@ -59,6 +60,7 @@ class Api:
             name=name,
             email=email,
             email_verified=verified,
+            picture=picture,
             role=UserRole.ADMIN if admin else UserRole.STUDENT,
         )
 
