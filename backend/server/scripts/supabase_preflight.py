@@ -188,17 +188,21 @@ UUID = "uuid"
 TEXT = "text"
 JSONB = "jsonb"
 TIMESTAMPTZ = "timestamp with time zone"
+BOOLEAN = "boolean"
 
 
 def varchar(length: int) -> str:
     return f"character varying({length})"
 
 
-FK_NO_ACTION, FK_RESTRICT, FK_CASCADE = "a", "r", "c"
+FK_NO_ACTION, FK_RESTRICT, FK_CASCADE, FK_SET_NULL = "a", "r", "c", "n"
 FK_ACTIONS = {"a": "NO ACTION", "r": "RESTRICT", "c": "CASCADE", "n": "SET NULL", "d": "SET DEFAULT"}
 FK_MATCH_SIMPLE = "s"
 ROLE_VALUES = frozenset({"student", "lecturer", "admin"})
 STATUS_VALUES = frozenset({"queued", "running", "succeeded", "failed"})
+MEMBER_ROLE_VALUES = frozenset({"lecturer", "member"})
+TEAM_STATUS_VALUES = frozenset({"forming", "active"})
+INVITATION_STATUS_VALUES = frozenset({"pending", "accepted", "declined", "revoked"})
 
 
 @dataclass(frozen=True)
@@ -244,43 +248,108 @@ APP_TABLES: dict[str, TableSpec] = {
         columns={
             "id": (UUID, True),
             "keycloak_sub": (varchar(255), True),
-            "role": (varchar(8), True),
+            "role": (varchar(8), False),
             "name": (varchar(255), True),
+            "email": (varchar(320), False),
             "student_number": (varchar(32), False),
+            "institution": (varchar(255), False),
+            "department": (varchar(255), False),
+            "title": (varchar(128), False),
+            "github_username": (varchar(64), False),
+            "consent_version": (varchar(32), False),
+            "consent_at": (TIMESTAMPTZ, False),
+            "onboarding_completed_at": (TIMESTAMPTZ, False),
             **TIMESTAMPS,
         },
         primary_key=("id",),
         unique={
             "uq_users_keycloak_sub": ("keycloak_sub",),
             "uq_users_student_number": ("student_number",),
+            "uq_users_github_username": ("github_username",),
         },
         foreign_keys={},
         checks={"ck_users_role": ("role", ROLE_VALUES)},
-        indexes={},
+        indexes={"ix_users_email": Index(("email",))},
     ),
     "groups": TableSpec(
         columns={
             "id": (UUID, True),
             "code": (varchar(64), True),
             "name": (varchar(255), True),
+            "term": (varchar(32), False),
+            "status": (varchar(7), True),
+            "repo_url": (varchar(1024), False),
+            "created_by_id": (UUID, False),
+            "leader_id": (UUID, False),
+            "pending_leader_id": (UUID, False),
             **TIMESTAMPS,
         },
         primary_key=("id",),
         unique={"uq_groups_code": ("code",)},
-        foreign_keys={},
-        checks={},
+        foreign_keys={
+            "fk_groups_created_by_id_users": ForeignKey(("created_by_id",), "users", ("id",), FK_SET_NULL),
+            "fk_groups_leader_id_users": ForeignKey(("leader_id",), "users", ("id",), FK_SET_NULL),
+            "fk_groups_pending_leader_id_users": ForeignKey(
+                ("pending_leader_id",), "users", ("id",), FK_SET_NULL
+            ),
+        },
+        checks={"ck_groups_status": ("status", TEAM_STATUS_VALUES)},
         indexes={},
     ),
     "group_members": TableSpec(
-        columns={"id": (UUID, True), "group_id": (UUID, True), "user_id": (UUID, True)},
+        columns={
+            "id": (UUID, True),
+            "group_id": (UUID, True),
+            "user_id": (UUID, True),
+            "role": (varchar(8), True),
+            "term": (varchar(32), False),
+            "joined_at": (TIMESTAMPTZ, False),
+        },
         primary_key=("id",),
-        unique={"uq_group_members_group_id_user_id": ("group_id", "user_id")},
+        unique={
+            "uq_group_members_group_id_user_id": ("group_id", "user_id"),
+            "uq_group_members_user_id_term": ("user_id", "term"),
+        },
         foreign_keys={
             "fk_group_members_group_id_groups": ForeignKey(("group_id",), "groups", ("id",), FK_CASCADE),
             "fk_group_members_user_id_users": ForeignKey(("user_id",), "users", ("id",), FK_CASCADE),
         },
-        checks={},
+        checks={"ck_group_members_role": ("role", MEMBER_ROLE_VALUES)},
         indexes={"ix_group_members_user_id": Index(("user_id",))},
+    ),
+    "team_invitations": TableSpec(
+        columns={
+            "id": (UUID, True),
+            "group_id": (UUID, True),
+            "email": (varchar(320), True),
+            "role": (varchar(8), True),
+            "as_leader": (BOOLEAN, True),
+            "status": (varchar(8), True),
+            "token_hash": (varchar(64), True),
+            "expires_at": (TIMESTAMPTZ, True),
+            "responded_at": (TIMESTAMPTZ, False),
+            "invited_by_id": (UUID, False),
+            **TIMESTAMPS,
+        },
+        primary_key=("id",),
+        unique={
+            "uq_team_invitations_group_id_email": ("group_id", "email"),
+            "uq_team_invitations_token_hash": ("token_hash",),
+        },
+        foreign_keys={
+            "fk_team_invitations_group_id_groups": ForeignKey(("group_id",), "groups", ("id",), FK_CASCADE),
+            "fk_team_invitations_invited_by_id_users": ForeignKey(
+                ("invited_by_id",), "users", ("id",), FK_SET_NULL
+            ),
+        },
+        checks={
+            "ck_team_invitations_role": ("role", MEMBER_ROLE_VALUES),
+            "ck_team_invitations_status": ("status", INVITATION_STATUS_VALUES),
+        },
+        indexes={
+            "ix_team_invitations_email": Index(("email",)),
+            "ix_team_invitations_group_id": Index(("group_id",)),
+        },
     ),
     "projects": TableSpec(
         columns={

@@ -20,7 +20,15 @@ from app.models import (
     User,
 )
 
-APP_TABLES = {"users", "groups", "group_members", "projects", "project_documents", "agent_runs"}
+APP_TABLES = {
+    "users",
+    "groups",
+    "group_members",
+    "projects",
+    "project_documents",
+    "agent_runs",
+    "team_invitations",
+}
 
 
 @pytest.fixture
