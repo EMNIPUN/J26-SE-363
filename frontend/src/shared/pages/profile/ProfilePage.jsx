@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '../../auth/useAuth.js'
+import Avatar from '../../components/Avatar.jsx'
+import Badge from '../../components/Badge.jsx'
 import { getRoleLabel } from '../../constants/roles.js'
 import { accountService } from '../../services/accountService.js'
 import { isGithubUsername } from '../../utils/emails.js'
@@ -67,21 +69,25 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-xl gap-6">
-      <PageHeader title="Profile" />
+    <div className="grid gap-6">
+      <PageHeader title="Profile" description="How you appear to your team and lecturers." />
+
+      <Card className="flex-row items-center gap-4 p-5">
+        <Avatar name={account.name} size={56} />
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold text-foreground">{account.name}</p>
+          <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span className="truncate">{account.email}</span>
+            {account.email_verified && <Badge tone="success">Verified</Badge>}
+          </p>
+        </div>
+        <Badge tone="primary" className="ml-auto shrink-0">
+          {getRoleLabel(user.role)}
+        </Badge>
+      </Card>
+
       <Card className="p-5 sm:p-6">
         <form onSubmit={submit} className="grid gap-4">
-          <dl className="grid gap-1 rounded-lg bg-muted/50 px-3 py-2 text-sm">
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">Email</dt>
-              <dd className="font-medium text-foreground">{account.email}</dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">Account type</dt>
-              <dd className="font-medium text-foreground">{getRoleLabel(user.role)}</dd>
-            </div>
-          </dl>
-
           {isAdmin ? (
             <p className="text-sm text-muted-foreground">
               Administrator details are managed in Keycloak.

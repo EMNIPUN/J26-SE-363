@@ -23,7 +23,10 @@ import TeamSetupPage from './shared/pages/teams/TeamSetupPage.jsx'
 import TeamMembersPage from './shared/pages/teams/TeamMembersPage.jsx'
 import InvitationPage from './shared/pages/invitations/InvitationPage.jsx'
 import TeamsPage from './shared/pages/teams/TeamsPage.jsx'
+import ProfileLayout from './shared/pages/profile/ProfileLayout.jsx'
 import ProfilePage from './shared/pages/profile/ProfilePage.jsx'
+import SecurityPage from './shared/pages/profile/SecurityPage.jsx'
+import MyTeamsPage from './shared/pages/profile/MyTeamsPage.jsx'
 import StudentHome from './shared/pages/dashboards/StudentHome.jsx'
 import InstructorHome from './shared/pages/dashboards/InstructorHome.jsx'
 import AdminHome from './shared/pages/dashboards/AdminHome.jsx'
@@ -87,7 +90,11 @@ function AppContent() {
               <Route path="/teams/new/:code" element={<TeamSetupPage />} />
             </Route>
             <Route path="/invitations" element={<InvitationPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile" element={<ProfileLayout />}>
+              <Route index element={<ProfilePage />} />
+              <Route path="security" element={<SecurityPage />} />
+              <Route path="teams" element={<MyTeamsPage />} />
+            </Route>
           </Route>
 
           <Route element={<DashboardShell />}>

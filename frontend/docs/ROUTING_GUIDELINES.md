@@ -94,7 +94,7 @@ To ensure complete developer isolation and eliminate merge conflicts, the applic
 | Domain / Module | Path Prefix | Directory | Team Owner |
 | :--- | :--- | :--- | :--- |
 | **Unified Shell** | `/app` | `src/shared/pages/dashboards/` | Shared Platform |
-| **Home, onboarding, teams** | `/home`, `/teams`, `/onboarding`, `/teams/new`, `/invitations`, `/profile`, `/teams/:teamId/members` | `src/shared/pages/` (`home`, `onboarding`, `teams`, `invitations`, `profile`) | Shared Platform |
+| **Home, onboarding, teams** | `/home`, `/teams`, `/onboarding`, `/teams/new`, `/invitations`, `/profile` (with `/profile/security` and `/profile/teams`), `/teams/:teamId/members` | `src/shared/pages/` (`home`, `onboarding`, `teams`, `invitations`, `profile`) | Shared Platform |
 | **Project Planning** | `/planning/*` | `src/modules/planning/routes.jsx` | Planning Dev |
 | **Performance Analytics** | `/performance/*` | `src/modules/performance/routes.jsx` | Performance Dev |
 | **Adaptive AI Tutor** | `/tutor/*` | `src/modules/tutor/routes.jsx` | AI Tutor Dev |

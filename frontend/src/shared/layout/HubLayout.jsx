@@ -1,28 +1,19 @@
-import { Link, Outlet } from 'react-router-dom'
-import { LogOut, UserRound } from 'lucide-react'
+import { Link, NavLink, Outlet } from 'react-router-dom'
+import { cn } from '@/lib/utils'
 import { useAuth } from '../auth/useAuth.js'
-import { getRoleLabel } from '../constants/roles.js'
 import Avatar from '../components/Avatar.jsx'
 import SelviaLogo from '../components/SelviaLogo.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 import HubNav, { HubMenu } from './HubNav.jsx'
 import HubNotifications from './HubNotifications.jsx'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 
 /**
  * Frame for the pages that come before a team's workspace: home, the team list, creating a team,
- * invitations and the profile. Inside a team the person uses DashboardShell instead.
+ * invitations and the account area (the picture in the bar opens it). Inside a team the person uses DashboardShell instead.
  * The bar has three parts: the brand, the navigation in the middle, and the person's own controls.
  */
 export default function HubLayout() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const canCreate = user?.role === 'instructor'
 
   return (
@@ -45,40 +36,18 @@ export default function HubLayout() {
           <div className="flex items-center gap-1.5 justify-self-end">
             <HubNotifications />
             <ThemeToggle />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="Account menu"
-                  className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full outline-none hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Avatar name={user?.name} size={32} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuLabel className="font-normal">
-                  <p className="truncate text-sm font-semibold text-foreground">{user?.name}</p>
-                  {user?.email && (
-                    <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-                  )}
-                  <p className="mt-1 text-xs text-muted-foreground">{getRoleLabel(user?.role)}</p>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link to="/profile">
-                    <UserRound className="mr-2 h-4 w-4" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={logout}
-                  className="cursor-pointer text-destructive focus:text-destructive"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <NavLink
+              to="/profile"
+              aria-label="Your profile"
+              className={({ isActive }) =>
+                cn(
+                  'flex h-9 w-9 items-center justify-center rounded-full outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring',
+                  isActive ? 'ring-2 ring-primary' : 'hover:ring-2 hover:ring-border',
+                )
+              }
+            >
+              <Avatar name={user?.name} size={32} />
+            </NavLink>
           </div>
         </div>
       </header>

@@ -108,6 +108,16 @@ export function AuthProvider({ children }) {
     [],
   )
 
+  // Keycloak shows its own "update password" page, then sends the person back here.
+  const changePassword = useCallback(
+    () =>
+      keycloak.login({
+        action: 'UPDATE_PASSWORD',
+        redirectUri: `${window.location.origin}/profile/security`,
+      }),
+    [],
+  )
+
   const logout = useCallback(() => {
     setIsLoggingOut(true)
     tokenManager.clearToken()
@@ -133,6 +143,7 @@ export function AuthProvider({ children }) {
       setAccount,
       refreshAccount,
       loginWithKeycloak,
+      changePassword,
       logout,
     }),
     [
@@ -145,6 +156,7 @@ export function AuthProvider({ children }) {
       setAccount,
       refreshAccount,
       loginWithKeycloak,
+      changePassword,
       logout,
     ],
   )
