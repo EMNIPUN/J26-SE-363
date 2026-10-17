@@ -144,7 +144,9 @@ docker run --rm -p 8085:8080 -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=
 | --- | --- |
 | "Failed to send email" when registering | No mail server, or wrong `KC_SMTP_*`. Check with Mailpit first |
 | Everyone is "email not verified" in the app | Verification is off, or the realm was imported before this change: run `configure_realm.py` |
-| A provider button is missing | Its `*_CLIENT_ID` / `*_CLIENT_SECRET` pair is not set |
+| A provider button is missing | Its `*_CLIENT_ID` / `*_CLIENT_SECRET` pair is not set, or `configure_realm.py` was not run after setting it |
+| Sign-up shows a username field and no steps | Keycloak is running an older copy of the theme: pull and restart it |
+| The terms box has no link | Set `termsUrl=https://...` in `themes/mentor/login/theme.properties` |
 | "Invalid redirect_uri" | The web app's address is missing from `FRONTEND_URLS` |
 | Provider says redirect URI mismatch | The URI registered with the provider differs from the one the script printed |
 | Old styles after changing the theme | Restart Keycloak (the gzip cache lives in memory and is emptied) |
