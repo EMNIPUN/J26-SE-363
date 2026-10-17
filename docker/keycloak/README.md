@@ -8,7 +8,9 @@ the Core API database; see `docs/REGISTRATION_AND_TEAMS.md`.
 | File | What it is |
 | --- | --- |
 | `realm-export.json` | The realm as it is created the **first** time Keycloak starts |
-| `configure_realm.py` | Applies email and social sign-in to a realm that is **already running** (safe to repeat) |
+| `configure_realm.py` | Applies email, social sign-in and the account-linking flow to a realm that is **already running** (safe to repeat) |
+| `providers-src/link-by-email-code/` | The Keycloak plugin that links a provider sign-in to an existing account with an emailed code (Java, with unit tests) |
+| `build_provider.py` | Builds that plugin with Docker and puts the jar in `providers/` (not committed) |
 | `themes/mentor/login/` | The sign-in, sign-up and password pages |
 | `themes/mentor/email/` | The look and wording of the emails Keycloak sends |
 
@@ -117,8 +119,11 @@ Run it again whenever you change the `.env`. It never deletes anything.
   tenant administrator can set any address on an account, and a GitHub address can be changed, so
   those people confirm their address by email once. Trusting them would let someone create a
   provider account with a victim's address and take over the victim's SELVIA account.
-- **Same address, different provider.** If a Google or GitHub sign-in uses an address that already
-  has an account, Keycloak asks the person to confirm by email before linking them.
+- **Same address, different provider.** If a provider sign-in uses an address that already has an
+  account, the person is **not** let in and nothing can be edited. They see who is signing in
+  (the provider's name, picture and email) and which account it would join, press *Send code*,
+  and must enter the 6 digit code emailed to the account's address. Only then are the two linked,
+  and the address counts as verified. See section 4.
 - **Locking out.** Five failed sign-ins in a row wait one minute, then longer, up to 15 minutes.
 
 ## 3. Changing the pages
@@ -138,7 +143,43 @@ docker run --rm -p 8085:8080 -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=
   quay.io/keycloak/keycloak:24.0 start-dev --import-realm
 ```
 
-## 4. If something is wrong
+## 4. Linking accounts by emailed code
+
+Keycloak 24 can only confirm a link with an emailed *link*, not a code, so SELVIA ships a small
+plugin: `providers-src/link-by-email-code`. `configure_realm.py` builds a copy of Keycloak's
+"first broker login" flow called **selvia first broker login** and points the providers at it:
+
+```text
+Review Profile                      off (the person cannot edit anything)
+User creation or linking
+  Create User If Unique             a new person gets an account as before
+  Handle Existing Account
+    SELVIA: link by emailed code    profile shown read only -> code emailed -> link
+```
+
+The code is 6 digits, valid for 10 minutes, with 5 tries; a wrong code is counted, three emails at
+most are sent per sign-in and one a minute. Only a salted hash of the code is kept, in the login
+session. The code goes to the **existing account's** address, so only the owner of that mailbox
+can link.
+
+**Install it** (needs Docker; do this on the server too):
+
+```bash
+python docker/keycloak/build_provider.py        # builds the jar and runs its unit tests
+docker compose --profile infra up -d --no-deps keycloak   # picks up the providers folder
+python docker/keycloak/configure_realm.py       # creates the flow and points the providers at it
+```
+
+The script refuses to touch the providers if the plugin is not loaded, so a missing jar cannot
+leave sign-in broken. To go back, set a provider's *First login flow* to "first broker login" in
+the admin console.
+
+The pages are `themes/mentor/login/link-account.ftl` and `link-account-code.ftl`; the email is
+`themes/mentor/email/{html,text}/link-code.ftl`.
+
+---
+
+## 5. If something is wrong
 
 | Symptom | Cause |
 | --- | --- |
@@ -150,3 +191,6 @@ docker run --rm -p 8085:8080 -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=
 | "Invalid redirect_uri" | The web app's address is missing from `FRONTEND_URLS` |
 | Provider says redirect URI mismatch | The URI registered with the provider differs from the one the script printed |
 | Old styles after changing the theme | Restart Keycloak (the gzip cache lives in memory and is emptied) |
+| "The link-by-code plugin is not installed" | Run `build_provider.py` and recreate the Keycloak container, then run the script again |
+| The link page says the email could not be sent | Keycloak has no working mail server (`KC_SMTP_*`, then `configure_realm.py`) |
+| A provider sign-in shows "Update Account Information" with editable fields | The provider still uses Keycloak's own flow: run `configure_realm.py` |

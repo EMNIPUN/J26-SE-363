@@ -37,6 +37,35 @@
 </#macro>
 
 <#--
+  The "confirm your details" form: the account's profile attributes (email, first and last name...).
+  Used after signing in with a provider (idp-review-user-profile) and for the update-profile action.
+-->
+<#macro profileForm cancellable=false>
+<form id="kc-update-profile-form" class="form" action="${url.loginAction}" method="post">
+    <#if profile?? && profile.attributes??>
+        <#list profile.attributes as attribute>
+            <#if attribute.name != "username" || !realm.registrationEmailAsUsername>
+            <div class="field">
+                <label for="${attribute.name}" class="label">${attribute.displayName!attribute.name}</label>
+                <input id="${attribute.name}" name="${attribute.name}" class="input"
+                       type="<#if attribute.name == 'email'>email<#else>text</#if>" value="${attribute.value!''}"
+                       <#if attribute.required>required</#if> <#if attribute.readOnly>readonly</#if>
+                       <#if messagesPerField.existsError(attribute.name)>aria-invalid="true"</#if>>
+                <@fieldError name=attribute.name/>
+            </div>
+            </#if>
+        </#list>
+    </#if>
+    <div class="actions">
+        <button class="btn btn-primary" type="submit" data-busy-label="Saving…">Continue</button>
+        <#if cancellable>
+            <button class="btn btn-outline" type="submit" name="cancel-aia" value="true" formnovalidate>Cancel</button>
+        </#if>
+    </div>
+</form>
+</#macro>
+
+<#--
   Sign-in and sign-up with Google, Microsoft or GitHub. Only the providers configured in the
   realm are listed (docker/keycloak/README.md), and nothing is drawn when there are none.
 -->

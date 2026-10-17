@@ -9,7 +9,10 @@ reach a realm that is already running. This script does the rest, and is safe to
   * email verification, switched on only when a mail server is configured, so nobody is locked
     out of registering;
   * Google, Microsoft and GitHub sign-in, for each provider whose credentials are set;
-  * the web app's addresses (FRONTEND_URLS) and no direct password grants.
+  * the web app's addresses (FRONTEND_URLS) and no direct password grants;
+  * how a provider sign-in is linked to an account that already exists: the person sees who is
+    signing in (nothing editable) and must enter a code emailed to that account. This needs the
+    plugin in docker/keycloak/providers-src (see docker/keycloak/README.md).
 
 Settings come from the environment or from the .env file in the repository root. Nothing secret
 is printed. See docker/keycloak/README.md.
@@ -28,6 +31,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 KCADM = "/opt/keycloak/bin/kcadm.sh"
 SECRET_KEYS = {"clientsecret", "secret", "password"}
+LINK_FLOW = "selvia first broker login"
+LINK_PROVIDER = "selvia-link-by-email-code"
+DEFAULT_FLOW = "first broker login"
 
 PROVIDERS = {
     # alias: (display name, default scope, trust the provider's email, extra config keys from env)
@@ -89,6 +95,9 @@ class Keycloak:
 
     def put(self, verb: str, path: str, body: dict) -> None:
         self._run([verb, path, "-r", self.realm, "-f", "-"], stdin=json.dumps(body))
+
+    def delete(self, path: str) -> None:
+        self._run(["delete", path, "-r", self.realm])
 
 
 def redact(value):
@@ -201,10 +210,61 @@ def plan_providers(env: dict[str, str]) -> tuple[dict[str, dict], list[str]]:
             "enabled": True,
             "trustEmail": trust_email,
             "storeToken": False,
-            "firstBrokerLoginFlowAlias": "first broker login",
+            "firstBrokerLoginFlowAlias": LINK_FLOW,
             "config": config,
         }
     return plans, notes
+
+
+def quote(alias: str) -> str:
+    return alias.replace(" ", "%20")
+
+
+def ensure_link_flow(kc: Keycloak, dry_run: bool) -> list[str]:
+    """A copy of Keycloak's first broker login with the profile review switched off and the
+    "confirm link" and "verify by email link" steps replaced by the emailed-code step."""
+    say = []
+    installed = {p["id"] for p in (kc.get("authentication/authenticator-providers") or [])}
+    if LINK_PROVIDER not in installed:
+        raise ScriptError(
+            "The link-by-code plugin is not installed in Keycloak. Build it and restart Keycloak "
+            "(docker/keycloak/README.md, 'Linking accounts by emailed code')."
+        )
+    flows = {f["alias"] for f in (kc.get("authentication/flows") or [])}
+    if LINK_FLOW not in flows:
+        say.append(f"create the flow '{LINK_FLOW}' (a copy of '{DEFAULT_FLOW}')")
+        if not dry_run:
+            kc.put("create", f"authentication/flows/{quote(DEFAULT_FLOW)}/copy", {"newName": LINK_FLOW})
+    if dry_run and LINK_FLOW not in flows:
+        say.append("turn off 'Review Profile' (nothing can be edited), drop the confirm-link and email-link steps, add the code step")
+        return say
+
+    executions = kc.get(f"authentication/flows/{quote(LINK_FLOW)}/executions") or []
+    by_provider = {e.get("providerId"): e for e in executions if e.get("providerId")}
+
+    review = by_provider.get("idp-review-profile")
+    if review and review["requirement"] != "DISABLED":
+        say.append("turn off 'Review Profile'")
+        if not dry_run:
+            kc.put("update", f"authentication/flows/{quote(LINK_FLOW)}/executions", {**review, "requirement": "DISABLED"})
+
+    if LINK_PROVIDER not in by_provider:
+        handle = next((e for e in executions if e.get("authenticationFlow") and e["displayName"].endswith("Handle Existing Account")), None)
+        if handle is None:
+            raise ScriptError(f"'{LINK_FLOW}' has no 'Handle Existing Account' step to put the code step in")
+        say.append("replace the confirm-link and email-link steps with the emailed-code step")
+        if not dry_run:
+            for e in executions:
+                if e.get("providerId") == "idp-confirm-link" or (
+                    e.get("authenticationFlow") and e["displayName"].endswith("Account verification options")
+                ):
+                    kc.delete(f"authentication/executions/{e['id']}")
+            kc.put("create", f"authentication/flows/{quote(handle['displayName'])}/executions/execution", {"provider": LINK_PROVIDER})
+            added = next(
+                e for e in kc.get(f"authentication/flows/{quote(LINK_FLOW)}/executions") if e.get("providerId") == LINK_PROVIDER
+            )
+            kc.put("update", f"authentication/flows/{quote(LINK_FLOW)}/executions", {**added, "requirement": "REQUIRED"})
+    return say
 
 
 def callback_url(env: dict[str, str], realm: str, alias: str) -> str:
@@ -247,6 +307,9 @@ def main() -> int:
 
     steps: list[tuple[str, str, str, dict]] = [("realm settings", "update", f"realms/{args.realm}", realm_body)]
     steps.append(("web app client", "update", f"clients/{client_now['id']}", client_body))
+    link_steps = ensure_link_flow(kc, args.dry_run) if providers else []
+    for step in link_steps:
+        print(f"- sign-in flow: {step}{' (dry run)' if args.dry_run else ''}")
     existing = {i["alias"] for i in (kc.get("identity-provider/instances") or [])}
     for alias, body in providers.items():
         if alias in existing:

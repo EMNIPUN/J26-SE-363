@@ -164,7 +164,7 @@ features that need one. Nothing uses it yet: Keycloak's email verification is a 
    then deploy the Core API. The migration adds columns and one table; running code is unaffected.
 2. **Mail server.** Pick any SMTP provider. Put its settings in `backend/server/.env` (Core API)
    and in the root `.env` as `KC_SMTP_*` (Keycloak).
-3. **Keycloak.** Run `python docker/keycloak/configure_realm.py` (see `docker/keycloak/README.md`):
+3. **Keycloak.** Build the account-linking plugin (`python docker/keycloak/build_provider.py`) and recreate the Keycloak container so it loads it. Then run `python docker/keycloak/configure_realm.py` (see `docker/keycloak/README.md`):
    it applies the mail server, turns on email verification, adds Google, Microsoft and GitHub for
    the providers whose credentials you set, and restricts the web app's addresses
    (`FRONTEND_URLS`). The sign-in theme comes with the repository; restart Keycloak after pulling.

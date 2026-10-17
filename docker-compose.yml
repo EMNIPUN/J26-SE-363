@@ -84,6 +84,8 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     volumes:
       - ./docker/keycloak/themes:/opt/keycloak/themes:ro
+      # The plugin that links accounts by emailed code (python docker/keycloak/build_provider.py).
+      - ./docker/keycloak/providers:/opt/keycloak/providers:ro
       - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     # Keycloak keeps gzip copies of the theme CSS/JS in data/tmp/kc-gzip-cache, keyed by a
     # version hash and not by file content. On disk that cache survives container restarts and
