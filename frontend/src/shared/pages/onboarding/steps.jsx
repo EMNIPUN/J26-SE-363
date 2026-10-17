@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types'
-import { GraduationCap, Presentation } from 'lucide-react'
+import { Check, GraduationCap, Presentation } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
@@ -22,7 +22,7 @@ const ACCOUNT_TYPES = [
 
 export function AccountTypeStep({ value, onChange }) {
   return (
-    <div role="radiogroup" aria-label="Account type" className="grid gap-3 sm:grid-cols-2">
+    <div role="radiogroup" aria-label="Account type" className="grid gap-3">
       {ACCOUNT_TYPES.map(({ value: option, label, description, icon: Icon }) => {
         const selected = value === option
         return (
@@ -33,22 +33,33 @@ export function AccountTypeStep({ value, onChange }) {
             aria-checked={selected}
             onClick={() => onChange(option)}
             className={cn(
-              'flex cursor-pointer flex-col items-start gap-3 rounded-lg border bg-card p-4 text-left outline-none transition-colors',
+              'flex cursor-pointer items-center gap-4 rounded-xl border bg-card p-4 text-left shadow-xs outline-none transition-all',
               'focus-visible:ring-2 focus-visible:ring-ring',
-              selected ? 'border-primary ring-1 ring-primary' : 'border-border hover:bg-muted/50',
+              selected
+                ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                : 'border-border hover:border-primary/40 hover:bg-muted/40',
             )}
           >
             <span
               className={cn(
-                'flex h-9 w-9 items-center justify-center rounded-md',
+                'flex h-12 w-12 shrink-0 items-center justify-center rounded-lg transition-colors',
                 selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
               )}
             >
-              <Icon className="h-5 w-5" aria-hidden="true" />
+              <Icon className="h-6 w-6" aria-hidden="true" />
             </span>
-            <span>
-              <span className="block text-sm font-semibold text-foreground">{label}</span>
+            <span className="flex-1">
+              <span className="block font-semibold text-foreground">{label}</span>
               <span className="mt-0.5 block text-sm text-muted-foreground">{description}</span>
+            </span>
+            <span
+              className={cn(
+                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors',
+                selected ? 'border-primary bg-primary text-primary-foreground' : 'border-input',
+              )}
+              aria-hidden="true"
+            >
+              {selected && <Check className="h-3 w-3" />}
             </span>
           </button>
         )

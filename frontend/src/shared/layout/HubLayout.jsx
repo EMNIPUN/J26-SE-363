@@ -1,6 +1,8 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 import { LogOut, UserRound } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { useAuth } from '../auth/useAuth.js'
+import { useMyInvitations } from '../hooks/useTeams.js'
 import { getRoleLabel } from '../constants/roles.js'
 import Avatar from '../components/Avatar.jsx'
 import SelviaLogo from '../components/SelviaLogo.jsx'
@@ -18,8 +20,14 @@ import {
  * Frame for the pages that come before a team's workspace: the team list, creating a team,
  * invitations and the profile. Inside a team the person uses DashboardShell instead.
  */
+const HUB_LINKS = [
+  { to: '/home', label: 'Home' },
+  { to: '/invitations', label: 'Invitations' },
+]
+
 export default function HubLayout() {
   const { user, logout } = useAuth()
+  const waiting = useMyInvitations().data?.length ?? 0
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -32,6 +40,30 @@ export default function HubLayout() {
           >
             <SelviaLogo size={28} showText showTagline={false} />
           </Link>
+
+          <nav aria-label="Main" className="mr-auto ml-6 flex items-center gap-1">
+            {HUB_LINKS.map(({ to, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+                    isActive
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                  )
+                }
+              >
+                {label}
+                {to === '/invitations' && waiting > 0 && (
+                  <span className="rounded-full bg-primary px-1.5 text-[11px] leading-5 text-primary-foreground">
+                    {waiting}
+                  </span>
+                )}
+              </NavLink>
+            ))}
+          </nav>
 
           <div className="flex items-center gap-1.5">
             <ThemeToggle />

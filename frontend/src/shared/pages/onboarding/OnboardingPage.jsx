@@ -2,16 +2,20 @@ import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { useAuth } from '../../auth/useAuth.js'
 import { accountService } from '../../services/accountService.js'
 import { isGithubUsername } from '../../utils/emails.js'
 import SelviaLogo from '../../components/SelviaLogo.jsx'
 import Stepper from '../../components/Stepper.jsx'
 import ThemeToggle from '../../components/ThemeToggle.jsx'
+import OnboardingAside from './OnboardingAside.jsx'
 import { AccountTypeStep, DetailsStep, ReviewStep } from './steps.jsx'
 
-const STEPS = ['Account type', 'Your details', 'Review']
+const STEPS = [
+  { label: 'Account type', hint: 'Student or lecturer' },
+  { label: 'Your details', hint: 'A few basics about you' },
+  { label: 'Review', hint: 'Confirm and finish' },
+]
 const TITLES = ['How will you use SELVIA?', 'Tell us about yourself', 'Review and agree']
 
 function validateDetails(accountType, values) {
@@ -97,26 +101,33 @@ export default function OnboardingPage() {
   const canContinue = step === 0 ? Boolean(accountType) : true
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="flex h-14 items-center justify-between px-4 sm:px-6">
-        <SelviaLogo size={28} showText showTagline={false} />
-        <div className="flex items-center gap-1">
-          <ThemeToggle />
-          <Button variant="ghost" size="sm" onClick={logout}>
-            Sign out
-          </Button>
-        </div>
-      </header>
+    <div className="grid min-h-screen bg-background text-foreground lg:grid-cols-[5fr_6fr]">
+      <OnboardingAside steps={STEPS} current={step} />
 
-      <main className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 py-8">
-        <div className="grid gap-1">
-          <p className="text-sm text-muted-foreground">Welcome{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</p>
-          <h1 className="text-2xl font-semibold tracking-tight">{TITLES[step]}</h1>
-        </div>
+      <div className="flex min-h-screen flex-col">
+        <header className="flex h-14 items-center justify-between px-4 sm:px-6">
+          <SelviaLogo size={28} showText showTagline={false} className="lg:invisible" />
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <Button variant="ghost" size="sm" onClick={logout}>
+              Sign out
+            </Button>
+          </div>
+        </header>
 
-        <Stepper steps={STEPS} current={step} />
+        <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-8">
+          <div className="grid gap-1">
+            <p className="text-sm text-muted-foreground">
+              Step {step + 1} of {STEPS.length}
+              {user?.name ? ` · Welcome, ${user.name.split(' ')[0]}` : ''}
+            </p>
+            <h1 className="text-2xl font-semibold tracking-tight">{TITLES[step]}</h1>
+          </div>
 
-        <Card className="gap-6 p-5 sm:p-6">
+          <div className="lg:hidden">
+            <Stepper steps={STEPS.map((item) => item.label)} current={step} />
+          </div>
+
           {step === 0 && <AccountTypeStep value={accountType} onChange={setAccountType} />}
           {step === 1 && (
             <DetailsStep
@@ -156,8 +167,8 @@ export default function OnboardingPage() {
               </Button>
             )}
           </div>
-        </Card>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }
