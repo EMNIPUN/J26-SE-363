@@ -167,7 +167,7 @@ function StoryRow({ req, story }) {
   }
 
   return (
-    <Card className={`p-0 overflow-hidden border transition-all ${isEstimated ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-amber-500'}`}>
+    <Card className={`w-full min-w-0 p-0 overflow-hidden border transition-all ${isEstimated ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-amber-500'}`}>
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -258,7 +258,7 @@ function StoryRow({ req, story }) {
                 {criteriaList.map((criterion, idx) => (
                   <li key={idx} className="flex items-start gap-2 bg-background/70 p-2 rounded border border-border/50">
                     <span className="text-[10px] font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10 shrink-0 mt-0.5">AC-{idx + 1}</span>
-                    <span className="text-foreground/90 leading-snug">{criterion}</span>
+                    <span className="min-w-0 break-words text-foreground/90 leading-snug">{criterion}</span>
                   </li>
                 ))}
               </ul>
@@ -483,20 +483,34 @@ export default function Estimation() {
   const reqParam = searchParams.get('req')
   const [activeFilter, setActiveFilter] = useState('all') // 'all' | 'pending' | 'estimated'
 
-  // Sort requirements: finalized decompositions first, then passing SRS, then others
+  function isDecompComplete(r) {
+    if (!r || r.status !== 'Passing') return false
+    // A requirement has completed decomposition if decompFinalized is true,
+    // or if its decomposed user stories exist and are accepted or estimated.
+    const stories = userStories[r.id] || []
+    const hasDecomposedStories = stories.some(
+      (s) =>
+        s.status === 'Accepted' ||
+        s.status === 'accepted' ||
+        s.status === 'estimated' ||
+        s.student_story_points != null
+    )
+    return Boolean(r.decompFinalized || hasDecomposedStories)
+  }
+
+  // Sort requirements: decomposition-completed requirements first, then passing SRS, then others
   const sortedRequirements = [...requirements].sort((a, b) => {
-    const aFinal = a.decompFinalized ? 1 : 0
-    const bFinal = b.decompFinalized ? 1 : 0
-    if (aFinal !== bFinal) return bFinal - aFinal
+    const aComplete = isDecompComplete(a) ? 1 : 0
+    const bComplete = isDecompComplete(b) ? 1 : 0
+    if (aComplete !== bComplete) return bComplete - aComplete
     const aPassing = a.status === 'Passing' ? 1 : 0
     const bPassing = b.status === 'Passing' ? 1 : 0
     return bPassing - aPassing
   })
 
-  const eligibleReqs = sortedRequirements.filter(
-    (r) => r.decompFinalized || (r.status === 'Passing' && (userStories[r.id] || []).length > 0)
-  )
-  const defaultReqId = (reqParam && requirements.some((r) => r.id === reqParam))
+  const eligibleReqs = sortedRequirements.filter(isDecompComplete)
+  const unlockedCount = eligibleReqs.length
+  const defaultReqId = (reqParam && requirements.some((r) => r.id === reqParam && isDecompComplete(r)))
     ? reqParam
     : (eligibleReqs[0]?.id || sortedRequirements[0]?.id || '')
 
@@ -558,8 +572,8 @@ export default function Estimation() {
   }, 0)
 
   const requirement = requirements.find((r) => r.id === selectedReqId)
-  const isEligible = requirement?.status === 'Passing'
-  const reqStories = isEligible ? allDecomposedStories.filter(({ req }) => req.id === selectedReqId) : []
+  const isRequirementUnlocked = isDecompComplete(requirement)
+  const reqStories = isRequirementUnlocked ? allDecomposedStories.filter(({ req }) => req.id === selectedReqId) : []
   const reqPending = reqStories.filter(({ story }) => !isStoryEstimated(story))
   const reqEstimated = reqStories.filter(({ story }) => isStoryEstimated(story))
 
@@ -580,14 +594,30 @@ export default function Estimation() {
     : 0
 
   function getEstimationMeta(r) {
-    if (r.status !== 'Passing') return { percent: 0, tone: 'neutral', locked: true }
+    const isComplete = isDecompComplete(r)
+    if (!isComplete) {
+      return {
+        percent: 0,
+        tone: 'neutral',
+        locked: true,
+        finalized: false,
+      }
+    }
+
     const stories = (userStories[r.id] || []).filter(
       (s) => s.status !== 'rejected' && s.status !== 'Rejected',
     )
-    if (stories.length === 0) return { percent: 0, tone: 'neutral', locked: false }
+    if (stories.length === 0) {
+      return { percent: 0, tone: 'neutral', locked: true, finalized: false }
+    }
     const done = stories.filter((s) => isStoryEstimated(s)).length
     const percent = Math.round((done / stories.length) * 100)
-    return { percent, tone: percent === 100 ? 'success' : 'warning', locked: false }
+    return {
+      percent,
+      tone: percent === 100 ? 'success' : 'warning',
+      locked: false,
+      finalized: Boolean(r.decompFinalized),
+    }
   }
 
   return (
@@ -699,59 +729,44 @@ export default function Estimation() {
 
       <WorkflowStepper current="effort" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Overview</p>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Total stories</span><span className="font-semibold text-foreground">{allDecomposedStories.length}</span></div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" /> Estimated
-              </span>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">{estimatedCount}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-amber-500 inline-block" /> Pending
-              </span>
-              <span className="font-semibold text-amber-600 dark:text-amber-400">{pendingCount}</span>
-            </div>
+      {/* 2-Column Responsive Layout mirroring Decomposition Page */}
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] xl:grid-cols-[320px_1fr] gap-6 items-start">
+        {/* Column 1 — Requirements Directory (Sticky on scroll) */}
+        <div className="space-y-3 lg:sticky lg:top-4 self-start">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Requirements Catalog
+            </span>
+            <span className="text-xs text-muted-foreground font-medium">
+              {unlockedCount}/{requirements.length} Unlocked
+            </span>
           </div>
-        </Card>
+          <RequirementListPanel
+            requirements={sortedRequirements}
+            selectedId={selectedReqId}
+            onSelect={setUserSelectedReqId}
+            getItemMeta={getEstimationMeta}
+            maxHeight="calc(100vh - 12rem)"
+          />
+        </div>
 
-        <Card className="lg:col-span-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Story Point Summary</p>
-          <p className="text-[11px] text-muted-foreground mb-3">Total effort committed across all sized user stories in the backlog.</p>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground w-16 shrink-0">Total</span>
-            <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
-              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, (totalSP / Math.max(totalSP, 40)) * 100)}%` }} />
-            </div>
-            <span className="text-xs font-semibold text-foreground w-16 text-right shrink-0">{totalSP} SP</span>
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr] gap-5 items-start">
-        <RequirementListPanel
-          requirements={sortedRequirements}
-          selectedId={selectedReqId}
-          onSelect={setUserSelectedReqId}
-          getItemMeta={getEstimationMeta}
-        />
-
-        <div className="space-y-4">
-          {requirement && !isEligible && (
+        {/* Column 2 — Main Estimation Studio */}
+        <div className="min-w-0 space-y-4">
+          {requirement && !isRequirementUnlocked && (
             <EmptyState
               icon={Lock}
-              title={`${requirement.id} is blocked`}
-              description={`This requirement hasn't passed SRS Quality yet (${requirement.overallScore}%). It must clear the SRS quality gate and be decomposed before it can be estimated.`}
-              actionLabel="Go to SRS Quality"
-              onAction={() => navigate(team(`/planning/requirements/srs-quality?req=${requirement.id}`))}
+              title={`${requirement.id} is locked for effort estimation`}
+              description={
+                requirement.status !== 'Passing'
+                  ? `This requirement hasn't passed SRS Quality yet (${requirement.overallScore}%). It must clear the SRS quality gate and complete backlog decomposition before it can be estimated.`
+                  : `Backlog decomposition has not been completed for ${requirement.id}. Complete and finalize decomposition first in the Decomposition Studio to unlock effort estimation.`
+              }
+              actionLabel="Go to Decomposition"
+              onAction={() => navigate(team(`/planning/requirements/decomposition?req=${requirement.id}`))}
             />
           )}
 
-          {requirement && isEligible && reqStories.length === 0 && (
+          {requirement && isRequirementUnlocked && reqStories.length === 0 && (
             <EmptyState
               icon={Sparkles}
               title="No stories to estimate yet"
@@ -761,12 +776,12 @@ export default function Estimation() {
             />
           )}
 
-          {requirement && isEligible && reqStories.length > 0 && (
+          {requirement && isRequirementUnlocked && reqStories.length > 0 && (
             <>
-              <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
-                <div>
+              <Card className="w-full min-w-0 p-4 flex items-center justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{requirement.id}</p>
-                  <h3 className="text-sm font-semibold text-foreground">{requirement.title}</h3>
+                  <h3 className="truncate text-sm font-semibold text-foreground">{requirement.title}</h3>
                 </div>
                 <div className="flex items-center gap-3">
                   {/* Filter tabs */}
