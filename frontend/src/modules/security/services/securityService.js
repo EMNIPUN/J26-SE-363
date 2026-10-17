@@ -1,4 +1,4 @@
-// Domain service for the AEGIS Security module.
+// Domain service for the Security Assistant module.
 //
 // The security subsystem's scanner/LLM pipeline is not implemented on the
 // backend yet, so these functions resolve local mock data instead of

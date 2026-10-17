@@ -105,7 +105,7 @@ export const performanceService = {
         },
         students: groupStudents,
         parityDistribution: [
-          { group: 'Group 07 (AEGIS)', parityGini: 0.92, status: 'Balanced' },
+          { group: 'Group 07 (Security Assistant)', parityGini: 0.92, status: 'Balanced' },
           { group: 'Group 12 (TrackWise)', parityGini: 0.74, status: 'Moderate' },
           { group: 'Group 03 (NexaPlan)', parityGini: 0.58, status: 'At Risk Imbalance' },
         ],

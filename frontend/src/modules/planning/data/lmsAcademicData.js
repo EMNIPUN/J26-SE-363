@@ -225,7 +225,7 @@ export const STUDENT_ACADEMIC_PROFILES = {
     fullName: 'Eric Croos',
     email: 'eric@lms.edu',
     specialization: 'Cyber Security & Network Engineering',
-    role: 'Security Lead & AEGIS Inspector',
+    role: 'Security Lead & Security Assistant Inspector',
     academicScore: 7.9,
     attendance: '78%',
     completedCredits: 104,

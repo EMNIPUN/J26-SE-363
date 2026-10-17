@@ -154,7 +154,7 @@
                 <div class="preview-head">
                     <div>
                         <p class="preview-eyebrow">Sprint 4 &middot; Group 07</p>
-                        <p class="preview-title">AEGIS &mdash; Security Assistant</p>
+                        <p class="preview-title">Security Assistant</p>
                     </div>
                     <span class="preview-badge"><span></span>On track</span>
                 </div>
@@ -192,7 +192,7 @@
                 <span class="module-chip"><@icon name="book-open"/>Project Planning</span>
                 <span class="module-chip"><@icon name="bar-chart"/>Performance</span>
                 <span class="module-chip"><@icon name="bot"/>Tutor Agent</span>
-                <span class="module-chip"><@icon name="shield-check"/>AEGIS Security</span>
+                <span class="module-chip"><@icon name="shield-check"/>Security Assistant</span>
             </div>
         </div>
 
