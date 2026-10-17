@@ -1,7 +1,7 @@
 """The emails SELVIA sends. Each function returns a ready-to-send `Email`.
 
 Kept short on purpose: one sentence, one button. Values are HTML-escaped; links are built by the
-caller from `settings.APP_BASE_URL`.
+caller from the web app's address (see `frontend_url` in service.py).
 """
 
 from html import escape

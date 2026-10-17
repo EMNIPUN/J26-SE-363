@@ -2,7 +2,9 @@
 
 import logging
 import secrets
-from functools import lru_cache
+from urllib.parse import urlsplit
+
+from fastapi import Request
 
 from app.core.config import settings
 from app.services.email import templates
@@ -111,7 +113,27 @@ def build_sender() -> EmailSender:
     return ConsoleEmailSender()
 
 
-@lru_cache
-def get_email_service() -> EmailService:
+def _origin_of(url: str | None) -> str | None:
+    parts = urlsplit(url or "")
+    return f"{parts.scheme}://{parts.netloc}" if parts.scheme and parts.netloc else None
+
+
+def frontend_url(request: Request) -> str:
+    """The web app the person is using, so a link in an email opens the same one: localhost while
+    developing, the Vercel address once deployed.
+
+    It is taken from the browser's Origin (or Referer) header, but only if it is one of the
+    configured web apps (CORS_ORIGINS or APP_BASE_URL). Anything else, including a header made up
+    by someone, falls back to APP_BASE_URL, so an email can never be made to link to another site.
+    """
+    allowed = {origin.rstrip("/") for origin in settings.CORS_ORIGINS}
+    allowed.add(settings.APP_BASE_URL.rstrip("/"))
+    asked = request.headers.get("origin") or _origin_of(request.headers.get("referer"))
+    if asked and asked.rstrip("/") in allowed:
+        return asked.rstrip("/")
+    return settings.APP_BASE_URL.rstrip("/")
+
+
+def get_email_service(request: Request) -> EmailService:
     """FastAPI dependency. Tests replace it with `app.dependency_overrides`."""
-    return EmailService(build_sender(), settings.APP_BASE_URL)
+    return EmailService(build_sender(), frontend_url(request))

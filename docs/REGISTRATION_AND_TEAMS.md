@@ -173,6 +173,10 @@ features that need one. Nothing uses it yet: Keycloak's email verification is a 
 5. **Web app.** In development the Vite proxy sends `/api/*` to the Core API (`VITE_API_PROXY_TARGET`).
    A deployed build needs `VITE_API_BASE_URL` pointing at the API, and the API's `CORS_ORIGINS` to
    include the web app.
+   Links in the API's emails open the web app the person was using (localhost in development, the
+   Vercel address once deployed). That is read from the request's `Origin` header and only accepted if
+   it is listed in `CORS_ORIGINS`; otherwise the link uses `APP_BASE_URL`. List every frontend in
+   `CORS_ORIGINS`, for example `["http://localhost:5173","https://your-app.vercel.app"]`.
 
 ## 8. Testing
 

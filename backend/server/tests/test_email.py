@@ -3,9 +3,10 @@ import smtplib
 from typing import ClassVar
 
 import pytest
+from fastapi import Request
 from pydantic import ValidationError
 
-from app.core.config import Settings
+from app.core.config import Settings, settings
 from app.services.email import (
     ConsoleEmailSender,
     Email,
@@ -14,8 +15,10 @@ from app.services.email import (
     InMemoryEmailSender,
     SmtpEmailSender,
     generate_code,
+    get_email_service,
     templates,
 )
+from app.services.email.service import frontend_url
 
 BASE_URL = "https://selvia.example/"
 MESSAGE = Email("ada@example.com", "Hello", "plain body", "<p>html body</p>")
@@ -260,3 +263,71 @@ def test_console_backend_is_the_default(monkeypatch):
     # A developer's own .env may switch on real mail; the default is what counts here.
     monkeypatch.delenv("EMAIL_BACKEND", raising=False)
     assert Settings(_env_file=None).EMAIL_BACKEND == "console"
+
+
+# --- which web app a link points to ----------------------------------------------------------
+
+
+def request_from(**headers):
+    return Request(
+        {
+            "type": "http",
+            "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+        }
+    )
+
+
+@pytest.fixture
+def two_frontends(monkeypatch):
+    monkeypatch.setattr(
+        settings, "CORS_ORIGINS", ["http://localhost:5173", "https://selvia.vercel.app"]
+    )
+    monkeypatch.setattr(settings, "APP_BASE_URL", "http://localhost:5173")
+
+
+def test_a_link_follows_the_web_app_the_request_came_from(two_frontends):
+    assert (
+        frontend_url(request_from(Origin="http://localhost:5173"))
+        == "http://localhost:5173"
+    )
+    assert (
+        frontend_url(request_from(Origin="https://selvia.vercel.app"))
+        == "https://selvia.vercel.app"
+    )
+
+
+def test_the_referer_is_used_when_there_is_no_origin(two_frontends):
+    request = request_from(Referer="https://selvia.vercel.app/teams/new/ATLAS?x=1")
+
+    assert frontend_url(request) == "https://selvia.vercel.app"
+
+
+def test_an_unknown_origin_falls_back_to_the_configured_address(two_frontends):
+    for headers in (
+        {"Origin": "https://evil.example"},
+        {"Origin": "null"},
+        {"Referer": "https://evil.example/page"},
+        {},
+    ):
+        assert frontend_url(request_from(**headers)) == "http://localhost:5173"
+
+
+def test_the_fallback_has_no_trailing_slash(monkeypatch, two_frontends):
+    monkeypatch.setattr(settings, "APP_BASE_URL", "https://selvia.vercel.app/")
+
+    assert frontend_url(request_from()) == "https://selvia.vercel.app"
+
+
+def test_invitation_links_use_the_chosen_web_app(two_frontends):
+    service = get_email_service(request_from(Origin="https://selvia.vercel.app"))
+
+    message = service.team_invitation(
+        "sam@example.com",
+        inviter_name="Ada",
+        team_name="Atlas",
+        as_lecturer=False,
+        token="abc",
+        expires_in_days=14,
+    )
+
+    assert "https://selvia.vercel.app/invitations?token=abc" in message.text

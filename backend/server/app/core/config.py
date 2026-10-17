@@ -69,7 +69,9 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     # "starttls" (port 587), "ssl" (port 465) or "none" (a local test server such as Mailpit).
     SMTP_SECURITY: Literal["starttls", "ssl", "none"] = "starttls"
-    # Where the web app is served; used to build the links in emails.
+    # The web app that links in emails open when the request does not say which one the person
+    # uses. Normally the link follows the request's Origin (localhost in development, the deployed
+    # address in production) as long as it is in CORS_ORIGINS; see app/services/email/service.py.
     APP_BASE_URL: str = "http://localhost:5173"
     # How long an invitation link stays valid.
     INVITATION_TTL_DAYS: int = 14
