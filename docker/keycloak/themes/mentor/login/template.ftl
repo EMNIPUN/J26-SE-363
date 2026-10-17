@@ -85,11 +85,32 @@
     </span>
     <div class="aside-body">
         <h2 class="aside-title">A mentor for every software project</h2>
-        <ul class="points">
-            <li><@icon name="check"/>Plan the work and track progress</li>
-            <li><@icon name="check"/>Review code, performance and security</li>
-            <li><@icon name="check"/>Learn with an AI tutor</li>
-        </ul>
+        <#-- A small picture of the app: plan, review, tutor. Decorative only. -->
+        <div class="preview">
+            <div class="mock mock-plan">
+                <div class="mock-head"><span>Sprint plan</span><span class="mock-pill">3 of 5</span></div>
+                <div class="mock-bar"><span style="width: 60%"></span></div>
+                <ul class="mock-tasks">
+                    <li class="done"><@icon name="check"/>Set up the repository</li>
+                    <li class="done"><@icon name="check"/>Design the database</li>
+                    <li><span class="dot"></span>Build the sign-in page</li>
+                </ul>
+            </div>
+            <div class="mock mock-review">
+                <div class="mock-head"><span>Code review</span><span class="mock-pill warn">Security</span></div>
+                <div class="mock-code">
+                    <span style="width: 62%"></span>
+                    <span style="width: 40%"></span>
+                    <span class="flag" style="width: 74%"></span>
+                    <span style="width: 52%"></span>
+                </div>
+                <p class="mock-note">Validate this input before using it</p>
+            </div>
+            <div class="mock mock-tutor">
+                <span class="mock-avatar"><@icon name="info"/></span>
+                <p>Try splitting this into two smaller functions.</p>
+            </div>
+        </div>
     </div>
     <span></span>
 </aside>
