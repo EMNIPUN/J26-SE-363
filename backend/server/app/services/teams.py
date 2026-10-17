@@ -21,7 +21,7 @@ from app.models import Group, GroupMember, MemberRole, Project, TeamStatus, User
 from app.schemas.team import ProjectUpdate, TeamCreate, TeamUpdate
 from app.services import invitations, terms
 from app.services import team_rules as rules
-from app.services.email import Email, EmailService
+from app.services.notifications import Kind, Notifier
 
 
 def _generate_code(db: Session, name: str) -> str:
@@ -125,7 +125,7 @@ def set_project(group: Group, user: User, data: ProjectUpdate) -> None:
         )
 
 
-def activate_team(group: Group, user: User, email_service: EmailService) -> list[Email]:
+def activate_team(group: Group, user: User, notifier: Notifier) -> None:
     """The last step: the team opens, and the invitations saved so far are emailed."""
     if group.status is not TeamStatus.PENDING:
         raise conflict("team_not_pending", "This team is already set up")
@@ -136,9 +136,8 @@ def activate_team(group: Group, user: User, email_service: EmailService) -> list
     group.status = TeamStatus.FORMING
     # The links were not sent while the team was pending, and only a hash is stored: issue new ones.
     invitations.ensure_leader_flag(group)
-    emails = invitations.send_open(group, user, email_service)
+    invitations.send_open(group, user, notifier)
     rules.refresh_team(group)
-    return emails
 
 
 def discard_team(db: Session, group: Group) -> None:
@@ -192,7 +191,11 @@ def update_team(
 
 
 def remove_member(
-    group: Group, actor: User, actor_member: GroupMember, target_user_id: uuid.UUID
+    group: Group,
+    actor: User,
+    actor_member: GroupMember,
+    target_user_id: uuid.UUID,
+    notifier: Notifier,
 ) -> None:
     target = rules.membership(group, target_user_id)
     if target is None:
@@ -210,8 +213,19 @@ def remove_member(
             "Transfer leadership to another member before you leave",
         )
 
+    person = target.user
     group.members.remove(target)
     rules.refresh_team(group)
+
+    # A pending leadership offer to someone who is no longer in the team is moot.
+    notifier.resolve(person.id, Kind.LEADERSHIP_OFFERED, str(group.id))
+    if leaving:
+        if target.role is MemberRole.MEMBER:  # lecturers are told when a student leaves
+            notifier.member_left(
+                [m.user for m in rules.lecturers(group)], member=person, group=group
+            )
+    else:
+        notifier.member_removed(person, by=actor, group=group)
 
 
 # --- leadership ------------------------------------------------------------------------------
@@ -222,8 +236,8 @@ def start_leader_transfer(
     actor: User,
     actor_member: GroupMember,
     to_user_id: uuid.UUID,
-    email_service: EmailService,
-) -> Email | None:
+    notifier: Notifier,
+) -> None:
     is_leader = group.leader_id == actor.id
     if not (is_leader or actor_member.role is MemberRole.LECTURER):
         raise forbidden(
@@ -238,37 +252,26 @@ def start_leader_transfer(
         raise bad_request("already_leader", "That student is already the leader")
 
     group.pending_leader_id = to_user_id
-    if not target.user.email:
-        return None
-    return email_service.leader_transfer_request(
-        target.user.email, from_name=actor.name, team_name=group.name
-    )
+    notifier.leadership_offered(target.user, from_user=actor, group=group)
 
 
 def respond_to_leader_transfer(
-    group: Group, user: User, *, accept: bool, email_service: EmailService
-) -> list[Email]:
+    group: Group, user: User, *, accept: bool, notifier: Notifier
+) -> None:
     if group.pending_leader_id != user.id:
         raise not_found("There is no leadership request for you in this team")
     previous = rules.membership(group, group.leader_id) if group.leader_id else None
     group.pending_leader_id = None
     if accept:
         group.leader_id = user.id
-    emails: list[Email] = []
-    if previous is not None and previous.user.email and previous.user_id != user.id:
-        emails.append(
-            email_service.leader_transfer_result(
-                previous.user.email,
-                member_name=user.name,
-                team_name=group.name,
-                accepted=accept,
-            )
-        )
-    return emails
+    notifier.resolve(user.id, Kind.LEADERSHIP_OFFERED, str(group.id))
+    notifier.leadership_answered(
+        previous.user if previous else None, member=user, group=group, accepted=accept
+    )
 
 
 def cancel_leader_transfer(
-    group: Group, actor: User, actor_member: GroupMember
+    group: Group, actor: User, actor_member: GroupMember, notifier: Notifier
 ) -> None:
     if group.pending_leader_id is None:
         raise not_found("There is no pending leadership request")
@@ -276,7 +279,10 @@ def cancel_leader_transfer(
         raise forbidden(
             "not_allowed", "Only the leader or a lecturer can cancel the request"
         )
+    target = rules.membership(group, group.pending_leader_id)
     group.pending_leader_id = None
+    if target is not None:
+        notifier.leadership_withdrawn(target.user, by=actor, group=group)
 
 
 __all__ = [

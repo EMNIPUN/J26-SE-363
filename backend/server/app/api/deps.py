@@ -12,7 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import BackgroundTasks, Depends
 from shared.contracts import UserRole
 from sqlalchemy.orm import Session
 
@@ -22,6 +22,8 @@ from app.core.security import CurrentUser, get_current_user
 from app.database.session import get_db
 from app.models import User
 from app.services import accounts
+from app.services.email import EmailService, get_email_service
+from app.services.notifications import Notifier
 
 
 @dataclass
@@ -65,3 +67,15 @@ def require_account_role(*roles: UserRole) -> Callable[[Account], Account]:
         return account
 
     return check
+
+
+def get_notifier(
+    db: Annotated[Session, Depends(get_db)],
+    mailer: Annotated[EmailService, Depends(get_email_service)],
+    background: BackgroundTasks,
+) -> Notifier:
+    """The one way a request tells people about what it did (in the app and by email)."""
+    return Notifier(db, mailer, background)
+
+
+Notify = Annotated[Notifier, Depends(get_notifier)]

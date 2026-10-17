@@ -23,11 +23,11 @@ anyone else gets 404.
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
+from fastapi import APIRouter, Depends, Response, status
 from shared.contracts import UserRole
 from sqlalchemy.orm import Session
 
-from app.api.deps import Account, get_onboarded_account, require_account_role
+from app.api.deps import Account, Notify, get_onboarded_account, require_account_role
 from app.database.session import get_db
 from app.schemas.team import (
     InvitationOut,
@@ -41,14 +41,12 @@ from app.schemas.team import (
     TeamUpdate,
 )
 from app.services import invitations, students, team_views, teams
-from app.services.email import EmailService, get_email_service
 
 router = APIRouter(tags=["Teams"])
 
 Onboarded = Annotated[Account, Depends(get_onboarded_account)]
 Lecturer = Annotated[Account, Depends(require_account_role(UserRole.LECTURER))]
 Db = Annotated[Session, Depends(get_db)]
-Mailer = Annotated[EmailService, Depends(get_email_service)]
 
 
 def _is_admin(account: Account) -> bool:
@@ -111,17 +109,10 @@ def set_project(
     response_model=TeamDetail,
     summary="Finish setting up a team",
 )
-def activate_team(
-    team: str,
-    account: Lecturer,
-    db: Db,
-    mailer: Mailer,
-    background: BackgroundTasks,
-) -> TeamDetail:
+def activate_team(team: str, account: Lecturer, db: Db, notifier: Notify) -> TeamDetail:
     group, member = teams.team_for(db, team, account.user)
     teams.require_lecturer(member)
-    for message in teams.activate_team(group, account.user, mailer):
-        background.add_task(mailer.deliver, message)
+    teams.activate_team(group, account.user, notifier)
     db.commit()
     return _detail(group, account)
 
@@ -146,12 +137,7 @@ def discard_team(team: str, account: Lecturer, db: Db) -> Response:
     "/teams/{team}/invitations", response_model=InviteSummary, summary="Invite people"
 )
 def invite_people(
-    team: str,
-    body: InviteList,
-    account: Lecturer,
-    db: Db,
-    mailer: Mailer,
-    background: BackgroundTasks,
+    team: str, body: InviteList, account: Lecturer, db: Db, notifier: Notify
 ) -> InviteSummary:
     group, member = teams.team_for(db, team, account.user)
     teams.require_lecturer(member)
@@ -162,14 +148,12 @@ def invite_people(
         db,
         group,
         account.user,
-        mailer,
+        notifier,
         students=[*body.students, *named],
         lecturers=body.lecturers,
         leader_email=body.leader_email,
     )
     db.commit()
-    for message in invited.emails:
-        background.add_task(mailer.deliver, message)
     return InviteSummary(results=invited.results)
 
 
@@ -179,18 +163,12 @@ def invite_people(
     summary="Send an invitation again",
 )
 def resend_invitation(
-    team: str,
-    invitation_id: uuid.UUID,
-    account: Lecturer,
-    db: Db,
-    mailer: Mailer,
-    background: BackgroundTasks,
+    team: str, invitation_id: uuid.UUID, account: Lecturer, db: Db, notifier: Notify
 ) -> InvitationOut:
     group, member = teams.team_for(db, team, account.user)
     teams.require_lecturer(member)
-    message = invitations.resend(group, invitation_id, account.user, mailer)
+    invitations.resend(group, invitation_id, account.user, notifier)
     db.commit()
-    background.add_task(mailer.deliver, message)
     return team_views.invitation_out(
         next(i for i in group.invitations if i.id == invitation_id)
     )
@@ -220,10 +198,10 @@ def withdraw_invitation(
     summary="Remove a member or leave",
 )
 def remove_member(
-    team: str, user_id: uuid.UUID, account: Onboarded, db: Db
+    team: str, user_id: uuid.UUID, account: Onboarded, db: Db, notifier: Notify
 ) -> Response:
     group, member = teams.team_for(db, team, account.user)
-    teams.remove_member(group, account.user, member, user_id)
+    teams.remove_member(group, account.user, member, user_id, notifier)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -241,16 +219,11 @@ def offer_leadership(
     body: LeaderTransferRequest,
     account: Onboarded,
     db: Db,
-    mailer: Mailer,
-    background: BackgroundTasks,
+    notifier: Notify,
 ) -> TeamDetail:
     group, member = teams.team_for(db, team, account.user)
-    message = teams.start_leader_transfer(
-        group, account.user, member, body.to_user_id, mailer
-    )
+    teams.start_leader_transfer(group, account.user, member, body.to_user_id, notifier)
     db.commit()
-    if message is not None:
-        background.add_task(mailer.deliver, message)
     return _detail(group, account)
 
 
@@ -260,13 +233,12 @@ def offer_leadership(
     summary="Accept leadership",
 )
 def accept_leadership(
-    team: str, account: Onboarded, db: Db, mailer: Mailer, background: BackgroundTasks
+    team: str, account: Onboarded, db: Db, notifier: Notify
 ) -> TeamDetail:
     group, _ = teams.team_for(db, team, account.user)
-    for message in teams.respond_to_leader_transfer(
-        group, account.user, accept=True, email_service=mailer
-    ):
-        background.add_task(mailer.deliver, message)
+    teams.respond_to_leader_transfer(
+        group, account.user, accept=True, notifier=notifier
+    )
     db.commit()
     return _detail(group, account)
 
@@ -277,13 +249,12 @@ def accept_leadership(
     summary="Decline leadership",
 )
 def decline_leadership(
-    team: str, account: Onboarded, db: Db, mailer: Mailer, background: BackgroundTasks
+    team: str, account: Onboarded, db: Db, notifier: Notify
 ) -> TeamDetail:
     group, _ = teams.team_for(db, team, account.user)
-    for message in teams.respond_to_leader_transfer(
-        group, account.user, accept=False, email_service=mailer
-    ):
-        background.add_task(mailer.deliver, message)
+    teams.respond_to_leader_transfer(
+        group, account.user, accept=False, notifier=notifier
+    )
     db.commit()
     return _detail(group, account)
 
@@ -293,8 +264,10 @@ def decline_leadership(
     response_model=TeamDetail,
     summary="Withdraw the leadership offer",
 )
-def withdraw_leadership_offer(team: str, account: Onboarded, db: Db) -> TeamDetail:
+def withdraw_leadership_offer(
+    team: str, account: Onboarded, db: Db, notifier: Notify
+) -> TeamDetail:
     group, member = teams.team_for(db, team, account.user)
-    teams.cancel_leader_transfer(group, account.user, member)
+    teams.cancel_leader_transfer(group, account.user, member, notifier)
     db.commit()
     return _detail(group, account)

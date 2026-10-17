@@ -30,6 +30,8 @@ APP_TABLES = {
     "team_invitations",
     "terms",
     "user_avatars",
+    "notifications",
+    "notification_preferences",
 }
 
 

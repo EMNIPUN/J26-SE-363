@@ -27,7 +27,7 @@ from app.models import (
 )
 from app.schemas.team import InvitationResult
 from app.services import team_rules as rules
-from app.services.email import Email, EmailService
+from app.services.notifications import Kind, Notifier
 
 # A cheap guard against using the invite feature to send mail to strangers at scale.
 MAX_OPEN_INVITATIONS_PER_PERSON = 200
@@ -36,7 +36,6 @@ MAX_OPEN_INVITATIONS_PER_PERSON = 200
 @dataclass
 class Invited:
     results: list[InvitationResult]
-    emails: list[Email]
 
 
 # --- inviting --------------------------------------------------------------------------------
@@ -46,7 +45,7 @@ def invite(
     db: Session,
     group: Group,
     inviter: User,
-    email_service: EmailService,
+    notifier: Notifier,
     *,
     students: list[str],
     lecturers: list[str],
@@ -80,7 +79,6 @@ def invite(
     ]
 
     results: list[InvitationResult] = []
-    emails: list[Email] = []
     for address, role in wanted:
         if address in member_emails:
             results.append(InvitationResult(email=address, outcome="already_member"))
@@ -120,18 +118,15 @@ def invite(
         if (
             group.status is not TeamStatus.PENDING
         ):  # a pending team's mail waits for activation
-            emails.append(
-                email_service.team_invitation(
-                    address,
-                    inviter_name=inviter.name,
-                    team_name=group.name,
-                    as_lecturer=role is MemberRole.LECTURER,
-                    token=raw,
-                    expires_in_days=settings.INVITATION_TTL_DAYS,
-                )
+            notifier.invitation_sent(
+                to_email=address,
+                inviter=inviter,
+                group=group,
+                as_lecturer=role is MemberRole.LECTURER,
+                token=raw,
             )
     db.flush()
-    return Invited(results, emails)
+    return Invited(results)
 
 
 def _has_leader_flag(group: Group) -> bool:
@@ -153,13 +148,11 @@ def ensure_leader_flag(group: Group) -> None:
         first.as_leader = True
 
 
-def send_open(group: Group, inviter: User, email_service: EmailService) -> list[Email]:
+def send_open(group: Group, inviter: User, notifier: Notifier) -> None:
     """A fresh link for every invitation still waiting, e.g. when a pending team is activated."""
-    return [
-        _reissue(group, invitation, inviter, email_service)
-        for invitation in group.invitations
-        if rules.is_open(invitation)
-    ]
+    for invitation in group.invitations:
+        if rules.is_open(invitation):
+            _reissue(group, invitation, inviter, notifier)
 
 
 def _check_quota(db: Session, inviter: User, adding: int) -> None:
@@ -192,9 +185,7 @@ def revoke(group: Group, invitation_id) -> None:
     rules.refresh_team(group)
 
 
-def resend(
-    group: Group, invitation_id, inviter: User, email_service: EmailService
-) -> Email:
+def resend(group: Group, invitation_id, inviter: User, notifier: Notifier) -> None:
     invitation = _in_team(group, invitation_id)
     if group.status is TeamStatus.PENDING:
         raise conflict(
@@ -202,28 +193,27 @@ def resend(
         )
     if invitation.status is not InvitationStatus.PENDING:
         raise conflict("invitation_closed", "This invitation has already been answered")
-    return _reissue(group, invitation, inviter, email_service)
+    _reissue(group, invitation, inviter, notifier)
 
 
 def _reissue(
     group: Group,
     invitation: TeamInvitation,
     inviter: User,
-    email_service: EmailService,
-) -> Email:
+    notifier: Notifier,
+) -> None:
     # The secret is not stored, so sending again means issuing a new one (the old link stops).
     raw, hashed = rules.new_token()
     invitation.token_hash = hashed
     invitation.expires_at = rules.utcnow() + timedelta(
         days=settings.INVITATION_TTL_DAYS
     )
-    return email_service.team_invitation(
-        invitation.email,
-        inviter_name=inviter.name,
-        team_name=group.name,
+    notifier.invitation_sent(
+        to_email=invitation.email,
+        inviter=inviter,
+        group=group,
         as_lecturer=invitation.role is MemberRole.LECTURER,
         token=raw,
-        expires_in_days=settings.INVITATION_TTL_DAYS,
     )
 
 
@@ -308,8 +298,8 @@ def respond(
     invitation_id,
     *,
     accept: bool,
-    email_service: EmailService,
-) -> tuple[Group, list[Email]]:
+    notifier: Notifier,
+) -> Group:
     """Accept or decline. Commits."""
     if email is None:
         raise forbidden(
@@ -339,26 +329,20 @@ def respond(
     invitation.responded_at = now
     rules.refresh_team(group)
 
+    # Told in the same transaction as the answer: both are kept, or neither.
+    notifier.resolve(user.id, Kind.TEAM_INVITATION, str(invitation.id))
+    inviter = (
+        db.get(User, invitation.invited_by_id) if invitation.invited_by_id else None
+    )
+    notifier.invitation_answered(inviter, member=user, group=group, accepted=accept)
+
     try:
         db.commit()
     except IntegrityError as exc:
         db.rollback()
         raise conflict("already_in_team", "You cannot join this team") from exc
 
-    emails: list[Email] = []
-    inviter = (
-        db.get(User, invitation.invited_by_id) if invitation.invited_by_id else None
-    )
-    if inviter is not None and inviter.email:
-        emails.append(
-            email_service.invitation_response(
-                inviter.email,
-                member_name=user.name,
-                team_name=group.name,
-                accepted=accept,
-            )
-        )
-    return group, emails
+    return group
 
 
 def _join(

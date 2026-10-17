@@ -57,33 +57,61 @@ class EmailService:
             expires_in_days=expires_in_days,
         )
 
+    # `path` is where in the web app the button leads, e.g. /teams/J26-SE-363/members.
+
     def invitation_response(
-        self, to: str, *, member_name: str, team_name: str, accepted: bool
+        self,
+        to: str,
+        *,
+        member_name: str,
+        team_name: str,
+        accepted: bool,
+        path: str = "/home",
     ) -> Email:
         return templates.invitation_response(
             to,
             member_name=member_name,
             team_name=team_name,
             accepted=accepted,
-            link=f"{self._base_url}/home",
+            link=f"{self._base_url}{path}",
         )
 
     def leader_transfer_request(
-        self, to: str, *, from_name: str, team_name: str
+        self, to: str, *, from_name: str, team_name: str, path: str = "/home"
     ) -> Email:
         return templates.leader_transfer_request(
-            to, from_name=from_name, team_name=team_name, link=f"{self._base_url}/home"
+            to,
+            from_name=from_name,
+            team_name=team_name,
+            link=f"{self._base_url}{path}",
         )
 
     def leader_transfer_result(
-        self, to: str, *, member_name: str, team_name: str, accepted: bool
+        self,
+        to: str,
+        *,
+        member_name: str,
+        team_name: str,
+        accepted: bool,
+        path: str = "/home",
     ) -> Email:
         return templates.leader_transfer_result(
             to,
             member_name=member_name,
             team_name=team_name,
             accepted=accepted,
-            link=f"{self._base_url}/home",
+            link=f"{self._base_url}{path}",
+        )
+
+    def notice(
+        self, to: str, *, subject: str, heading: str, sentence: str, path: str = "/home"
+    ) -> Email:
+        return templates.notice(
+            to,
+            subject=subject,
+            heading=heading,
+            sentence=sentence,
+            link=f"{self._base_url}{path}",
         )
 
     def verification_code(

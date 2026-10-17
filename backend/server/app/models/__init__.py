@@ -3,6 +3,8 @@ which is what Alembic compares against (see alembic/env.py)."""
 
 from app.models.agent_run import AgentRun, AgentRunStatus
 from app.models.group import Group, GroupMember, MemberRole, TeamStatus
+from app.models.notification import Notification
+from app.models.notification_preference import NotificationPreference
 from app.models.project import Project, ProjectDocument
 from app.models.team_invitation import InvitationStatus, TeamInvitation
 from app.models.term import Term
@@ -16,6 +18,8 @@ __all__ = [
     "GroupMember",
     "InvitationStatus",
     "MemberRole",
+    "Notification",
+    "NotificationPreference",
     "Project",
     "ProjectDocument",
     "TeamInvitation",

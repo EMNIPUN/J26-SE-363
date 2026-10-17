@@ -369,6 +369,44 @@ APP_TABLES: dict[str, TableSpec] = {
         checks={},
         indexes={},
     ),
+    "notifications": TableSpec(
+        columns={
+            "id": (UUID, True),
+            "user_id": (UUID, True),
+            "kind": (varchar(48), True),
+            "title": (varchar(255), True),
+            "body": (varchar(1000), False),
+            "link": (varchar(255), False),
+            "data": (JSONB, True),
+            "ref": (varchar(64), False),
+            "read_at": (TIMESTAMPTZ, False),
+            "resolved_at": (TIMESTAMPTZ, False),
+            **TIMESTAMPS,
+        },
+        primary_key=("id",),
+        unique={},
+        foreign_keys={
+            "fk_notifications_user_id_users": ForeignKey(("user_id",), "users", ("id",), FK_CASCADE),
+        },
+        checks={},
+        indexes={"ix_notifications_user_id_created_at": Index(("user_id", "created_at"))},
+    ),
+    "notification_preferences": TableSpec(
+        columns={
+            "id": (UUID, True),
+            "user_id": (UUID, True),
+            "category": (varchar(32), True),
+            "email_enabled": (BOOLEAN, True),
+            **TIMESTAMPS,
+        },
+        primary_key=("id",),
+        unique={"uq_notification_preferences_user_id_category": ("user_id", "category")},
+        foreign_keys={
+            "fk_notification_preferences_user_id_users": ForeignKey(("user_id",), "users", ("id",), FK_CASCADE),
+        },
+        checks={},
+        indexes={"ix_notification_preferences_user_id": Index(("user_id",))},
+    ),
     "terms": TableSpec(
         columns={
             "id": (UUID, True),

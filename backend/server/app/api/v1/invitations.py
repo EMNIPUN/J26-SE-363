@@ -13,22 +13,20 @@ answer, even if the link is forwarded. Lecturers invite from the team (see teams
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
+from fastapi import APIRouter, Depends, Response, status
 from shared.contracts import UserRole
 from sqlalchemy.orm import Session
 
-from app.api.deps import Account, get_onboarded_account, require_account_role
+from app.api.deps import Account, Notify, get_onboarded_account, require_account_role
 from app.database.session import get_db
 from app.schemas.team import InvitationLookup, MyInvitation, SentInvitation, TeamSummary
 from app.services import invitations, team_views
-from app.services.email import EmailService, get_email_service
 
 router = APIRouter(tags=["Invitations"])
 
 Onboarded = Annotated[Account, Depends(get_onboarded_account)]
 Lecturer = Annotated[Account, Depends(require_account_role(UserRole.LECTURER))]
 Db = Annotated[Session, Depends(get_db)]
-Mailer = Annotated[EmailService, Depends(get_email_service)]
 
 
 @router.get(
@@ -70,23 +68,17 @@ def lookup_invitation(
     summary="Accept an invitation",
 )
 def accept_invitation(
-    invitation_id: uuid.UUID,
-    account: Onboarded,
-    db: Db,
-    mailer: Mailer,
-    background: BackgroundTasks,
+    invitation_id: uuid.UUID, account: Onboarded, db: Db, notifier: Notify
 ) -> TeamSummary:
-    group, emails = invitations.respond(
+    group = invitations.respond(
         db,
         account.user,
         account.role,
         account.matching_email,
         invitation_id,
         accept=True,
-        email_service=mailer,
+        notifier=notifier,
     )
-    for message in emails:
-        background.add_task(mailer.deliver, message)
     return team_views.summary(group, account.user, account.role)
 
 
@@ -96,21 +88,15 @@ def accept_invitation(
     summary="Decline an invitation",
 )
 def decline_invitation(
-    invitation_id: uuid.UUID,
-    account: Onboarded,
-    db: Db,
-    mailer: Mailer,
-    background: BackgroundTasks,
+    invitation_id: uuid.UUID, account: Onboarded, db: Db, notifier: Notify
 ) -> Response:
-    _, emails = invitations.respond(
+    invitations.respond(
         db,
         account.user,
         account.role,
         account.matching_email,
         invitation_id,
         accept=False,
-        email_service=mailer,
+        notifier=notifier,
     )
-    for message in emails:
-        background.add_task(mailer.deliver, message)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

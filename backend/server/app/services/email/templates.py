@@ -122,6 +122,16 @@ def leader_transfer_result(
     )
 
 
+def notice(to: str, *, subject: str, heading: str, sentence: str, link: str) -> Email:
+    """A one-sentence notice with a button, for events that need no special wording."""
+    return Email(
+        to,
+        subject,
+        f"{sentence}\n\nOpen SELVIA: {link}",
+        _layout(heading, escape(sentence), "Open SELVIA", link),
+    )
+
+
 def verification_code(to: str, *, code: str, purpose: str, minutes_valid: int) -> Email:
     subject = f"Your SELVIA code: {code}"
     text = f"Your code to {purpose} is {code}. It expires in {minutes_valid} minutes."
