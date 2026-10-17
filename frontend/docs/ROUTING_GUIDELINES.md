@@ -18,7 +18,7 @@ In legacy or poorly-structured web apps, developers often prefix routes with use
 ### The SELVIA Routing Solution
 1. **Team-Scoped Workspaces (`/teams/:teamId/*`)**: All module workflows operate inside an active team workspace (e.g., `/teams/J26-SE-363/performance/dashboard`).
 2. **Backward-Compatible Redirects**: Unscoped routes (e.g., `/app` or `/performance/dashboard`) automatically redirect to the active team (`/teams/J26-SE-363/...`), or to `/home` when the person has no team yet.
-3. **A home page before the workspace**: after sign-in people land on `/home`, the list of their teams and invitations. First-time users are sent through `/onboarding` first (see [REGISTRATION_AND_TEAMS.md](../../docs/REGISTRATION_AND_TEAMS.md)).
+3. **A home page before the workspace**: after sign-in people land on `/home` (what needs an answer, a few numbers, their teams). `/teams` lists every team with a term filter and search. Both sit under a top bar (`HubLayout`) that is full width up to 96rem. First-time users are sent through `/onboarding` first (see [REGISTRATION_AND_TEAMS.md](../../docs/REGISTRATION_AND_TEAMS.md)).
 4. **Domain-Driven Modules**: Each research module owns an independent URL namespace (`planning/*`, `performance/*`, `tutor/*`, `security/*`). Developers never edit other team members' route tables.
 
 ---
@@ -94,7 +94,7 @@ To ensure complete developer isolation and eliminate merge conflicts, the applic
 | Domain / Module | Path Prefix | Directory | Team Owner |
 | :--- | :--- | :--- | :--- |
 | **Unified Shell** | `/app` | `src/shared/pages/dashboards/` | Shared Platform |
-| **Home, onboarding, teams** | `/home`, `/onboarding`, `/teams/new`, `/invitations`, `/profile`, `/teams/:teamId/members` | `src/shared/pages/` (`home`, `onboarding`, `teams`, `invitations`, `profile`) | Shared Platform |
+| **Home, onboarding, teams** | `/home`, `/teams`, `/onboarding`, `/teams/new`, `/invitations`, `/profile`, `/teams/:teamId/members` | `src/shared/pages/` (`home`, `onboarding`, `teams`, `invitations`, `profile`) | Shared Platform |
 | **Project Planning** | `/planning/*` | `src/modules/planning/routes.jsx` | Planning Dev |
 | **Performance Analytics** | `/performance/*` | `src/modules/performance/routes.jsx` | Performance Dev |
 | **Adaptive AI Tutor** | `/tutor/*` | `src/modules/tutor/routes.jsx` | AI Tutor Dev |

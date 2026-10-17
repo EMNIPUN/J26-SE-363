@@ -1,12 +1,11 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, Outlet } from 'react-router-dom'
 import { LogOut, UserRound } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { useAuth } from '../auth/useAuth.js'
-import { useMyInvitations } from '../hooks/useTeams.js'
 import { getRoleLabel } from '../constants/roles.js'
 import Avatar from '../components/Avatar.jsx'
 import SelviaLogo from '../components/SelviaLogo.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
+import HubNav, { HubMenu } from './HubNav.jsx'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,55 +16,32 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 /**
- * Frame for the pages that come before a team's workspace: the team list, creating a team,
+ * Frame for the pages that come before a team's workspace: home, the team list, creating a team,
  * invitations and the profile. Inside a team the person uses DashboardShell instead.
+ * The bar has three parts: the brand, the navigation in the middle, and the person's own controls.
  */
-const HUB_LINKS = [
-  { to: '/home', label: 'Home' },
-  { to: '/invitations', label: 'Invitations' },
-]
-
 export default function HubLayout() {
   const { user, logout } = useAuth()
-  const waiting = useMyInvitations().data?.length ?? 0
+  const canCreate = user?.role === 'instructor'
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-sidebar-border bg-sidebar/95 backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link
-            to="/home"
-            aria-label="SELVIA home"
-            className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <SelviaLogo size={28} showText showTagline={false} />
-          </Link>
+        <div className="mx-auto grid h-14 w-full max-w-[96rem] grid-cols-[1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2 justify-self-start">
+            <HubMenu />
+            <Link
+              to="/home"
+              aria-label="SELVIA home"
+              className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <SelviaLogo size={28} showText showTagline={false} />
+            </Link>
+          </div>
 
-          <nav aria-label="Main" className="mr-auto ml-6 flex items-center gap-1">
-            {HUB_LINKS.map(({ to, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-                    isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-                  )
-                }
-              >
-                {label}
-                {to === '/invitations' && waiting > 0 && (
-                  <span className="rounded-full bg-primary px-1.5 text-[11px] leading-5 text-primary-foreground">
-                    {waiting}
-                  </span>
-                )}
-              </NavLink>
-            ))}
-          </nav>
+          <HubNav canCreate={canCreate} />
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 justify-self-end">
             <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -105,7 +81,7 @@ export default function HubLayout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+      <main className="mx-auto w-full max-w-[96rem] px-4 py-8 sm:px-6 lg:px-8">
         <Outlet />
       </main>
     </div>

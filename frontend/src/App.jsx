@@ -22,6 +22,7 @@ import HomePage from './shared/pages/home/HomePage.jsx'
 import CreateTeamPage from './shared/pages/teams/CreateTeamPage.jsx'
 import TeamMembersPage from './shared/pages/teams/TeamMembersPage.jsx'
 import InvitationPage from './shared/pages/invitations/InvitationPage.jsx'
+import TeamsPage from './shared/pages/teams/TeamsPage.jsx'
 import ProfilePage from './shared/pages/profile/ProfilePage.jsx'
 import StudentHome from './shared/pages/dashboards/StudentHome.jsx'
 import InstructorHome from './shared/pages/dashboards/InstructorHome.jsx'
@@ -80,6 +81,7 @@ function AppContent() {
           {/* Before a team's workspace: the team list, creating a team, invitations, profile */}
           <Route element={<HubLayout />}>
             <Route path="/home" element={<HomePage />} />
+            <Route path="/teams" element={<TeamsPage />} />
             <Route element={<RequireRole allowedRoles={['instructor']} />}>
               <Route path="/teams/new" element={<CreateTeamPage />} />
             </Route>

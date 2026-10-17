@@ -1,10 +1,6 @@
-import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Search, Users } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ArrowRight, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '../../auth/useAuth.js'
 import {
   useAcceptInvitation,
@@ -12,13 +8,13 @@ import {
   useMyInvitations,
   useMyTeams,
 } from '../../hooks/useTeams.js'
-import EmptyState from '../../components/EmptyState.jsx'
 import { NextSteps, ProfileCard } from './HomeAside.jsx'
 import HomeStats from './HomeStats.jsx'
 import InvitationList from './InvitationList.jsx'
-import { TeamCards, TeamsTable } from './TeamLists.jsx'
+import NeedsAttention from './NeedsAttention.jsx'
+import TeamList from './TeamList.jsx'
 
-const SEARCH_FROM = 6 // a search box only helps once the list is long
+const SHOWN = 6 // the rest are on the Teams page
 
 function greeting() {
   const hour = new Date().getHours()
@@ -27,43 +23,22 @@ function greeting() {
   return 'Good evening'
 }
 
-function Loading() {
-  return (
-    <div className="grid gap-3" aria-busy="true">
-      <Skeleton className="h-12 w-full" />
-      <Skeleton className="h-12 w-full" />
-      <Skeleton className="h-12 w-full" />
-    </div>
-  )
-}
-
-function matches(team, query) {
-  const text = [team.name, team.code, team.project?.title, team.term].join(' ').toLowerCase()
-  return text.includes(query.toLowerCase())
-}
-
 /**
- * The page a person lands on after signing in: who they are, what needs an answer, and their teams.
- * It is the account level of the app, so it has a top bar. Inside a team the sidebar workspace
- * takes over (DashboardShell).
+ * The page a person lands on after signing in: what needs an answer, a few numbers, and their
+ * teams. The full list is on the Teams page. Inside a team the sidebar workspace takes over.
  */
 export default function HomePage() {
   const { user, account } = useAuth()
-  const navigate = useNavigate()
   const canCreate = user.role === 'instructor' // only lecturers create teams
   const isStaff = canCreate || user.role === 'admin'
   const teams = useMyTeams()
   const invitations = useMyInvitations()
   const accept = useAcceptInvitation()
   const decline = useDeclineInvitation()
-  const [query, setQuery] = useState('')
 
-  const visible = useMemo(
-    () => (teams.data ?? []).filter((team) => matches(team, query.trim())),
-    [teams.data, query],
-  )
   const busyId = accept.isPending ? accept.variables : decline.isPending ? decline.variables : null
   const waiting = invitations.data ?? []
+  const all = teams.data ?? []
   const firstName = user.name?.split(' ')[0]
 
   return (
@@ -97,80 +72,37 @@ export default function HomePage() {
         />
       )}
 
-      <HomeStats
-        teams={teams.data ?? []}
-        invitations={waiting.length}
-        isStaff={isStaff}
-        loading={teams.isPending}
-      />
+      <HomeStats teams={all} invitations={waiting.length} isStaff={isStaff} loading={teams.isPending} />
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <section className="grid gap-4" aria-labelledby="teams-heading">
           <div className="flex items-center justify-between gap-3">
             <h2 id="teams-heading" className="text-base font-semibold text-foreground">
               Your teams
             </h2>
-            {teams.isSuccess && teams.data.length >= SEARCH_FROM && (
-              <div className="relative w-full max-w-56">
-                <Search
-                  className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden="true"
-                />
-                <Input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search teams"
-                  aria-label="Search teams"
-                  className="pl-8"
-                />
-              </div>
+            {all.length > SHOWN && (
+              <Link
+                to="/teams"
+                className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+              >
+                View all {all.length}
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
             )}
           </div>
-
-          {teams.isPending && <Loading />}
-
-          {teams.isError && (
-            <Card className="items-start gap-3 p-4">
-              <p className="text-sm text-destructive">Your teams could not be loaded.</p>
-              <Button variant="outline" onClick={() => teams.refetch()}>
-                Try again
-              </Button>
-            </Card>
-          )}
-
-          {/* A student with an invitation waiting needs no "no team yet" message below it. */}
-          {teams.isSuccess &&
-            teams.data.length === 0 &&
-            (canCreate || waiting.length === 0) &&
-            (canCreate ? (
-              <EmptyState
-                icon={Users}
-                title="No teams yet"
-                description="Create a team, then invite its students and any other lecturers."
-                actionLabel="Create team"
-                onAction={() => navigate('/teams/new')}
-              />
-            ) : (
-              <EmptyState
-                icon={Users}
-                title="You are not in a team yet"
-                description={`Your lecturer invites you by email. When they invite ${user.email || 'your address'}, the invitation appears here.`}
-              />
-            ))}
-
-          {teams.isSuccess && teams.data.length > 0 && (
-            visible.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No team matches that search.</p>
-            ) : isStaff ? (
-              <TeamsTable teams={visible} />
-            ) : (
-              <TeamCards teams={visible} />
-            )
-          )}
+          <TeamList
+            teamsQuery={teams}
+            visible={all.slice(0, SHOWN)}
+            isStaff={isStaff}
+            canCreate={canCreate}
+            email={user.email}
+            hasInvitations={waiting.length > 0}
+          />
         </section>
 
         <aside className="grid gap-4">
-          {canCreate && teams.isSuccess && <NextSteps teams={teams.data} />}
+          <NeedsAttention teams={all} isStaff={isStaff} />
+          {canCreate && teams.isSuccess && <NextSteps teams={all} />}
           <ProfileCard user={user} profile={account?.profile} />
         </aside>
       </div>
