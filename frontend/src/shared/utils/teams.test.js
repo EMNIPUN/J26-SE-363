@@ -24,7 +24,7 @@ const team = (over) => ({
 
 describe('teamHref', () => {
   it('opens a team, or its setup while it is pending', () => {
-    expect(teamHref({ code: 'A-1', status: 'active' })).toBe('/teams/A-1')
+    expect(teamHref({ code: 'A-1', status: 'active' })).toBe('/teams/A-1/app')
     expect(teamHref({ code: 'A-1', status: 'pending' })).toBe('/teams/new/A-1')
   })
 })

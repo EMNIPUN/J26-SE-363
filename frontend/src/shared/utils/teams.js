@@ -6,7 +6,7 @@ export function describeInvitation(invitation) {
 
 // Where a team opens: its workspace, or the setup steps while it is still pending.
 export const teamHref = (team) =>
-  team.status === 'pending' ? `/teams/new/${team.code}` : `/teams/${team.code}`
+  team.status === 'pending' ? `/teams/new/${team.code}` : `/teams/${team.code}/app`
 
 /** The most recent term among the teams that are set up (terms like "2026-S2" sort as text). */
 export function latestTerm(teams) {

@@ -11,6 +11,7 @@ import {
 import EmptyState from '../../components/EmptyState.jsx'
 import PageHeader from '../../components/PageHeader.jsx'
 import InvitationList from '../home/InvitationList.jsx'
+import { teamHref } from '../../utils/teams.js'
 
 /** Every invitation waiting for an answer: the page behind the Invitations tab. */
 export default function InvitationsPage() {
@@ -57,7 +58,7 @@ export default function InvitationsPage() {
           invitations={invitations.data}
           busy={busy}
           onAccept={(id) =>
-            accept.mutate(id, { onSuccess: (team) => navigate(`/teams/${team.code}`) })
+            accept.mutate(id, { onSuccess: (team) => navigate(teamHref(team)) })
           }
           onDecline={decline.mutate}
         />

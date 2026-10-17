@@ -11,6 +11,7 @@ import {
 } from '../../hooks/useTeams.js'
 import { describeInvitation } from '../../utils/teams.js'
 import InvitationsPage from './InvitationsPage.jsx'
+import { teamHref } from '../../utils/teams.js'
 
 function Notice({ title, children, actions }) {
   return (
@@ -129,7 +130,7 @@ export default function InvitationPage() {
           loading={accept.isPending}
           disabled={busy}
           onClick={() =>
-            accept.mutate(invitation.id, { onSuccess: (team) => navigate(`/teams/${team.code}`) })
+            accept.mutate(invitation.id, { onSuccess: (team) => navigate(teamHref(team)) })
           }
         >
           Accept

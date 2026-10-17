@@ -3,6 +3,7 @@ import PropTypes from 'prop-types'
 import { Link } from 'react-router-dom'
 import { History } from 'lucide-react'
 import { readRecentTeams } from '../../utils/recentTeams.js'
+import { teamHref } from '../../utils/teams.js'
 
 /** The teams opened last, for one-click return. Not shown when there is only one team to open. */
 export default function RecentTeams({ teams }) {
@@ -24,7 +25,7 @@ export default function RecentTeams({ teams }) {
       {recent.map((team) => (
         <Link
           key={team.id}
-          to={`/teams/${team.code}`}
+          to={teamHref(team)}
           className="rounded-full border border-border bg-card px-3 py-1 font-medium text-foreground outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
         >
           {team.name}

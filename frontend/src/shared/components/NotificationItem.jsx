@@ -10,6 +10,7 @@ import {
 } from '../hooks/useTeams.js'
 import { useDismissNotification, useMarkRead } from '../hooks/useNotifications.js'
 import { timeAgo } from '../utils/time.js'
+import { teamHref } from '../utils/teams.js'
 
 const ICONS = {
   team_invitation: Mail,
@@ -50,7 +51,7 @@ function InvitationActions({ item }) {
         size="sm"
         loading={accept.isPending || accept.isSuccess}
         disabled={busy}
-        onClick={() => accept.mutate(id, { onSuccess: (team) => navigate(`/teams/${team.code}`) })}
+        onClick={() => accept.mutate(id, { onSuccess: (team) => navigate(teamHref(team)) })}
       >
         Accept
       </Button>

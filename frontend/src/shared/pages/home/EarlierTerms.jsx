@@ -2,6 +2,7 @@ import PropTypes from 'prop-types'
 import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { TeamRoleBadge } from '../../components/TeamBadges.jsx'
+import { teamHref } from '../../utils/teams.js'
 
 /** Teams from terms before the latest one, so past work is not lost from sight. */
 export default function EarlierTerms({ teams }) {
@@ -13,7 +14,7 @@ export default function EarlierTerms({ teams }) {
         {teams.map((team) => (
           <li key={team.id}>
             <Link
-              to={`/teams/${team.code}`}
+              to={teamHref(team)}
               className="flex items-center gap-3 px-4 py-2.5 text-sm outline-none hover:bg-muted/40 focus-visible:bg-muted/40"
             >
               <span className="w-20 shrink-0 text-muted-foreground">{team.term ?? '—'}</span>
