@@ -5,7 +5,7 @@ import Avatar from '../components/Avatar.jsx'
 import SelviaLogo from '../components/SelviaLogo.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 import HubNav, { HubMenu } from './HubNav.jsx'
-import HubNotifications from './HubNotifications.jsx'
+import NotificationBell from '../components/NotificationBell.jsx'
 
 /**
  * Frame for the pages that come before a team's workspace: home, the team list, creating a team,
@@ -34,7 +34,7 @@ export default function HubLayout() {
           <HubNav canCreate={canCreate} />
 
           <div className="flex items-center gap-1.5 justify-self-end">
-            <HubNotifications />
+            <NotificationBell />
             <ThemeToggle />
             <NavLink
               to="/profile"

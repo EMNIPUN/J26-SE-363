@@ -23,15 +23,15 @@ export function splitByTerm(teams) {
 
 /**
  * What is unfinished in each team, as one entry per problem. Lecturers see every team's gaps;
- * a student only sees what they can fix: the repository when they lead the team, and a leadership
- * offer waiting for them. A team still being set up has its own card on the home page.
+ * a student only sees what they can fix: the repository when they lead the team. A team still
+ * being set up, and a leadership offer waiting for an answer, each have their own card on the home
+ * page.
  */
 export function needsAttention(teams, isStaff) {
   const items = []
   const add = (team, kind, message, to) => items.push({ key: `${team.id}-${kind}`, team, message, to })
   for (const team of teams) {
     if (team.status === 'pending') continue
-    if (team.leadership_offer_to_me) add(team, 'offer', 'has offered you leadership', `/teams/${team.code}/members`)
     if (isStaff) {
       if (team.student_count > 0 && !team.leader) add(team, 'leader', 'has no leader yet')
       if (!team.repo_url) add(team, 'repo', 'has no repository linked')

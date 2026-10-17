@@ -91,7 +91,7 @@ Frontend map (`frontend/src/shared/`): `auth/` (`AuthContext`, `RequireAccount`)
 
 ## 4. Data model
 
-Added by migrations `ec66f4d17052`, `d8a41c7e5b90` and `e5b7a1c3d924` (see `docs/SCHEMA_CHANGE_GUIDE.md`).
+Added by migrations `ec66f4d17052`, `d8a41c7e5b90`, `e5b7a1c3d924` and `f2a6c4b8d150` (see `docs/SCHEMA_CHANGE_GUIDE.md`).
 
 | Table | New in this feature |
 | --- | --- |
@@ -100,6 +100,8 @@ Added by migrations `ec66f4d17052`, `d8a41c7e5b90` and `e5b7a1c3d924` (see `docs
 | `group_members` | `role` (`lecturer` / `member`), `term` (students only; `unique(user_id, term)` is the one-team-per-term rule), `joined_at` |
 | `user_avatars` | New (migration `e5b7a1c3d924`): the picture a person uploaded (`user_id`, `content_type`, `data`). `users.picture_url` holds the sign-in provider's picture address and `users.avatar_updated_at` says when an upload was made |
 | `terms` | New (migration `d8a41c7e5b90`): `name` (unique), `created_by_id`. Filled from the terms existing teams use |
+| `notifications` | New (migration `f2a6c4b8d150`): one row per notification (`user_id`, `kind`, `title`, `body`, `link`, `data`, `ref`, `read_at`, `resolved_at`). `ref` ties a notification to the thing it is about (an invitation, a team's leadership offer) so answering closes it. Rows older than 90 days are dropped |
+| `notification_preferences` | New: `(user_id, category)` unique, `email_enabled`. No row means email on |
 | `team_invitations` | New: team, `email`, role, `as_leader`, status (`pending` / `accepted` / `declined` / `revoked`), `token_hash` (SHA-256; the link secret is never stored), `expires_at`, `invited_by_id`. "Expired" is not stored: it is `expires_at` in the past |
 
 The leader and the pending leadership offer are columns on the team, not rows, so a team cannot
@@ -137,6 +139,10 @@ All under `/api/v1`, all require `Authorization: Bearer <token>`. Errors are
 | `POST /teams/{team}/leader-transfer` | the leader, lecturers | Offer leadership to a student member |
 | `POST /teams/{team}/leader-transfer/accept` and `/decline` | the offered student | Answer |
 | `DELETE /teams/{team}/leader-transfer` | the leader, lecturers | Withdraw the offer |
+| `GET /me/notifications` | onboarded | My notifications, newest first (`limit`, `before` cursor), with `unread_count`. Each has `actions` (`accept`, `decline`) while it can still be answered |
+| `POST /me/notifications/{id}/read` and `/read-all` | onboarded | Mark read |
+| `DELETE /me/notifications/{id}` | onboarded | Dismiss |
+| `GET/PUT /me/notification-preferences` | onboarded | Email on or off per category. Invitations cannot be turned off (`400 not_configurable`) |
 | `POST /invitations/lookup` | onboarded | What an email link is about |
 | `POST /invitations/{id}/accept` and `/decline` | the invited person | Answer |
 
@@ -163,6 +169,23 @@ run Mailpit (`docker compose --profile dev up -d mailpit`, inbox on http://local
 
 There is also a one-time-code email (`EmailService.verification_code`, `generate_code`) ready for
 features that need one. Nothing uses it yet: Keycloak's email verification is a link, not a code.
+
+### Notifications
+
+Every message to a person goes through one `Notifier` (`app/services/notifications`): it writes
+the in-app notification and sends the email in the same call, so the two cannot disagree. Add a
+kind in `catalog.py` (title, category, link, actions), then call `notifier.send(...)`.
+
+| Category | Kinds | Email |
+| --- | --- | --- |
+| `invitations` | team invitation, invitation answered | always |
+| `leadership` | offered, answered, withdrawn | can be turned off |
+| `activity` | member left, member removed | can be turned off |
+
+A team invitation reaches the bell when the invited person can answer it (verified email, team
+set up). Answering an invitation or a leadership offer from anywhere closes its notification. The
+web app polls every 30 seconds; there are no websockets. Emails go out from a background task and
+a failure is logged, never raised.
 
 ## 7. Setting it up
 

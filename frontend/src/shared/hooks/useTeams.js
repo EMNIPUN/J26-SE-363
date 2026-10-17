@@ -65,6 +65,7 @@ function useTeamAction(mutationFn, { success, refresh = () => [] } = {}) {
         queryClient.invalidateQueries({ queryKey: teamKeys.invitations }),
         queryClient.invalidateQueries({ queryKey: teamKeys.sent }),
         queryClient.invalidateQueries({ queryKey: ['students'] }),
+        queryClient.invalidateQueries({ queryKey: ['notifications'] }),
         ...refresh(variables).map((queryKey) => queryClient.invalidateQueries({ queryKey })),
       ])
       if (success) showToast.success(typeof success === 'function' ? success(data, variables) : success)

@@ -31,6 +31,13 @@ export const ENDPOINTS = {
     LEADER_ACCEPT: (team) => `/teams/${team}/leader-transfer/accept`,
     LEADER_DECLINE: (team) => `/teams/${team}/leader-transfer/decline`,
   },
+  NOTIFICATIONS: {
+    LIST: '/me/notifications',
+    READ_ALL: '/me/notifications/read-all',
+    ONE: (id) => `/me/notifications/${id}`,
+    READ: (id) => `/me/notifications/${id}/read`,
+    PREFERENCES: '/me/notification-preferences',
+  },
   STUDENTS: {
     AVAILABLE: '/students/available',
   },

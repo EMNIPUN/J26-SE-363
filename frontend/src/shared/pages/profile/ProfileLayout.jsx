@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { LogOut, ShieldCheck, UserRound, UsersRound } from 'lucide-react'
+import { Bell, LogOut, ShieldCheck, UserRound, UsersRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useAuth } from '../../auth/useAuth.js'
@@ -8,6 +8,7 @@ const TABS = [
   { to: '/profile', label: 'Profile', icon: UserRound, end: true },
   { to: '/profile/security', label: 'Security', icon: ShieldCheck },
   { to: '/profile/teams', label: 'Teams', icon: UsersRound },
+  { to: '/profile/notifications', label: 'Notifications', icon: Bell },
 ]
 
 /**

@@ -153,6 +153,7 @@ The first migration (`create core tables`) creates:
 | `group_members` | User ↔ group membership; each pair at most once. `ec66f4d17052` adds the member's role and, for students, the term (one team per term) |
 | `terms` | Academic terms a team can use (`d8a41c7e5b90`): unique name, who added it |
 | `user_avatars` | An uploaded profile picture, one row per person (`e5b7a1c3d924`); `users` gets `picture_url` and `avatar_updated_at` |
+| `notifications`, `notification_preferences` | In-app notifications and each person's email choices (`f2a6c4b8d150`) |
 | `projects` | Required group, creating lecturer, title (not unique), description |
 | `project_documents` | Project, original filename, content type and a storage reference (`storage_key`); the file itself lives in object storage, never in the database |
 | `agent_runs` | Background orchestration runs: request id, action, requester, scope ids, status (`queued`/`running`/`succeeded`/`failed`), JSON response and error |
@@ -169,6 +170,9 @@ still being set up.
 
 The fifth migration (`profile pictures`, `e5b7a1c3d924`) adds `users.picture_url`, `users.avatar_updated_at` and
 the `user_avatars` table (with row level security).
+
+The sixth migration (`notifications`, `f2a6c4b8d150`) adds the `notifications` and `notification_preferences` tables
+(with row level security).
 
 **Alembic never touches Procrastinate's tables** (`procrastinate_*`, the job queue in the same
 database) or any other table without a model: `include_object` in

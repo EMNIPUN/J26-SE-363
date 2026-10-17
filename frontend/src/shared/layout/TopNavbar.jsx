@@ -5,7 +5,7 @@ import { useAuth } from '../auth/useAuth.js'
 import { getRoleLabel } from '../constants/roles.js'
 import Avatar from '../components/Avatar.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
-import NotificationDropdown from '../components/NotificationDropdown.jsx'
+import NotificationBell from '../components/NotificationBell.jsx'
 import CommandPalette from '../components/CommandPalette.jsx'
 import SelviaLogo from '../components/SelviaLogo.jsx'
 import ScopeSelector from '../components/ScopeSelector.jsx'
@@ -94,7 +94,7 @@ export default function TopNavbar({ onToggleMobileMenu, sidebarCollapsed = false
 
         <ThemeToggle />
 
-        <NotificationDropdown />
+        <NotificationBell />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

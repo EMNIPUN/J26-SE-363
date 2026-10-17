@@ -47,11 +47,6 @@ describe('needsAttention', () => {
     expect(needsAttention([team({ status: 'pending', repo_url: null, leader: null })], true)).toEqual([])
   })
 
-  it('tells a student about a leadership offer, and links to where it is answered', () => {
-    const items = needsAttention([team({ id: 't9', code: 'ATLAS', my_role: 'member', leadership_offer_to_me: true })], false)
-    expect(items).toMatchObject([{ message: 'has offered you leadership', to: '/teams/ATLAS/members' }])
-  })
-
   it('does not ask for a leader before any student is in the team', () => {
     expect(needsAttention([team({ student_count: 0, leader: null })], true)).toEqual([])
   })

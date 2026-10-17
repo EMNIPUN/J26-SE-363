@@ -14,6 +14,7 @@ import DraftTeams from './DraftTeams.jsx'
 import EarlierTerms from './EarlierTerms.jsx'
 import HomeStats from './HomeStats.jsx'
 import InvitationList from './InvitationList.jsx'
+import LeadershipOffers from './LeadershipOffers.jsx'
 import NeedsAttention from './NeedsAttention.jsx'
 import ProfileChecklist from './ProfileChecklist.jsx'
 import RecentTeams from './RecentTeams.jsx'
@@ -94,6 +95,8 @@ export default function HomePage() {
           onDecline={decline.mutate}
         />
       )}
+
+      <LeadershipOffers teams={all} />
 
       <HomeStats
         teams={all}
