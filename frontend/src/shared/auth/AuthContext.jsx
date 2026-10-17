@@ -3,6 +3,7 @@ import PropTypes from 'prop-types'
 import { AuthContext } from './context.js'
 import keycloak, { initKeycloak } from './keycloak.js'
 import tokenManager from '../api/tokenManager.js'
+import authService from './services/authService.js'
 
 const STORAGE_KEY = 'j26_auth_user'
 
@@ -26,6 +27,8 @@ export function AuthProvider({ children }) {
   const [isInitialized, setIsInitialized] = useState(false)
   const [isKeycloak, setIsKeycloak] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  // Identity as the Core API sees it (GET /api/v1/auth/me): null until the API confirms the token.
+  const [serverUser, setServerUser] = useState(null)
 
   // Initialize Keycloak SSO on application startup
   useEffect(() => {
@@ -59,6 +62,17 @@ export function AuthProvider({ children }) {
 
           setUser(authUser)
           setIsKeycloak(true)
+
+          // First real request to the Core API: it verifies the token against Keycloak
+          // and answers with the user and role it derived from it.
+          authService
+            .getCurrentUser()
+            .then((profile) => {
+              if (isMounted) setServerUser(profile)
+            })
+            .catch((err) => {
+              console.warn('Core API did not accept the Keycloak session:', err?.status ?? err?.message)
+            })
         } else {
           // If Keycloak SSO is not active, clear any stale Keycloak session from localStorage
           const stored = readStoredUser()
@@ -127,6 +141,7 @@ export function AuthProvider({ children }) {
   // Unified Logout
   const logout = useCallback(() => {
     setIsLoggingOut(true)
+    setServerUser(null)
     tokenManager.clearToken()
     try {
       localStorage.removeItem(STORAGE_KEY)
@@ -152,12 +167,13 @@ export function AuthProvider({ children }) {
       isInitialized,
       isKeycloak,
       isLoggingOut,
+      serverUser,
       token: keycloak.token || tokenManager.getToken(),
       login,
       loginWithKeycloak,
       logout,
     }),
-    [user, isInitialized, isKeycloak, isLoggingOut, login, loginWithKeycloak, logout]
+    [user, isInitialized, isKeycloak, isLoggingOut, serverUser, login, loginWithKeycloak, logout]
   )
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>

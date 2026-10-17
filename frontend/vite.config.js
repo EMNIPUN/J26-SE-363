@@ -10,11 +10,8 @@ export default defineConfig(({ mode }) => {
   const localEnv = loadEnv(mode, process.cwd(), '')
   const env = { ...rootEnv, ...localEnv }
 
-  const gatewayUrl =
-    env.VITE_GATEWAY_URL ||
-    env.GATEWAY_PUBLIC_URL ||
-    env.VITE_BACKEND_TARGET ||
-    'http://localhost:8000'
+  // Core API (FastAPI). The frontend calls /api/<path>; it is forwarded as /api/v1/<path>.
+  const coreApiUrl = env.VITE_API_PROXY_TARGET || 'http://localhost:8002'
 
   return {
     plugins: [react(), tailwindcss()],
@@ -25,12 +22,14 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
-        // Zero-domain local development reverse proxy:
-        // Maps /api/* calls directly to the gateway (localhost or VPS) without CORS issues
+        // Zero-domain local development reverse proxy (no CORS issues):
+        // /api/* goes to the Core API, e.g. /api/auth/me -> http://localhost:8002/api/v1/auth/me
+        // Keycloak traffic does not use this proxy: it goes to VITE_KEYCLOAK_URL directly.
         '/api': {
-          target: gatewayUrl,
+          target: coreApiUrl,
           changeOrigin: true,
           secure: false,
+          rewrite: (path) => path.replace(/^\/api/, '/api/v1'),
         },
       },
     },
