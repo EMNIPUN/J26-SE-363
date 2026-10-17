@@ -85,6 +85,12 @@ services:
     volumes:
       - ./docker/keycloak/themes:/opt/keycloak/themes:ro
       - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    # Keycloak keeps gzip copies of the theme CSS/JS in data/tmp/kc-gzip-cache, keyed by a
+    # version hash and not by file content. On disk that cache survives container restarts and
+    # keeps serving the OLD stylesheet after a theme change (login page renders unstyled).
+    # In RAM it is emptied whenever the container starts. Cache only: nothing to back up.
+    tmpfs:
+      - /opt/keycloak/data/tmp
     depends_on:
       postgres:
         condition: service_healthy
