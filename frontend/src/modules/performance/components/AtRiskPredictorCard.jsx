@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress'
  * and SHAP-style Explainable AI (XAI) feature attribution deltas.
  */
 export default function AtRiskPredictorCard({
+  audience = 'instructor',
   probability = 0.12,
   tier = 'Low',
   primaryFactor = 'Consistent cadence across all sprint cycles',
@@ -21,20 +22,20 @@ export default function AtRiskPredictorCard({
   ],
 }) {
   const probPercent = Math.round(probability * 100)
+  const supportive = audience === 'student'
 
-  // Risk styling
   let badgeColor = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
   let Icon = ShieldCheck
-  let statusText = 'Low Risk — On Track'
+  let statusText = supportive ? 'Steady' : 'Low signal — on track'
 
   if (probPercent >= 60 || tier === 'Critical' || tier === 'High') {
     badgeColor = 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
     Icon = AlertOctagon
-    statusText = 'Critical Risk — Immediate Intervention'
+    statusText = supportive ? 'Needs a conversation' : 'High inferred risk'
   } else if (probPercent >= 25 || tier === 'Moderate' || tier === 'Warning') {
     badgeColor = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
     Icon = AlertTriangle
-    statusText = 'Moderate Warning — Free-Rider Suspect'
+    statusText = supportive ? 'Worth extra practice' : 'Moderate inferred risk'
   }
 
   return (
@@ -47,10 +48,12 @@ export default function AtRiskPredictorCard({
           </div>
           <div>
             <h3 className="text-sm font-semibold text-foreground">
-              ML At-Risk Predictor
+              {supportive ? 'How your work pattern looks' : 'Inferred risk signal'}
             </h3>
-            <p className="text-[11px] text-muted-foreground">
-              Gradient Boosted Free-Rider Classifier
+            <p className="text-xs text-muted-foreground">
+              {supportive
+                ? 'An estimate for you, not a grade.'
+                : 'Inferred by the model. Confirm it against commits, reviews, and stand-ups before you act.'}
             </p>
           </div>
         </div>
@@ -88,7 +91,7 @@ export default function AtRiskPredictorCard({
       {/* Explainable AI (XAI) Attribution Breakdown */}
       <div className="space-y-2 pt-1">
         <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-          Top Explainability Drivers (SHAP Attribution):
+          {supportive ? 'What is influencing this estimate' : 'Factors behind the inference'}
         </span>
         <div className="space-y-1.5">
           {features.map((feat) => {
@@ -108,7 +111,9 @@ export default function AtRiskPredictorCard({
                       : 'text-rose-500'
                   }`}
                 >
-                  {isProtective ? `${feat.impact}% (Protective)` : `+${feat.impact}% (Risk)`}
+                  {isProtective
+                    ? `${feat.impact}% ${supportive ? '(helps)' : '(protective)'}`
+                    : `+${feat.impact}% ${supportive ? '(to practice)' : '(raises the signal)'}`}
                 </span>
               </div>
             )
@@ -120,6 +125,7 @@ export default function AtRiskPredictorCard({
 }
 
 AtRiskPredictorCard.propTypes = {
+  audience: PropTypes.oneOf(['student', 'instructor']),
   probability: PropTypes.number,
   tier: PropTypes.string,
   primaryFactor: PropTypes.string,

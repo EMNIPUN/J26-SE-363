@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Sparkles,
   Plus,
@@ -21,6 +21,7 @@ import {
   Check,
   ShieldCheck,
 } from 'lucide-react'
+import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import Card from '../../../../../shared/components/Card.jsx'
 import Badge from '../../../../../shared/components/Badge.jsx'
 import EmptyState from '../../../../../shared/components/EmptyState.jsx'
@@ -421,6 +422,8 @@ function NewStoryForm({ reqId, onDone }) {
 }
 
 export default function Decomposition() {
+  const navigate = useNavigate()
+  const team = useTeamPath()
   const { requirements, userStories, getStories, getDecompositionEvaluation, recordDecompositionAnalysis } = usePlanningData()
   const passing = requirements.filter((r) => r.status === 'Passing')
   const [selectedReqId, setSelectedReqId] = useState(passing[0]?.id ?? requirements[0]?.id ?? '')
@@ -616,7 +619,7 @@ export default function Decomposition() {
               title={`${requirement.id} is blocked`}
               description={`This requirement is ${requirement.status === 'Failing' ? 'failing' : 'still under review'} in SRS Quality (${requirement.overallScore}%). It must pass the quality gate before it can be decomposed.`}
               actionLabel="Go to SRS Quality"
-              onAction={() => { window.location.href = '/planning/requirements/srs-quality' }}
+              onAction={() => navigate(team('/planning/requirements/srs-quality'))}
             />
           )}
 
@@ -627,7 +630,7 @@ export default function Decomposition() {
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{requirement.id}</p>
                   <h3 className="text-sm font-semibold text-foreground">{requirement.title}</h3>
                 </div>
-                <Link to="/planning/requirements/estimation" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline shrink-0">
+                <Link to={team('/planning/requirements/estimation')} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline shrink-0">
                   Go to Effort Estimation <ArrowRight className="h-3 w-3" />
                 </Link>
               </Card>

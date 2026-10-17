@@ -1,0 +1,129 @@
+"""Unit tests for decoupled PostgreSQL layer and standalone server endpoints."""
+
+import os
+import pytest
+from app.agents.performance_assessment.com_agent.db import (
+    get_db_url,
+    init_assessment_db,
+    get_checkpointer,
+    save_assessment_result_db,
+    save_student_feedback_db,
+    get_assessment_result_db,
+    save_student_evidence_pool,
+    get_student_evidence_pool,
+    INIT_TABLES_SQL,
+)
+from app.agents.performance_assessment.com_agent.graph import MemorySaver
+from app.agents.performance_assessment.server import app
+
+
+def test_get_db_url_default(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("POSTGRES_HOST", "localhost")
+    monkeypatch.setenv("POSTGRES_PORT", "5434")
+    monkeypatch.setenv("POSTGRES_DB", "assessment_db")
+    monkeypatch.setenv("POSTGRES_USER", "assessment_user")
+    monkeypatch.setenv("POSTGRES_PASSWORD", "assessment_pass")
+
+    url = get_db_url()
+    assert url == "postgresql://assessment_user:assessment_pass@localhost:5434/assessment_db"
+
+
+def test_get_db_url_custom_override(monkeypatch):
+    custom = "postgresql://custom:custompass@customhost:5432/customdb"
+    monkeypatch.setenv("DATABASE_URL", custom)
+    assert get_db_url() == custom
+
+
+def test_get_checkpointer_dev_mode_returns_memory_saver():
+    """In development mode, get_checkpointer must return MemorySaver without connecting to DB."""
+    cp = get_checkpointer()
+    assert isinstance(cp, MemorySaver)
+
+
+def test_init_assessment_db_offline_graceful_fallback():
+    """Connecting to a non-existent port must return False gracefully without crashing."""
+    offline_url = "postgresql://user:pass@127.0.0.1:59999/nonexistent_db"
+    success = init_assessment_db(db_url=offline_url)
+    assert success is False
+
+
+def test_save_and_get_assessment_result_db_offline_handling():
+    """DB save and query methods return False / None when DB is unavailable."""
+    offline_url = "postgresql://user:pass@127.0.0.1:59999/nonexistent_db"
+    dummy_data = {
+        "student_id": "STU-001",
+        "sprint_id": "sprint-01",
+        "final_score": 0.85,
+    }
+    assert save_assessment_result_db(dummy_data, db_url=offline_url) is False
+    assert save_student_feedback_db(dummy_data, db_url=offline_url) is False
+    assert get_assessment_result_db("STU-001", "sprint-01", db_url=offline_url) is None
+
+
+def test_save_and_get_student_evidence_pool_offline_handling():
+    """Evidence pool save and query methods return False / None when DB is unavailable."""
+    offline_url = "postgresql://user:pass@127.0.0.1:59999/nonexistent_db"
+    assert (
+        save_student_evidence_pool(
+            student_id="STU-001",
+            sprint_id="sprint-01",
+            team_id="team-alpha",
+            repo_url="https://github.com/org/repo.git",
+            raw_evidence={"commits": []},
+            factor_payloads={"effort": {}},
+            db_url=offline_url,
+        )
+        is False
+    )
+    assert get_student_evidence_pool("STU-001", "sprint-01", db_url=offline_url) is None
+
+
+def test_init_tables_sql_schema_integrity():
+    """Ensure required tables and constraints are defined in SQL schema."""
+    assert "CREATE TABLE IF NOT EXISTS assessment_results" in INIT_TABLES_SQL
+    assert "CREATE TABLE IF NOT EXISTS student_feedback" in INIT_TABLES_SQL
+    assert "CREATE TABLE IF NOT EXISTS cohort_baselines" in INIT_TABLES_SQL
+    assert "CREATE TABLE IF NOT EXISTS student_evidence_pool" in INIT_TABLES_SQL
+    assert "uq_student_sprint UNIQUE (student_id, sprint_id)" in INIT_TABLES_SQL
+    assert "uq_evidence_student_sprint UNIQUE (student_id, sprint_id)" in INIT_TABLES_SQL
+    assert "idx_evidence_student_sprint ON student_evidence_pool" in INIT_TABLES_SQL
+
+
+def test_server_routes_registered():
+    """Verify that all required standalone API endpoints are mounted on the FastAPI app."""
+    routes = [route.path for route in app.routes]
+    assert "/health" in routes
+    assert "/api/v1/assessment/triggers/sprint-end" in routes
+    assert "/api/v1/assessment/triggers/quiz-response" in routes
+    assert "/api/v1/assessment/triggers/on-demand" in routes
+    assert "/api/v1/assessment/triggers/lecturer-review" in routes
+    assert "/api/v1/assessment/status/{thread_id}" in routes
+
+
+def test_assessment_env_files():
+    """Verify that .env and .env.example exist in the assessment folder with required keys."""
+    import pathlib
+    assessment_dir = pathlib.Path(__file__).resolve().parent.parent.parent
+    env_file = assessment_dir / ".env"
+    example_file = assessment_dir / ".env.example"
+
+    assert env_file.exists(), ".env must exist in performance_assessment folder"
+    assert example_file.exists(), ".env.example must exist in performance_assessment folder"
+
+    required_vars = [
+        "COM_AGENT_ENV",
+        "COMPOSE_PROFILES",
+        "POSTGRES_DB",
+        "POSTGRES_USER",
+        "POSTGRES_PASSWORD",
+        "POSTGRES_HOST",
+        "POSTGRES_PORT",
+    ]
+    env_text = env_file.read_text(encoding="utf-8")
+    example_text = example_file.read_text(encoding="utf-8")
+
+    for v in required_vars:
+        assert v in env_text, f"{v} missing in .env"
+        assert v in example_text, f"{v} missing in .env.example"
+

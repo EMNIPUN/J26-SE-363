@@ -1,0 +1,1 @@
+"""Deterministic mathematical fusion engine."""

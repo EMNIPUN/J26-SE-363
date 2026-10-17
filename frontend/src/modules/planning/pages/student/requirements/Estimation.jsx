@@ -13,6 +13,7 @@ import {
   Check,
   KanbanSquare,
 } from 'lucide-react'
+import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import Card from '../../../../../shared/components/Card.jsx'
 import Badge from '../../../../../shared/components/Badge.jsx'
 import EmptyState from '../../../../../shared/components/EmptyState.jsx'
@@ -250,6 +251,7 @@ export default function Estimation() {
   const [consultOpen, setConsultOpen] = useState(false)
   const [guideOpen, setGuideOpen] = useState(false)
   const navigate = useNavigate()
+  const team = useTeamPath()
 
   const estimationProgressPercent = acceptedStories.length
     ? Math.round((estimatedCount / acceptedStories.length) * 100)
@@ -303,7 +305,7 @@ export default function Estimation() {
           </Button>
           <Button
             size="sm"
-            onClick={() => navigate('/planning/sprint-management')}
+            onClick={() => navigate(team('/planning/sprint-management'))}
             className="text-xs cursor-pointer gap-1.5"
           >
             <KanbanSquare className="h-3.5 w-3.5" /> Sprint Board
@@ -435,7 +437,7 @@ export default function Estimation() {
               title={`${requirement.id} is blocked`}
               description={`This requirement hasn't passed SRS Quality yet (${requirement.overallScore}%). It must clear the quality gate — and be decomposed — before it can be estimated.`}
               actionLabel="Go to SRS Quality"
-              onAction={() => { window.location.href = '/planning/requirements/srs-quality' }}
+              onAction={() => navigate(team('/planning/requirements/srs-quality'))}
             />
           )}
 
@@ -445,7 +447,7 @@ export default function Estimation() {
               title="Nothing to estimate yet"
               description={`No accepted user stories for ${requirement.id} yet. Accept a story in Decomposition first.`}
               actionLabel="Go to Decomposition"
-              onAction={() => { window.location.href = '/planning/requirements/decomposition' }}
+              onAction={() => navigate(team('/planning/requirements/decomposition'))}
             />
           )}
 
@@ -456,7 +458,7 @@ export default function Estimation() {
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{requirement.id}</p>
                   <h3 className="text-sm font-semibold text-foreground">{requirement.title}</h3>
                 </div>
-                <Link to="/planning/sprint-management" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline shrink-0">
+                <Link to={team('/planning/sprint-management')} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline shrink-0">
                   Go to Sprint Management <ArrowRight className="h-3 w-3" />
                 </Link>
               </Card>

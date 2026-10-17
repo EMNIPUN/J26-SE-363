@@ -1,0 +1,50 @@
+# ==============================================================================
+# PERFORMANCE ASSESSMENT AGENT - DOCKERFILE
+# Completely decoupled container runtime for the assessment microservice
+# ==============================================================================
+
+FROM python:3.11-slim AS base
+
+# Install system dependencies (git for GitSandboxRunner, libpq for PostgreSQL)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Build arguments loaded from environment (.env)
+ARG POSTGRES_USER=assessment_user
+ARG POSTGRES_PASSWORD=assessment_pass
+ARG POSTGRES_DB=assessment_db
+ARG COM_AGENT_ENV=production
+
+# Copy isolated requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Create package structure so imports resolve cleanly:
+# from app.agents.performance_assessment...
+RUN mkdir -p /app/app/agents/performance_assessment && \
+    touch /app/app/__init__.py /app/app/agents/__init__.py
+
+# Copy agent code into the container
+COPY . /app/app/agents/performance_assessment/
+
+# Environment variables populated from build args / env
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    COM_AGENT_ENV=${COM_AGENT_ENV} \
+    POSTGRES_USER=${POSTGRES_USER} \
+    POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+    POSTGRES_DB=${POSTGRES_DB} \
+    PORT=8002
+
+EXPOSE 8002
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:8002/health || exit 1
+
+CMD ["uvicorn", "app.agents.performance_assessment.server:app", "--host", "0.0.0.0", "--port", "8002"]

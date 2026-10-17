@@ -1,8 +1,8 @@
-# MENTOR Frontend
+# SELVIA Frontend
 
-The unified frontend for **MENTOR** (**M**ulti-agent **E**ngineering **N**etwork for **T**ask **O**rchestration & **R**eview).
+The unified frontend for **SELVIA**.
 
-> **MENTOR is a multi-agent engineering system that orchestrates software project tasks, evaluates student contributions, provides adaptive learning support, and performs security review.**
+> **SELVIA is a multi-agent engineering system that orchestrates software project tasks, evaluates student contributions, provides adaptive learning support, and performs security review.**
 
 ---
 
@@ -84,6 +84,29 @@ Every developer contributing to this codebase must adhere to the following stand
 
 📖 **For the complete developer tutorial and copy-paste examples, see:**  
 👉 **[API Architecture Guidelines](docs/API_GUIDELINES.md)**
+
+---
+
+## 🗺️ Routing & Navigation Architecture (Must Read)
+
+> [!IMPORTANT]
+> **Unified App Entrypoint (`/app`)**: Authenticated users are routed to `/app`, which polymorphically renders their role-specific overview (`StudentHome`, `InstructorHome`, or `AdminHome`).
+> All research feature modules (`/planning/*`, `/performance/*`, `/tutor/*`, `/security/*`) have independent route namespaces so team members never create route collisions or git conflicts.
+
+📖 **For the routing diagram, role switcher patterns, and developer route guide, see:**  
+👉 **[Routing Architecture Guidelines](docs/ROUTING_GUIDELINES.md)**
+
+---
+
+## 👥 Team-Scoped Routing & Tenancy Architecture (`useScope`)
+
+> [!IMPORTANT]
+> **Team-Scoped Workspaces (`/teams/:teamId/*`)**: The platform organizes all research module workflows by active team workspace.
+> All 4 research modules consume the active group and its student members via the `useScope()` hook.
+> Instructors can switch between supervised teams using the searchable navbar dropdown, while students are secured by a route-level tenancy guard (`TeamScopeGuard`) locked to their enrolled team.
+
+📖 **For the team scoping specification, TanStack Query integration, and tenancy isolation details, see:**  
+👉 **[Team-Scoped Architecture Guidelines](docs/ACADEMIC_SCOPE_GUIDELINES.md)**
 
 ---
 

@@ -6,6 +6,12 @@ import {
   Bot,
   Users,
   Settings,
+  MessageCircle,
+  Route,
+  Code2,
+  ClipboardCheck,
+  ChartColumn,
+  FolderKanban,
 } from "lucide-react";
 
 // One nav tree per role. `to` on a parent makes the whole group a link too
@@ -35,12 +41,6 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
         to: t('/performance/my-progress'),
       },
       {
-        label: "Tutor Agent",
-        icon: Bot,
-        color: "#0891b2",
-        to: t("/tutor/landing"),
-      },
-      {
         label: "Project Security",
         icon: ShieldCheck,
         color: '#2563eb',
@@ -51,50 +51,57 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
         ],
       },
       {
-        label: 'Tutor Agent',
+        label: 'AI Tutor',
         icon: Bot,
-        color: '#2563eb',
+        color: '#5146C7',
         children: [
-          { label: 'Dashboard', to: t('/tutor/landing') },
-          { label: 'Chat', to: t('/tutor/chat') },
-          { label: 'Nudges', to: t('/tutor/nudges') },
+          { label: 'Tutor Chat', icon: MessageCircle, to: t('/tutor/chat') },
+          { label: 'Sprint Guidance', icon: Route, to: t('/tutor/guidance') },
+          { label: 'Practice Exercises', icon: Code2, to: t('/tutor/practice') },
+          { label: 'Assessments', icon: ClipboardCheck, to: t('/tutor/assessments') },
+          { label: 'Progress & Results', icon: ChartColumn, to: t('/tutor/progress') },
         ],
       },
     ]
   }
 
+  // Lecturer areas without a page yet (chat workspace, sprint monitoring,
+  // learning analytics, settings) are left out rather than linked to nothing.
   if (role === "instructor") {
     return [
-      { label: "Overview", icon: LayoutDashboard, to: t("/app") },
+      { label: "Dashboard", icon: LayoutDashboard, to: t("/app") },
+      { label: "Projects", icon: FolderKanban, to: t("/planning/instructor/projects") },
       {
-        label: "Project Planning",
-        icon: BookOpen,
-        color: "#2563eb",
+        label: "Groups & Students",
+        icon: Users,
         children: [
-          { label: 'Dashboard', to: t('/planning/instructor/dashboard') },
-          { label: 'Projects', to: t('/planning/instructor/projects') },
-          { label: 'Groups', to: t('/planning/instructor/groups') },
-          { label: 'Arbitration Oversight', to: t('/planning/instructor/arbitration') },
+          { label: "Groups", to: t("/planning/instructor/groups") },
+          { label: "Student evidence", to: t("/performance/students") },
+          { label: "Contribution overview", to: t("/performance/dashboard") },
         ],
       },
       {
-        label: "Performance",
-        icon: BarChart3,
-        color: '#2563eb',
+        label: "Requirements & Planning",
+        icon: BookOpen,
         children: [
-          { label: "Dashboard", to: t("/performance/dashboard") },
-          { label: "Student Detail", to: t("/performance/students") },
-          { label: "Assessments", to: t("/performance/assessments") },
+          { label: "Planning overview", to: t("/planning/instructor/dashboard") },
+          { label: "Planning decisions", to: t("/planning/instructor/arbitration") },
+        ],
+      },
+      {
+        label: "Assessment",
+        icon: ClipboardCheck,
+        children: [
+          { label: "Assessment setup", to: t("/performance/assessments") },
           { label: "Reports", to: t("/performance/reports") },
         ],
       },
       {
-        label: "Security",
+        label: "Security & Quality",
         icon: ShieldCheck,
-        color: '#2563eb',
         children: [
-          { label: "Dashboard", to: t("/security/dashboard") },
-          { label: "Scan Report", to: t("/security/scan-report") },
+          { label: "Overview", to: t("/security/dashboard") },
+          { label: "Scan report", to: t("/security/scan-report") },
           { label: "Remediation", to: t("/security/remediation") },
         ],
       },

@@ -1,4 +1,4 @@
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useParams } from 'react-router-dom'
 import { Users, TrendingUp, AlertTriangle, Gavel } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -34,6 +34,8 @@ const CATEGORY_ORDER = ['COMPOUND', 'AMBIGUOUS', 'STRUCTURAL', 'NOVEL']
 
 export default function InstructorDashboard() {
   const navigate = useNavigate()
+  const { teamId } = useParams()
+  const team = (path) => `/teams/${teamId}${path}`
 
   const avgGate = Math.round(GROUPS.reduce((sum, g) => sum + g.qualityGate, 0) / GROUPS.length)
   const escalated = ARBITRATION_CASES.filter((c) => c.status === 'Open' && (c.category === 'NOVEL' || c.confidenceAgreement < 40))
@@ -136,7 +138,7 @@ export default function InstructorDashboard() {
               <h3 className="text-base font-semibold text-foreground">Escalated for your review</h3>
               <p className="text-xs text-muted-foreground">NOVEL-category or low-confidence DART cases the agents couldn't resolve on their own.</p>
             </div>
-            <Link to="/planning/instructor/arbitration" className="text-xs font-medium text-primary hover:underline shrink-0">
+            <Link to={team('/planning/instructor/arbitration')} className="text-xs font-medium text-primary hover:underline shrink-0">
               Open Arbitration Oversight →
             </Link>
           </div>
@@ -159,7 +161,7 @@ export default function InstructorDashboard() {
           </TableHeader>
           <TableBody>
             {attentionGroups.map((g) => (
-              <TableRow key={g.id} className="cursor-pointer" onClick={() => navigate(`/planning/instructor/groups/${g.id}`)}>
+              <TableRow key={g.id} className="cursor-pointer" onClick={() => navigate(team(`/planning/instructor/groups/${g.id}`))}>
                 <TableCell className="font-medium">{g.name}</TableCell>
                 <TableCell className="text-muted-foreground max-w-xs truncate">{g.project}</TableCell>
                 <TableCell>{g.qualityGate}%</TableCell>

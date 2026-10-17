@@ -1,28 +1,33 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  AlertTriangle,
   ArrowRight,
-  FileBarChart,
+  Ban,
+  BookOpen,
+  Eye,
+  FolderKanban,
+  FolderPlus,
   Gavel,
+  GitBranch,
+  GraduationCap,
+  MessageCircle,
   ShieldAlert,
   ShieldCheck,
-  TrendingUp,
-  UserX,
-  Users,
-  FolderPlus,
-  GitBranch,
+  Sparkles,
 } from 'lucide-react'
 import { useAuth } from '../../auth/useAuth.js'
 import { useScope } from '../../context/useScope.js'
-import { getModule } from '../../constants/modules.js'
 import { getGreeting, getShortName, formatToday } from '../../utils/greeting.js'
-import StatCard from '../../components/StatCard.jsx'
-import ComponentLinkGrid from '../../components/ComponentLinkGrid.jsx'
+import { openAiPanel } from '../../utils/aiPanel.js'
+import { usePlanningData } from '../../../modules/planning/context/usePlanningData.js'
+import { buildLecturerSummary, DATA_SOURCE_NOTE } from '../../services/lecturerDashboard.js'
 import Card from '../../components/Card.jsx'
 import Badge from '../../components/Badge.jsx'
+import EmptyState from '../../components/EmptyState.jsx'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { useTeams } from '@/shared/hooks/useTeamManagement'
+import TeamRosterDrawer from '@/shared/components/roster/TeamRosterDrawer'
 import {
   Table,
   TableBody,
@@ -31,290 +36,475 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { GROUPS } from '../../../modules/planning/data/mockData.js'
 
-// Live API Hooks
-import { useTeams } from '@/shared/hooks/useTeamManagement'
-
-// Team Roster Drawer
-import TeamRosterDrawer from '@/shared/components/roster/TeamRosterDrawer'
-
-const RISK_TONE = { Low: 'success', Medium: 'warning', High: 'danger' }
-const RISK_ORDER = { High: 0, Medium: 1, Low: 2 }
-
-const ATTENTION_ITEMS = [
-  {
-    id: 'arb',
-    icon: Gavel,
-    tone: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
-    title: '4 arbitration cases escalated to you',
-    detail: 'DART could not reach agreement on Group 12 and Group 03 requirements.',
-    path: '/planning/instructor/arbitration',
-    cta: 'Review cases',
-  },
-  {
-    id: 'risk',
-    icon: UserX,
-    tone: 'bg-destructive/10 text-destructive',
-    title: '1 student predicted high-risk',
-    detail: 'Low commit activity and 45% stand-up attendance this sprint.',
-    path: '/performance/students',
-    cta: 'View student',
-  },
-  {
-    id: 'sec',
-    icon: ShieldAlert,
-    tone: 'bg-destructive/10 text-destructive',
-    title: '2 critical vulnerabilities open',
-    detail: 'Hardcoded secret and SQL injection findings awaiting remediation.',
-    path: '/security/dashboard',
-    cta: 'Open report',
-  },
+const DISMISS_KEY = 'selvia-lecturer-dismissed'
+const STATUS_TONE = { 'On Track': 'success', 'Needs Attention': 'warning', 'At Risk': 'danger' }
+const ATTENTION_ICON = {
+  decision: Gavel,
+  blocker: Ban,
+  quality: Eye,
+  security: ShieldAlert,
+  support: Sparkles,
+}
+const CHAT_SUGGESTIONS = [
+  'Which groups have blocked sprint tasks?',
+  'Which groups are below the quality gate?',
+  'What is waiting for my decision?',
 ]
+
+function readDismissed() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(DISMISS_KEY) || '[]')
+    return Array.isArray(saved) ? saved : []
+  } catch {
+    return []
+  }
+}
+
+function SummaryCard({ icon: Icon, title, linkLabel, to, children }) {
+  return (
+    <Card className="flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Icon className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+      </div>
+      <div className="flex-1 space-y-3 text-sm">{children}</div>
+      {to && (
+        <Link
+          to={to}
+          className="inline-flex items-center gap-1 self-start rounded-sm text-sm font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {linkLabel}
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </Link>
+      )}
+    </Card>
+  )
+}
+
+function Stat({ label, value, tone }) {
+  const toneClass =
+    tone === 'warning'
+      ? 'text-amber-700 dark:text-amber-400'
+      : tone === 'danger'
+        ? 'text-destructive'
+        : tone === 'success'
+          ? 'text-emerald-700 dark:text-emerald-400'
+          : 'text-foreground'
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className={`text-lg font-semibold tabular-nums ${toneClass}`}>{value}</dd>
+    </div>
+  )
+}
 
 export default function InstructorHome() {
   const { user } = useAuth()
-  const { selectedGroup, selectedBatch } = useScope()
+  const { selectedGroup, selectedBatch, teamStudents } = useScope()
+  const planning = usePlanningData()
+  const [dismissed, setDismissed] = useState(readDismissed)
 
-  // Drawer modal state
+  // Live teams from the database for the active batch, managed through the roster drawer
   const [activeDrawerTeamId, setActiveDrawerTeamId] = useState(null)
-
-  // Fetch live teams from the database for the active batch
   const currentBatchId = selectedBatch?.id || 'batch-2026-y4s1'
   const { data: liveTeams = [], isLoading: teamsLoading } = useTeams(currentBatchId)
 
-  const team = (path) => `/teams/${selectedGroup?.code || 'J26-SE-363'}${path}`
-  const rawGroups = Array.isArray(GROUPS) ? GROUPS : []
-  const groups = [...rawGroups].sort((a, b) => (RISK_ORDER[a?.risk] ?? 3) - (RISK_ORDER[b?.risk] ?? 3))
-  const avgGate = rawGroups.length
-    ? Math.round(rawGroups.reduce((sum, g) => sum + (g?.qualityGate || 0), 0) / rawGroups.length)
-    : 79
-  const atRiskGroups = rawGroups.filter((g) => g?.risk && g.risk !== 'Low').length
+  const summary = useMemo(
+    () =>
+      buildLecturerSummary({
+        planning: {
+          requirements: planning.requirements,
+          userStories: planning.userStories,
+          estimations: planning.estimations,
+          kanbanTasks: planning.kanbanTasks,
+        },
+        teamStudents,
+      }),
+    [planning.requirements, planning.userStories, planning.estimations, planning.kanbanTasks, teamStudents],
+  )
 
-  const quickLinks = [
-    { ...getModule('planning'), to: team('/planning/instructor/dashboard') },
-    { ...getModule('performance'), to: team('/performance/dashboard') },
-    { ...getModule('security'), to: team('/security/dashboard') },
-  ]
+  const team = (path) => `/teams/${selectedGroup?.code}${path}`
+  const visible = summary.attention.filter((item) => !dismissed.includes(item.id))
+  const { projects, groups, progress, requirements, security, learning } = summary
 
-  const totalTeamsCount = (Array.isArray(liveTeams) && liveTeams.length > 0)
-    ? liveTeams.length
-    : rawGroups.length
+  const dismiss = (id) => {
+    setDismissed((prev) => {
+      const next = prev.includes(id) ? prev : [...prev, id]
+      try {
+        sessionStorage.setItem(DISMISS_KEY, JSON.stringify(next))
+      } catch {
+        // ignore storage errors
+      }
+      return next
+    })
+  }
+
+  const restore = () => {
+    setDismissed([])
+    try {
+      sessionStorage.removeItem(DISMISS_KEY)
+    } catch {
+      // ignore storage errors
+    }
+  }
 
   return (
     <div className="space-y-8">
-      {/* HEADER WITH UNIFIED GUIDED SETUP CTA */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-medium text-muted-foreground">{formatToday()}</p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground">
             {getGreeting()}, {getShortName(user?.name)}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            You&apos;re supervising {totalTeamsCount} teams this semester — {atRiskGroups} need a closer look.
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            {projects.count} projects · {visible.length} item{visible.length === 1 ? '' : 's'} need your attention ·{' '}
+            {requirements.groupsBelowGate} below the quality gate. {DATA_SOURCE_NOTE}
           </p>
         </div>
-
-        {/* PRIMARY ACTIONS: GUIDED WIZARD + QUICK REPORT */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Button asChild variant="outline" size="lg">
-            <Link to={team('/performance/reports')}>
-              <FileBarChart className="h-4 w-4 mr-1.5" />
-              Reports
-            </Link>
-          </Button>
-
-          <Button asChild size="lg" className="shadow-xs cursor-pointer">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Button asChild size="lg">
             <Link to={team('/projects/new')}>
-              <FolderPlus className="h-4 w-4 mr-1.5" />
+              <FolderPlus className="h-4 w-4" />
               Create Project
             </Link>
           </Button>
         </div>
       </div>
 
-      {/* KPI METRIC CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={Users}
-          label="Supervised teams"
-          value={totalTeamsCount}
-          trend={liveTeams.length > 0 ? 'Live from database' : 'Across 2 batches'}
-          tone="primary"
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="Avg. quality gate"
-          value={`${avgGate}%`}
-          trend="+6% vs last sprint"
-          tone="success"
-        />
-        <StatCard
-          icon={AlertTriangle}
-          label="At-risk students"
-          value="4"
-          trend="1 high, 3 medium"
-          tone="warning"
-        />
-        <StatCard
-          icon={ShieldCheck}
-          label="Open vulnerabilities"
-          value="11"
-          trend="2 critical"
-          tone="danger"
-        />
-      </div>
-
-      {/* MAIN TWO-COLUMN CONTENT */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT COLUMN: ATTENTION ITEMS */}
-        <Card className="gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-foreground">Needs your attention</h2>
-            <Badge tone="warning">{ATTENTION_ITEMS.length}</Badge>
-          </div>
-          <ul className="space-y-2">
-            {ATTENTION_ITEMS.map((item) => {
-              const Icon = item.icon
-              return (
-                <li key={item.id}>
-                  <Link
-                    to={team(item.path)}
-                    className="group flex items-start gap-3 rounded-lg border border-border/60 p-3 transition-colors hover:bg-muted/60 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.tone}`}>
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-foreground">{item.title}</span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground">{item.detail}</span>
-                      <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary">
-                        {item.cta}
-                        <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-                      </span>
-                    </span>
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        </Card>
-
-        {/* RIGHT COLUMN: TEAMS OVERVIEW */}
-        <Card className="lg:col-span-2 p-0 gap-0 overflow-hidden">
-          <div className="flex items-center justify-between px-6 pt-5 pb-3">
+      <div className="grid gap-6 xl:grid-cols-3">
+        <section aria-labelledby="attention-heading" className="xl:col-span-2">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-foreground">Groups & Teams overview</h2>
-              <p className="text-xs text-muted-foreground">
-                Active teams supervised in cohort <span className="font-mono text-foreground font-semibold">{currentBatchId}</span>
+              <h2 id="attention-heading" className="text-base font-semibold text-foreground">
+                Needs your attention
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Observed items come from project records. Inferred items are signals, not facts. Students do not see this list.
               </p>
             </div>
-            <Link
-              to={team('/planning/instructor/groups')}
-              className="text-xs font-medium text-primary hover:underline"
-            >
-              View all groups
-            </Link>
+            {dismissed.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={restore}>
+                Restore hidden ({dismissed.length})
+              </Button>
+            )}
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-6">Team Code & Name</TableHead>
-                <TableHead className="w-[120px]">Repo</TableHead>
-                <TableHead className="w-[100px]">Status</TableHead>
-                <TableHead className="w-[90px] pr-6 text-right">Roster</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {teamsLoading ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-xs text-muted-foreground">
-                    Loading teams roster...
-                  </TableCell>
-                </TableRow>
-              ) : (Array.isArray(liveTeams) && liveTeams.length > 0) ? (
-                liveTeams.map((t) => (
-                  <TableRow key={t.id} className="hover:bg-muted/40 transition">
-                    <TableCell className="pl-6">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-xs text-primary">{t.team_code}</span>
-                        <span className="font-medium text-foreground">{t.name}</span>
+          {visible.length === 0 ? (
+            <EmptyState
+              icon={Gavel}
+              title="Nothing is waiting"
+              description="Escalated planning cases, blocked sprint tasks, groups under the quality gate, open critical findings, and support signals will show up here."
+            />
+          ) : (
+            <ul className="space-y-3">
+              {visible.map((item) => {
+                const Icon = ATTENTION_ICON[item.type] || Eye
+                return (
+                  <li key={item.id} className="rounded-xl border border-border/60 bg-card p-4 shadow-xs">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge tone={item.kind === 'Observed' ? 'primary' : 'warning'}>{item.kind}</Badge>
+                          <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>
+                        <p className="mt-2 text-xs text-muted-foreground">{item.evidence}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Button asChild size="sm">
+                            <Link to={team(item.path)}>
+                              {item.cta}
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
+                          {item.dismissible && (
+                            <Button variant="ghost" size="sm" onClick={() => dismiss(item.id)}>
+                              Dismiss signal
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Leader: <span className="font-mono text-foreground">{t.leader_student_id || 'Not assigned'}</span>
-                      </p>
-                    </TableCell>
-                    <TableCell>
-                      {t.repo_url ? (
-                        <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground truncate max-w-[110px]">
-                          <GitBranch className="h-3 w-3 text-emerald-500 shrink-0" />
-                          Repo
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-[11px]">None</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-[10px] capitalize">
-                        {t.status || 'active'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="pr-6 text-right">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs text-primary hover:text-primary font-medium"
-                        onClick={() => setActiveDrawerTeamId(t.id)}
-                      >
-                        Manage
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                /* Fallback to mock GROUPS when live DB has no teams */
-                groups.map((g) => (
-                  <TableRow key={g.id}>
-                    <TableCell className="pl-6">
-                      <p className="font-medium text-foreground">{g.name}</p>
-                      <p className="text-xs text-muted-foreground truncate max-w-[260px]">{g.project}</p>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Progress value={g.qualityGate} className="h-1.5 w-16" />
-                        <span className="text-xs font-medium text-foreground tabular-nums">{g.qualityGate}%</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge tone={RISK_TONE[g.risk]}>{g.risk}</Badge>
-                    </TableCell>
-                    <TableCell className="pr-6 text-right">
-                      <Button asChild variant="ghost" size="sm">
-                        <Link to={team(`/planning/instructor/groups/${g.id}`)}>
-                          Open
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+
+        <div className="space-y-6">
+          <Card className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <MessageCircle className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <h2 className="text-sm font-semibold text-foreground">Ask SELVIA</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Opens the AI chat beside this page. It is not connected to project data yet, so it will say so rather than invent an answer.
+            </p>
+            <div className="flex flex-col gap-2">
+              {CHAT_SUGGESTIONS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => openAiPanel(prompt)}
+                  className="rounded-lg border border-border px-3 py-2 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+            <Button type="button" className="w-full" onClick={() => openAiPanel()}>
+              Open SELVIA chat
+            </Button>
+          </Card>
+
+          <SummaryCard icon={FolderKanban} title="Project overview" linkLabel="All projects" to={team('/planning/instructor/projects')}>
+            <dl className="grid grid-cols-2 gap-3">
+              <Stat label="Active projects" value={projects.count} />
+              <Stat label="Students on groups" value={projects.students} />
+            </dl>
+            <p className="text-xs text-muted-foreground">Batches: {projects.batches.join(', ')}</p>
+            {projects.milestone ? (
+              <p className="text-sm text-muted-foreground">
+                {projects.milestone.groupName} is in {projects.milestone.sprintName} of {projects.milestone.totalSprints}, ending{' '}
+                {new Date(projects.milestone.sprintEndDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}.
+                Milestones are recorded for this group only.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">No milestones are recorded yet.</p>
+            )}
+          </SummaryCard>
+        </div>
       </div>
 
-      {/* COMPONENT OVERSIGHT VIEWS */}
-      <section>
-        <div className="flex items-baseline justify-between mb-4 gap-4">
-          <h2 className="text-xl font-bold tracking-tight text-foreground">Project components</h2>
-          <p className="text-xs text-muted-foreground hidden sm:block">Oversight views for each research component</p>
-        </div>
-        <ComponentLinkGrid items={quickLinks} />
-      </section>
+      <div className="grid gap-6 md:grid-cols-2">
+        <SummaryCard
+          icon={BookOpen}
+          title="Project progress"
+          linkLabel="Planning overview"
+          to={team('/planning/instructor/dashboard')}
+        >
+          {progress ? (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {progress.groupName} is the group with a live planning board.
+              </p>
+              <ul className="space-y-2">
+                {progress.stages.map((stage) => (
+                  <li key={stage.key}>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-foreground">{stage.label}</span>
+                      <span className="tabular-nums text-muted-foreground">{stage.percent}%</span>
+                    </div>
+                    <Progress value={stage.percent} className="mt-1 h-1.5" aria-label={`${stage.label} ${stage.percent}%`} />
+                  </li>
+                ))}
+              </ul>
+              <p className="text-sm text-muted-foreground">
+                {progress.outstandingCount} of {progress.totalTasks} sprint tasks still open
+                {progress.blockedCount > 0 ? `, ${progress.blockedCount} blocked` : ''}.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">No group has a live planning board yet.</p>
+          )}
+        </SummaryCard>
 
-      {/* TEAM DETAIL & ROSTER MANAGEMENT DRAWER */}
+        <SummaryCard
+          icon={ShieldCheck}
+          title="Requirement quality"
+          linkLabel="Planning decisions"
+          to={team('/planning/instructor/arbitration')}
+        >
+          <dl className="grid grid-cols-3 gap-3">
+            <Stat label="Passing" value={requirements.passing} tone="success" />
+            <Stat label="Needs review" value={requirements.review} tone="warning" />
+            <Stat label="Failing" value={requirements.failing} tone={requirements.failing ? 'danger' : undefined} />
+          </dl>
+          <p className="text-sm text-muted-foreground">
+            {requirements.total} requirements checked for {requirements.groupName}.{' '}
+            {requirements.groupsBelowGate} group{requirements.groupsBelowGate === 1 ? '' : 's'} sit below the {requirements.threshold}% gate.
+          </p>
+        </SummaryCard>
+
+        <SummaryCard icon={ShieldAlert} title="Security findings" linkLabel="Security overview" to={team('/security/dashboard')}>
+          <dl className="grid grid-cols-4 gap-3">
+            <Stat label="Open" value={security.open} tone={security.open ? 'warning' : undefined} />
+            <Stat label="In review" value={security.review} />
+            <Stat label="Learning check" value={security.learning} />
+            <Stat label="Closed" value={security.closed} tone="success" />
+          </dl>
+          <p className="text-sm text-muted-foreground">
+            {security.criticalOpen > 0
+              ? `${security.criticalOpen} critical finding${security.criticalOpen === 1 ? ' is' : 's are'} not closed yet.`
+              : 'No critical finding is open.'}{' '}
+            Counts come from the loaded findings, not a new scan.
+          </p>
+        </SummaryCard>
+
+        <SummaryCard
+          icon={GraduationCap}
+          title="Learning & student support"
+          linkLabel="Student evidence"
+          to={team('/performance/students')}
+        >
+          <p className="text-sm text-muted-foreground">
+            Explanation scores are on file for {learning.explanationScoresOnFile} of {learning.teamStudentCount} students in{' '}
+            {selectedGroup?.code}.
+          </p>
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <p className="text-xs font-medium text-foreground">Tutor evidence (sample learner)</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {learning.needsAttention} concepts need attention, {learning.developing} developing, and {learning.insufficient} without
+              enough evidence. {learning.attempts} assessment attempt{learning.attempts === 1 ? '' : 's'} on file.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              One sample record. Class-wide learning analytics are not connected yet.
+            </p>
+          </div>
+        </SummaryCard>
+      </div>
+
+      <Card className="p-0 gap-0 overflow-hidden">
+        <div className="px-6 pt-5 pb-3">
+          <h2 className="text-base font-semibold text-foreground">Teams in this cohort</h2>
+          <p className="text-sm text-muted-foreground">
+            Live teams for cohort <span className="font-mono font-semibold text-foreground">{currentBatchId}</span>. Manage a team to edit its roster.
+          </p>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="pl-6">Team code &amp; name</TableHead>
+              <TableHead className="w-[120px]">Repo</TableHead>
+              <TableHead className="w-[100px]">Status</TableHead>
+              <TableHead className="w-[90px] pr-6 text-right">Roster</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {teamsLoading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="py-8 text-center text-xs text-muted-foreground">
+                  Loading teams roster...
+                </TableCell>
+              </TableRow>
+            ) : liveTeams.length > 0 ? (
+              liveTeams.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell className="pl-6">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-primary">{t.team_code}</span>
+                      <span className="font-medium text-foreground">{t.name}</span>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Leader: <span className="font-mono text-foreground">{t.leader_student_id || 'Not assigned'}</span>
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    {t.repo_url ? (
+                      <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+                        <GitBranch className="h-3 w-3 shrink-0 text-emerald-500" aria-hidden="true" />
+                        Repo
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">None</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge tone="neutral">{t.status || 'active'}</Badge>
+                  </TableCell>
+                  <TableCell className="pr-6 text-right">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setActiveDrawerTeamId(t.id)}>
+                      Manage
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={4} className="py-8 text-center text-xs text-muted-foreground">
+                  No teams in this cohort yet. Use Create Project to set one up.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+
+      <Card className="p-0 gap-0 overflow-hidden">
+        <div className="flex flex-wrap items-end justify-between gap-3 px-6 pt-5 pb-3">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Groups & students</h2>
+            <p className="text-sm text-muted-foreground">
+              Sorted by quality-gate score. Status is the value stored on each project, not a new prediction.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(groups.statusCounts).map(([status, count]) => (
+              <Badge key={status} tone={STATUS_TONE[status] || 'neutral'}>
+                {status}: {count}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="pl-6">Group</TableHead>
+              <TableHead className="w-[90px]">Members</TableHead>
+              <TableHead className="w-[180px]">Quality gate</TableHead>
+              <TableHead className="w-[110px]">Open reviews</TableHead>
+              <TableHead className="w-[140px]">Recorded status</TableHead>
+              <TableHead className="w-[80px] pr-6 text-right">
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {groups.list.map((group) => (
+              <TableRow key={group.id}>
+                <TableCell className="pl-6">
+                  <p className="font-medium text-foreground">{group.name}</p>
+                  <p className="max-w-[260px] truncate text-xs text-muted-foreground">{group.project}</p>
+                </TableCell>
+                <TableCell className="tabular-nums">{group.members}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Progress value={group.qualityGate} className="h-1.5 w-20" aria-label={`${group.name} quality gate`} />
+                    <span className="text-xs font-medium tabular-nums text-foreground">{group.qualityGate}%</span>
+                  </div>
+                </TableCell>
+                <TableCell className="tabular-nums">{group.openArbitrations}</TableCell>
+                <TableCell>
+                  <Badge tone={STATUS_TONE[group.status] || 'neutral'}>{group.status}</Badge>
+                </TableCell>
+                <TableCell className="pr-6 text-right">
+                  <Button asChild variant="ghost" size="sm">
+                    <Link to={team(`/planning/instructor/groups/${group.id}`)} aria-label={`Open ${group.name}`}>
+                      Open
+                    </Link>
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <p className="border-t border-border px-6 py-3 text-xs text-muted-foreground">
+          {groups.teamStudentCount} student profiles in {selectedGroup?.code}
+          {groups.inferredCount > 0 ? `, ${groups.inferredCount} with an inferred check-in signal` : ''}.{' '}
+          <Link to={team('/performance/students')} className="font-medium text-primary hover:underline">
+            Open student evidence
+          </Link>
+        </p>
+      </Card>
+
       <TeamRosterDrawer
         open={Boolean(activeDrawerTeamId)}
         onOpenChange={(isOpen) => !isOpen && setActiveDrawerTeamId(null)}

@@ -1,0 +1,72 @@
+# ==============================================================================
+# PERFORMANCE ASSESSMENT AGENT - DOCKER COMPOSE
+# Fully decoupled stack: Dedicated PostgreSQL instance & Agent Microservice
+#
+# Profiles behavior:
+# - In development (COMPOSE_PROFILES empty):
+#     'docker compose up' runs ONLY assessment_postgres (agent runs locally).
+# - In production (COMPOSE_PROFILES=prod or --profile prod):
+#     'docker compose up' builds & runs BOTH assessment_postgres AND assessment_agent.
+# ==============================================================================
+
+services:
+  assessment_postgres:
+    image: postgres:16-alpine
+    container_name: assessment_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-assessment_db}
+      POSTGRES_USER: ${POSTGRES_USER:-assessment_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-assessment_pass}
+    ports:
+      # Bound to host port from .env (default: 5434)
+      - "${POSTGRES_HOST_PORT:-5434}:5432"
+    volumes:
+      - assessment_pgdata:/var/lib/postgresql/data
+    networks:
+      - assessment-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-assessment_user} -d ${POSTGRES_DB:-assessment_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  assessment_agent:
+    profiles:
+      - prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        POSTGRES_USER: ${POSTGRES_USER:-assessment_user}
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-assessment_pass}
+        POSTGRES_DB: ${POSTGRES_DB:-assessment_db}
+        COM_AGENT_ENV: ${COM_AGENT_ENV:-production}
+    container_name: assessment_agent
+    restart: unless-stopped
+    environment:
+      COM_AGENT_ENV: ${COM_AGENT_ENV:-production}
+      POSTGRES_HOST: ${POSTGRES_HOST:-assessment_postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-assessment_db}
+      POSTGRES_USER: ${POSTGRES_USER:-assessment_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-assessment_pass}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-assessment_user}:${POSTGRES_PASSWORD:-assessment_pass}@${POSTGRES_HOST:-assessment_postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-assessment_db}
+      LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2:-true}
+      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY:-}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-performance_assessment_com_agent}
+    ports:
+      - "${AGENT_PORT:-8002}:8002"
+    depends_on:
+      assessment_postgres:
+        condition: service_healthy
+    networks:
+      - assessment-net
+
+volumes:
+  assessment_pgdata:
+    driver: local
+
+networks:
+  assessment-net:
+    driver: bridge
