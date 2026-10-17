@@ -9,6 +9,7 @@ from shared.contracts import (
 )
 
 from app.api.dependencies import get_orchestrator
+from app.core.config import settings
 from app.main import app
 from app.orchestrator import AgentExecutor, Orchestrator
 
@@ -36,9 +37,13 @@ class EchoTutor:
         )
 
 
+INTERNAL_TOKEN = "test-internal-token"
+
+
 @pytest.fixture
-def client():
-    with TestClient(app) as test_client:
+def client(monkeypatch):
+    monkeypatch.setattr(settings, "INTERNAL_TOKEN", INTERNAL_TOKEN)
+    with TestClient(app, headers={"X-Internal-Token": INTERNAL_TOKEN}) as test_client:
         yield test_client
     app.dependency_overrides.clear()
 

@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     APP_NAME: str = "SELVIA AI Backend"
     APP_ENV: str = "development"
 
+    # Shared secret the Core API sends in `X-Internal-Token` (env: AI_BACKEND_INTERNAL_TOKEN).
+    # Unset means every protected call is refused (see app/core/security.py).
+    INTERNAL_TOKEN: str | None = None
+
     model_config = SettingsConfigDict(
         env_prefix="AI_BACKEND_",
         env_file=AI_BACKEND_ENV_FILE,

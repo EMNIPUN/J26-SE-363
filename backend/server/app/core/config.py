@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     # AI Backend (internal service that runs the Main Orchestrator)
     AI_BACKEND_URL: str = "http://localhost:8003"
     AI_BACKEND_TIMEOUT_SECONDS: float = 60.0
+    # Shared secret sent to the AI Backend as `X-Internal-Token`; must equal the value in
+    # backend/agentic_framework/.env (AI_BACKEND_INTERNAL_TOKEN).
+    AI_BACKEND_INTERNAL_TOKEN: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=SERVER_ENV_FILE,
