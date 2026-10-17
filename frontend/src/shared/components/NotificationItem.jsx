@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types'
 import { useNavigate } from 'react-router-dom'
-import { Crown, Mail, UserCheck, UserMinus, X } from 'lucide-react'
+import { Crown, Loader2, Mail, UserCheck, UserMinus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
@@ -25,12 +25,13 @@ const ICONS = {
 // page uses, so there is one way to answer; the notification closes itself afterwards.
 function LeadershipActions({ item }) {
   const respond = useRespondToLeadership(item.data.team_code)
+  const busy = respond.isPending || respond.isSuccess
   return (
     <>
-      <Button size="sm" loading={respond.isPending && respond.variables === true} disabled={respond.isPending} onClick={() => respond.mutate(true)}>
+      <Button size="sm" loading={busy && respond.variables === true} disabled={busy} onClick={() => respond.mutate(true)}>
         Accept
       </Button>
-      <Button size="sm" variant="outline" loading={respond.isPending && respond.variables === false} disabled={respond.isPending} onClick={() => respond.mutate(false)}>
+      <Button size="sm" variant="outline" loading={busy && respond.variables === false} disabled={busy} onClick={() => respond.mutate(false)}>
         Decline
       </Button>
     </>
@@ -41,19 +42,19 @@ function InvitationActions({ item }) {
   const navigate = useNavigate()
   const accept = useAcceptInvitation()
   const decline = useDeclineInvitation()
-  const busy = accept.isPending || decline.isPending
+  const busy = accept.isPending || decline.isPending || accept.isSuccess || decline.isSuccess
   const id = item.data.invitation_id
   return (
     <>
       <Button
         size="sm"
-        loading={accept.isPending}
+        loading={accept.isPending || accept.isSuccess}
         disabled={busy}
         onClick={() => accept.mutate(id, { onSuccess: (team) => navigate(`/teams/${team.code}`) })}
       >
         Accept
       </Button>
-      <Button size="sm" variant="outline" loading={decline.isPending} disabled={busy} onClick={() => decline.mutate(id)}>
+      <Button size="sm" variant="outline" loading={decline.isPending || decline.isSuccess} disabled={busy} onClick={() => decline.mutate(id)}>
         Decline
       </Button>
     </>
@@ -102,10 +103,18 @@ export default function NotificationItem({ item, onNavigate, compact = false }) 
       <button
         type="button"
         aria-label="Dismiss notification"
+        disabled={dismiss.isPending}
         onClick={() => dismiss.mutate(item.id)}
-        className="absolute right-2 top-2 cursor-pointer rounded p-1 text-muted-foreground opacity-0 outline-none transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+        className={cn(
+          'absolute right-2 top-2 cursor-pointer rounded p-1 text-muted-foreground outline-none transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100',
+          dismiss.isPending ? 'opacity-100' : 'opacity-0',
+        )}
       >
-        <X className="h-3.5 w-3.5" aria-hidden="true" />
+        {dismiss.isPending ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+        ) : (
+          <X className="h-3.5 w-3.5" aria-hidden="true" />
+        )}
       </button>
     </li>
   )
