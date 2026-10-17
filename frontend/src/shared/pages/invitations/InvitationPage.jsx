@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types'
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -10,6 +10,7 @@ import {
   useInvitationLookup,
 } from '../../hooks/useTeams.js'
 import { describeInvitation } from '../../utils/teams.js'
+import InvitationsPage from './InvitationsPage.jsx'
 
 function Notice({ title, children, actions }) {
   return (
@@ -74,7 +75,10 @@ ProblemNotice.propTypes = {
   onSignOut: PropTypes.func.isRequired,
 }
 
-/** The page behind the link in an invitation email. */
+/**
+ * The page behind the link in an invitation email (/invitations?token=...). Without a token it is
+ * the list of all invitations waiting, which is what the Invitations tab opens.
+ */
 export default function InvitationPage() {
   const [params] = useSearchParams()
   const token = params.get('token')
@@ -84,7 +88,7 @@ export default function InvitationPage() {
   const accept = useAcceptInvitation()
   const decline = useDeclineInvitation()
 
-  if (!token) return <Navigate to="/home" replace />
+  if (!token) return <InvitationsPage />
 
   if (lookup.isPending) {
     return <Skeleton className="mx-auto h-56 w-full max-w-md" aria-busy="true" />
