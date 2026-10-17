@@ -67,9 +67,10 @@ All of them connect as the Supabase `postgres` role, which owns the tables (sect
 
 | Table | Holds |
 | --- | --- |
-| `users` | Keycloak subject (unique), role (`student`/`lecturer`/`admin`), name, optional unique student number |
-| `groups` | Group code (unique) and name |
-| `group_members` | User and group membership, each pair once |
+| `users` | Keycloak subject (unique), role (`student`/`lecturer`/`admin`, empty until onboarding is done), name, email, optional unique student number, profile and consent fields |
+| `groups` | Group code (unique) and name; as a team also its term, status, repository, leader |
+| `group_members` | User and group membership, each pair once; the member's role and, for students, the term (one team per term) |
+| `team_invitations` | Email-addressed invitations to a team: role, leader flag, hashed link secret, expiry, status |
 | `projects` | Group, creating lecturer, title, description |
 | `project_documents` | Project, file name, content type, storage key (the file lives in object storage) |
 | `agent_runs` | Background orchestration runs: request id, action, requester, scope ids, status, JSON response and error |
