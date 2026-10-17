@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -115,8 +114,7 @@ export default function ProfilePage() {
                 </div>
               )}
               <div className="flex justify-end">
-                <Button type="submit" disabled={save.isPending}>
-                  {save.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                <Button type="submit" loading={save.isPending}>
                   Save changes
                 </Button>
               </div>

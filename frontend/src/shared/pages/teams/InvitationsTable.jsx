@@ -50,7 +50,8 @@ export default function InvitationsTable({ invitations, busy, onResend, onWithdr
                       <Button
                         variant="ghost"
                         size="sm"
-                        disabled={busy}
+                        loading={busy?.id === invitation.id && busy.action === 'resend'}
+                        disabled={Boolean(busy)}
                         onClick={() => onResend(invitation)}
                       >
                         Send again
@@ -58,7 +59,8 @@ export default function InvitationsTable({ invitations, busy, onResend, onWithdr
                       <Button
                         variant="ghost"
                         size="sm"
-                        disabled={busy}
+                        loading={busy?.id === invitation.id && busy.action === 'withdraw'}
+                        disabled={Boolean(busy)}
                         onClick={() => onWithdraw(invitation)}
                       >
                         Withdraw
@@ -77,7 +79,8 @@ export default function InvitationsTable({ invitations, busy, onResend, onWithdr
 
 InvitationsTable.propTypes = {
   invitations: PropTypes.arrayOf(PropTypes.object).isRequired,
-  busy: PropTypes.bool,
+  // The invitation being sent or withdrawn: { id, action: 'resend' | 'withdraw' }.
+  busy: PropTypes.shape({ id: PropTypes.string, action: PropTypes.string }),
   onResend: PropTypes.func.isRequired,
   onWithdraw: PropTypes.func.isRequired,
 }

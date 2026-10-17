@@ -18,7 +18,11 @@ export default function InvitationsPage() {
   const invitations = useMyInvitations()
   const accept = useAcceptInvitation()
   const decline = useDeclineInvitation()
-  const busyId = accept.isPending ? accept.variables : decline.isPending ? decline.variables : null
+  const busy = accept.isPending
+    ? { id: accept.variables, action: 'accept' }
+    : decline.isPending
+      ? { id: decline.variables, action: 'decline' }
+      : null
 
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-6">
@@ -34,7 +38,7 @@ export default function InvitationsPage() {
       {invitations.isError && (
         <Card className="items-start gap-3 p-4">
           <p className="text-sm text-destructive">Your invitations could not be loaded.</p>
-          <Button variant="outline" onClick={() => invitations.refetch()}>
+          <Button variant="outline" loading={invitations.isFetching} onClick={() => invitations.refetch()}>
             Try again
           </Button>
         </Card>
@@ -51,7 +55,7 @@ export default function InvitationsPage() {
       {invitations.isSuccess && invitations.data.length > 0 && (
         <InvitationList
           invitations={invitations.data}
-          busyId={busyId}
+          busy={busy}
           onAccept={(id) =>
             accept.mutate(id, { onSuccess: (team) => navigate(`/teams/${team.code}`) })
           }

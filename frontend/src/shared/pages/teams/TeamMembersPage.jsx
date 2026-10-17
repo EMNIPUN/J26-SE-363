@@ -120,7 +120,15 @@ export default function TeamMembersPage() {
         leader={data.leader}
         isOfferedToMe={offeredToMe}
         canWithdraw={isLecturer || isLeader}
-        busy={respondToLeadership.isPending || withdrawOffer.isPending}
+        busy={
+          respondToLeadership.isPending
+            ? respondToLeadership.variables
+              ? 'accept'
+              : 'decline'
+            : withdrawOffer.isPending
+              ? 'withdraw'
+              : null
+        }
         onRespond={respondToLeadership.mutate}
         onWithdraw={withdrawOffer.mutate}
       />
@@ -134,6 +142,11 @@ export default function TeamMembersPage() {
           onLeave={leave}
           onRemove={remove}
           onOfferLeadership={offer}
+          busyUserId={
+            (removeMember.isPending && removeMember.variables) ||
+            (offerLeadership.isPending && offerLeadership.variables) ||
+            null
+          }
         />
       </Section>
 
@@ -141,7 +154,13 @@ export default function TeamMembersPage() {
         <Section title="Invitations">
           <InvitationsTable
             invitations={openInvitations}
-            busy={resendInvitation.isPending || withdrawInvitation.isPending}
+            busy={
+              resendInvitation.isPending
+                ? { id: resendInvitation.variables, action: 'resend' }
+                : withdrawInvitation.isPending
+                  ? { id: withdrawInvitation.variables, action: 'withdraw' }
+                  : null
+            }
             onResend={(invitation) => resendInvitation.mutate(invitation.id)}
             onWithdraw={withdraw}
           />

@@ -30,7 +30,7 @@ export default function TeamList({ teamsQuery, visible, isStaff, canCreate, emai
     return (
       <Card className="items-start gap-3 p-4">
         <p className="text-sm text-destructive">Your teams could not be loaded.</p>
-        <Button variant="outline" onClick={() => teamsQuery.refetch()}>
+        <Button variant="outline" loading={teamsQuery.isFetching} onClick={() => teamsQuery.refetch()}>
           Try again
         </Button>
       </Card>
@@ -67,6 +67,7 @@ TeamList.propTypes = {
   teamsQuery: PropTypes.shape({
     isPending: PropTypes.bool,
     isError: PropTypes.bool,
+    isFetching: PropTypes.bool,
     data: PropTypes.array,
     refetch: PropTypes.func,
   }).isRequired,

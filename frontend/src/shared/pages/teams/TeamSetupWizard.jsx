@@ -2,7 +2,6 @@ import { useState } from 'react'
 import PropTypes from 'prop-types'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -367,8 +366,7 @@ export default function TeamSetupWizard({ team = null }) {
                 Discard
               </Button>
             )}
-            <Button onClick={next} disabled={busy}>
-              {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            <Button onClick={next} loading={busy && !discarding}>
               {last ? 'Create team' : 'Continue'}
             </Button>
           </div>
@@ -385,7 +383,15 @@ export default function TeamSetupWizard({ team = null }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
-            <AlertDialogAction onClick={discard}>Discard</AlertDialogAction>
+            <AlertDialogAction
+              loading={busy}
+              onClick={(event) => {
+                event.preventDefault() // stay open, with the ring, until the answer comes
+                discard()
+              }}
+            >
+              Discard
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -50,7 +50,12 @@ export default function RepositoryForm({ team, repoUrl, canEdit }) {
             />
           )}
         </FormField>
-        <Button type="submit" variant="outline" disabled={update.isPending || value === (repoUrl ?? '')}>
+        <Button
+          type="submit"
+          variant="outline"
+          loading={update.isPending}
+          disabled={value === (repoUrl ?? '')}
+        >
           Save
         </Button>
       </form>

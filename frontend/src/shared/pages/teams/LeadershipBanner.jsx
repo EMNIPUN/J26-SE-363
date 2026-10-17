@@ -6,7 +6,15 @@ import { Card } from '@/components/ui/card'
  * A leadership offer in progress. The offered student sees Accept and Decline; the leader and the
  * lecturers see who the offer is waiting on, and can withdraw it.
  */
-export default function LeadershipBanner({ pending, leader, isOfferedToMe, canWithdraw, busy, onRespond, onWithdraw }) {
+export default function LeadershipBanner({
+  pending,
+  leader,
+  isOfferedToMe,
+  canWithdraw,
+  busy,
+  onRespond,
+  onWithdraw,
+}) {
   if (!pending) return null
 
   return (
@@ -17,10 +25,19 @@ export default function LeadershipBanner({ pending, leader, isOfferedToMe, canWi
             {leader ? <strong>{leader.name}</strong> : 'The team'} asked you to take over as team leader.
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" disabled={busy} onClick={() => onRespond(false)}>
+            <Button
+              variant="outline"
+              loading={busy === 'decline'}
+              disabled={Boolean(busy)}
+              onClick={() => onRespond(false)}
+            >
               Decline
             </Button>
-            <Button disabled={busy} onClick={() => onRespond(true)}>
+            <Button
+              loading={busy === 'accept'}
+              disabled={Boolean(busy)}
+              onClick={() => onRespond(true)}
+            >
               Accept
             </Button>
           </div>
@@ -31,7 +48,12 @@ export default function LeadershipBanner({ pending, leader, isOfferedToMe, canWi
             Waiting for <strong>{pending.name}</strong> to accept leadership.
           </p>
           {canWithdraw && (
-            <Button variant="outline" disabled={busy} onClick={onWithdraw}>
+            <Button
+              variant="outline"
+              loading={busy === 'withdraw'}
+              disabled={Boolean(busy)}
+              onClick={onWithdraw}
+            >
               Withdraw offer
             </Button>
           )}
@@ -46,7 +68,8 @@ LeadershipBanner.propTypes = {
   leader: PropTypes.shape({ name: PropTypes.string }),
   isOfferedToMe: PropTypes.bool.isRequired,
   canWithdraw: PropTypes.bool.isRequired,
-  busy: PropTypes.bool,
+  // What is being sent right now: 'accept', 'decline', 'withdraw' or nothing.
+  busy: PropTypes.string,
   onRespond: PropTypes.func.isRequired,
   onWithdraw: PropTypes.func.isRequired,
 }

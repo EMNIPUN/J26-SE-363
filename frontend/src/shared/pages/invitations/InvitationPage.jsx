@@ -126,6 +126,7 @@ export default function InvitationPage() {
       <div className="flex gap-2">
         <Button
           className="flex-1"
+          loading={accept.isPending}
           disabled={busy}
           onClick={() =>
             accept.mutate(invitation.id, { onSuccess: (team) => navigate(`/teams/${team.code}`) })
@@ -136,6 +137,7 @@ export default function InvitationPage() {
         <Button
           variant="outline"
           className="flex-1"
+          loading={decline.isPending}
           disabled={busy}
           onClick={() => decline.mutate(invitation.id, { onSuccess: () => navigate('/home') })}
         >

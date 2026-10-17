@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import PropTypes from 'prop-types'
-import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -91,9 +90,9 @@ export default function InviteDialog({ team, hasLeader, open, onOpenChange }) {
           </Button>
           <Button
             onClick={submit}
-            disabled={invite.isPending || students.length + lecturers.length === 0}
+            loading={invite.isPending}
+            disabled={students.length + lecturers.length === 0}
           >
-            {invite.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
             Send invitations
           </Button>
         </DialogFooter>

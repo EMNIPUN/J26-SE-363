@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '../../auth/useAuth.js'
 import { accountService } from '../../services/accountService.js'
@@ -37,7 +36,7 @@ const FIELD_ERRORS = {
 }
 
 export default function OnboardingPage() {
-  const { account, user, setAccount, refreshAccount, logout } = useAuth()
+  const { account, user, setAccount, refreshAccount, logout, isLoggingOut } = useAuth()
   const [step, setStep] = useState(0)
   const [accountType, setAccountType] = useState('')
   const [values, setValues] = useState({
@@ -109,7 +108,7 @@ export default function OnboardingPage() {
           <SelviaLogo size={28} showText showTagline={false} className="lg:invisible" />
           <div className="flex items-center gap-1">
             <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={logout}>
+            <Button variant="ghost" size="sm" loading={isLoggingOut} onClick={logout}>
               Sign out
             </Button>
           </div>
@@ -161,8 +160,7 @@ export default function OnboardingPage() {
                 Continue
               </Button>
             ) : (
-              <Button onClick={submit} disabled={!accepted || finish.isPending}>
-                {finish.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+              <Button onClick={submit} loading={finish.isPending} disabled={!accepted}>
                 Finish setup
               </Button>
             )}

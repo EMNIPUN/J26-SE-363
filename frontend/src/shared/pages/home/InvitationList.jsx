@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card'
 import { describeInvitation } from '../../utils/teams.js'
 
 /** Invitations waiting for an answer, with Accept and Decline. */
-export default function InvitationList({ invitations, onAccept, onDecline, busyId }) {
+export default function InvitationList({ invitations, onAccept, onDecline, busy }) {
   return (
     <Card className="gap-0 p-0">
       <div className="border-b border-border px-4 py-3">
@@ -34,12 +34,17 @@ export default function InvitationList({ invitations, onAccept, onDecline, busyI
             <div className="flex shrink-0 gap-2">
               <Button
                 variant="outline"
-                disabled={busyId === invitation.id}
+                loading={busy?.id === invitation.id && busy.action === 'decline'}
+                disabled={busy?.id === invitation.id}
                 onClick={() => onDecline(invitation.id)}
               >
                 Decline
               </Button>
-              <Button disabled={busyId === invitation.id} onClick={() => onAccept(invitation.id)}>
+              <Button
+                loading={busy?.id === invitation.id && busy.action === 'accept'}
+                disabled={busy?.id === invitation.id}
+                onClick={() => onAccept(invitation.id)}
+              >
                 Accept
               </Button>
             </div>
@@ -54,5 +59,6 @@ InvitationList.propTypes = {
   invitations: PropTypes.arrayOf(PropTypes.object).isRequired,
   onAccept: PropTypes.func.isRequired,
   onDecline: PropTypes.func.isRequired,
-  busyId: PropTypes.string,
+  // The invitation being answered, and how: { id, action: 'accept' | 'decline' }.
+  busy: PropTypes.shape({ id: PropTypes.string, action: PropTypes.string }),
 }

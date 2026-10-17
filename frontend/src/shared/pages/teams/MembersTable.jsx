@@ -45,6 +45,7 @@ export default function MembersTable({
   onLeave,
   onRemove,
   onOfferLeadership,
+  busyUserId,
 }) {
   return (
     <Card className="gap-0 overflow-hidden p-0">
@@ -88,7 +89,12 @@ export default function MembersTable({
                   {hasActions && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${member.name}`}>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          loading={busyUserId === member.user_id}
+                          aria-label={`Actions for ${member.name}`}
+                        >
                           <MoreHorizontal aria-hidden="true" />
                         </Button>
                       </DropdownMenuTrigger>

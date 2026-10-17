@@ -36,7 +36,11 @@ export default function HomePage() {
   const accept = useAcceptInvitation()
   const decline = useDeclineInvitation()
 
-  const busyId = accept.isPending ? accept.variables : decline.isPending ? decline.variables : null
+  const busy = accept.isPending
+    ? { id: accept.variables, action: 'accept' }
+    : decline.isPending
+      ? { id: decline.variables, action: 'decline' }
+      : null
   const waiting = invitations.data ?? []
   const all = teams.data ?? []
   const attention = needsAttention(all, isStaff)
@@ -67,7 +71,7 @@ export default function HomePage() {
       {waiting.length > 0 && (
         <InvitationList
           invitations={waiting}
-          busyId={busyId}
+          busy={busy}
           onAccept={accept.mutate}
           onDecline={decline.mutate}
         />
