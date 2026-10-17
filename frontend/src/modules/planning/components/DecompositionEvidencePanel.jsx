@@ -1,16 +1,102 @@
 import { useState } from 'react'
-import { ChevronDown, BookOpen, Lightbulb, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { ChevronDown, Lightbulb, AlertTriangle, CheckCircle2, Circle, UserCheck } from 'lucide-react'
 import Card from '../../../shared/components/Card.jsx'
 import Badge from '../../../shared/components/Badge.jsx'
+import EmptyState from '../../../shared/components/EmptyState.jsx'
+
+const GATE_COPY = {
+  COMPLETE: { tone: 'success', label: 'Ready for effort estimation' },
+  INCOMPLETE: { tone: 'warning', label: 'Needs revision — see checklist below' },
+  NEEDS_REVIEW: { tone: 'primary', label: 'Sent for supervisor review' },
+}
+
+function GateBanner({ evaluation }) {
+  const copy = GATE_COPY[evaluation.gateStatus] || GATE_COPY.INCOMPLETE
+  return (
+    <div
+      className={`p-3.5 rounded-xl border flex items-center gap-2.5 ${
+        copy.tone === 'success'
+          ? 'border-emerald-500/30 bg-emerald-500/5'
+          : copy.tone === 'primary'
+            ? 'border-blue-500/30 bg-blue-500/5'
+            : 'border-amber-500/30 bg-amber-500/5'
+      }`}
+    >
+      {copy.tone === 'success' ? (
+        <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+      ) : copy.tone === 'primary' ? (
+        <UserCheck className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+      ) : (
+        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+      )}
+      <div className="min-w-0">
+        <p
+          className={`text-xs font-bold ${
+            copy.tone === 'success'
+              ? 'text-emerald-700 dark:text-emerald-400'
+              : copy.tone === 'primary'
+                ? 'text-blue-700 dark:text-blue-400'
+                : 'text-amber-800 dark:text-amber-300'
+          }`}
+        >
+          {evaluation.gateStatus} — {copy.label}
+        </p>
+        {evaluation.gateStatus === 'NEEDS_REVIEW' && evaluation.needsReviewReason && (
+          <p className="text-[11px] text-muted-foreground mt-0.5">{evaluation.needsReviewReason}</p>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function DecompositionEvidencePanel({ evaluation }) {
   const [open, setOpen] = useState(true)
-  if (!evaluation) return null
+  if (!evaluation) {
+    return (
+      <Card className="p-6 text-center">
+        <EmptyState
+          icon={Lightbulb}
+          title="No agent evidence yet"
+          description="Run a decomposition analysis to see the agent's gate decision and feedback here."
+        />
+      </Card>
+    )
+  }
 
-  const { investResults, gaps, covered, patternExamples, summary, coverage, score, verdict, confidence } = evaluation
+  if (evaluation.analysisFailed) {
+    return (
+      <Card className="p-4 border-destructive/30 bg-destructive/5">
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs text-destructive font-semibold">
+              Analysis could not be completed — this is not a real result
+            </p>
+            <p className="text-[11px] text-destructive/90 mt-0.5">
+              A system error prevented the agent from evaluating coverage
+              {evaluation.failureReason ? ` (${evaluation.failureReason})` : ''}. Re-run analysis once the issue is
+              resolved — the score and checklist shown elsewhere on this page are placeholders, not findings.
+            </p>
+          </div>
+        </div>
+      </Card>
+    )
+  }
 
-  const investEntries = Object.entries(investResults || {})
-  const failingStories = investEntries.filter(([, r]) => !r.overallPass)
+  if (evaluation.malformed) {
+    return (
+      <Card className="p-4 border-destructive/30 bg-destructive/5">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          <p className="text-xs text-destructive font-semibold">
+            {evaluation.persistError || 'Analysis response was malformed or incomplete.'}
+          </p>
+        </div>
+      </Card>
+    )
+  }
+
+  const { studentFeedback, score, qualityBand } = evaluation
 
   return (
     <Card className="p-0 overflow-hidden border-border bg-card">
@@ -21,11 +107,14 @@ export default function DecompositionEvidencePanel({ evaluation }) {
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Lightbulb className="h-4 w-4 text-primary" />
-          Agent Reasoning Evidence &amp; Retrieval Patterns
+          Agent Reasoning Evidence &amp; Feedback
         </span>
         <div className="flex items-center gap-2">
-          <Badge tone={verdict === 'Validated' ? 'success' : 'warning'} className="text-[10px] px-2 py-0.5">
-            {score}% · {verdict}
+          <Badge
+            tone={evaluation.gateStatus === 'COMPLETE' ? 'success' : evaluation.gateStatus === 'NEEDS_REVIEW' ? 'primary' : 'warning'}
+            className="text-[10px] px-2 py-0.5"
+          >
+            {evaluation.gateStatus}
           </Badge>
           <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
         </div>
@@ -33,102 +122,41 @@ export default function DecompositionEvidencePanel({ evaluation }) {
 
       {open && (
         <div className="px-5 pb-5 space-y-4 border-t border-border/60 pt-4">
-          {/* Summary */}
-          <section>
-            <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">Summary</h4>
-            <p className="text-xs text-foreground">{summary}</p>
-            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-              <span>Score: <strong className="text-foreground">{score}/100</strong></span>
-              <span>Verdict: <Badge tone={verdict === 'Validated' ? 'success' : 'warning'} className="text-[10px] px-1.5 py-0">{verdict}</Badge></span>
-              <span>Confidence: <strong className="text-foreground">{(confidence * 100).toFixed(0)}%</strong></span>
+          {evaluation.stale && (
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-300">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <p className="text-[11px]">Stories changed since this analysis — showing the last result.</p>
             </div>
-          </section>
+          )}
 
-          {/* Coverage */}
+          <GateBanner evaluation={evaluation} />
+
+          {/* Actionable feedback checklist — the agent's primary output */}
           <section>
-            <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Coverage ({Math.round(coverage * 100)}%)</h4>
-            {(covered || []).length > 0 && (
-              <div className="mb-2">
-                <p className="text-[11px] text-emerald-600 font-medium mb-1">Covered aspects</p>
-                <ul className="space-y-0.5 text-[11px] text-muted-foreground">
-                  {covered.map((a) => (
-                    <li key={a.id} className="flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-                      {a.label}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {(gaps || []).length > 0 && (
-              <div>
-                <p className="text-[11px] text-amber-600 font-medium mb-1">Gaps (uncovered)</p>
-                <ul className="space-y-0.5 text-[11px] text-destructive/90">
-                  {gaps.map((a) => (
-                    <li key={a.id} className="flex items-center gap-1.5">
-                      <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0" />
-                      {a.label}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+              Feedback
+            </h4>
+            {studentFeedback && studentFeedback.length > 0 ? (
+              <ul className="space-y-1.5">
+                {studentFeedback.map((bullet, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-foreground">
+                    <Circle className="h-2.5 w-2.5 mt-1 text-primary shrink-0 fill-current" />
+                    <span>{bullet}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">No feedback returned by the agent.</p>
             )}
           </section>
 
-          {/* Failing stories INVEST detail */}
-          {failingStories.length > 0 && (
-            <section>
-              <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
-                Stories needing attention ({failingStories.length})
-              </h4>
-              <div className="space-y-2">
-                {failingStories.map(([storyId, result]) => {
-                  const failing = ['independent', 'negotiable', 'valuable', 'estimable', 'small', 'testable'].filter(
-                    (c) => !result[c]?.pass,
-                  )
-                  return (
-                    <div key={storyId} className="text-xs">
-                      <span className="font-semibold text-foreground">{storyId}</span>
-                      <span className="text-destructive/90 ml-1.5">
-                        — fails: {failing.map((c) => c.charAt(0).toUpperCase() + c.slice(1)).join(', ')}
-                      </span>
-                      <ul className="mt-0.5 ml-3 list-disc text-muted-foreground space-y-0.5">
-                        {failing.map((c) => (
-                          <li key={c}>{result[c]?.note}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-          )}
-
-          {/* Pattern examples */}
-          {patternExamples && patternExamples.length > 0 && (
-            <section>
-              <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
-                <BookOpen className="h-3.5 w-3.5 text-primary" /> Retrieved decomposition patterns
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {patternExamples.map((ex) => (
-                  <div key={ex.id} className="p-2.5 rounded-lg border border-border bg-card">
-                    <p className="text-xs font-semibold text-foreground mb-1">{ex.title}</p>
-                    <ul className="text-[11px] text-muted-foreground list-disc list-inside space-y-0.5">
-                      {(ex.stories || []).slice(0, 4).map((s, i) => (
-                        <li key={i}>{s}</li>
-                      ))}
-                    </ul>
-                    {ex.note && <p className="text-[10px] text-muted-foreground mt-1 italic">{ex.note}</p>}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {failingStories.length === 0 && (gaps || []).length === 0 && (
-            <p className="text-[11px] text-emerald-600">No issues flagged — this decomposition is in good shape.</p>
-          )}
+          {/* Score + band — secondary context only, never the primary verdict */}
+          <div className="flex items-center gap-2 pt-1 border-t border-border/40">
+            <span className="text-[11px] text-muted-foreground">Decomposition quality:</span>
+            <Badge tone="neutral" className="text-[10px] px-2 py-0.5">
+              {score}/4 · {qualityBand}
+            </Badge>
+          </div>
         </div>
       )}
     </Card>

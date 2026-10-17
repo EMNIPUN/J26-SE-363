@@ -86,6 +86,21 @@ class TaskType(str, enum.Enum):
     SUBTASK = "subtask"
 
 
+class StoryStatus(str, enum.Enum):
+    """Lifecycle state of a persisted decomposition user story."""
+
+    DRAFT = "draft"
+    INVEST_PASSED = "invest_passed"
+    ACCEPTED = "accepted"
+    ESTIMATED = "estimated"
+    IN_BACKLOG = "in_backlog"
+
+
+class DecompositionTaskType(str, enum.Enum):
+    TASK = "task"
+    SUBTASK = "subtask"
+
+
 class Priority(str, enum.Enum):
     CRITICAL = "critical"
     HIGH = "high"
@@ -164,3 +179,61 @@ class AlertType(str, enum.Enum):
     QUALITY_GATE_BLOCK = "quality_gate_block"
     CIRCUIT_BREAKER = "circuit_breaker"
     STUDENT_STRUGGLING = "student_struggling"
+
+
+class DecompositionGateStatus(str, enum.Enum):
+    """Two-level mandatory gate outcome for a decomposition analysis run."""
+
+    COMPLETE = "COMPLETE"
+    INCOMPLETE = "INCOMPLETE"
+    NEEDS_REVIEW = "NEEDS_REVIEW"
+
+
+class QualityBand(str, enum.Enum):
+    """Reporting band for the 0-4 decomposition-quality score. Feedback only -
+    never overrides the gate decision."""
+
+    EXCELLENT = "Excellent"
+    GOOD = "Good"
+    MODERATE = "Moderate"
+    POOR = "Poor"
+    VERY_POOR = "Very poor"
+
+
+class InvestResult(str, enum.Enum):
+    """Four-state per-criterion INVEST readiness verdict."""
+
+    PASS = "Pass"
+    PASS_WITH_NOTE = "Pass with note"
+    FAIL = "Fail"
+    CANNOT_ASSESS = "Cannot Assess"
+
+
+class CoverageResult(str, enum.Enum):
+    COVERED = "Covered"
+    MISSING = "Missing"
+
+
+class CheckResult(str, enum.Enum):
+    """Pass/Fail outcome for one of the coverage gate's C1-C10 checks."""
+
+    PASS = "Pass"
+    FAIL = "Fail"
+
+
+class CoverageElementType(str, enum.Enum):
+    """Taxonomy of coverage elements extracted from a parent requirement."""
+
+    ACTOR = "actor"
+    TRIGGER = "trigger"
+    PRECONDITION = "precondition"
+    MAIN_ACTION = "main_action"
+    INPUT_DATA = "input_data"
+    OUTPUT_RESULT = "output_result"
+    BUSINESS_RULE = "business_rule"
+    CONSTRAINT = "constraint"
+    PERMISSION_RULE = "permission_rule"
+    EXCEPTION_BEHAVIOR = "exception_behavior"
+    ERROR_HANDLING = "error_handling"
+    RECOVERY_RETRY = "recovery_retry"
+    QUALITY_CONSTRAINT = "quality_constraint"

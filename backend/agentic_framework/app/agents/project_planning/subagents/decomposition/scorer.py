@@ -1,123 +1,137 @@
-"""Decomposition scoring — LLM overall judgment + gate application + heuristic fallback."""
+"""Decomposition scoring — 0-4 quality score AND student feedback both computed
+in code from the coverage/INVEST evidence, with no LLM call. The research
+methodology only requires the feedback to be specific and reference story/
+element IDs; the coverage and INVEST LLM calls already produce exactly that
+evidence (check rationale, per-criterion notes), so templating it avoids a
+third LLM round-trip per analysis run with no loss of required information —
+this was also the dominant source of Gemini free-tier quota exhaustion
+(coverage + 1-per-story INVEST + this scorer call + a self-review call added
+up fast; INVEST is now batched in invest.py and this call is removed
+entirely, cutting a 3-story run from ~6 LLM calls down to 2)."""
 
 from __future__ import annotations
 
-import logging
-
-from app.agents.project_planning.llm import get_llm_client
-from app.agents.project_planning.orchestrator.gates import evaluate_gate
 from app.agents.project_planning.schemas import (
-    CoverageAspect,
+    CheckResult,
+    CoverageAnalysis,
+    DecompositionGateStatus,
     DecompositionResult,
+    InvestGateResult,
+    InvestResult,
+    QualityBand,
     StoryInvest,
 )
-from app.agents.project_planning.subagents.decomposition.prompts import (
-    SCORER_SYSTEM,
-    build_scorer_prompt,
+
+_INVEST_CRITERIA = ("independent", "negotiable", "valuable", "estimable", "small", "testable")
+
+_BAND_THRESHOLDS: tuple[tuple[float, QualityBand], ...] = (
+    (3.5, QualityBand.EXCELLENT),
+    (2.5, QualityBand.GOOD),
+    (1.5, QualityBand.MODERATE),
+    (0.5, QualityBand.POOR),
+    (0.0, QualityBand.VERY_POOR),
 )
 
-logger = logging.getLogger(__name__)
+
+def quality_band(score: float) -> QualityBand:
+    for threshold, band in _BAND_THRESHOLDS:
+        if score >= threshold:
+            return band
+    return QualityBand.VERY_POOR
 
 
-def _clamp(value: object, lo: int = 0, hi: int = 100) -> int:
-    try:
-        return max(lo, min(hi, round(float(value))))  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return 50
+def compute_quality_score(coverage: CoverageAnalysis, stories: list[StoryInvest]) -> float:
+    """0-4 score, traceable to concrete gate artifacts. Feedback only — never
+    overrides the gate decision."""
+    score = 4.0
+    failed_checks = sum(1 for c in coverage.gate.checks.values() if c.result == CheckResult.FAIL)
+    score -= min(2.0, failed_checks * 0.3)
+    score -= min(1.0, len(coverage.gate.duplicate_elements) * 0.2)
+    score -= min(1.0, len(coverage.gate.orphan_stories) * 0.3)
 
+    not_ready = sum(1 for s in stories if not s.story_ready)
+    score -= min(1.5, not_ready * (1.5 / max(len(stories), 1)))
 
-async def request_decomposition_score(
-    requirement_text: str,
-    coverage: float,
-    gaps: list[dict],
-    invest_results: list[dict],
-    patterns: list[dict] | None = None,
-    reflection_note: str | None = None,
-) -> dict:
-    client = get_llm_client()
-    return await client.complete_json(
-        SCORER_SYSTEM,
-        build_scorer_prompt(requirement_text, coverage, gaps, invest_results, patterns, reflection_note),
-        max_tokens=400,
+    note_only = sum(
+        1
+        for s in stories
+        if s.story_ready
+        and any(getattr(s, c).result == InvestResult.PASS_WITH_NOTE for c in _INVEST_CRITERIA)
     )
+    score -= min(0.5, note_only * 0.1)
+
+    return max(0.0, round(score, 2))
+
+
+def build_feedback(
+    gate_status: DecompositionGateStatus,
+    coverage: CoverageAnalysis,
+    stories: list[StoryInvest],
+) -> list[str]:
+    """Specific, actionable feedback bullets built directly from the coverage/
+    INVEST evidence — one bullet per failing check (citing its own rationale,
+    already written by the coverage LLM call) and one per not-ready story
+    (citing exactly which criteria failed). No LLM call."""
+    if coverage.analysis_failed:
+        # The per-check "Fail" rows below are a placeholder state, not real
+        # findings - lead with the actual cause instead of 10 duplicate lines.
+        return [
+            "Coverage analysis could not be completed due to a system error "
+            f"({coverage.failure_reason or 'the AI service was unavailable'}). "
+            "This is not a real evaluation of your stories — please re-run "
+            "analysis once the issue is resolved.",
+        ]
+    feedback: list[str] = []
+    for check in coverage.gate.checks.values():
+        if check.result == CheckResult.FAIL and check.rationale:
+            feedback.append(f"{check.check_id}: {check.rationale}")
+    for story in stories:
+        if not story.story_ready:
+            failing = [
+                c for c in _INVEST_CRITERIA
+                if getattr(story, c).result not in (InvestResult.PASS, InvestResult.PASS_WITH_NOTE)
+            ]
+            feedback.append(f"{story.story_id} is not ready — failing: {', '.join(failing)}")
+    if not feedback:
+        if gate_status == DecompositionGateStatus.COMPLETE:
+            feedback.append("Coverage and story readiness both look solid — ready for effort estimation.")
+        elif gate_status == DecompositionGateStatus.NEEDS_REVIEW:
+            feedback.append("Coverage and story readiness look solid, but this requirement needs a human judgment call — see the reason above.")
+        else:
+            feedback.append("No specific issues were flagged, but the gate did not pass — please review the checklist and re-run analysis.")
+    return feedback
 
 
 def build_result(
     requirement_ref: str,
-    invest_results: list[StoryInvest],
-    coverage: float,
-    aspects: list[dict],
+    coverage: CoverageAnalysis,
+    stories: list[StoryInvest],
+    invest_gate: InvestGateResult,
+    gate_status: DecompositionGateStatus,
+    needs_review_reason: str | None,
+    student_feedback: list[str],
     patterns: list[dict],
-    score_data: dict,
-    threshold: int,
-    confidence_override: float | None = None,
+    confidence: float = 0.8,
 ) -> DecompositionResult:
-    overall = _clamp(score_data.get("overall_score", 50))
-    confidence = confidence_override if confidence_override is not None else float(score_data.get("confidence", 0.8) or 0.8)
-    confidence = max(0.0, min(1.0, confidence))
-    status, action, dart = evaluate_gate(overall, confidence, threshold)
-
-    covered_aspects = [CoverageAspect(id=a["id"], label=a["label"], covered=True) for a in aspects if a.get("covered")]
-    gap_aspects = [CoverageAspect(id=a["id"], label=a["label"], covered=False) for a in aspects if not a.get("covered")]
-
+    # A failed coverage analysis produces an all-Fail placeholder state that
+    # compute_quality_score would otherwise turn into a plausible-looking but
+    # meaningless number (e.g. "0.5/4") - force 0.0 so nothing downstream can
+    # mistake it for a real score.
+    score = 0.0 if coverage.analysis_failed else compute_quality_score(coverage, stories)
     return DecompositionResult(
         requirement_ref=requirement_ref,
-        overall_score=overall,
-        status=status,
-        gate_action=action,
-        coverage=round(coverage, 3),
-        aspects=covered_aspects + gap_aspects,
-        gaps=gap_aspects,
-        stories=invest_results,
+        coverage=coverage,
+        stories=stories,
+        invest_gate=invest_gate,
+        decomposition_quality_score=score,
+        quality_band=quality_band(score),
+        gate_status=gate_status,
+        needs_review_reason=needs_review_reason,
+        student_feedback=student_feedback,
         patterns=patterns,
-        summary=str(score_data.get("summary", "")),
-        confidence=confidence,
-        dart_triggered=dart,
+        confidence=max(0.0, min(1.0, confidence)),
+        dart_triggered=gate_status == DecompositionGateStatus.NEEDS_REVIEW,
+        analysis_failed=coverage.analysis_failed,
+        failure_reason=coverage.failure_reason,
         retrieval={"patterns": patterns},
-    )
-
-
-def heuristic_result(
-    requirement_ref: str,
-    invest_results: list[StoryInvest],
-    coverage: float,
-    aspects: list[dict],
-    threshold: int,
-) -> DecompositionResult:
-    """Deterministic fallback using the mock's formula: coverage*60 + invest_pass_rate*40."""
-    pass_rate = (
-        sum(1 for r in invest_results if r.overall_pass) / len(invest_results)
-        if invest_results
-        else 0.0
-    )
-    score = round(coverage * 60 + pass_rate * 40)
-
-    if coverage >= 0.8 and pass_rate == 1.0:
-        summary = "Coverage and story quality both look solid — ready to move forward."
-    elif coverage < 0.8 and pass_rate == 1.0:
-        summary = "Your existing stories are individually well-formed, but the decomposition is incomplete."
-    elif coverage >= 0.8 and pass_rate < 1.0:
-        summary = "Coverage looks complete, but at least one story needs to be better-formed first."
-    else:
-        summary = "Both a coverage gap and story-formation issues need attention."
-
-    status, action, dart = evaluate_gate(score, 0.5, threshold)
-
-    covered_aspects = [CoverageAspect(id=a["id"], label=a["label"], covered=True) for a in aspects if a.get("covered")]
-    gap_aspects = [CoverageAspect(id=a["id"], label=a["label"], covered=False) for a in aspects if not a.get("covered")]
-
-    return DecompositionResult(
-        requirement_ref=requirement_ref,
-        overall_score=score,
-        status=status,
-        gate_action=action,
-        coverage=round(coverage, 3),
-        aspects=covered_aspects + gap_aspects,
-        gaps=gap_aspects,
-        stories=invest_results,
-        patterns=[],
-        summary=summary,
-        confidence=0.5,
-        dart_triggered=dart,
-        retrieval={},
     )

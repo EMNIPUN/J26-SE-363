@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, Integer, Numeric, Text, Uuid
+from sqlalchemy import ForeignKey, Integer, Numeric, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base, TimestampMixin, string_enum
@@ -9,6 +9,7 @@ from app.models.enums import EstimationSource, Priority, TaskStatus, TaskType
 
 class SprintBacklogItem(TimestampMixin, Base):
     __tablename__ = "rqa_sprint_backlog_items"
+    __table_args__ = (UniqueConstraint("pipeline_session_id", "user_story_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     pipeline_session_id: Mapped[uuid.UUID] = mapped_column(

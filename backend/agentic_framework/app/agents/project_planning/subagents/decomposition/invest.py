@@ -1,7 +1,9 @@
-"""invest_validator tool — rule-based signals + LLM judgment for INVEST criteria.
+"""invest_validator tool — rule-based signals + LLM judgment for a 4-state
+per-criterion INVEST readiness verdict (Pass / Pass with note / Fail / Cannot Assess).
 
-Mirrors the frontend mock's deterministic regex signals (decompositionEngine.js)
-and grounds an LLM call to produce per-story 6-criterion verdicts.
+A story is ready for effort estimation only if all 6 criteria are Pass or
+Pass with note (computed in Python from the LLM's per-criterion verdicts, never
+trusted directly from the LLM, so the gate stays consistent with the rubric).
 """
 
 from __future__ import annotations
@@ -12,7 +14,8 @@ import re
 from app.agents.project_planning.llm import get_llm_client
 from app.agents.project_planning.schemas import (
     INVEST_CRITERIA,
-    InvestCriterion,
+    InvestCriterionResult,
+    InvestResult,
     StoryInvest,
 )
 
@@ -28,7 +31,8 @@ _AMBIGUOUS_RE = re.compile(
 
 
 def detect_invest_signals(title: str, ac: str) -> dict[str, dict]:
-    """Deterministic rule-based signals for each INVEST criterion."""
+    """Deterministic rule-based signals for each INVEST criterion, fed to the LLM
+    as evidence (and used directly as the LLM-unavailable fallback)."""
     combined = f"{title} {ac}"
 
     independent = (
@@ -81,65 +85,128 @@ def detect_invest_signals(title: str, ac: str) -> dict[str, dict]:
     }
 
 
-_INVEST_SYSTEM = """You are an INVEST criteria validator for user stories in a software-engineering course. \
-You evaluate ONE user story against the six INVEST criteria (Independent, Negotiable, Valuable, Estimable, \
-Small, Testable). You are rigorous and pedagogical.
+_INVEST_SYSTEM = """You are an INVEST criteria validator for user stories in a software-engineering \
+course. You will be given MULTIPLE stories in one request — evaluate EACH one independently against the \
+six INVEST criteria. You are rigorous and pedagogical. Each criterion gets one of four results:
+  - "Pass": fully satisfied.
+  - "Pass with note": satisfied, but you see a minor improvement opportunity.
+  - "Fail": not satisfied.
+  - "Cannot Assess": you cannot determine the result from the available information.
 
-You are given the story (title + acceptance criteria) and deterministic rule signals already detected. Use \
-these signals as evidence but apply your own judgment — rules can have false positives/negatives.
+Rubric (pass rule -> fail example):
+  - Independent: the story can be implemented without requiring another unfinished story, except an \
+explicitly declared and justified dependency -> fails on "After US-3 is finished, implement this" or an \
+unclear dependency.
+  - Negotiable: the story describes an outcome or need, not a fixed technical design -> fails on "Use \
+MySQL triggers to update the inventory table".
+  - Valuable: the story identifies a user, stakeholder, or system value -> fails on "As a developer, I \
+want to create a database table" with no user value.
+  - Estimable: the story contains enough information for a reasonable estimate -> fails on missing \
+acceptance criteria, unclear scope, or undefined rules.
+  - Small: the story represents one coherent unit of work -> fails on a story covering registration, \
+login, password reset, and profile management all at once.
+  - Testable: the story has observable acceptance criteria with clear pass/fail conditions (ideally \
+Given/When/Then) -> fails on "The system should work well".
 
-Reply with a STRICT JSON object only (no markdown):
+You are given each story (title + acceptance criteria) and deterministic rule signals already detected \
+for it. Use these signals as evidence but apply your own judgment — rules can have false positives/negatives.
+
+Reply with a STRICT JSON object only (no markdown), one entry per story_id exactly as given:
 {
-  "independent": {"passed": bool, "note": str},
-  "negotiable": {"passed": bool, "note": str},
-  "valuable": {"passed": bool, "note": str},
-  "estimable": {"passed": bool, "note": str},
-  "small": {"passed": bool, "note": str},
-  "testable": {"passed": bool, "note": str}
+  "<story_id>": {
+    "independent": {"result": "Pass"|"Pass with note"|"Fail"|"Cannot Assess", "note": str, "evidence": str},
+    "negotiable": {"result": "Pass"|"Pass with note"|"Fail"|"Cannot Assess", "note": str, "evidence": str},
+    "valuable": {"result": "Pass"|"Pass with note"|"Fail"|"Cannot Assess", "note": str, "evidence": str},
+    "estimable": {"result": "Pass"|"Pass with note"|"Fail"|"Cannot Assess", "note": str, "evidence": str},
+    "small": {"result": "Pass"|"Pass with note"|"Fail"|"Cannot Assess", "note": str, "evidence": str},
+    "testable": {"result": "Pass"|"Pass with note"|"Fail"|"Cannot Assess", "note": str, "evidence": str}
+  }
 }"""
 
+_READY_RESULTS = (InvestResult.PASS, InvestResult.PASS_WITH_NOTE)
 
-async def validate_invest(stories: list[dict]) -> list[StoryInvest]:
-    """Run INVEST validation on a list of stories. Uses LLM when available, falls back to rules."""
+
+def _from_signal(signal: dict) -> InvestCriterionResult:
+    return InvestCriterionResult(
+        result=InvestResult.PASS if signal["signal"] == "pass" else InvestResult.FAIL,
+        note=signal["note"],
+    )
+
+
+async def validate_invest(
+    requirement_id: str, stories: list[dict]
+) -> list[StoryInvest]:
+    """Run INVEST validation on ALL stories in ONE LLM call (not one call per
+    story — each requirement.analyze_decomposition run already makes a
+    coverage_analyzer call, so a per-story loop here was the dominant source
+    of API quota usage). Falls back to rule signals only when the LLM is
+    unavailable or fails (never invents Pass with note / Cannot Assess
+    without LLM judgment, since those require nuance a regex can't provide)."""
+    if not stories:
+        return []
+
+    signals_by_story = {
+        s.get("id", ""): detect_invest_signals(s.get("title", ""), s.get("acceptance_criteria", ""))
+        for s in stories
+    }
+
     client = get_llm_client()
-    results: list[StoryInvest] = []
+    llm_results: dict = {}
+    if client.configured:
+        try:
+            story_block = "\n\n".join(
+                f'Story {s.get("id")}:\n'
+                f'  Title: "{s.get("title", "")}"\n'
+                f'  Acceptance criteria: "{s.get("acceptance_criteria", "")}"\n'
+                f"  Rule signals: "
+                + "; ".join(f"{k}={v['signal']}" for k, v in signals_by_story[s.get("id", "")].items())
+                for s in stories
+            )
+            user_prompt = (
+                f"Stories to evaluate:\n\n{story_block}\n\n"
+                "Return the JSON object exactly as specified, with one entry per story_id."
+            )
+            max_tokens = min(3000, max(800, 350 * len(stories)))
+            llm_results = await client.complete_json(_INVEST_SYSTEM, user_prompt, max_tokens=max_tokens)
+        except Exception:
+            logger.exception(
+                "LLM INVEST validation failed for batch of %d stories; using rules", len(stories)
+            )
+            llm_results = {}
 
+    results: list[StoryInvest] = []
     for story in stories:
         sid = story.get("id", "")
         title = story.get("title", "")
         ac = story.get("acceptance_criteria", "")
-        signals = detect_invest_signals(title, ac)
+        signals = signals_by_story[sid]
+        story_llm = llm_results.get(sid) if isinstance(llm_results, dict) else None
 
-        if client.configured:
-            try:
-                signal_block = "\n".join(f"  - {k}: {v['signal']} — {v['note']}" for k, v in signals.items())
-                user_prompt = (
-                    f'Story title: """{title}"""\n'
-                    f'Acceptance criteria: """{ac}"""\n\n'
-                    f"Rule-based signals (use as evidence):\n{signal_block}\n\n"
-                    "Return the JSON object exactly as specified."
+        criteria: dict[str, InvestCriterionResult] = {}
+        if story_llm:
+            for c in INVEST_CRITERIA:
+                raw = story_llm.get(c, {}) or {}
+                try:
+                    result = InvestResult(raw.get("result"))
+                except ValueError:
+                    result = _from_signal(signals[c]).result
+                criteria[c] = InvestCriterionResult(
+                    result=result,
+                    note=str(raw.get("note", signals[c]["note"])),
+                    evidence=str(raw.get("evidence", "")),
                 )
-                llm_result = await client.complete_json(_INVEST_SYSTEM, user_prompt, max_tokens=600)
-                criteria = {}
-                for c in INVEST_CRITERIA:
-                    raw = llm_result.get(c, {})
-                    criteria[c] = InvestCriterion(
-                        passed=bool(raw.get("passed", signals[c]["signal"] == "pass")),
-                        note=str(raw.get("note", signals[c]["note"])),
-                    )
-                overall = all(criteria[c].passed for c in INVEST_CRITERIA)
-                results.append(StoryInvest(story_id=sid, overall_pass=overall, **criteria))
-                continue
-            except Exception:
-                logger.exception("LLM INVEST validation failed for %s; using rules", sid)
+        else:
+            criteria = {c: _from_signal(signals[c]) for c in INVEST_CRITERIA}
 
-        criteria = {}
-        for c in INVEST_CRITERIA:
-            criteria[c] = InvestCriterion(
-                passed=signals[c]["signal"] == "pass",
-                note=signals[c]["note"],
+        story_ready = all(criteria[c].result in _READY_RESULTS for c in INVEST_CRITERIA)
+        results.append(
+            StoryInvest(
+                story_id=sid,
+                story_text=f"{title} {ac}".strip(),
+                linked_parent_requirement=story.get("linked_parent_requirement", requirement_id),
+                story_ready=story_ready,
+                **criteria,
             )
-        overall = all(criteria[c].passed for c in INVEST_CRITERIA)
-        results.append(StoryInvest(story_id=sid, overall_pass=overall, **criteria))
+        )
 
     return results

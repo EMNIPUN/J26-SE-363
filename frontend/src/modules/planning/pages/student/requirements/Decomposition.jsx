@@ -63,6 +63,7 @@ import {
   useStories,
   useDecompositionResults,
   useCreateStory,
+  useCreateStoryTask,
   useUpdateStory,
   useDeleteStory,
 } from '../../../hooks/useDecomposition.js'
@@ -83,16 +84,11 @@ const INVEST_CRITERIA = [
   { key: 'testable', code: 'T', label: 'Testable', description: 'The story has concrete acceptance criteria that can be verified.' },
 ]
 
-let genIdCounter = 5000
-function genId(prefix) {
-  genIdCounter += 1
-  return `${prefix}-${genIdCounter}`
-}
-
 const BUG_SEVERITY_TONE = { Low: 'neutral', Medium: 'warning', High: 'danger' }
 
 function TaskRow({ reqId, storyId, task, readOnly = false }) {
-  const { addSubtask, toggleSubtask } = usePlanningData()
+  const { toggleSubtask } = usePlanningData()
+  const createTaskMutation = useCreateStoryTask()
   const [expanded, setExpanded] = useState(true)
   const [newSubtask, setNewSubtask] = useState('')
 
@@ -148,10 +144,12 @@ function TaskRow({ reqId, storyId, task, readOnly = false }) {
                 variant="outline"
                 className="h-7 text-xs shrink-0"
                 disabled={!newSubtask.trim()}
-                onClick={() => {
-                  addSubtask(reqId, storyId, task.id, newSubtask.trim())
-                  setNewSubtask('')
-                }}
+                  onClick={() => {
+                    createTaskMutation.mutate(
+                      { ref: storyId, task: { title: newSubtask.trim(), parent_task_id: task.id } },
+                      { onSuccess: () => setNewSubtask('') },
+                    )
+                  }}
               >
                 <Plus className="h-3 w-3" />
                 Sub-task
@@ -316,27 +314,40 @@ function InvestBadges({ investResult }) {
 }
 
 function StoryCard({ reqId, story, readOnly = false }) {
-  const { updateStoryText, acceptStory, addTask, deleteStory } = usePlanningData()
+  const { updateStoryText, acceptStory, deleteStory } = usePlanningData()
   const updateMutation = useUpdateStory()
+  const createTaskMutation = useCreateStoryTask()
   const deleteMutation = useDeleteStory()
   const [editing, setEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState(story.title)
   const [draftCriteria, setDraftCriteria] = useState(story.acceptanceCriteria)
   const [newTask, setNewTask] = useState('')
 
-  const unlocked = story.investResult?.overallPass === true || story.status === 'Accepted'
+  const accepted = story.status === 'accepted' || story.status === 'Accepted'
+  const unlocked = story.investResult?.overallPass === true || accepted
 
   function saveEdits() {
-    updateStoryText(reqId, story.id, { title: draftTitle, acceptanceCriteria: draftCriteria })
-    updateMutation.mutate({ ref: story.id, patch: { title: draftTitle, acceptance_criteria: draftCriteria } })
-    setEditing(false)
-    showToast.info('Story updated', { description: 'Run decomposition analysis to re-check coverage and INVEST criteria.' })
+    updateMutation.mutate(
+      { ref: story.id, patch: { title: draftTitle, acceptance_criteria: draftCriteria } },
+      {
+        onSuccess: () => {
+          updateStoryText(reqId, story.id, { title: draftTitle, acceptanceCriteria: draftCriteria })
+          setEditing(false)
+          showToast.info('Story updated', { description: 'Run decomposition analysis to re-check coverage and INVEST criteria.' })
+        },
+        onError: () => showToast.error('Could not update user story'),
+      },
+    )
   }
 
   function handleDelete() {
-    deleteStory(reqId, story.id)
-    deleteMutation.mutate(story.id)
-    showToast.info('Story removed', { description: `${story.id} has been deleted from this requirement.` })
+    deleteMutation.mutate(story.id, {
+      onSuccess: () => {
+        deleteStory(reqId, story.id)
+        showToast.info('Story removed', { description: `${story.id} has been deleted from this requirement.` })
+      },
+      onError: () => showToast.error('Could not remove user story'),
+    })
   }
 
   return (
@@ -348,7 +359,7 @@ function StoryCard({ reqId, story, readOnly = false }) {
           </span>
           <Badge
             tone={
-              story.status === 'Accepted'
+              accepted
                 ? 'success'
                 : story.investResult
                   ? story.investResult.overallPass
@@ -358,7 +369,7 @@ function StoryCard({ reqId, story, readOnly = false }) {
             }
             className="text-[10px] px-2 py-0.5 font-medium"
           >
-            {story.status === 'Accepted'
+            {accepted
               ? 'Accepted Baseline'
               : story.investResult
                 ? story.investResult.overallPass
@@ -478,8 +489,10 @@ function StoryCard({ reqId, story, readOnly = false }) {
                   className="h-8 text-xs shrink-0 gap-1 cursor-pointer"
                   disabled={!newTask.trim()}
                   onClick={() => {
-                    addTask(reqId, story.id, newTask.trim())
-                    setNewTask('')
+                    createTaskMutation.mutate(
+                      { ref: story.id, task: { title: newTask.trim() } },
+                      { onSuccess: () => setNewTask('') },
+                    )
                   }}
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -490,15 +503,23 @@ function StoryCard({ reqId, story, readOnly = false }) {
 
             <BugSection reqId={reqId} storyId={story.id} bugs={story.bugs || []} readOnly={readOnly} />
 
-            {!readOnly && story.status !== 'Accepted' && (
+            {!readOnly && !accepted && (
               <div className="flex justify-end pt-1">
                 <Button
                   size="sm"
                   variant="outline"
                   className="text-xs h-7 gap-1.5 cursor-pointer text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
                   onClick={() => {
-                    acceptStory(reqId, story.id)
-                    showToast.success('Story accepted', { description: `${story.id} accepted for effort estimation.` })
+                    updateMutation.mutate(
+                      { ref: story.id, patch: { status: 'accepted' } },
+                      {
+                        onSuccess: () => {
+                          acceptStory(reqId, story.id)
+                          showToast.success('Story accepted', { description: `${story.id} accepted for effort estimation.` })
+                        },
+                        onError: () => showToast.error('Could not accept story'),
+                      },
+                    )
                   }}
                 >
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
@@ -521,35 +542,26 @@ function StoryCard({ reqId, story, readOnly = false }) {
 }
 
 function NewStoryForm({ reqId, initialTitle = '', onDone }) {
-  const { addStory } = usePlanningData()
   const createMutation = useCreateStory()
   const [title, setTitle] = useState(initialTitle)
   const [acceptanceCriteria, setAcceptanceCriteria] = useState('')
 
   function submit() {
     if (!title.trim()) return
-    const story = {
-      id: genId('US'),
-      title: title.trim(),
-      acceptanceCriteria: acceptanceCriteria.trim(),
-      investResult: null,
-      status: 'Draft',
-      tasks: [],
-      bugs: [],
-    }
-    addStory(reqId, story)
     createMutation.mutate({
-      id: story.id,
       requirement_ref: reqId,
-      title: story.title,
-      acceptance_criteria: story.acceptanceCriteria,
-      status: story.status,
-    })
-    setTitle('')
-    setAcceptanceCriteria('')
-    onDone?.()
-    showToast.success('User story created', {
-      description: 'Run decomposition analysis to evaluate INVEST criteria and parent coverage.',
+      title: title.trim(),
+      acceptance_criteria: acceptanceCriteria.trim(),
+    }, {
+      onSuccess: () => {
+        setTitle('')
+        setAcceptanceCriteria('')
+        onDone?.()
+        showToast.success('User story created', {
+          description: 'Run decomposition analysis to evaluate INVEST criteria and parent coverage.',
+        })
+      },
+      onError: () => showToast.error('Could not create user story'),
     })
   }
 
@@ -630,35 +642,68 @@ function NewStoryForm({ reqId, initialTitle = '', onDone }) {
   )
 }
 
+const CHECK_LABELS = {
+  C1: 'Parent linkage',
+  C2: 'Functional coverage',
+  C3: 'Data coverage',
+  C4: 'Condition coverage',
+  C5: 'Exception coverage',
+  C6: 'No orphan stories',
+  C7: 'No duplicate scope',
+  C8: 'No scope loss',
+  C9: 'No out-of-scope behavior',
+  C10: 'Acceptance-criteria linkage',
+}
+
+const INVEST_RESULT_TONE = {
+  Pass: 'success',
+  'Pass with note': 'success',
+  Fail: 'danger',
+  'Cannot Assess': 'neutral',
+}
+
 function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
   if (!evaluation) return null
-  const coveragePercent = Math.round((evaluation.coverage || 0) * 100)
-  const gaps = evaluation.gaps || []
-  const covered = evaluation.covered || []
+  const checks = evaluation.coverage?.checks || []
+  const elements = evaluation.coverage?.elements || []
+  const coveragePercent = Math.round(evaluation.coverage?.percentage || 0)
+  const missingElements = elements.filter((e) => e.coverage_result === 'Missing')
+  const investStories = Object.entries(evaluation.investResults || {})
+  const passedChecks = checks.filter((c) => c.result === 'Pass').length
+  const analysisFailed = Boolean(evaluation.analysisFailed)
 
   return (
     <div className="space-y-4">
-      {/* Functional Scope Coverage Card */}
+      {analysisFailed && (
+        <Card className="p-3.5 border-destructive/30 bg-destructive/5 flex items-center gap-2.5">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          <p className="text-xs text-destructive">
+            The checklist below is a placeholder — coverage analysis could not run
+            {evaluation.failureReason ? ` (${evaluation.failureReason})` : ''}. Re-run analysis once the issue is resolved.
+          </p>
+        </Card>
+      )}
+
+      {/* Coverage Gate — C1 through C10 */}
       <Card className="p-5">
         <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
           <div>
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
               <CheckSquare className="h-4 w-4 text-primary" />
-              Functional Scope Coverage Analysis
+              Coverage Gate — C1 through C10
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              MiniLM cosine similarity matching parent requirement capabilities against your user stories.
+              All ten checks must pass before INVEST readiness is evaluated.
             </p>
           </div>
           <Badge
-            tone={coveragePercent >= 80 ? 'success' : 'warning'}
+            tone={passedChecks === 10 && checks.length === 10 ? 'success' : analysisFailed ? 'danger' : 'warning'}
             className="text-xs font-bold px-2.5 py-1"
           >
-            {coveragePercent}% Scope Covered
+            {analysisFailed ? 'Analysis Failed' : `${passedChecks}/10 Checks Passing · ${coveragePercent}% Coverage`}
           </Badge>
         </div>
 
-        {/* Progress Bar */}
         <div className="mb-4 mt-2">
           <div className="h-2 rounded-full bg-muted overflow-hidden">
             <div
@@ -670,30 +715,66 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
           </div>
         </div>
 
-        {/* Missing Scope Callout */}
-        {gaps.length > 0 ? (
-          <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 mb-3">
+        <div className="space-y-1.5 mb-3">
+          {checks.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">No checks reported yet.</p>
+          ) : (
+            checks.map((c) => (
+              <div
+                key={c.check_id}
+                className={`p-2.5 rounded-lg border text-xs ${
+                  c.result === 'Pass' ? 'border-border/60 bg-card' : 'border-destructive/25 bg-destructive/5'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {c.result === 'Pass' ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  ) : (
+                    <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                  )}
+                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                    {c.check_id}
+                  </span>
+                  <span className="font-semibold text-foreground">
+                    {CHECK_LABELS[c.check_id] || c.check_id}
+                  </span>
+                </div>
+                {c.rationale && (
+                  <p className="text-[11px] text-muted-foreground mt-1 ml-6">{c.rationale}</p>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        {missingElements.length > 0 ? (
+          <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5">
             <div className="flex items-center gap-2 mb-1.5">
               <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
-                Unrepresented Scope ({gaps.length} capability gaps detected)
+                Missing Coverage Elements ({missingElements.length})
               </p>
             </div>
             <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
-              The agent extracted these obligations from the parent requirement, but found no matching user story covering them:
+              The agent extracted these elements from the parent requirement, but found no matching user story covering them:
             </p>
             <ul className="space-y-1.5 text-xs text-foreground">
-              {gaps.map((g) => (
+              {missingElements.map((el, idx) => (
                 <li
-                  key={g.id}
+                  key={idx}
                   className="flex items-center justify-between gap-2 p-2 rounded-lg bg-background/80 border border-border"
                 >
-                  <span className="font-medium text-foreground text-xs">{g.label}</span>
+                  <span>
+                    <span className="font-mono text-[10px] text-muted-foreground uppercase mr-1.5">
+                      {el.element_type}
+                    </span>
+                    <span className="font-medium text-foreground">{el.description}</span>
+                  </span>
                   {onAddGapStory && (
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => onAddGapStory(g.label)}
+                      onClick={() => onAddGapStory(el.description)}
                       className="text-[11px] h-6 px-2 shrink-0 cursor-pointer text-primary border-primary/30"
                     >
                       <Plus className="h-3 w-3" /> Add Story for Gap
@@ -703,94 +784,84 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
               ))}
             </ul>
           </div>
-        ) : (
-          <div className="flex items-center gap-2.5 p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 mb-3">
-            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-            <div>
-              <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                Complete Functional Coverage
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Every capability and operational aspect of this requirement is represented in your user story backlog.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Covered Aspects List */}
-        {covered.length > 0 && (
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Verified Covered Capabilities ({covered.length})
+        ) : analysisFailed ? (
+          <div className="flex items-center gap-2.5 p-3 rounded-xl border border-destructive/25 bg-destructive/5">
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+            <p className="text-xs font-bold text-destructive">
+              Coverage analysis could not be completed — the checks above reflect an agent failure, not a real result. Re-run analysis.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {covered.map((c) => (
-                <div
-                  key={c.id}
-                  className="flex items-center gap-2 p-2 rounded-lg border border-border/70 bg-card text-xs text-muted-foreground"
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                  <span className="truncate text-foreground font-medium">{c.label}</span>
-                </div>
-              ))}
-            </div>
           </div>
-        )}
+        ) : checks.length > 0 ? (
+          <div className="flex items-center gap-2.5 p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+              Every coverage element is represented in your user story backlog.
+            </p>
+          </div>
+        ) : null}
       </Card>
 
-      {/* INVEST 6-Dimension Quality Summary Matrix */}
+      {/* INVEST Readiness Matrix */}
       <Card className="p-5">
-        <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            INVEST Agile Rubric Compliance Summary
+            INVEST Readiness Matrix
           </h3>
           <span className="text-xs text-muted-foreground font-medium">
-            Gate Rule: 100% Passing Target
+            Ready = Pass or Pass with note on all six
           </span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {INVEST_CRITERIA.map(({ key, code, label, description }) => {
-            const investEntries = Object.values(evaluation.investResults || {})
-            const total = investEntries.length
-            const passedCount = investEntries.filter((r) => r[key]?.pass).length
-            const passPct = total ? Math.round((passedCount / total) * 100) : 100
-            const isPassing = passPct === 100
-
-            return (
-              <div
-                key={key}
-                className="p-3 rounded-xl border border-border/80 bg-muted/20 space-y-1.5"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                    <span className="h-5 w-5 rounded-md bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
-                      {code}
-                    </span>
-                    {label}
-                  </span>
-                  <Badge
-                    tone={isPassing ? 'success' : 'warning'}
-                    className="text-[10px] font-semibold px-1.5 py-0"
-                  >
-                    {passedCount}/{total}
-                  </Badge>
-                </div>
-                <div className="h-1 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-500 rounded-full ${
-                      isPassing ? 'bg-emerald-500' : 'bg-amber-500'
-                    }`}
-                    style={{ width: `${passPct}%` }}
-                  />
-                </div>
-                <p className="text-[10px] text-muted-foreground line-clamp-2 leading-tight">
-                  {description}
-                </p>
-              </div>
-            )
-          })}
-        </div>
+        {investStories.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic">No stories evaluated yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <th className="text-left font-semibold pb-2 pr-2">Story</th>
+                  {INVEST_CRITERIA.map((c) => (
+                    <th key={c.key} className="text-center font-semibold pb-2 px-1" title={c.label}>
+                      {c.code}
+                    </th>
+                  ))}
+                  <th className="text-center font-semibold pb-2 pl-2">Ready</th>
+                </tr>
+              </thead>
+              <tbody>
+                {investStories.map(([storyRef, result]) => (
+                  <tr key={storyRef} className="border-t border-border/60">
+                    <td className="py-2 pr-2 font-medium text-foreground">{storyRef}</td>
+                    {INVEST_CRITERIA.map((c) => {
+                      const cell = result[c.key] || {}
+                      return (
+                        <td key={c.key} className="text-center px-1 py-2" title={cell.note || ''}>
+                          <Badge
+                            tone={INVEST_RESULT_TONE[cell.result] || 'neutral'}
+                            className="text-[9px] px-1 py-0"
+                          >
+                            {cell.result === 'Pass with note'
+                              ? 'Note'
+                              : cell.result === 'Cannot Assess'
+                                ? '—'
+                                : cell.result || '—'}
+                          </Badge>
+                        </td>
+                      )
+                    })}
+                    <td className="text-center pl-2">
+                      {result.storyReady ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500 inline" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-destructive inline" />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   )
@@ -821,29 +892,44 @@ function RevisionHistorySection({ history }) {
         {history.map((entry, idx) => (
           <div
             key={idx}
-            className="flex items-start justify-between gap-3 p-3 rounded-xl border border-border/70 bg-card text-xs"
+            className={`flex items-start justify-between gap-3 p-3 rounded-xl border text-xs ${
+              entry.analysisFailed ? 'border-destructive/25 bg-destructive/5' : 'border-border/70 bg-card'
+            }`}
           >
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10 text-[11px]">
                   Rev {entry.version}
                 </span>
-                <Badge
-                  tone={entry.verdict === 'Validated' ? 'success' : 'warning'}
-                  className="text-[10px] font-semibold px-2 py-0"
-                >
-                  {entry.score}% · {entry.verdict}
-                </Badge>
-                {entry.coverage !== undefined && (
-                  <span className="text-[11px] text-muted-foreground">
-                    Coverage: {Math.round(entry.coverage * 100)}%
-                  </span>
+                {entry.analysisFailed ? (
+                  <Badge tone="danger" className="text-[10px] font-semibold px-2 py-0">
+                    Analysis Failed
+                  </Badge>
+                ) : (
+                  <>
+                    <Badge
+                      tone={entry.gateStatus === 'COMPLETE' ? 'success' : entry.gateStatus === 'NEEDS_REVIEW' ? 'primary' : 'warning'}
+                      className="text-[10px] font-semibold px-2 py-0"
+                    >
+                      {entry.score}/4 · {entry.gateStatus || 'INCOMPLETE'}
+                    </Badge>
+                    {entry.qualityBand && (
+                      <span className="text-[11px] text-muted-foreground">{entry.qualityBand}</span>
+                    )}
+                  </>
                 )}
               </div>
-              {entry.summary && (
-                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                  {entry.summary}
+              {entry.analysisFailed ? (
+                <p className="text-xs text-destructive line-clamp-2 leading-relaxed">
+                  System error — not a real evaluation
+                  {entry.failureReason ? `: ${entry.failureReason}` : '.'}
                 </p>
+              ) : (
+                entry.summary && (
+                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                    {entry.summary}
+                  </p>
+                )
               )}
             </div>
             <span className="text-[11px] text-muted-foreground shrink-0">
@@ -909,20 +995,32 @@ export default function Decomposition() {
 
   // Hydrate stories + decomposition results from DB on mount
   useEffect(() => {
+    if (storiesQuery.isError) {
+      showToast.error('Could not load your stories', {
+        description: storiesQuery.error?.message || 'Please reload the page.',
+      })
+      return
+    }
     if (storiesQuery.data?.stories) {
       const mapped = mapStoryRows(storiesQuery.data.stories)
       if (Object.keys(mapped).length > 0) loadStories(mapped)
     }
-  }, [storiesQuery.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [storiesQuery.data, storiesQuery.isError]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (decompositionQuery.isError) {
+      showToast.error('Could not load decomposition results', {
+        description: decompositionQuery.error?.message || 'Please reload the page.',
+      })
+      return
+    }
     if (decompositionQuery.data?.results) {
       const mapped = mapPersistedDecompositions(decompositionQuery.data.results)
       for (const [reqId, eval_] of Object.entries(mapped)) {
-        if (eval_) recordDecompositionAnalysis(reqId, eval_)
+        if (eval_ && !eval_.malformed) recordDecompositionAnalysis(reqId, eval_)
       }
     }
-  }, [decompositionQuery.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [decompositionQuery.data, decompositionQuery.isError]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const requirement = requirements.find((r) => r.id === selectedReqId) || null
   const isEligible = isReqUnlocked(requirement)
@@ -931,8 +1029,7 @@ export default function Decomposition() {
   const analyzing = analyzeMutation.isPending
 
   const isDecompFinalized = Boolean(requirement?.decompFinalized)
-  const decompScore = evaluation?.score ?? 0
-  const isDecompPassed = decompScore >= QUALITY_GATE_THRESHOLD && evaluation?.verdict === 'Validated'
+  const isDecompPassed = evaluation?.gateStatus === 'COMPLETE'
 
   // History tracking for the active requirement
   const rawHistory = getDecompositionHistory(selectedReqId) || []
@@ -956,10 +1053,11 @@ export default function Decomposition() {
     }
     const eval_ = getDecompositionEvaluation(r.id)
     const isFinal = Boolean(r.decompFinalized)
-    const score = eval_?.score ?? 0
+    const percent = eval_ ? Math.round(((eval_.score ?? 0) / 4) * 100) : 0
+    const gatePassed = eval_?.gateStatus === 'COMPLETE'
     return {
-      percent: score,
-      tone: isFinal ? 'success' : score >= QUALITY_GATE_THRESHOLD ? 'success' : score > 0 ? 'warning' : 'neutral',
+      percent,
+      tone: isFinal || gatePassed ? 'success' : percent > 0 ? 'warning' : 'neutral',
       locked: false,
       finalized: isFinal,
     }
@@ -979,11 +1077,22 @@ export default function Decomposition() {
       },
       {
         onSuccess: (data) => {
+          if (data?.persisted === false) {
+            showToast.warning('Analysis complete, but not saved', {
+              description: data.persist_error || 'Please re-run analysis to retry saving.',
+            })
+          }
           const mapped = mapDecompositionResult(data)
+          if (mapped?.malformed) {
+            showToast.error('Analysis response was invalid', {
+              description: mapped.persistError || 'Please try again or contact your supervisor.',
+            })
+            return
+          }
           if (mapped) {
             recordDecompositionAnalysis(selectedReqId, mapped)
             showToast.success('Decomposition analysis complete', {
-              description: `Coverage ${Math.round(mapped.coverage * 100)}% · score ${mapped.score}/100 (${mapped.verdict}).`,
+              description: `Gate: ${mapped.gateStatus} · score ${mapped.score}/4 (${mapped.qualityBand}).`,
             })
           }
         },
@@ -1017,7 +1126,7 @@ export default function Decomposition() {
 
   const eligibleCount = unlockedReqs.length
   const decomposedCount = unlockedReqs.filter(
-    (r) => Boolean(r.decompFinalized) || (getDecompositionEvaluation(r.id)?.score >= QUALITY_GATE_THRESHOLD),
+    (r) => Boolean(r.decompFinalized) || getDecompositionEvaluation(r.id)?.gateStatus === 'COMPLETE',
   ).length
   const overallDecompPercent = eligibleCount ? Math.round((decomposedCount / eligibleCount) * 100) : 0
 
@@ -1030,7 +1139,11 @@ export default function Decomposition() {
       id: 'coverage',
       label: 'Coverage & INVEST Radar',
       icon: Sparkles,
-      count: evaluation ? `${Math.round(evaluation.coverage * 100)}%` : undefined,
+      count: evaluation
+        ? evaluation.analysisFailed
+          ? 'Error'
+          : `${Math.round(evaluation.coverage?.percentage || 0)}%`
+        : undefined,
     },
     { id: 'evidence', label: 'Agent Evidence & Patterns', icon: Lightbulb },
     { id: 'history', label: 'Revision History', icon: History, count: history.length },
@@ -1050,7 +1163,7 @@ export default function Decomposition() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
             Backlog Decomposition &amp; INVEST Story Modeling
             <Badge tone="primary" className="text-xs font-medium">
-              INVEST Gate: &gt;= {QUALITY_GATE_THRESHOLD}% Pass
+              Two-Level Gate: Coverage + INVEST Readiness
             </Badge>
           </h1>
         </div>
@@ -1282,7 +1395,7 @@ export default function Decomposition() {
                     ) : (
                       <div
                         className="flex items-center gap-1.5"
-                        title={`Decomposition gate locked: requirement must achieve ≥${QUALITY_GATE_THRESHOLD}% score and pass INVEST & coverage to unlock effort estimation.`}
+                        title="Decomposition gate locked: all coverage checks (C1-C10) must pass and every story must be INVEST-ready to unlock effort estimation."
                       >
                         <Button
                           disabled
@@ -1328,17 +1441,88 @@ export default function Decomposition() {
                         </span>
                       )}
                       {evaluation ? (
-                        <Badge
-                          tone={evaluation.verdict === 'Validated' ? 'success' : 'warning'}
-                          className="text-xs font-semibold px-2.5 py-0.5"
-                        >
-                          {evaluation.score}% · {evaluation.verdict}
-                        </Badge>
+                        <>
+                          {evaluation.stale && !evaluation.analysisFailed && (
+                            <Badge tone="warning" className="text-[10px] gap-1">
+                              <AlertTriangle className="h-3 w-3" /> Stale
+                            </Badge>
+                          )}
+                          <Badge
+                            tone={
+                              evaluation.analysisFailed || evaluation.malformed
+                                ? 'danger'
+                                : evaluation.gateStatus === 'COMPLETE'
+                                  ? 'success'
+                                  : evaluation.gateStatus === 'NEEDS_REVIEW'
+                                    ? 'primary'
+                                    : 'warning'
+                            }
+                            className="text-xs font-semibold px-2.5 py-0.5"
+                          >
+                            {evaluation.analysisFailed
+                              ? 'Analysis Failed'
+                              : evaluation.malformed
+                                ? 'Analysis Error'
+                                : `${evaluation.score}/4 · ${evaluation.gateStatus}`}
+                          </Badge>
+                        </>
                       ) : (
                         <Badge tone="neutral" className="text-xs">Not Evaluated</Badge>
                       )}
                     </div>
                   </div>
+
+                  {evaluation?.analysisFailed && (
+                    <div className="mb-4 flex items-center gap-2.5 p-3 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-xs font-bold">Analysis could not be completed — this is not a real result</p>
+                        <p className="text-[11px] opacity-90 leading-tight">
+                          A system error prevented the agent from evaluating coverage
+                          {evaluation.failureReason ? ` (${evaluation.failureReason})` : ''}. The checklist and score
+                          below are placeholders, not findings about your stories — please re-run analysis once the
+                          issue is resolved.
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={runAnalysis}
+                        disabled={analyzing}
+                        className="text-xs cursor-pointer gap-1.5 shrink-0 border-destructive/40"
+                      >
+                        <Brain className="h-3.5 w-3.5" /> Re-run now
+                      </Button>
+                    </div>
+                  )}
+
+                  {evaluation?.stale && !evaluation.analysisFailed && (
+                    <div className="mb-4 flex items-center gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-300">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      <p className="text-xs flex-1">
+                        Stories changed since this analysis — showing the last result. Re-run analysis to refresh.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={runAnalysis}
+                        disabled={analyzing}
+                        className="text-xs cursor-pointer gap-1.5 shrink-0 border-amber-500/40"
+                      >
+                        <Brain className="h-3.5 w-3.5" /> Re-run now
+                      </Button>
+                    </div>
+                  )}
+
+                  {evaluation?.gateStatus === 'NEEDS_REVIEW' && !evaluation.stale && !evaluation.analysisFailed && (
+                    <div className="mb-4 flex items-center gap-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/25 text-blue-800 dark:text-blue-300">
+                      <UserCheck className="h-4 w-4 shrink-0" />
+                      <p className="text-xs">
+                        Sent for supervisor review
+                        {evaluation.needsReviewReason ? `: ${evaluation.needsReviewReason}` : '.'}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Finalized Approved Banner */}
                   {isDecompFinalized && (
@@ -1475,7 +1659,7 @@ export default function Decomposition() {
                 {/* SECTION 3: Agent Evidence & Patterns (shown on 'all' or 'evidence') */}
                 {(mainTab === 'all' || mainTab === 'evidence') && (
                   <div className="space-y-4">
-                    {evaluation && <DecompositionEvidencePanel evaluation={evaluation} />}
+                    <DecompositionEvidencePanel evaluation={evaluation} />
 
                     {/* DART Reasoning Flag Callout (if active) */}
                     {dartCases.length > 0 && (

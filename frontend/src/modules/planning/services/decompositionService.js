@@ -8,6 +8,8 @@ export const decompositionService = {
 
   updateStory: (ref, patch) => apiClient.patch(ENDPOINTS.PLANNING.STORY(ref), patch),
 
+  createTask: (ref, task) => apiClient.post(ENDPOINTS.PLANNING.STORY_TASKS(ref), task),
+
   deleteStory: (ref) => apiClient.delete(ENDPOINTS.PLANNING.STORY(ref)),
 
   analyzeDecomposition: ({ requirement, stories, threshold = 75 }) =>

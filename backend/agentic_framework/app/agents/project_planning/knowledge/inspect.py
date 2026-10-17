@@ -27,7 +27,7 @@ def _dump(collection) -> None:
 
 
 def main() -> None:
-    standards, exemplars = _get_collections()
+    standards, exemplars, _ = _get_collections()
 
     print("=" * 70)
     print("KNOWLEDGE BASE CONTENTS")

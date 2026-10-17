@@ -29,6 +29,8 @@ const FINALIZED_STORAGE_KEY = 'selvia_finalized_requirements'
 const FINALIZED_DECOMP_STORAGE_KEY = 'selvia_finalized_decompositions'
 const CACHED_REQUIREMENTS_KEY = 'selvia_cached_requirements'
 const CACHED_USER_STORIES_KEY = 'selvia_cached_user_stories'
+const CACHED_DECOMP_EVALUATIONS_KEY = 'selvia_cached_decomp_evaluations'
+const CACHED_DECOMP_HISTORY_KEY = 'selvia_cached_decomp_history'
 
 function readFinalizedIds() {
   try {
@@ -112,8 +114,48 @@ function saveCachedUserStories(stories) {
   }
 }
 
+function readCachedDecompEvaluations() {
+  try {
+    const raw = localStorage.getItem(CACHED_DECOMP_EVALUATIONS_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveCachedDecompEvaluations(evaluations) {
+  try {
+    if (evaluations && typeof evaluations === 'object') {
+      localStorage.setItem(CACHED_DECOMP_EVALUATIONS_KEY, JSON.stringify(evaluations))
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function readCachedDecompHistory() {
+  try {
+    const raw = localStorage.getItem(CACHED_DECOMP_HISTORY_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveCachedDecompHistory(history) {
+  try {
+    if (history && typeof history === 'object') {
+      localStorage.setItem(CACHED_DECOMP_HISTORY_KEY, JSON.stringify(history))
+    }
+  } catch {
+    // ignore
+  }
+}
+
 const initialRequirements = readCachedRequirements()
 const initialStories = readCachedUserStories()
+const initialDecompEvaluations = readCachedDecompEvaluations()
+const initialDecompHistory = readCachedDecompHistory()
 
 // Synchronously hydrated from local cache on initial load/reload so the UI never
 // flashes 0% or empty state before background network queries resolve.
@@ -128,9 +170,9 @@ let state = {
       [{ version: 1, score: r.overallScore, status: r.status, timestamp: r.lastChecked }],
     ]),
   ),
-  decompositionHistory: {},
+  decompositionHistory: initialDecompHistory,
   activityLog: [],
-  decompositionEvaluations: {},
+  decompositionEvaluations: initialDecompEvaluations,
 }
 
 const listeners = new Set()
@@ -142,6 +184,12 @@ function setState(patch) {
   }
   if (patch.userStories) {
     saveCachedUserStories(state.userStories)
+  }
+  if (patch.decompositionEvaluations) {
+    saveCachedDecompEvaluations(state.decompositionEvaluations)
+  }
+  if (patch.decompositionHistory) {
+    saveCachedDecompHistory(state.decompositionHistory)
   }
   listeners.forEach((listener) => listener())
 }
@@ -270,9 +318,24 @@ export const actions = {
     return state.requirementHistory[id] || []
   },
 
+  // Shallow-merges each incoming story onto the existing one (by id) rather
+  // than replacing the array wholesale, so a stories-query resolving after
+  // the decomposition-results query can't wipe out investResult/stale badges
+  // the latter already attached (defense-in-depth; the server-side adapter
+  // fix is the primary guard — see adapters/decomposition.js).
   loadStories(map) {
     if (!map || Object.keys(map).length === 0) return
-    setState({ userStories: { ...state.userStories, ...map } })
+    const merged = { ...state.userStories }
+    for (const [reqId, incomingStories] of Object.entries(map)) {
+      const existingById = new Map((merged[reqId] || []).map((s) => [s.id, s]))
+      merged[reqId] = incomingStories.map((incoming) => {
+        const existing = existingById.get(incoming.id)
+        return existing
+          ? { ...existing, ...incoming, investResult: incoming.investResult ?? existing.investResult }
+          : incoming
+      })
+    }
+    setState({ userStories: merged })
   },
 
   loadEstimations(map) {
@@ -289,27 +352,41 @@ export const actions = {
     return state.userStories[reqId] || []
   },
 
+  // The story set changed, so any prior coverage/INVEST result for this
+  // requirement is now STALE — flag it (keep all its data) rather than
+  // deleting it, so the student still sees their last feedback instead of
+  // the evidence panel silently vanishing. The agent needs to re-run its
+  // analysis to clear the stale flag.
   addStory(reqId, story) {
     setState({
       userStories: { ...state.userStories, [reqId]: [...(state.userStories[reqId] || []), story] },
-      // The story set changed, so any prior coverage/INVEST result for this
-      // requirement is stale — the agent needs to re-run its analysis.
-      decompositionEvaluations: { ...state.decompositionEvaluations, [reqId]: null },
+      decompositionEvaluations: {
+        ...state.decompositionEvaluations,
+        [reqId]: state.decompositionEvaluations[reqId]
+          ? { ...state.decompositionEvaluations[reqId], stale: true }
+          : null,
+      },
       activityLog: withActivity(`${story.id} written for ${reqId} — ready for decomposition analysis.`, 'primary', 'student'),
     })
   },
 
-  // Student edits after AI feedback — clears this story's own INVEST result
-  // and invalidates the requirement's coverage analysis, since the set changed.
+  // Student edits after AI feedback — keeps the story's own INVEST result
+  // visible (marked editedSinceAnalysis instead of wiped) and flags the
+  // requirement's evaluation stale, since the set changed.
   updateStoryText(reqId, storyId, patch) {
     setState({
       userStories: {
         ...state.userStories,
         [reqId]: (state.userStories[reqId] || []).map((s) =>
-          s.id === storyId ? { ...s, ...patch, investResult: null } : s,
+          s.id === storyId ? { ...s, ...patch, editedSinceAnalysis: true } : s,
         ),
       },
-      decompositionEvaluations: { ...state.decompositionEvaluations, [reqId]: null },
+      decompositionEvaluations: {
+        ...state.decompositionEvaluations,
+        [reqId]: state.decompositionEvaluations[reqId]
+          ? { ...state.decompositionEvaluations[reqId], stale: true }
+          : null,
+      },
     })
   },
 
@@ -317,33 +394,60 @@ export const actions = {
     return state.decompositionEvaluations[reqId] || null
   },
 
-  // Records one full decomposition agent pass against the requirement's current story set.
+  // Records one full decomposition agent pass against the requirement's
+  // current story set. A fresh result is never stale, and clears each
+  // story's own editedSinceAnalysis flag since this result reflects the
+  // current story text.
   recordDecompositionAnalysis(reqId, result) {
     const prevHistory = state.decompositionHistory[reqId] || []
+    const fingerprint = (entry) => [
+      entry.timestamp || '',
+      entry.gateStatus || '',
+      entry.score ?? '',
+      entry.analysisFailed ? 'failed' : 'complete',
+    ].join('|')
     const newEntry = {
       version: prevHistory.length + 1,
       score: result.score,
       coverage: result.coverage,
-      verdict: result.verdict,
+      gateStatus: result.gateStatus,
+      qualityBand: result.qualityBand,
+      analysisFailed: Boolean(result.analysisFailed),
+      failureReason: result.failureReason || null,
       timestamp: result.evaluatedAt || new Date().toISOString(),
-      summary: result.summary,
+      summary: (result.studentFeedback || [])[0] || '',
     }
+    // A completed POST invalidates and refetches the latest-results query.
+    // Both paths carry the same persisted assessed_at timestamp, so only one
+    // history entry must be retained for that single database assessment.
+    const newFingerprint = fingerprint(newEntry)
+    const uniqueHistory = prevHistory.filter((entry, index, entries) => (
+      fingerprint(entry) !== newFingerprint
+      && entries.findIndex((candidate) => fingerprint(candidate) === fingerprint(entry)) === index
+    ))
+    newEntry.version = uniqueHistory.length + 1
     setState({
       userStories: {
         ...state.userStories,
         [reqId]: (state.userStories[reqId] || []).map((s) => ({
           ...s,
           investResult: result.investResults[s.id] || s.investResult,
+          editedSinceAnalysis: false,
         })),
       },
-      decompositionEvaluations: { ...state.decompositionEvaluations, [reqId]: result },
+      decompositionEvaluations: {
+        ...state.decompositionEvaluations,
+        [reqId]: { ...result, stale: false },
+      },
       decompositionHistory: {
         ...state.decompositionHistory,
-        [reqId]: [newEntry, ...prevHistory],
+        [reqId]: [newEntry, ...uniqueHistory],
       },
       activityLog: withActivity(
-        `Decomposition Agent analyzed ${reqId} — coverage ${Math.round(result.coverage * 100)}%, score ${result.score}/100 (${result.verdict}).`,
-        result.verdict === 'Validated' ? 'success' : 'warning',
+        result.analysisFailed
+          ? `Decomposition analysis for ${reqId} could not be completed — system error, please re-run.`
+          : `Decomposition Agent analyzed ${reqId} — gate ${result.gateStatus}, score ${result.score}/4 (${result.qualityBand}).`,
+        result.analysisFailed ? 'danger' : result.gateStatus === 'COMPLETE' ? 'success' : 'warning',
       ),
     })
   },
@@ -358,7 +462,12 @@ export const actions = {
         ...state.userStories,
         [reqId]: (state.userStories[reqId] || []).filter((s) => s.id !== storyId),
       },
-      decompositionEvaluations: { ...state.decompositionEvaluations, [reqId]: null },
+      decompositionEvaluations: {
+        ...state.decompositionEvaluations,
+        [reqId]: state.decompositionEvaluations[reqId]
+          ? { ...state.decompositionEvaluations[reqId], stale: true }
+          : null,
+      },
       activityLog: withActivity(`Story ${storyId} deleted from ${reqId}.`, 'primary', 'student'),
     })
   },

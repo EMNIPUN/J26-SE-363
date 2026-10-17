@@ -213,7 +213,7 @@ export default function Estimation() {
   const acceptedStories = []
   for (const req of requirements) {
     for (const story of userStories[req.id] || []) {
-      if (story.status === 'Accepted') acceptedStories.push({ req, story })
+      if (story.status === 'accepted' || story.status === 'Accepted') acceptedStories.push({ req, story })
     }
   }
 
@@ -251,7 +251,9 @@ export default function Estimation() {
 
   function getEstimationMeta(r) {
     if (r.status !== 'Passing') return { percent: 0, tone: 'neutral', locked: true }
-    const accepted = (userStories[r.id] || []).filter((s) => s.status === 'Accepted')
+    const accepted = (userStories[r.id] || []).filter(
+      (s) => s.status === 'accepted' || s.status === 'Accepted',
+    )
     if (!r.decompFinalized && accepted.length === 0) {
       return { percent: 0, tone: 'neutral', locked: true }
     }

@@ -30,6 +30,7 @@ export const ENDPOINTS = {
     // User Stories + Decomposition Agent
     STORIES: '/planning/stories',
     STORY: (ref) => `/planning/stories/${ref}`,
+    STORY_TASKS: (ref) => `/planning/stories/${ref}/tasks`,
     DECOMPOSITION: '/planning/decomposition',
     DECOMPOSITION_HISTORY: (ref) => `/planning/decomposition/${ref}/history`,
     // Estimation

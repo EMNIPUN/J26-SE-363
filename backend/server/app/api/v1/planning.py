@@ -25,6 +25,7 @@ Stories
 Decomposition
     POST /planning/decomposition           run decomposition analysis
     GET  /planning/decomposition           latest stored results
+    GET  /planning/decomposition/gate      decomposition gate decision
 
 Estimation
     POST /planning/estimates               save student effort estimate
@@ -55,7 +56,7 @@ from __future__ import annotations
 import base64
 import logging
 import uuid as _uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import (
@@ -77,6 +78,7 @@ from shared.contracts import (
     UserRole,
 )
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
@@ -86,7 +88,7 @@ from app.clients.ai_backend import (
 )
 from app.core.security import CurrentUser, get_current_user
 from app.database.session import get_db
-from app.models.enums import ParseStatus, PipelineStage
+from app.models.enums import ParseStatus, PipelineStage, StoryStatus
 from app.models.group import Group, GroupMember
 from app.models.pipeline_session import PipelineSession
 from app.models.project import Project
@@ -140,7 +142,7 @@ class QualityRequest(BaseModel):
 
 
 class StoryIn(BaseModel):
-    id: str
+    id: str | None = None
     requirement_ref: str
     title: str
     as_a: str | None = None
@@ -159,6 +161,12 @@ class StoryPatch(BaseModel):
     description: str | None = None
     acceptance_criteria: list[dict] | str | None = None
     priority: str | None = None
+    status: str | None = None
+
+
+class StoryTaskIn(BaseModel):
+    title: str = Field(min_length=1, max_length=500)
+    parent_task_id: _uuid.UUID | None = None
 
 
 class DecompositionRequest(BaseModel):
@@ -698,7 +706,7 @@ async def upload_srs(
         extracted = result.get("requirements", [])
         srs_doc.parse_status = ParseStatus.PARSED
         srs_doc.total_requirements_extracted = len(extracted)
-        srs_doc.parsed_at = datetime.now(timezone.utc)
+        srs_doc.parsed_at = datetime.now(UTC)
 
         reqs = requirement_service.create_requirements(
             db,
@@ -997,18 +1005,22 @@ async def list_stories(
     rows = await run_in_threadpool(
         decomposition_service.list_stories, db, session.id
     )
+    requirements = await run_in_threadpool(
+        requirement_service.list_requirements, db, session.id
+    )
+    requirement_refs = {requirement.id: requirement.requirement_ref for requirement in requirements}
+    stories = []
+    for row in rows:
+        story = decomposition_service.story_to_dict(row)
+        story["requirement_ref"] = requirement_refs.get(row.requirement_id, str(row.requirement_id))
+        stories.append(story)
     return {
         "project_id": str(session.project_id),
-        "stories": [
-            decomposition_service.story_to_dict(r)
-            for r in rows
-        ],
+        "stories": stories,
     }
 
 
-@router.post(
-    "/stories", summary="Create or update a user story"
-)
+@router.post("/stories", status_code=status.HTTP_201_CREATED, summary="Create a user story")
 async def create_story(
     body: StoryIn,
     user: Annotated[CurrentUser, Depends(get_current_user)],
@@ -1035,17 +1047,26 @@ async def create_story(
     user_db_id = await run_in_threadpool(
         _resolve_user_db_id, db, user
     )
-    story_data = body.model_dump(exclude={"requirement_ref"})
-    story_data["story_ref"] = story_data.pop("id")
-    row = await run_in_threadpool(
-        decomposition_service.upsert_story,
-        db,
-        req.id,
-        session.id,
-        story_data,
-        user_db_id,
-    )
-    db.commit()
+    story_data = body.model_dump(exclude={"requirement_ref", "id"})
+    # A server-generated ref prevents browser refreshes or concurrent students
+    # from silently overwriting a story through a reused display identifier.
+    story_data["story_ref"] = body.id or f"US-{_uuid.uuid4().hex[:8].upper()}"
+    try:
+        row = await run_in_threadpool(
+            decomposition_service.create_story,
+            db,
+            req.id,
+            session.id,
+            story_data,
+            user_db_id,
+        )
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A user story with this reference already exists in this project.",
+        )
     return {
         "ok": True,
         "story": decomposition_service.story_to_dict(row),
@@ -1078,15 +1099,69 @@ async def patch_story(
             detail="Story not found.",
         )
     patch = body.model_dump(exclude_none=True)
+    requested_status = patch.get("status")
+    if requested_status and requested_status != StoryStatus.ACCEPTED.value:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Story status is managed by the decomposition and estimation workflow.",
+        )
+    if requested_status == StoryStatus.ACCEPTED.value and row.status != StoryStatus.INVEST_PASSED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only a story that passes the latest INVEST analysis can be accepted.",
+        )
+    if row.status == StoryStatus.IN_BACKLOG and any(
+        field in patch
+        for field in ("title", "as_a", "i_want", "so_that", "description", "acceptance_criteria")
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A story already sent to the sprint backlog cannot be edited.",
+        )
+    changed = False
     for field, val in patch.items():
-        if hasattr(row, field):
+        if field == "status":
+            try:
+                val = StoryStatus(val)
+            except ValueError:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid story status.")
+        if hasattr(row, field) and getattr(row, field) != val:
             setattr(row, field, val)
+            changed = True
+    if changed and any(
+        field in patch
+        for field in ("title", "as_a", "i_want", "so_that", "description", "acceptance_criteria")
+    ) and row.status not in (StoryStatus.IN_BACKLOG, StoryStatus.ESTIMATED):
+        row.status = StoryStatus.DRAFT
+    if changed:
+        row.edited_at = datetime.now(UTC)
     db.flush()
     db.commit()
     return {
         "ok": True,
         "story": decomposition_service.story_to_dict(row),
     }
+
+
+@router.post("/stories/{story_ref}/tasks", status_code=status.HTTP_201_CREATED, summary="Create a story task or subtask")
+async def create_story_task(
+    story_ref: str,
+    body: StoryTaskIn,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(_require_session, db, x_team_id, None, user)
+    story = await run_in_threadpool(decomposition_service.get_story_by_ref, db, session.id, story_ref)
+    if not story:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Story not found.")
+    try:
+        await run_in_threadpool(decomposition_service.create_task, db, story, body.title, body.parent_task_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    db.commit()
+    story = await run_in_threadpool(decomposition_service.get_story_by_ref, db, session.id, story_ref)
+    return {"ok": True, "story": decomposition_service.story_to_dict(story)}
 
 
 @router.delete(
@@ -1118,6 +1193,23 @@ async def delete_story(
 
 
 # ── Decomposition ────────────────────────────────────────────
+
+
+def _attach_requirement_refs(
+    db: Session,
+    session: PipelineSession,
+    dicts: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Replace each dict's UUID requirement_id with the human-readable ref
+    (e.g. "REQ-1") the frontend actually keys its requirements by - mirrors
+    the GET /planning/quality req_map/ref_lookup pattern."""
+    reqs = requirement_service.list_requirements(db, session.id)
+    ref_lookup = {r.id: r.requirement_ref for r in reqs}
+    for d in dicts:
+        ref = ref_lookup.get(_uuid.UUID(d["requirement_id"]))
+        if ref:
+            d["requirement_id"] = ref
+    return dicts
 
 
 @router.post(
@@ -1154,6 +1246,12 @@ async def analyze_decomposition(
         user,
     )
     decomp_result = result.get("result")
+    response: dict[str, Any] = {
+        "persisted": False,
+        "persist_error": None,
+        "assessment": None,
+        "dart_cases": [],
+    }
 
     if session and decomp_result:
         if decomp_result.get("dart_triggered"):
@@ -1167,7 +1265,7 @@ async def analyze_decomposition(
                 body.stories,
             )
             if dart_result:
-                result["dart_cases"] = [
+                response["dart_cases"] = [
                     dart_result.get("case", {})
                 ]
 
@@ -1178,32 +1276,45 @@ async def analyze_decomposition(
                 session.id,
                 body.requirement.id,
             )
-            if req:
-                stories = await run_in_threadpool(
-                    decomposition_service.list_stories,
-                    db,
-                    session.id,
+            if not req:
+                raise ValueError(
+                    f"Requirement '{body.requirement.id}' not found in session."
                 )
-                await run_in_threadpool(
-                    decomposition_service.save_assessment,
-                    db,
-                    req.id,
-                    session.id,
-                    decomp_result,
-                    stories,
-                )
-                pipeline_session_service.advance_stage(
-                    db,
-                    session.id,
-                    PipelineStage.DECOMPOSITION,
-                )
-                db.commit()
+            stories = await run_in_threadpool(
+                decomposition_service.list_stories,
+                db,
+                session.id,
+            )
+            assessment = await run_in_threadpool(
+                decomposition_service.save_assessment,
+                db,
+                req.id,
+                session.id,
+                decomp_result,
+                stories,
+                session.initiated_by,
+            )
+            pipeline_session_service.advance_stage(
+                db,
+                session.id,
+                PipelineStage.DECOMPOSITION,
+            )
+            db.commit()
+            assessment_dict = decomposition_service.assessment_to_dict(
+                assessment
+            )
+            assessment_dict["requirement_id"] = body.requirement.id
+            response["persisted"] = True
+            response["assessment"] = assessment_dict
         except Exception:
-            logger.exception(
-                "Failed to persist decomposition result"
+            logger.exception("Failed to persist decomposition result")
+            db.rollback()
+            response["persist_error"] = (
+                "Analysis completed but could not be saved — "
+                "please re-run analysis."
             )
 
-    return result
+    return response
 
 
 @router.get(
@@ -1231,13 +1342,55 @@ async def get_decomposition(
         db,
         session.id,
     )
+    results = [decomposition_service.assessment_to_dict(r) for r in rows]
+    results = await run_in_threadpool(
+        _attach_requirement_refs, db, session, results
+    )
     return {
         "project_id": str(session.project_id),
-        "results": [
-            decomposition_service.assessment_to_dict(r)
-            for r in rows
-        ],
+        "results": results,
     }
+
+
+@router.get(
+    "/decomposition/gate",
+    summary="Decomposition gate decision for a requirement",
+)
+async def get_decomposition_gate(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+    requirement_ref: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _get_session,
+        db,
+        x_team_id,
+        project_id,
+        user,
+        create=False,
+    )
+    if not session:
+        return {"gate": None}
+
+    requirement_id: _uuid.UUID | None = None
+    if requirement_ref:
+        req = await run_in_threadpool(
+            requirement_service.get_by_ref, db, session.id, requirement_ref
+        )
+        if not req:
+            return {"gate": None}
+        requirement_id = req.id
+
+    row = await run_in_threadpool(
+        decomposition_service.get_gate_status, db, session.id, requirement_id
+    )
+    if not row:
+        return {"gate": None}
+    gate = decomposition_service.gate_to_dict(row)
+    gate["requirement_id"] = requirement_ref or str(row.requirement_id)
+    return {"gate": gate}
 
 
 # ── Estimation ───────────────────────────────────────────────
@@ -1281,6 +1434,8 @@ async def save_estimate(
         body.basis,
         body.technique,
     )
+    if story.status != StoryStatus.IN_BACKLOG:
+        story.status = StoryStatus.ESTIMATED
     db.commit()
     return {
         "ok": True,
@@ -1366,6 +1521,7 @@ async def confirm_estimate(
         story.title,
         hours,
     )
+    story.status = StoryStatus.IN_BACKLOG
     pipeline_session_service.advance_stage(
         db,
         session.id,

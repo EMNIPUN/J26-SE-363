@@ -9,7 +9,7 @@ added. Adding another OpenAI-compatible provider is one entry in ``PROVIDERS``.
 Config (backend/agentic_framework/.env):
     PLANNING_LLM_PROVIDER      primary provider: "gemini" (default) or "openai"
     PLANNING_GEMINI_API_KEYS   comma-separated Google AI Studio keys (aistudio.google.com)
-    PLANNING_GEMINI_MODEL      default gemini-2.5-flash
+    PLANNING_GEMINI_MODEL      default gemini-3.5-flash-lite
     PLANNING_OPENAI_API_KEYS   comma-separated OpenAI keys (future)
     PLANNING_OPENAI_MODEL      default gpt-4o-mini
 
@@ -44,8 +44,11 @@ PROVIDERS: dict[str, dict[str, Any]] = {
         "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
         "key_env": ("PLANNING_GEMINI_API_KEYS", "PLANNING_GEMINI_API_KEY", "GEMINI_API_KEYS", "GEMINI_API_KEY"),
         "model_env": ("PLANNING_GEMINI_MODEL",),
-        "model": "gemini-2.5-flash",
-        "fallback_model": "gemini-2.0-flash",
+        # Gemini 2.0 Flash was shut down. 2.5 access is also restricted for
+        # newly-created AI Studio projects, so use a currently available
+        # low-latency model as the default for structured grading requests.
+        "model": "gemini-3.5-flash-lite",
+        "fallback_model": "gemini-3.8-flash",
         # 2.5 models "think" by default, which consumes the output budget and
         # truncates JSON. Disable it for this structured scoring task.
         "extra_payload": {"reasoning_effort": "none"},
@@ -138,6 +141,7 @@ class OpenAICompatClient:
 
         target_model = model or self.primary_model
         last_error: str | None = None
+        fallback_attempted = target_model == self.fallback_model
         rate_limit_waits = 0
         max_attempts = len(self.api_keys) * 2 + RATE_LIMIT_MAX_WAITS
 
@@ -172,8 +176,18 @@ class OpenAICompatClient:
                 if resp.status_code == 200:
                     return resp.json()["choices"][0]["message"].get("content", "")
                 if resp.status_code == 404:  # model missing -> fallback once
-                    logger.warning("[%s] model %s not found; falling back to %s", self.label, target_model, self.fallback_model)
+                    last_error = f"HTTP 404 for model {target_model}: {resp.text[:500]}"
+                    if fallback_attempted:
+                        logger.error("[%s] fallback model %s was also unavailable", self.label, target_model)
+                        break
+                    logger.warning(
+                        "[%s] model %s not found; falling back to %s",
+                        self.label,
+                        target_model,
+                        self.fallback_model,
+                    )
                     target_model = self.fallback_model
+                    fallback_attempted = True
                     continue
                 if resp.status_code == 429:  # rate limited -> try another key, then wait
                     last_error = f"HTTP 429: {resp.text[:200]}"

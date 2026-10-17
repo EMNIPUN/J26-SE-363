@@ -5,10 +5,14 @@ from app.models.agent_run import AgentRun, AgentRunStatus
 from app.models.dart import DartEscalation, DartEvidence, DartIteration, DartSession
 from app.models.decomposition_assessment import (
     CoverageAnalysisResult,
+    CoverageElementRow,
+    CoverageGateCheckRow,
     DecompositionAssessment,
     DecompositionToolOutput,
     InvestValidation,
+    StoryAssessment,
     UserStory,
+    UserStoryTask,
 )
 from app.models.effort_estimation import (
     EffortEstimationAssessment,
@@ -40,6 +44,8 @@ __all__ = [
     "AgentRun",
     "AgentRunStatus",
     "CoverageAnalysisResult",
+    "CoverageElementRow",
+    "CoverageGateCheckRow",
     "DartEscalation",
     "DartEvidence",
     "DartIteration",
@@ -67,8 +73,10 @@ __all__ = [
     "Sprint",
     "SprintBacklogItem",
     "SrsDocument",
+    "StoryAssessment",
     "StudentEffortEstimate",
     "StudentQualitySelfAssessment",
     "User",
     "UserStory",
+    "UserStoryTask",
 ]

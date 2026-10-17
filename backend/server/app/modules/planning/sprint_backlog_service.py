@@ -33,6 +33,14 @@ def create_item(
     hours: float | None = None,
     estimation_source: str = "student_only",
 ) -> SprintBacklogItem:
+    existing = db.scalars(
+        select(SprintBacklogItem).where(
+            SprintBacklogItem.pipeline_session_id == session_id,
+            SprintBacklogItem.user_story_id == user_story_id,
+        )
+    ).first()
+    if existing:
+        return existing
     row = SprintBacklogItem(
         pipeline_session_id=session_id,
         user_story_id=user_story_id,

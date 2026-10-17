@@ -229,21 +229,22 @@ def _decomposition_evidence(r) -> Evidence:
 
     if not isinstance(r, DecompositionResult):
         return Evidence(source="decomposition_agent", description="unknown result type", data={})
-    passing_stories = sum(1 for s in r.stories if s.overall_pass)
+    ready_stories = sum(1 for s in r.stories if s.story_ready)
     return Evidence(
         source="decomposition_agent",
         description=(
-            f"{r.requirement_ref}: {r.overall_score}/100 ({r.status.value}); "
-            f"coverage {round(r.coverage * 100)}%; "
-            f"{passing_stories}/{len(r.stories)} stories pass INVEST; "
-            f"confidence {r.confidence:.2f}"
+            f"{r.requirement_ref}: {r.decomposition_quality_score}/4 ({r.quality_band.value}) "
+            f"— gate {r.gate_status.value}; coverage {r.coverage.coverage_percentage}%; "
+            f"{ready_stories}/{len(r.stories)} stories ready; confidence {r.confidence:.2f}"
         ),
         data={
             "requirement_ref": r.requirement_ref,
-            "gate_action": r.gate_action.value,
+            "gate_status": r.gate_status.value,
             "dart_triggered": r.dart_triggered,
-            "coverage": r.coverage,
-            "gaps": [g.model_dump() for g in r.gaps],
+            "coverage_percentage": r.coverage.coverage_percentage,
+            "failed_checks": [
+                c.check_id for c in r.coverage.gate.checks.values() if c.result.value == "Fail"
+            ],
         },
     )
 

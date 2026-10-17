@@ -4,31 +4,31 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from app.agents.project_planning.schemas import DecompositionResult, StoryInvest
+from app.agents.project_planning.schemas import (
+    CoverageAnalysis,
+    DecompositionResult,
+    InvestGateResult,
+    StoryInvest,
+)
 
 
 class DecompositionState(TypedDict, total=False):
     # inputs
     requirement_id: str
     requirement_text: str
-    stories: list[dict]  # [{id, title, acceptance_criteria}]
+    stories: list[dict]  # [{id, title, acceptance_criteria, linked_parent_requirement}]
     threshold: int
 
     # working memory
+    coverage: CoverageAnalysis
     invest_results: list[StoryInvest]
-    coverage: float
-    aspects: list[dict]  # [{id, label, covered, best_similarity}]
+    invest_gate: InvestGateResult
     retrieved_patterns: list[dict]
-    score_raw: dict  # LLM payload: {overall_score, summary, confidence}
-    reflection_note: str | None
-    reflection_confidence: float | None
 
     # control
     pending_tool: str | None
     tools_run: list[str]
     iterations: int
-    reflect_count: int
-    scoring_failed: bool
 
     # output
     result: DecompositionResult

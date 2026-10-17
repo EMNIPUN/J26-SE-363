@@ -1,8 +1,14 @@
-"""Decomposition Analysis sub-agent as a ReAct LangGraph.
+"""Decomposition Analysis sub-agent as a small LangGraph.
 
-Same shape as the Quality agent: reason -> execute_tool -> reflect -> finalize,
-with conditional edges for adaptive depth. Evaluates the student's user stories
-against the parent requirement using INVEST validation + coverage analysis.
+reason -> execute_tool (coverage_analyzer, invest_validator, pattern_retriever)
+-> finalize. Evaluates the student's user stories against the parent
+requirement using a two-level mandatory gate — Coverage Gate (C1-C10), then an
+INVEST Readiness Gate per story — both computed in code from the tool
+outputs, never by the LLM (see gate.py). The gate/score/feedback pipeline
+makes exactly TWO LLM calls total per run (one coverage_analyzer call, one
+batched invest_validator call covering all stories) — see scorer.py's module
+docstring for why the scorer and reflect LLM calls that used to run here were
+removed (they were the dominant source of Gemini free-tier quota exhaustion).
 """
 
 from __future__ import annotations
@@ -13,36 +19,35 @@ import logging
 from langgraph.graph import END, START, StateGraph
 
 from app.agents.project_planning.knowledge import query_patterns
-from app.agents.project_planning.llm import get_llm_client
 from app.agents.project_planning.schemas import (
     AnalyzeDecompositionInput,
+    CoverageAnalysis,
     DecompositionResult,
+    InvestGateResult,
+    StoryInvest,
 )
 from app.agents.project_planning.subagents.decomposition.coverage import (
+    _unavailable_analysis,
     analyze_coverage,
 )
-from app.agents.project_planning.subagents.decomposition.invest import validate_invest
-from app.agents.project_planning.subagents.decomposition.prompts import (
-    REFLECT_SYSTEM,
-    build_reflect_prompt,
+from app.agents.project_planning.subagents.decomposition.gate import (
+    evaluate_decomposition_gate,
 )
+from app.agents.project_planning.subagents.decomposition.invest import validate_invest
 from app.agents.project_planning.subagents.decomposition.scorer import (
+    build_feedback,
     build_result,
-    heuristic_result,
-    request_decomposition_score,
 )
 from app.agents.project_planning.subagents.decomposition.state import DecompositionState
 
 logger = logging.getLogger(__name__)
 
 MAX_ITERATIONS = 10
-MAX_REFLECT = 1
 AGENT_TIMEOUT_SECONDS = 180.0
 
 TOOL_INVEST_VALIDATOR = "invest_validator"
 TOOL_COVERAGE_ANALYZER = "coverage_analyzer"
 TOOL_PATTERN_RETRIEVER = "pattern_retriever"
-TOOL_DECOMPOSITION_SCORER = "decomposition_scorer"
 
 _GATHER_TOOLS = (
     TOOL_COVERAGE_ANALYZER,
@@ -51,22 +56,18 @@ _GATHER_TOOLS = (
 )
 
 
+def _invest_gate(invest_results: list[StoryInvest]) -> InvestGateResult:
+    failed = [r.story_id for r in invest_results if not r.story_ready]
+    return InvestGateResult(all_stories_ready=not failed, failed_stories=failed)
+
+
 # --- nodes ------------------------------------------------------------------
 
 def reason(state: DecompositionState) -> DecompositionState:
     iterations = state.get("iterations", 0) + 1
     tools_run = state.get("tools_run", [])
-
-    pending: str | None
-    if iterations > MAX_ITERATIONS:
-        pending = None
-    elif next_gather := next((t for t in _GATHER_TOOLS if t not in tools_run), None):
-        pending = next_gather
-    elif TOOL_DECOMPOSITION_SCORER not in tools_run or state.get("reflection_note"):
-        pending = TOOL_DECOMPOSITION_SCORER
-    else:
-        pending = None
-
+    next_gather = next((t for t in _GATHER_TOOLS if t not in tools_run), None)
+    pending = next_gather if iterations <= MAX_ITERATIONS else None
     return {"pending_tool": pending, "iterations": iterations}
 
 
@@ -80,124 +81,63 @@ async def execute_tool(state: DecompositionState) -> DecompositionState:
 
     if tool == TOOL_COVERAGE_ANALYZER:
         mark(TOOL_COVERAGE_ANALYZER)
-        try:
-            result = await analyze_coverage(
-                state["requirement_text"],
-                state.get("stories", []),
-            )
-            return {
-                "coverage": result["coverage"],
-                "aspects": result["aspects"],
-                "tools_run": tools_run,
-            }
-        except Exception:
-            logger.exception("coverage_analyzer failed for %s", state.get("requirement_id"))
-            return {"coverage": 0.0, "aspects": [], "tools_run": tools_run}
+        coverage = await analyze_coverage(
+            state["requirement_id"], state["requirement_text"], state.get("stories", [])
+        )
+        return {"coverage": coverage, "tools_run": tools_run}
 
     if tool == TOOL_INVEST_VALIDATOR:
         mark(TOOL_INVEST_VALIDATOR)
         try:
-            results = await validate_invest(state.get("stories", []))
-            return {"invest_results": results, "tools_run": tools_run}
+            results = await validate_invest(state["requirement_id"], state.get("stories", []))
         except Exception:
             logger.exception("invest_validator failed for %s", state.get("requirement_id"))
-            return {"invest_results": [], "tools_run": tools_run}
+            results = []
+        return {
+            "invest_results": results,
+            "invest_gate": _invest_gate(results),
+            "tools_run": tools_run,
+        }
 
     if tool == TOOL_PATTERN_RETRIEVER:
         mark(TOOL_PATTERN_RETRIEVER)
         try:
             patterns = await asyncio.to_thread(query_patterns, state["requirement_text"], 3)
-            return {"retrieved_patterns": patterns, "tools_run": tools_run}
         except Exception:
             logger.exception("pattern_retriever failed for %s", state.get("requirement_id"))
-            return {"retrieved_patterns": [], "tools_run": tools_run}
-
-    if tool == TOOL_DECOMPOSITION_SCORER:
-        mark(TOOL_DECOMPOSITION_SCORER)
-        try:
-            invest_dicts = [r.model_dump() for r in state.get("invest_results", [])]
-            gaps = [a for a in state.get("aspects", []) if not a.get("covered")]
-            data = await request_decomposition_score(
-                state["requirement_text"],
-                state.get("coverage", 0.0),
-                gaps,
-                invest_dicts,
-                state.get("retrieved_patterns"),
-                state.get("reflection_note"),
-            )
-            return {"score_raw": data, "tools_run": tools_run, "reflection_note": None}
-        except Exception:
-            logger.exception("decomposition_scorer failed for %s", state.get("requirement_id"))
-            return {"scoring_failed": True, "tools_run": tools_run, "reflection_note": None}
+            patterns = []
+        return {"retrieved_patterns": patterns, "tools_run": tools_run}
 
     return {}
 
 
-async def reflect(state: DecompositionState) -> DecompositionState:
-    if state.get("scoring_failed") or not state.get("score_raw"):
-        return {"reflection_note": None}
-
-    reflect_count = state.get("reflect_count", 0) + 1
-    client = get_llm_client()
-    data = state["score_raw"]
-    score = int(data.get("overall_score", 50))
-    confidence = float(data.get("confidence", 0.8) or 0.8)
-    coverage = state.get("coverage", 0.0)
-
-    needs_reflection = confidence < 0.85
-    if not needs_reflection or not client.configured or reflect_count > MAX_REFLECT:
-        return {"reflect_count": reflect_count, "reflection_note": None}
-
-    invest_results = state.get("invest_results", [])
-    passing = sum(1 for r in invest_results if r.overall_pass)
-    invest_summary = f"{passing}/{len(invest_results)} stories pass all INVEST criteria"
-
-    try:
-        verdict = await client.complete_json(
-            REFLECT_SYSTEM,
-            build_reflect_prompt(
-                state["requirement_text"],
-                coverage,
-                invest_summary,
-                score,
-                str(data.get("summary", "")),
-            ),
-            max_tokens=300,
-        )
-    except Exception:
-        logger.exception("reflect step failed for %s", state.get("requirement_id"))
-        return {"reflect_count": reflect_count, "reflection_note": None}
-
-    ref_confidence = float(verdict.get("confidence", 0.8) or 0.8)
-    consistent = bool(verdict.get("consistent", True))
-    issue = str(verdict.get("issue", "") or "")
-
-    if not consistent and issue:
-        return {"reflect_count": reflect_count, "reflection_note": issue, "reflection_confidence": ref_confidence}
-    return {"reflect_count": reflect_count, "reflection_note": None, "reflection_confidence": ref_confidence}
-
-
 def finalize(state: DecompositionState) -> DecompositionState:
-    req_id = state["requirement_id"]
-    threshold = state.get("threshold", 75)
+    coverage: CoverageAnalysis = state.get("coverage") or _unavailable_analysis(
+        "Coverage was not assessed."
+    )
     invest_results = state.get("invest_results", [])
-    coverage = state.get("coverage", 0.0)
-    aspects = state.get("aspects", [])
+    invest_gate = state.get("invest_gate") or _invest_gate(invest_results)
     patterns = state.get("retrieved_patterns", [])
 
-    if state.get("scoring_failed") or not state.get("score_raw"):
-        return {"result": heuristic_result(req_id, invest_results, coverage, aspects, threshold)}
+    gate_status, needs_review_reason = evaluate_decomposition_gate(
+        coverage.gate, invest_gate, coverage.needs_review, coverage.needs_review_reason
+    )
+    feedback = build_feedback(gate_status, coverage, invest_results)
+    # Transparency signal only (not a gate input): low when coverage could not
+    # actually be assessed (LLM unavailable/failed).
+    confidence = 1.0 if coverage.elements else 0.3
 
     return {
         "result": build_result(
-            req_id,
-            invest_results,
+            state["requirement_id"],
             coverage,
-            aspects,
+            invest_results,
+            invest_gate,
+            gate_status,
+            needs_review_reason,
+            feedback,
             patterns,
-            state["score_raw"],
-            threshold,
-            confidence_override=state.get("reflection_confidence"),
+            confidence=confidence,
         )
     }
 
@@ -205,23 +145,17 @@ def finalize(state: DecompositionState) -> DecompositionState:
 # --- edges ------------------------------------------------------------------
 
 def route_after_reason(state: DecompositionState) -> str:
-    return "execute_tool" if state.get("pending_tool") else "reflect"
-
-
-def route_after_reflect(state: DecompositionState) -> str:
-    return "reason" if state.get("reflection_note") else "finalize"
+    return "execute_tool" if state.get("pending_tool") else "finalize"
 
 
 def _build_graph():
     g = StateGraph(DecompositionState)
     g.add_node("reason", reason)
     g.add_node("execute_tool", execute_tool)
-    g.add_node("reflect", reflect)
     g.add_node("finalize", finalize)
     g.add_edge(START, "reason")
-    g.add_conditional_edges("reason", route_after_reason, ["execute_tool", "reflect"])
+    g.add_conditional_edges("reason", route_after_reason, ["execute_tool", "finalize"])
     g.add_edge("execute_tool", "reason")
-    g.add_conditional_edges("reflect", route_after_reflect, ["reason", "finalize"])
     g.add_edge("finalize", END)
     return g.compile()
 
@@ -232,8 +166,17 @@ _GRAPH = _build_graph()
 async def run_decomposition_agent(
     payload: AnalyzeDecompositionInput,
 ) -> DecompositionResult:
-    """Run the ReAct loop for one decomposition analysis; fall back to heuristic on error/timeout."""
-    stories_dicts = [{"id": s.id, "title": s.title, "acceptance_criteria": s.acceptance_criteria} for s in payload.stories]
+    """Run the gather-then-finalize graph for one decomposition analysis; fall
+    back to a safe structural result (never a false COMPLETE) on error/timeout."""
+    stories_dicts = [
+        {
+            "id": s.id,
+            "title": s.title,
+            "acceptance_criteria": s.acceptance_criteria,
+            "linked_parent_requirement": s.linked_parent_requirement or payload.requirement.id,
+        }
+        for s in payload.stories
+    ]
 
     initial: DecompositionState = {
         "requirement_id": payload.requirement.id,
@@ -242,16 +185,43 @@ async def run_decomposition_agent(
         "threshold": payload.options.threshold,
         "tools_run": [],
         "iterations": 0,
-        "reflect_count": 0,
     }
     try:
         final = await asyncio.wait_for(_GRAPH.ainvoke(initial), timeout=AGENT_TIMEOUT_SECONDS)
         result = final.get("result")
         if result is not None:
             return result
-        logger.warning("Decomposition graph produced no result for %s; falling back", payload.requirement.id)
+        logger.warning(
+            "Decomposition graph produced no result for %s; falling back", payload.requirement.id
+        )
     except Exception:
-        logger.exception("Decomposition ReAct graph failed for %s; falling back to heuristic", payload.requirement.id)
+        logger.exception(
+            "Decomposition graph failed for %s; falling back", payload.requirement.id
+        )
 
-    invest_results = await validate_invest(stories_dicts)
-    return heuristic_result(payload.requirement.id, invest_results, 0.0, [], payload.options.threshold)
+    # Fail-safe fallback: never silently claim COMPLETE when the graph itself
+    # errored out. INVEST rule signals are cheap/local, so still run them for
+    # partial, useful feedback even though coverage couldn't be assessed.
+    try:
+        invest_results = await validate_invest(payload.requirement.id, stories_dicts)
+    except Exception:
+        logger.exception("INVEST fallback also failed for %s", payload.requirement.id)
+        invest_results = []
+
+    coverage = _unavailable_analysis("Decomposition analysis failed — please re-run analysis.")
+    invest_gate = _invest_gate(invest_results)
+    gate_status, needs_review_reason = evaluate_decomposition_gate(
+        coverage.gate, invest_gate, coverage.needs_review, coverage.needs_review_reason
+    )
+    feedback = build_feedback(gate_status, coverage, invest_results)
+    return build_result(
+        payload.requirement.id,
+        coverage,
+        invest_results,
+        invest_gate,
+        gate_status,
+        needs_review_reason,
+        feedback,
+        [],
+        confidence=0.0,
+    )

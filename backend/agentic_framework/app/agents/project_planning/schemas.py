@@ -159,9 +159,15 @@ class StoryInput(BaseModel):
     id: str
     title: str
     acceptance_criteria: str = ""
+    # Populated by the Core API from the owning requirement's id (stories are
+    # always scoped to one requirement per analyze_decomposition call). Used
+    # by the deterministic C1 parent-linkage check.
+    linked_parent_requirement: str = ""
 
 
 class DecompositionOptions(BaseModel):
+    # Kept for input-compat only; the two-level mandatory gate below does not
+    # use a percentage threshold.
     threshold: int = DEFAULT_DECOMPOSITION_THRESHOLD
 
 
@@ -173,45 +179,148 @@ class AnalyzeDecompositionInput(BaseModel):
     options: DecompositionOptions = Field(default_factory=DecompositionOptions)
 
 
-# ----- result ----------------------------------------------------------------
+# ----- result: coverage gate (C1-C10) -----------------------------------------
 
 
-class InvestCriterion(BaseModel):
-    passed: bool
+class CoverageElementType(str, Enum):
+    """Taxonomy of coverage elements extracted from a parent requirement."""
+
+    ACTOR = "actor"
+    TRIGGER = "trigger"
+    PRECONDITION = "precondition"
+    MAIN_ACTION = "main_action"
+    INPUT_DATA = "input_data"
+    OUTPUT_RESULT = "output_result"
+    BUSINESS_RULE = "business_rule"
+    CONSTRAINT = "constraint"
+    PERMISSION_RULE = "permission_rule"
+    EXCEPTION_BEHAVIOR = "exception_behavior"
+    ERROR_HANDLING = "error_handling"
+    RECOVERY_RETRY = "recovery_retry"
+    QUALITY_CONSTRAINT = "quality_constraint"  # perf/security/usability/legal
+
+
+class CoverageResult(str, Enum):
+    COVERED = "Covered"
+    MISSING = "Missing"
+
+
+class CoverageElement(BaseModel):
+    element_id: str
+    element_type: CoverageElementType
+    description: str
+    required: bool = True
+    covered_by: list[str] = Field(default_factory=list)  # story_ids
+    coverage_result: CoverageResult = CoverageResult.MISSING
+    evidence: str = ""  # why the LLM judged it covered/missing
+
+
+class CheckResult(str, Enum):
+    PASS = "Pass"
+    FAIL = "Fail"
+
+
+class CoverageCheck(BaseModel):
+    check_id: str  # "C1".."C10"
+    result: CheckResult
+    rationale: str = ""
+    evidence: list[str] = Field(default_factory=list)  # element_ids / story_ids
+
+
+class CoverageGateResult(BaseModel):
+    checks: dict[str, CoverageCheck] = Field(default_factory=dict)  # "C1".."C10"
+    passed: bool = False
+    duplicate_elements: list[str] = Field(default_factory=list)
+    orphan_stories: list[str] = Field(default_factory=list)
+    out_of_scope_stories: list[str] = Field(default_factory=list)
+
+
+class CoverageAnalysis(BaseModel):
+    elements: list[CoverageElement] = Field(default_factory=list)
+    coverage_percentage: float = 0.0  # feedback-only, never the gate decision
+    gate: CoverageGateResult = Field(default_factory=CoverageGateResult)
+    needs_review: bool = False
+    needs_review_reason: str | None = None
+    # True only when the coverage LLM call itself could not run (unavailable or
+    # errored) - distinct from a real analysis that concluded incomplete. All
+    # ten checks being Fail in this state is a placeholder, not a finding.
+    analysis_failed: bool = False
+    failure_reason: str | None = None
+
+
+# ----- result: INVEST readiness gate (4-state per criterion) ------------------
+
+
+class InvestResult(str, Enum):
+    PASS = "Pass"
+    PASS_WITH_NOTE = "Pass with note"
+    FAIL = "Fail"
+    CANNOT_ASSESS = "Cannot Assess"
+
+
+class InvestCriterionResult(BaseModel):
+    result: InvestResult = InvestResult.CANNOT_ASSESS
     note: str = ""
+    evidence: str = ""
 
 
 class StoryInvest(BaseModel):
     story_id: str
-    independent: InvestCriterion = Field(default_factory=lambda: InvestCriterion(passed=True))
-    negotiable: InvestCriterion = Field(default_factory=lambda: InvestCriterion(passed=True))
-    valuable: InvestCriterion = Field(default_factory=lambda: InvestCriterion(passed=True))
-    estimable: InvestCriterion = Field(default_factory=lambda: InvestCriterion(passed=True))
-    small: InvestCriterion = Field(default_factory=lambda: InvestCriterion(passed=True))
-    testable: InvestCriterion = Field(default_factory=lambda: InvestCriterion(passed=True))
-    overall_pass: bool = True
+    story_text: str = ""
+    linked_parent_requirement: str = ""
+    coverage_percentage: float = 0.0  # this story's share, feedback-only
+    independent: InvestCriterionResult = Field(default_factory=InvestCriterionResult)
+    negotiable: InvestCriterionResult = Field(default_factory=InvestCriterionResult)
+    valuable: InvestCriterionResult = Field(default_factory=InvestCriterionResult)
+    estimable: InvestCriterionResult = Field(default_factory=InvestCriterionResult)
+    small: InvestCriterionResult = Field(default_factory=InvestCriterionResult)
+    testable: InvestCriterionResult = Field(default_factory=InvestCriterionResult)
+    story_ready: bool = False  # True only if all 6 are Pass or Pass with note
 
 
-class CoverageAspect(BaseModel):
-    id: str
-    label: str
-    covered: bool = False
+class InvestGateResult(BaseModel):
+    all_stories_ready: bool = False
+    failed_stories: list[str] = Field(default_factory=list)  # story_ids with >=1 Fail/Cannot Assess
+
+
+# ----- result: final gate + score ----------------------------------------------
+
+
+class DecompositionGateStatus(str, Enum):
+    COMPLETE = "COMPLETE"
+    INCOMPLETE = "INCOMPLETE"
+    NEEDS_REVIEW = "NEEDS_REVIEW"
+
+
+class QualityBand(str, Enum):
+    EXCELLENT = "Excellent"
+    GOOD = "Good"
+    MODERATE = "Moderate"
+    POOR = "Poor"
+    VERY_POOR = "Very poor"
 
 
 class DecompositionResult(BaseModel):
     requirement_ref: str
-    overall_score: int
-    status: GateStatus
-    gate_action: GateAction
-    coverage: float = 0.0
-    aspects: list[CoverageAspect] = Field(default_factory=list)
-    gaps: list[CoverageAspect] = Field(default_factory=list)
+    coverage: CoverageAnalysis = Field(default_factory=CoverageAnalysis)
     stories: list[StoryInvest] = Field(default_factory=list)
+    invest_gate: InvestGateResult = Field(default_factory=InvestGateResult)
+    decomposition_quality_score: float = 0.0  # 0-4, computed from gate evidence
+    quality_band: QualityBand = QualityBand.VERY_POOR
+    gate_status: DecompositionGateStatus = DecompositionGateStatus.INCOMPLETE
+    needs_review_reason: str | None = None
+    student_feedback: list[str] = Field(default_factory=list)
     patterns: list[dict] = Field(default_factory=list)
-    summary: str = ""
     confidence: float = 1.0
     dart_triggered: bool = False
     retrieval: dict = Field(default_factory=dict)
+    # Mirrors coverage.analysis_failed at the top level so every consumer
+    # (service layer, API, frontend) can check it without deep nesting. When
+    # true, decomposition_quality_score/quality_band are NOT a real
+    # assessment - they are mechanically derived from an all-Fail placeholder
+    # state and must not be shown to the student as if they were.
+    analysis_failed: bool = False
+    failure_reason: str | None = None
 
 
 class AnalyzeDecompositionResult(BaseModel):
