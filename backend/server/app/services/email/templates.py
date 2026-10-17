@@ -21,7 +21,7 @@ def _layout(
     if button_label and link:
         safe_link = escape(link, quote=True)
         button = (
-            f'<p style="margin:24px 0 0"><a href="{safe_link}" style="background:#2563eb;'
+            f'<p style="margin:24px 0 0"><a href="{safe_link}" style="background:#5146c7;'
             "color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;"
             f'font-weight:600;display:inline-block">{escape(button_label)}</a></p>'
         )
