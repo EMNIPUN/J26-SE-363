@@ -12,7 +12,9 @@ reach a realm that is already running. This script does the rest, and is safe to
   * the web app's addresses (FRONTEND_URLS) and no direct password grants;
   * how a provider sign-in is linked to an account that already exists: the person sees who is
     signing in (nothing editable) and must enter a code emailed to that account. This needs the
-    plugin in docker/keycloak/providers-src (see docker/keycloak/README.md).
+    plugin in docker/keycloak/providers-src (see docker/keycloak/README.md);
+  * the profile picture: Google's and GitHub's picture is copied to the account at each sign-in
+    and put in the token as the `picture` claim, which the Core API shows next to the person.
 
 Settings come from the environment or from the .env file in the repository root. Nothing secret
 is printed. See docker/keycloak/README.md.
@@ -34,6 +36,33 @@ SECRET_KEYS = {"clientsecret", "secret", "password"}
 LINK_FLOW = "selvia first broker login"
 LINK_PROVIDER = "selvia-link-by-email-code"
 DEFAULT_FLOW = "first broker login"
+# Providers that give a picture: alias -> (mapper type, the field in the provider's profile).
+# Microsoft's picture is behind a separate Graph call, so it is not copied.
+PICTURE_MAPPERS = {
+    "google": ("google-user-attribute-mapper", "picture"),
+    "github": ("github-user-attribute-mapper", "avatar_url"),
+}
+PICTURE_ATTRIBUTE = {
+    "name": "picture",
+    "displayName": "${picture}",
+    "validations": {"length": {"max": 1024}},
+    # Only the provider (and an administrator) sets it; people change their picture in SELVIA.
+    "permissions": {"view": ["admin", "user"], "edit": ["admin"]},
+    "multivalued": False,
+}
+PICTURE_CLAIM_MAPPER = {
+    "name": "picture",
+    "protocol": "openid-connect",
+    "protocolMapper": "oidc-usermodel-attribute-mapper",
+    "config": {
+        "user.attribute": "picture",
+        "claim.name": "picture",
+        "jsonType.label": "String",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "true",
+    },
+}
 
 PROVIDERS = {
     # alias: (display name, default scope, trust the provider's email, extra config keys from env)
@@ -267,6 +296,46 @@ def ensure_link_flow(kc: Keycloak, dry_run: bool) -> list[str]:
     return say
 
 
+def ensure_picture(kc: Keycloak, client_id: str, aliases: list[str], dry_run: bool) -> list[str]:
+    """Carry the provider's picture from the sign-in to the token."""
+    say = []
+    profile = kc.get("users/profile") or {}
+    attributes = profile.get("attributes", [])
+    if not any(a.get("name") == "picture" for a in attributes):
+        say.append("add the 'picture' attribute to the user profile")
+        if not dry_run:
+            kc.put("update", "users/profile", {**profile, "attributes": [*attributes, PICTURE_ATTRIBUTE]})
+
+    claims = kc.get(f"clients/{client_id}/protocol-mappers/models") or []
+    if not any(m.get("name") == "picture" for m in claims):
+        say.append("put the 'picture' claim in the web app's tokens")
+        if not dry_run:
+            kc.put("create", f"clients/{client_id}/protocol-mappers/models", PICTURE_CLAIM_MAPPER)
+
+    for alias in aliases:
+        if alias not in PICTURE_MAPPERS:
+            continue
+        mapper_type, field = PICTURE_MAPPERS[alias]
+        try:
+            mappers = kc.get(f"identity-provider/instances/{alias}/mappers") or []
+        except ScriptError:  # a dry run before the provider exists
+            mappers = []
+        if not any(m.get("name") == "picture" for m in mappers):
+            say.append(f"copy the {PROVIDERS[alias][0]} picture to the account at each sign-in")
+            if not dry_run:
+                kc.put(
+                    "create",
+                    f"identity-provider/instances/{alias}/mappers",
+                    {
+                        "name": "picture",
+                        "identityProviderAlias": alias,
+                        "identityProviderMapper": mapper_type,
+                        "config": {"jsonField": field, "userAttribute": "picture", "syncMode": "FORCE"},
+                    },
+                )
+    return say
+
+
 def callback_url(env: dict[str, str], realm: str, alias: str) -> str:
     base = env.get("KEYCLOAK_HOSTNAME_URL") or f"{env.get('GATEWAY_PUBLIC_URL', 'http://localhost:8000')}/auth"
     return f"{base.rstrip('/')}/realms/{realm}/broker/{alias}/endpoint"
@@ -323,6 +392,9 @@ def main() -> int:
         else:
             kc.put(verb, path, body)
             print(f"- {label}: done")
+
+    for step in ensure_picture(kc, client_now["id"], list(providers), args.dry_run):
+        print(f"- profile picture: {step}{' (dry run)' if args.dry_run else ''}")
 
     for alias in providers:
         print(f"{PROVIDERS[alias][0]} redirect URI to register: {callback_url(env, args.realm, alias)}")

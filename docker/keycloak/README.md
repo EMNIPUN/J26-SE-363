@@ -124,6 +124,10 @@ Run it again whenever you change the `.env`. It never deletes anything.
   (the provider's name, picture and email) and which account it would join, press *Send code*,
   and must enter the 6 digit code emailed to the account's address. Only then are the two linked,
   and the address counts as verified. See section 4.
+- **Profile picture.** Google's and GitHub's picture is copied to the account at every sign-in
+  (a `picture` user attribute, set by an identity-provider mapper) and put in the token as the
+  `picture` claim; the Core API shows it until the person uploads their own. `configure_realm.py`
+  sets this up. Microsoft does not give a picture in its sign-in.
 - **Locking out.** Five failed sign-ins in a row wait one minute, then longer, up to 15 minutes.
 
 ## 3. Changing the pages

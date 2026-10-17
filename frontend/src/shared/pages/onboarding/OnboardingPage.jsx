@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '../../auth/useAuth.js'
 import { accountService } from '../../services/accountService.js'
 import { isGithubUsername } from '../../utils/emails.js'
+import { showToast } from '../../utils/toast.jsx'
 import SelviaLogo from '../../components/SelviaLogo.jsx'
+import PictureField from '../../components/PictureField.jsx'
 import Stepper from '../../components/Stepper.jsx'
 import ThemeToggle from '../../components/ThemeToggle.jsx'
 import OnboardingAside from './OnboardingAside.jsx'
@@ -51,8 +53,28 @@ export default function OnboardingPage() {
   const [accepted, setAccepted] = useState(false)
   const [submitError, setSubmitError] = useState('')
 
+  // The chosen picture is kept here (with an address to preview it) and sent once the account exists.
+  const [chosen, setChosen] = useState(null)
+  const pickPicture = (blob) => {
+    if (chosen) URL.revokeObjectURL(chosen.url)
+    setChosen({ blob, url: URL.createObjectURL(blob) })
+  }
+  const clearPicture = () => {
+    if (chosen) URL.revokeObjectURL(chosen.url)
+    setChosen(null)
+  }
+
   const finish = useMutation({
-    mutationFn: accountService.completeOnboarding,
+    mutationFn: async ({ payload, picture: chosen }) => {
+      const created = await accountService.completeOnboarding(payload)
+      if (!chosen) return created
+      try {
+        return await accountService.uploadPicture(chosen)
+      } catch {
+        showToast.error('Your picture could not be saved. You can add it on your profile.')
+        return created
+      }
+    },
     // Once the account is onboarded, RequireAccount moves the person on to where they were going.
     onSuccess: setAccount,
     onError: (error) => {
@@ -85,7 +107,7 @@ export default function OnboardingPage() {
 
   const submit = () => {
     setSubmitError('')
-    finish.mutate({
+    const payload = {
       account_type: accountType,
       display_name: values.displayName,
       institution: values.institution,
@@ -94,7 +116,8 @@ export default function OnboardingPage() {
         : { department: values.department, title: values.title }),
       accept_terms: accepted,
       consent_version: account?.current_consent_version,
-    })
+    }
+    finish.mutate({ payload, picture: chosen?.blob ?? null })
   }
 
   const canContinue = step === 0 ? Boolean(accountType) : true
@@ -128,6 +151,14 @@ export default function OnboardingPage() {
           </div>
 
           {step === 0 && <AccountTypeStep value={accountType} onChange={setAccountType} />}
+          {step === 1 && (
+            <PictureField
+              name={values.displayName}
+              picture={chosen?.url ?? account?.picture ?? undefined}
+              onPick={pickPicture}
+              onRemove={chosen ? clearPicture : undefined}
+            />
+          )}
           {step === 1 && (
             <DetailsStep
               accountType={accountType}

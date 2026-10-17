@@ -46,7 +46,7 @@ export default function HubLayout() {
                 )
               }
             >
-              <Avatar name={user?.name} size={32} />
+              <Avatar name={user?.name} picture={user?.picture} size={32} />
             </NavLink>
           </div>
         </div>

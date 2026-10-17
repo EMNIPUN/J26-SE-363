@@ -91,13 +91,14 @@ Frontend map (`frontend/src/shared/`): `auth/` (`AuthContext`, `RequireAccount`)
 
 ## 4. Data model
 
-Added by migrations `ec66f4d17052` and `d8a41c7e5b90` (see `docs/SCHEMA_CHANGE_GUIDE.md`).
+Added by migrations `ec66f4d17052`, `d8a41c7e5b90` and `e5b7a1c3d924` (see `docs/SCHEMA_CHANGE_GUIDE.md`).
 
 | Table | New in this feature |
 | --- | --- |
 | `users` | `email`, `institution`, `department`, `title`, `github_username` (unique, lower case), `consent_version`, `consent_at`, `onboarding_completed_at`. `role` is empty until onboarding is finished |
 | `groups` (shown as teams) | `term`, `status` (`pending` / `forming` / `active`), `repo_url`, `created_by_id`, `leader_id`, `pending_leader_id` |
 | `group_members` | `role` (`lecturer` / `member`), `term` (students only; `unique(user_id, term)` is the one-team-per-term rule), `joined_at` |
+| `user_avatars` | New (migration `e5b7a1c3d924`): the picture a person uploaded (`user_id`, `content_type`, `data`). `users.picture_url` holds the sign-in provider's picture address and `users.avatar_updated_at` says when an upload was made |
 | `terms` | New (migration `d8a41c7e5b90`): `name` (unique), `created_by_id`. Filled from the terms existing teams use |
 | `team_invitations` | New: team, `email`, role, `as_leader`, status (`pending` / `accepted` / `declined` / `revoked`), `token_hash` (SHA-256; the link secret is never stored), `expires_at`, `invited_by_id`. "Expired" is not stored: it is `expires_at` in the past |
 
@@ -114,6 +115,9 @@ All under `/api/v1`, all require `Authorization: Bearer <token>`. Errors are
 | `GET /me` | anyone signed in | The account (created on first call), role, whether onboarding is done |
 | `POST /me/onboarding` | not yet onboarded | Choose student or lecturer, give details, accept the consent version |
 | `PATCH /me/profile` | onboarded | Change details (not the role) |
+| `PUT /me/picture` | anyone signed in | Upload a profile picture: the image itself as the request body (JPEG, PNG or WebP, 500 KB at most; the web app sends a 256 px JPEG) |
+| `DELETE /me/picture` | anyone signed in | Remove the upload; the provider's picture, if any, shows again |
+| `GET /users/{id}/avatar` | onboarded | An uploaded picture. Only its owner, people in a team with them and administrators; anyone else gets 404 |
 | `GET /me/teams` | onboarded | My teams |
 | `GET /me/invitations` | onboarded | Invitations waiting for my verified email |
 | `GET /terms` | anyone onboarded | The term list, newest first |
@@ -214,4 +218,9 @@ start Keycloak (`docker/keycloak/README.md`, "Changing the pages"), Mailpit, the
 - **Consent text.** The onboarding step summarises how project information is used. Have it
   reviewed, and bump `CONSENT_VERSION` in `services/accounts.py` whenever it changes: everyone is
   then asked again.
+- **Profile pictures.** `account.picture` (and `picture` on each team member) is either a web
+  address (the sign-in provider's picture, from the token's `picture` claim) or an API path (an
+  upload, shown by fetching it with the person's token). An upload wins. Google and GitHub pictures
+  need `configure_realm.py` to have run; Microsoft's is not copied. Pictures live in the database
+  (small, one row per person); move them to object storage if the numbers grow.
 - **Email deliverability.** Mail from your own domain needs the provider's SPF and DKIM records.

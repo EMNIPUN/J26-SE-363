@@ -12,6 +12,11 @@ export const accountService = {
 
   // PATCH: change details later (the role cannot change)
   updateProfile: (updates) => apiClient.patch(ENDPOINTS.ACCOUNT.PROFILE, updates),
+
+  // PUT: the picture itself (a small JPEG) as the request body. DELETE: remove the upload.
+  uploadPicture: (blob) =>
+    apiClient.put(ENDPOINTS.ACCOUNT.PICTURE, blob, { headers: { 'Content-Type': blob.type } }),
+  removePicture: () => apiClient.delete(ENDPOINTS.ACCOUNT.PICTURE),
 }
 
 export default accountService

@@ -91,6 +91,7 @@ export function AuthProvider({ children }) {
       email: account?.email || identity.email,
       role: account?.role ? UI_ROLE[account.role] : null,
       onboarded: Boolean(account?.onboarding_completed),
+      picture: account?.picture ?? null,
     }
   }, [identity, account])
 

@@ -70,7 +70,7 @@ export default function MembersTable({
               <TableRow key={member.user_id}>
                 <TableCell className="pl-4">
                   <div className="flex items-center gap-2.5">
-                    <Avatar name={member.name} size={28} />
+                    <Avatar name={member.name} picture={member.picture} size={28} />
                     <span className="font-medium text-foreground">
                       {member.name}
                       {member.user_id === myId && (

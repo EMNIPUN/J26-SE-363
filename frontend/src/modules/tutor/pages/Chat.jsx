@@ -164,7 +164,7 @@ export default function Chat() {
                   <div className="max-w-[90%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-sm text-primary-foreground whitespace-pre-line">
                     {message.content}
                   </div>
-                  <Avatar name={user?.name} size={32} />
+                  <Avatar name={user?.name} picture={user?.picture} size={32} />
                 </div>
               ),
             )}

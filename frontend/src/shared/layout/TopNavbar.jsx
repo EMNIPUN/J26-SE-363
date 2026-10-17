@@ -103,13 +103,13 @@ export default function TopNavbar({ onToggleMobileMenu, sidebarCollapsed = false
               className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted/60 transition-all duration-150 active:scale-[0.98] cursor-pointer outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="Account menu"
             >
-              <Avatar name={user?.name} size={32} />
+              <Avatar name={user?.name} picture={user?.picture} size={32} />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64 animate-scale-in">
             <DropdownMenuLabel className="font-normal">
               <div className="flex items-center gap-3 py-1">
-                <Avatar name={user?.name} size={36} />
+                <Avatar name={user?.name} picture={user?.picture} size={36} />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-foreground">{user?.name}</p>
                   {user?.email && (

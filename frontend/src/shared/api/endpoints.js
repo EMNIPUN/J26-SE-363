@@ -15,6 +15,7 @@ export const ENDPOINTS = {
     ME: '/me',
     ONBOARDING: '/me/onboarding',
     PROFILE: '/me/profile',
+    PICTURE: '/me/picture',
   },
   TEAMS: {
     MINE: '/me/teams',

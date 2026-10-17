@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '../../auth/useAuth.js'
-import Avatar from '../../components/Avatar.jsx'
+import PictureField from '../../components/PictureField.jsx'
 import Badge from '../../components/Badge.jsx'
 import { getRoleLabel } from '../../constants/roles.js'
 import { accountService } from '../../services/accountService.js'
@@ -28,6 +28,23 @@ export default function ProfilePage() {
     title: text(account.profile.title),
   })
   const [errors, setErrors] = useState({})
+
+  const upload = useMutation({
+    mutationFn: accountService.uploadPicture,
+    onSuccess: (updated) => {
+      setAccount(updated)
+      showToast.success('Picture updated')
+    },
+    onError: (error) => showToast.error(error.message),
+  })
+  const remove = useMutation({
+    mutationFn: accountService.removePicture,
+    onSuccess: (updated) => {
+      setAccount(updated)
+      showToast.success('Picture removed')
+    },
+    onError: (error) => showToast.error(error.message),
+  })
 
   const save = useMutation({
     mutationFn: accountService.updateProfile,
@@ -72,16 +89,24 @@ export default function ProfilePage() {
     <div className="grid gap-6">
       <PageHeader title="Profile" description="How you appear to your team and lecturers." />
 
-      <Card className="flex-row items-center gap-4 p-5">
-        <Avatar name={account.name} size={56} />
-        <div className="min-w-0">
+      <Card className="flex-col items-start gap-4 p-5 sm:flex-row sm:items-center">
+        <PictureField
+          name={account.name}
+          picture={account.picture}
+          size={64}
+          loading={upload.isPending}
+          onPick={upload.mutateAsync}
+          // only an upload can be removed; the provider's picture comes back by itself
+          onRemove={account.picture?.startsWith('/') ? () => remove.mutate() : undefined}
+        />
+        <div className="min-w-0 border-l border-border pl-4">
           <p className="truncate text-base font-semibold text-foreground">{account.name}</p>
           <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <span className="truncate">{account.email}</span>
             {account.email_verified && <Badge tone="success">Verified</Badge>}
           </p>
         </div>
-        <Badge tone="primary" className="ml-auto shrink-0">
+        <Badge tone="primary" className="shrink-0 sm:ml-auto">
           {getRoleLabel(user.role)}
         </Badge>
       </Card>
