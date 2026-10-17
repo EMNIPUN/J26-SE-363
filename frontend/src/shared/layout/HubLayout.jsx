@@ -6,6 +6,7 @@ import Avatar from '../components/Avatar.jsx'
 import SelviaLogo from '../components/SelviaLogo.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 import HubNav, { HubMenu } from './HubNav.jsx'
+import HubNotifications from './HubNotifications.jsx'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +43,7 @@ export default function HubLayout() {
           <HubNav canCreate={canCreate} />
 
           <div className="flex items-center gap-1.5 justify-self-end">
+            <HubNotifications />
             <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

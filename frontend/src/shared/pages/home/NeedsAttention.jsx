@@ -2,13 +2,9 @@ import PropTypes from 'prop-types'
 import { Link } from 'react-router-dom'
 import { AlertCircle } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { needsAttention } from '../../utils/teams.js'
 
 /** Teams with something unfinished: no repository, no leader, invitations still unanswered. */
-export default function NeedsAttention({ teams, isStaff }) {
-  const items = needsAttention(teams, isStaff)
-  if (items.length === 0) return null
-
+export default function NeedsAttention({ items }) {
   return (
     <Card className="gap-0 p-0">
       <h2 className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground">
@@ -35,6 +31,7 @@ export default function NeedsAttention({ teams, isStaff }) {
 }
 
 NeedsAttention.propTypes = {
-  teams: PropTypes.arrayOf(PropTypes.object).isRequired,
-  isStaff: PropTypes.bool.isRequired,
+  items: PropTypes.arrayOf(
+    PropTypes.shape({ key: PropTypes.string, team: PropTypes.object, message: PropTypes.string }),
+  ).isRequired,
 }

@@ -8,11 +8,11 @@ import {
   useMyInvitations,
   useMyTeams,
 } from '../../hooks/useTeams.js'
-import { NextSteps, ProfileCard } from './HomeAside.jsx'
 import HomeStats from './HomeStats.jsx'
 import InvitationList from './InvitationList.jsx'
 import NeedsAttention from './NeedsAttention.jsx'
 import TeamList from './TeamList.jsx'
+import { needsAttention } from '../../utils/teams.js'
 
 const SHOWN = 6 // the rest are on the Teams page
 
@@ -28,7 +28,7 @@ function greeting() {
  * teams. The full list is on the Teams page. Inside a team the sidebar workspace takes over.
  */
 export default function HomePage() {
-  const { user, account } = useAuth()
+  const { user } = useAuth()
   const canCreate = user.role === 'instructor' // only lecturers create teams
   const isStaff = canCreate || user.role === 'admin'
   const teams = useMyTeams()
@@ -39,6 +39,7 @@ export default function HomePage() {
   const busyId = accept.isPending ? accept.variables : decline.isPending ? decline.variables : null
   const waiting = invitations.data ?? []
   const all = teams.data ?? []
+  const attention = needsAttention(all, isStaff)
   const firstName = user.name?.split(' ')[0]
 
   return (
@@ -74,7 +75,7 @@ export default function HomePage() {
 
       <HomeStats teams={all} invitations={waiting.length} isStaff={isStaff} loading={teams.isPending} />
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className={`grid items-start gap-6 ${attention.length > 0 ? 'lg:grid-cols-[minmax(0,1fr)_22rem]' : ''}`}>
         <section className="grid gap-4" aria-labelledby="teams-heading">
           <div className="flex items-center justify-between gap-3">
             <h2 id="teams-heading" className="text-base font-semibold text-foreground">
@@ -100,11 +101,7 @@ export default function HomePage() {
           />
         </section>
 
-        <aside className="grid gap-4">
-          <NeedsAttention teams={all} isStaff={isStaff} />
-          {canCreate && teams.isSuccess && <NextSteps teams={all} />}
-          <ProfileCard user={user} profile={account?.profile} />
-        </aside>
+        {attention.length > 0 && <NeedsAttention items={attention} />}
       </div>
     </div>
   )
