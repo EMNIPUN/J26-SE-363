@@ -18,8 +18,8 @@ import NeedsAttention from './NeedsAttention.jsx'
 import ProfileChecklist from './ProfileChecklist.jsx'
 import RecentTeams from './RecentTeams.jsx'
 import TeamList from './TeamList.jsx'
+import { StudentTeamsTable } from './TeamLists.jsx'
 import WaitingForReply from './WaitingForReply.jsx'
-import YourTeam from './YourTeam.jsx'
 
 const SHOWN = 6 // the rest are on the Teams page
 
@@ -55,12 +55,13 @@ export default function HomePage() {
   const { latest, current, earlier } = splitByTerm(all)
   const drafts = all.filter((team) => team.status === 'pending')
   const settled = current.filter((team) => team.status !== 'pending')
+  const past = earlier.filter((team) => team.status !== 'pending')
   const attention = needsAttention(all, isStaff)
   const profileOpen = profileChecklist(account, user.role).some((item) => !item.done)
   const hasAside = attention.length > 0 || profileOpen
   const firstName = user.name?.split(' ')[0]
 
-  // A student has one team a term, so it is shown as one card; a lecturer's teams are a table.
+  // A student's current team and past teams are two tables; a lecturer's teams are one table.
   const showTeams = teams.isPending || teams.isError || all.length === 0 || (!isStudent && settled.length > 0)
 
   return (
@@ -94,8 +95,6 @@ export default function HomePage() {
         />
       )}
 
-      {isStudent && settled.length > 0 && <YourTeam teams={settled} />}
-
       <HomeStats
         teams={all}
         invitations={waiting.length}
@@ -111,6 +110,15 @@ export default function HomePage() {
       >
         <div className="grid gap-6">
           {canCreate && <DraftTeams teams={drafts} />}
+
+          {isStudent && settled.length > 0 && (
+            <section className="grid gap-4" aria-labelledby="current-heading">
+              <h2 id="current-heading" className="text-base font-semibold text-foreground">
+                Your team{latest ? ` · ${latest}` : ''}
+              </h2>
+              <StudentTeamsTable teams={settled} />
+            </section>
+          )}
 
           {showTeams && (
             <section className="grid gap-4" aria-labelledby="teams-heading">
@@ -139,7 +147,15 @@ export default function HomePage() {
             </section>
           )}
 
-          <EarlierTerms teams={earlier.filter((team) => team.status !== 'pending')} />
+          {isStudent && past.length > 0 && (
+            <section className="grid gap-4" aria-labelledby="past-heading">
+              <h2 id="past-heading" className="text-base font-semibold text-foreground">
+                Past teams
+              </h2>
+              <StudentTeamsTable teams={past} />
+            </section>
+          )}
+          {!isStudent && <EarlierTerms teams={past} />}
 
           {canCreate && <AvailableStudents teams={all} defaultTerm={latest} />}
           {canCreate && <WaitingForReply />}

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import EmptyState from '../../components/EmptyState.jsx'
-import { TeamCards, TeamsTable } from './TeamLists.jsx'
+import { StudentTeamsTable, TeamsTable } from './TeamLists.jsx'
 
 function Loading() {
   return (
@@ -19,7 +19,7 @@ function Loading() {
 
 /**
  * The teams from `useMyTeams`, in every state: loading, failed, none yet, no match, or the list
- * (a table for lecturers, cards for students). `visible` is the list after any search or filter.
+ * (a table for lecturers, a table for students). `visible` is the list after any search or filter.
  */
 export default function TeamList({ teamsQuery, visible, isStaff, canCreate, email, hasInvitations }) {
   const navigate = useNavigate()
@@ -60,7 +60,7 @@ export default function TeamList({ teamsQuery, visible, isStaff, canCreate, emai
   if (visible.length === 0) {
     return <p className="text-sm text-muted-foreground">No team matches that search.</p>
   }
-  return isStaff ? <TeamsTable teams={visible} /> : <TeamCards teams={visible} />
+  return isStaff ? <TeamsTable teams={visible} /> : <StudentTeamsTable teams={visible} />
 }
 
 TeamList.propTypes = {
