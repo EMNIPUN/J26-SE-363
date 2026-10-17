@@ -12,10 +12,10 @@ export default function NeedsAttention({ items }) {
         Needs attention <span className="font-normal text-muted-foreground">({items.length})</span>
       </h2>
       <ul className="divide-y divide-border">
-        {items.map(({ key, team, message }) => (
+        {items.map(({ key, team, message, to }) => (
           <li key={key}>
             <Link
-              to={teamHref(team)}
+              to={to ?? teamHref(team)}
               className="flex items-center gap-3 px-4 py-2.5 text-sm outline-none hover:bg-muted/40 focus-visible:bg-muted/40"
             >
               <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />

@@ -27,6 +27,9 @@ export const teamService = {
   withdrawLeadershipOffer: (team) => apiClient.delete(ENDPOINTS.TEAMS.LEADER_TRANSFER(team)),
 
   getMyInvitations: () => apiClient.get(ENDPOINTS.INVITATIONS.MINE),
+  // Lecturers: invitations I sent that nobody has answered, and students with no team in a term.
+  getSentInvitations: () => apiClient.get(ENDPOINTS.INVITATIONS.SENT),
+  getAvailableStudents: (term) => apiClient.get(ENDPOINTS.STUDENTS.AVAILABLE, { params: { term } }),
   lookupInvitation: (token) => apiClient.post(ENDPOINTS.INVITATIONS.LOOKUP, { token }),
   acceptInvitation: (invitationId) => apiClient.post(ENDPOINTS.INVITATIONS.ACCEPT(invitationId)),
   declineInvitation: (invitationId) => apiClient.post(ENDPOINTS.INVITATIONS.DECLINE(invitationId)),

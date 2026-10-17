@@ -7,6 +7,8 @@ export const teamKeys = {
   detail: (team) => ['teams', 'detail', team],
   invitations: ['invitations', 'mine'],
   lookup: (token) => ['invitations', 'lookup', token],
+  sent: ['invitations', 'sent'],
+  available: (term) => ['students', 'available', term],
 }
 
 export function useMyTeams({ enabled = true } = {}) {
@@ -29,6 +31,20 @@ export function useMyInvitations({ enabled = true } = {}) {
   })
 }
 
+/** Lecturers: the invitations they sent that are still waiting. */
+export function useSentInvitations({ enabled = true } = {}) {
+  return useQuery({ queryKey: teamKeys.sent, queryFn: teamService.getSentInvitations, enabled })
+}
+
+/** Lecturers: students of their institution with no team in this term. */
+export function useAvailableStudents(term, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: teamKeys.available(term),
+    queryFn: () => teamService.getAvailableStudents(term),
+    enabled: enabled && Boolean(term),
+  })
+}
+
 export function useInvitationLookup(token) {
   return useQuery({
     queryKey: teamKeys.lookup(token),
@@ -47,6 +63,8 @@ function useTeamAction(mutationFn, { success, refresh = () => [] } = {}) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: teamKeys.mine }),
         queryClient.invalidateQueries({ queryKey: teamKeys.invitations }),
+        queryClient.invalidateQueries({ queryKey: teamKeys.sent }),
+        queryClient.invalidateQueries({ queryKey: ['students'] }),
         ...refresh(variables).map((queryKey) => queryClient.invalidateQueries({ queryKey })),
       ])
       if (success) showToast.success(typeof success === 'function' ? success(data, variables) : success)

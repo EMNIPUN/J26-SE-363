@@ -13,7 +13,7 @@ import { teamHref } from '../../utils/teams.js'
 import { TeamRoleBadge, TeamStatusBadge } from '../../components/TeamBadges.jsx'
 
 
-/** Lecturers: every team in a table, with who is still to answer. */
+/** Lecturers: every team in a table, with who has joined, who is still to answer and the repository. */
 export function TeamsTable({ teams }) {
   const navigate = useNavigate()
   return (
@@ -22,12 +22,11 @@ export function TeamsTable({ teams }) {
         <TableHeader>
           <TableRow>
             <TableHead className="pl-4">Team</TableHead>
-            <TableHead>Project</TableHead>
             <TableHead className="w-24">Term</TableHead>
-            <TableHead className="w-24">Students</TableHead>
+            <TableHead className="w-36">Students</TableHead>
             <TableHead>Leader</TableHead>
-            <TableHead className="w-28">Status</TableHead>
-            <TableHead className="w-24 pr-4 text-right">Waiting</TableHead>
+            <TableHead className="w-28">Repository</TableHead>
+            <TableHead className="w-28 pr-4">Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -45,19 +44,39 @@ export function TeamsTable({ teams }) {
                 >
                   {team.name}
                 </Link>
-                <p className="font-mono text-xs text-muted-foreground">{team.code}</p>
-              </TableCell>
-              <TableCell className="max-w-[240px] truncate text-muted-foreground">
-                {team.project?.title ?? '—'}
+                <p className="max-w-[260px] truncate text-xs text-muted-foreground">
+                  <span className="font-mono">{team.code}</span>
+                  {team.project?.title ? ` · ${team.project.title}` : ''}
+                </p>
               </TableCell>
               <TableCell className="text-muted-foreground">{team.term ?? '—'}</TableCell>
-              <TableCell className="tabular-nums">{team.student_count}</TableCell>
-              <TableCell className="text-muted-foreground">{team.leader?.name ?? '—'}</TableCell>
               <TableCell>
-                <TeamStatusBadge status={team.status} />
+                <span className="tabular-nums">{team.student_count}</span>
+                <span className="text-muted-foreground"> joined</span>
+                {team.pending_student_invitations > 0 && (
+                  <p className="text-xs tabular-nums text-amber-700 dark:text-amber-400">
+                    {team.pending_student_invitations} waiting
+                  </p>
+                )}
               </TableCell>
-              <TableCell className="pr-4 text-right tabular-nums text-muted-foreground">
-                {team.pending_invitations ?? 0}
+              <TableCell className="text-muted-foreground">{team.leader?.name ?? '—'}</TableCell>
+              <TableCell className="text-sm">
+                {team.repo_url ? (
+                  <a
+                    href={team.repo_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(event) => event.stopPropagation()}
+                    className="text-primary hover:underline"
+                  >
+                    Linked
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground">Not linked</span>
+                )}
+              </TableCell>
+              <TableCell className="pr-4">
+                <TeamStatusBadge status={team.status} />
               </TableCell>
             </TableRow>
           ))}

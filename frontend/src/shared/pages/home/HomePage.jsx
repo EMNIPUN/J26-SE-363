@@ -8,11 +8,18 @@ import {
   useMyInvitations,
   useMyTeams,
 } from '../../hooks/useTeams.js'
+import { needsAttention, profileChecklist, splitByTerm } from '../../utils/teams.js'
+import AvailableStudents from './AvailableStudents.jsx'
+import DraftTeams from './DraftTeams.jsx'
+import EarlierTerms from './EarlierTerms.jsx'
 import HomeStats from './HomeStats.jsx'
 import InvitationList from './InvitationList.jsx'
 import NeedsAttention from './NeedsAttention.jsx'
+import ProfileChecklist from './ProfileChecklist.jsx'
+import RecentTeams from './RecentTeams.jsx'
 import TeamList from './TeamList.jsx'
-import { needsAttention } from '../../utils/teams.js'
+import WaitingForReply from './WaitingForReply.jsx'
+import YourTeam from './YourTeam.jsx'
 
 const SHOWN = 6 // the rest are on the Teams page
 
@@ -24,13 +31,15 @@ function greeting() {
 }
 
 /**
- * The page a person lands on after signing in: what needs an answer, a few numbers, and their
- * teams. The full list is on the Teams page. Inside a team the sidebar workspace takes over.
+ * The page a person lands on after signing in. It is about the person and all their teams
+ * together: what needs an answer, where their teams stand, and what to do next. What happens
+ * inside one team is in that team's workspace (DashboardShell).
  */
 export default function HomePage() {
-  const { user } = useAuth()
+  const { user, account } = useAuth()
   const canCreate = user.role === 'instructor' // only lecturers create teams
   const isStaff = canCreate || user.role === 'admin'
+  const isStudent = user.role === 'student'
   const teams = useMyTeams()
   const invitations = useMyInvitations()
   const accept = useAcceptInvitation()
@@ -43,8 +52,16 @@ export default function HomePage() {
       : null
   const waiting = invitations.data ?? []
   const all = teams.data ?? []
+  const { latest, current, earlier } = splitByTerm(all)
+  const drafts = all.filter((team) => team.status === 'pending')
+  const settled = current.filter((team) => team.status !== 'pending')
   const attention = needsAttention(all, isStaff)
+  const profileOpen = profileChecklist(account, user.role).some((item) => !item.done)
+  const hasAside = attention.length > 0 || profileOpen
   const firstName = user.name?.split(' ')[0]
+
+  // A student has one team a term, so it is shown as one card; a lecturer's teams are a table.
+  const showTeams = teams.isPending || teams.isError || all.length === 0 || (!isStudent && settled.length > 0)
 
   return (
     <div className="grid gap-6">
@@ -77,35 +94,63 @@ export default function HomePage() {
         />
       )}
 
-      <HomeStats teams={all} invitations={waiting.length} isStaff={isStaff} loading={teams.isPending} />
+      {isStudent && settled.length > 0 && <YourTeam teams={settled} />}
 
-      <div className={`grid items-start gap-6 ${attention.length > 0 ? 'lg:grid-cols-[minmax(0,1fr)_22rem]' : ''}`}>
-        <section className="grid gap-4" aria-labelledby="teams-heading">
-          <div className="flex items-center justify-between gap-3">
-            <h2 id="teams-heading" className="text-base font-semibold text-foreground">
-              Your teams
-            </h2>
-            {all.length > SHOWN && (
-              <Link
-                to="/teams"
-                className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-              >
-                View all {all.length}
-                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </Link>
-            )}
-          </div>
-          <TeamList
-            teamsQuery={teams}
-            visible={all.slice(0, SHOWN)}
-            isStaff={isStaff}
-            canCreate={canCreate}
-            email={user.email}
-            hasInvitations={waiting.length > 0}
-          />
-        </section>
+      <HomeStats
+        teams={all}
+        invitations={waiting.length}
+        isStaff={isStaff}
+        loading={teams.isPending}
+        term={latest}
+      />
 
-        {attention.length > 0 && <NeedsAttention items={attention} />}
+      <RecentTeams teams={all} />
+
+      <div
+        className={`grid items-start gap-6 ${hasAside ? 'lg:grid-cols-[minmax(0,1fr)_22rem]' : ''}`}
+      >
+        <div className="grid gap-6">
+          {canCreate && <DraftTeams teams={drafts} />}
+
+          {showTeams && (
+            <section className="grid gap-4" aria-labelledby="teams-heading">
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="teams-heading" className="text-base font-semibold text-foreground">
+                  Your teams{latest ? ` · ${latest}` : ''}
+                </h2>
+                {all.length > SHOWN && (
+                  <Link
+                    to="/teams"
+                    className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                  >
+                    View all {all.length}
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Link>
+                )}
+              </div>
+              <TeamList
+                teamsQuery={teams}
+                visible={isStudent ? [] : settled.slice(0, SHOWN)}
+                isStaff={isStaff}
+                canCreate={canCreate}
+                email={user.email}
+                hasInvitations={waiting.length > 0}
+              />
+            </section>
+          )}
+
+          <EarlierTerms teams={earlier.filter((team) => team.status !== 'pending')} />
+
+          {canCreate && <AvailableStudents teams={all} defaultTerm={latest} />}
+          {canCreate && <WaitingForReply />}
+        </div>
+
+        {hasAside && (
+          <aside className="grid gap-4">
+            {attention.length > 0 && <NeedsAttention items={attention} />}
+            <ProfileChecklist account={account} role={user.role} />
+          </aside>
+        )}
       </div>
     </div>
   )

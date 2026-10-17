@@ -5,12 +5,21 @@ import StatCard from '../../components/StatCard.jsx'
 const sum = (teams, key) => teams.reduce((total, team) => total + (team[key] ?? 0), 0)
 
 /** A short row of numbers about the person's teams. Lecturers and students see different ones. */
-export default function HomeStats({ teams: all, invitations, isStaff, loading }) {
+export default function HomeStats({ teams: all, invitations, isStaff, loading, term }) {
   const teams = all.filter((team) => team.status !== 'pending') // drafts are not counted yet
+  const now = teams.filter((team) => term && team.term === term)
+  const inTerm = (value) => (term ? `${value} in ${term}` : undefined)
+
   const cards = isStaff
     ? [
-        { icon: UsersRound, label: 'Teams', value: teams.length },
-        { icon: UsersRound, label: 'Students', value: sum(teams, 'student_count'), tone: 'success' },
+        { icon: UsersRound, label: 'Teams', value: teams.length, trend: inTerm(now.length) },
+        {
+          icon: UsersRound,
+          label: 'Students',
+          value: sum(teams, 'student_count'),
+          trend: inTerm(sum(now, 'student_count')),
+          tone: 'success',
+        },
         { icon: Hourglass, label: 'Awaiting reply', value: sum(teams, 'pending_invitations'), tone: 'warning' },
         {
           icon: FolderGit2,
@@ -44,4 +53,5 @@ HomeStats.propTypes = {
   invitations: PropTypes.number.isRequired,
   isStaff: PropTypes.bool.isRequired,
   loading: PropTypes.bool,
+  term: PropTypes.string,
 }

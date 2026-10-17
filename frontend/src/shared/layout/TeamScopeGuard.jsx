@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useParams, Outlet, Navigate } from 'react-router-dom'
 import { useMyTeams } from '../hooks/useTeams.js'
+import { rememberTeam } from '../utils/recentTeams.js'
 import { teamHref } from '../utils/teams.js'
 import { useScope } from '../context/useScope.js'
 import NotFound from '../pages/NotFound.jsx'
@@ -25,6 +26,11 @@ export default function TeamScopeGuard() {
   useEffect(() => {
     if (matchedGroup && selectedGroupId !== matchedGroup.id) setGroupId(matchedGroup.id)
   }, [matchedGroup, selectedGroupId, setGroupId])
+
+  // Remember it for the "Recently opened" row on the home page.
+  useEffect(() => {
+    if (matchedGroup?.code) rememberTeam(matchedGroup.code)
+  }, [matchedGroup?.code])
 
   if (isLoading) return <div className="min-h-[40svh]" />
   if (pending) return <Navigate to={teamHref(pending)} replace /> // finish the setup first

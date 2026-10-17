@@ -18,7 +18,7 @@ In legacy or poorly-structured web apps, developers often prefix routes with use
 ### The SELVIA Routing Solution
 1. **Team-Scoped Workspaces (`/teams/:teamId/*`)**: All module workflows operate inside an active team workspace (e.g., `/teams/J26-SE-363/performance/dashboard`).
 2. **Backward-Compatible Redirects**: Unscoped routes (e.g., `/app` or `/performance/dashboard`) automatically redirect to the active team (`/teams/J26-SE-363/...`), or to `/home` when the person has no team yet.
-3. **A home page before the workspace**: after sign-in people land on `/home` (what needs an answer, a few numbers, their teams). `/teams` lists every team with a term filter and search. Both sit under a top bar (`HubLayout`) that is full width up to 96rem. First-time users are sent through `/onboarding` first (see [REGISTRATION_AND_TEAMS.md](../../docs/REGISTRATION_AND_TEAMS.md)).
+3. **A home page before the workspace**: after sign-in people land on `/home`: what needs an answer, a few numbers, and their teams by term. It is about the person and all their teams; what happens inside one team belongs in that team's workspace. Lecturers also see drafts to finish, students without a team (their own institution only) and invitations nobody has answered; students see their team for the term as one card. `/teams` lists every team with a term filter and search. Both sit under a top bar (`HubLayout`) that is full width up to 96rem. First-time users are sent through `/onboarding` first (see [REGISTRATION_AND_TEAMS.md](../../docs/REGISTRATION_AND_TEAMS.md)).
 4. **Domain-Driven Modules**: Each research module owns an independent URL namespace (`planning/*`, `performance/*`, `tutor/*`, `security/*`). Developers never edit other team members' route tables.
 
 ---

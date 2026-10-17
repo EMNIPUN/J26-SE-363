@@ -31,11 +31,15 @@ export const ENDPOINTS = {
     LEADER_ACCEPT: (team) => `/teams/${team}/leader-transfer/accept`,
     LEADER_DECLINE: (team) => `/teams/${team}/leader-transfer/decline`,
   },
+  STUDENTS: {
+    AVAILABLE: '/students/available',
+  },
   TERMS: {
     LIST: '/terms',
   },
   INVITATIONS: {
     MINE: '/me/invitations',
+    SENT: '/invitations/sent',
     LOOKUP: '/invitations/lookup',
     ACCEPT: (invitationId) => `/invitations/${invitationId}/accept`,
     DECLINE: (invitationId) => `/invitations/${invitationId}/decline`,
