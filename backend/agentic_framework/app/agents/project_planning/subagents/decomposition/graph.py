@@ -2,13 +2,15 @@
 
 reason -> execute_tool (coverage_analyzer, invest_validator, pattern_retriever)
 -> finalize. Evaluates the student's user stories against the parent
-requirement using a two-level mandatory gate — Coverage Gate (C1-C10), then an
-INVEST Readiness Gate per story — both computed in code from the tool
-outputs, never by the LLM (see gate.py). The gate/score/feedback pipeline
-makes exactly TWO LLM calls total per run (one coverage_analyzer call, one
-batched invest_validator call covering all stories) — see scorer.py's module
-docstring for why the scorer and reflect LLM calls that used to run here were
-removed (they were the dominant source of Gemini free-tier quota exhaustion).
+requirement using a student-friendly, three-tier readiness classification
+(Ready / Ready with Improvements / Needs Attention — see gate.py). Coverage/
+traceability (C1-C10) dominates the tier; INVEST is improvement guidance.
+Nothing hard-blocks progression to effort estimation. The readiness/score/
+feedback pipeline makes exactly TWO LLM calls total per run (one
+coverage_analyzer call, one batched invest_validator call covering all
+stories) — see scorer.py's module docstring for why the scorer and reflect
+LLM calls that used to run here were removed (they were the dominant source
+of Gemini free-tier quota exhaustion).
 """
 
 from __future__ import annotations
@@ -30,9 +32,7 @@ from app.agents.project_planning.subagents.decomposition.coverage import (
     _unavailable_analysis,
     analyze_coverage,
 )
-from app.agents.project_planning.subagents.decomposition.gate import (
-    evaluate_decomposition_gate,
-)
+from app.agents.project_planning.subagents.decomposition.gate import classify_readiness
 from app.agents.project_planning.subagents.decomposition.invest import validate_invest
 from app.agents.project_planning.subagents.decomposition.scorer import (
     build_feedback,
@@ -119,10 +119,8 @@ def finalize(state: DecompositionState) -> DecompositionState:
     invest_gate = state.get("invest_gate") or _invest_gate(invest_results)
     patterns = state.get("retrieved_patterns", [])
 
-    gate_status, needs_review_reason = evaluate_decomposition_gate(
-        coverage.gate, invest_gate, coverage.needs_review, coverage.needs_review_reason
-    )
-    feedback = build_feedback(gate_status, coverage, invest_results)
+    readiness, readiness_reason = classify_readiness(coverage, invest_results)
+    feedback = build_feedback(readiness, coverage, invest_results)
     # Transparency signal only (not a gate input): low when coverage could not
     # actually be assessed (LLM unavailable/failed).
     confidence = 1.0 if coverage.elements else 0.3
@@ -133,8 +131,9 @@ def finalize(state: DecompositionState) -> DecompositionState:
             coverage,
             invest_results,
             invest_gate,
-            gate_status,
-            needs_review_reason,
+            readiness,
+            readiness_reason,
+            coverage.needs_review_reason,
             feedback,
             patterns,
             confidence=confidence,
@@ -172,7 +171,7 @@ async def run_decomposition_agent(
         {
             "id": s.id,
             "title": s.title,
-            "acceptance_criteria": s.acceptance_criteria,
+            "description": s.description,
             "linked_parent_requirement": s.linked_parent_requirement or payload.requirement.id,
         }
         for s in payload.stories
@@ -210,17 +209,16 @@ async def run_decomposition_agent(
 
     coverage = _unavailable_analysis("Decomposition analysis failed — please re-run analysis.")
     invest_gate = _invest_gate(invest_results)
-    gate_status, needs_review_reason = evaluate_decomposition_gate(
-        coverage.gate, invest_gate, coverage.needs_review, coverage.needs_review_reason
-    )
-    feedback = build_feedback(gate_status, coverage, invest_results)
+    readiness, readiness_reason = classify_readiness(coverage, invest_results)
+    feedback = build_feedback(readiness, coverage, invest_results)
     return build_result(
         payload.requirement.id,
         coverage,
         invest_results,
         invest_gate,
-        gate_status,
-        needs_review_reason,
+        readiness,
+        readiness_reason,
+        coverage.needs_review_reason,
         feedback,
         [],
         confidence=0.0,

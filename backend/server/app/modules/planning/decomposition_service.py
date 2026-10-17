@@ -8,6 +8,8 @@ analysis is always safe and preserves history instead of colliding."""
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import uuid
 from datetime import UTC, datetime
@@ -24,6 +26,9 @@ from app.models.decomposition_assessment import (
     DecompositionToolOutput,
     InvestValidation,
     StoryAssessment,
+    TaskAssessment,
+    TaskCriterionResultRow,
+    TaskValidationAssessment,
     UserStory,
     UserStoryTask,
 )
@@ -34,6 +39,7 @@ from app.models.enums import (
     CoverageElementType,
     CoverageResult,
     DecompositionGateStatus,
+    DecompositionReadiness,
     DecompositionTaskType,
     FeedbackStage,
     FeedbackType,
@@ -42,6 +48,10 @@ from app.models.enums import (
     Priority,
     QualityBand,
     StoryStatus,
+    TaskCriterion,
+    TaskCriterionOutcome,
+    TaskReadinessStatus,
+    TaskStatus,
     ToolStatus,
 )
 from app.models.feedback import Feedback
@@ -49,6 +59,7 @@ from app.models.feedback import Feedback
 logger = logging.getLogger(__name__)
 
 INVEST_CRITERIA = [c.value for c in InvestCriterion]
+TASK_CRITERIA = [c.value for c in TaskCriterion]
 
 CONFIDENCE_MAP = {
     "high": ConfidenceLevel.HIGH,
@@ -64,10 +75,58 @@ PRIORITY_MAP = {
 }
 
 _RECOMMENDED_ACTION = {
-    "COMPLETE": "Proceed to effort estimation",
-    "NEEDS_REVIEW": "Send to supervisor for review",
-    "INCOMPLETE": "Revise stories and re-run analysis",
+    "Ready": "Proceed to effort estimation",
+    "Ready with Improvements": (
+        "Review the suggestions, then proceed to effort estimation when ready"
+    ),
+    "Needs Attention": (
+        "Address the flagged gaps — you can still proceed provisionally if needed"
+    ),
 }
+
+_TASK_RECOMMENDED_ACTION = {
+    "Valid": "Proceed to effort estimation",
+    "Needs Improvement": (
+        "Review the suggestions, then proceed to effort estimation when ready"
+    ),
+    "Coverage Warning": (
+        "Add the missing tasks — you can still proceed provisionally if needed"
+    ),
+}
+
+
+def compute_stories_hash(stories: list[dict[str, Any]]) -> str:
+    """Stable hash of the submitted stories' content (ref, title,
+    description), independent of submission order — used to detect "nothing
+    changed since the last analysis" so POST /planning/decomposition can
+    reuse that run instead of spending another LLM call."""
+    normalized = sorted(
+        (
+            str(s.get("id") or s.get("story_ref") or ""),
+            str(s.get("title") or ""),
+            str(s.get("description") or ""),
+        )
+        for s in stories
+    )
+    payload = json.dumps(normalized, sort_keys=True, ensure_ascii=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def compute_tasks_hash(tasks: list[dict[str, Any]]) -> str:
+    """Stable hash of the submitted tasks' content (id, title, description),
+    independent of submission order — mirrors compute_stories_hash, used to
+    detect "nothing changed since the last validation" so the validate
+    endpoint can reuse that run instead of spending another LLM call."""
+    normalized = sorted(
+        (
+            str(t.get("id") or ""),
+            str(t.get("title") or ""),
+            str(t.get("description") or ""),
+        )
+        for t in tasks
+    )
+    payload = json.dumps(normalized, sort_keys=True, ensure_ascii=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _confidence_level(value: Any) -> ConfidenceLevel:
@@ -104,7 +163,8 @@ def create_story(
         i_want=story_data.get("i_want"),
         so_that=story_data.get("so_that"),
         description=story_data.get("description"),
-        acceptance_criteria=story_data.get("acceptance_criteria"),
+        # Acceptance criteria are deliberately not part of decomposition stories.
+        acceptance_criteria=None,
         priority=PRIORITY_MAP.get(
             (story_data.get("priority") or "medium").lower(),
             Priority.MEDIUM,
@@ -167,6 +227,7 @@ def create_task(
     story: UserStory,
     title: str,
     parent_task_id: uuid.UUID | None = None,
+    description: str = "",
 ) -> UserStoryTask:
     if parent_task_id:
         parent = db.get(UserStoryTask, parent_task_id)
@@ -176,6 +237,7 @@ def create_task(
         user_story_id=story.id,
         parent_task_id=parent_task_id,
         title=title,
+        description=description,
         task_type=(
             DecompositionTaskType.SUBTASK
             if parent_task_id
@@ -185,6 +247,36 @@ def create_task(
     db.add(row)
     db.flush()
     return row
+
+
+def get_task(db: Session, story: UserStory, task_id: uuid.UUID) -> UserStoryTask | None:
+    task = db.get(UserStoryTask, task_id)
+    if not task or task.user_story_id != story.id:
+        return None
+    return task
+
+
+def update_task(
+    db: Session,
+    task: UserStoryTask,
+    *,
+    title: str | None = None,
+    description: str | None = None,
+    status: TaskStatus | None = None,
+) -> UserStoryTask:
+    if title is not None:
+        task.title = title
+    if description is not None:
+        task.description = description
+    if status is not None:
+        task.status = status
+    db.flush()
+    return task
+
+
+def delete_task(db: Session, task: UserStoryTask) -> None:
+    db.delete(task)
+    db.flush()
 
 
 def set_story_status(story: UserStory, status: StoryStatus) -> None:
@@ -202,6 +294,7 @@ def save_assessment(
     agent_result: dict[str, Any],
     stories: list[UserStory] | None = None,
     target_user_id: uuid.UUID | None = None,
+    input_hash: str | None = None,
 ) -> DecompositionAssessment:
     """Unpack one ``DecompositionResult`` (agent.py schemas.py shape) into the
     normalized tables. ``agent_result`` field names must match
@@ -210,12 +303,17 @@ def save_assessment(
     gate = cov.get("gate") or {}
     invest_gate = agent_result.get("invest_gate") or {}
     story_results = agent_result.get("stories") or []
-    gate_status = agent_result.get("gate_status", "INCOMPLETE")
+    readiness = agent_result.get("readiness", "Needs Attention")
+    legacy_gate_status = agent_result.get("gate_status")
 
     assessment = DecompositionAssessment(
         requirement_id=requirement_id,
         pipeline_session_id=session_id,
-        gate_status=DecompositionGateStatus(gate_status),
+        readiness_status=DecompositionReadiness(readiness),
+        readiness_reason=agent_result.get("readiness_reason") or "",
+        gate_status=(
+            DecompositionGateStatus(legacy_gate_status) if legacy_gate_status else None
+        ),
         decomposition_quality_score=agent_result.get(
             "decomposition_quality_score", 0.0
         ),
@@ -223,11 +321,12 @@ def save_assessment(
         needs_review_reason=agent_result.get("needs_review_reason"),
         analysis_failed=bool(agent_result.get("analysis_failed", False)),
         failure_reason=agent_result.get("failure_reason"),
+        input_hash=input_hash,
         coverage_score=cov.get("coverage_percentage", 0.0),
         stories_evaluated=len(story_results),
         stories_needing_revision=len(invest_gate.get("failed_stories") or []),
         diagnosis=(agent_result.get("student_feedback") or [None])[0],
-        recommended_action=_RECOMMENDED_ACTION.get(gate_status),
+        recommended_action=_RECOMMENDED_ACTION.get(readiness),
         confidence_level=_confidence_level(agent_result.get("confidence", 0.8)),
         assessment_status=AssessmentStatus.COMPLETED,
         assessed_at=datetime.now(UTC),
@@ -356,7 +455,7 @@ def save_assessment(
     if target_user_id:
         feedback_type = (
             FeedbackType.ACTIONABLE_IMPROVEMENT
-            if gate_status == "COMPLETE"
+            if readiness == "Ready"
             else FeedbackType.REVISION_REQUIRED
         )
         for bullet in agent_result.get("student_feedback") or []:
@@ -457,8 +556,25 @@ _CRITERIA_FIELDS = (
 )
 
 
-def story_to_dict(row: UserStory) -> dict[str, Any]:
-    """Serialize the story with INVEST verdicts from its latest analysis run."""
+def story_to_dict(
+    row: UserStory, task_validation: TaskValidationAssessment | None = None
+) -> dict[str, Any]:
+    """Serialize the story with INVEST verdicts from its latest analysis run.
+    ``task_validation``, when given, is that story's latest
+    TaskValidationAssessment (with task_assessments/criterion_results
+    eager-loaded) and is used to nest each task's readiness + per-criterion
+    badges inline, so GET /planning/stories alone fully hydrates the UI."""
+    task_ready_by_task: dict[uuid.UUID, bool] = {}
+    criteria_by_task: dict[uuid.UUID, dict[str, dict[str, Any]]] = {}
+    if task_validation is not None:
+        for ta in task_validation.task_assessments:
+            task_ready_by_task[ta.user_story_task_id] = ta.task_ready
+        for cr in task_validation.criterion_results:
+            criteria_by_task.setdefault(cr.user_story_task_id, {})[cr.criterion.value] = {
+                "result": cr.result.value,
+                "note": cr.note,
+                "evidence": cr.evidence,
+            }
     invest: dict[str, dict[str, Any]] = {}
     validations = row.invest_validations
     latest_assessment_id: uuid.UUID | None = None
@@ -495,11 +611,20 @@ def story_to_dict(row: UserStory) -> dict[str, Any]:
             children.setdefault(task.parent_task_id, []).append(task)
 
     def task_to_dict(task: UserStoryTask) -> dict[str, Any]:
+        criteria = criteria_by_task.get(task.id)
+        validation = None
+        if task.id in task_ready_by_task:
+            validation = {
+                "task_ready": task_ready_by_task[task.id],
+                **{c: (criteria or {}).get(c) for c in TASK_CRITERIA},
+            }
         return {
             "id": str(task.id),
             "title": task.title,
+            "description": task.description,
             "task_type": task.task_type.value,
             "status": task.status.value,
+            "validation": validation,
             "subtasks": [task_to_dict(child) for child in children.get(task.id, [])],
         }
 
@@ -512,7 +637,6 @@ def story_to_dict(row: UserStory) -> dict[str, Any]:
         "i_want": row.i_want,
         "so_that": row.so_that,
         "description": row.description,
-        "acceptance_criteria": row.acceptance_criteria,
         "student_story_points": row.student_story_points,
         "priority": row.priority.value,
         "status": row.status.value,
@@ -588,7 +712,9 @@ def assessment_to_dict(row: DecompositionAssessment) -> dict[str, Any]:
 
     return {
         "requirement_id": str(row.requirement_id),
-        "gate_status": row.gate_status.value,
+        "readiness": row.readiness_status.value,
+        "readiness_reason": row.readiness_reason,
+        "gate_status": row.gate_status.value if row.gate_status else None,
         "decomposition_quality_score": float(row.decomposition_quality_score),
         "quality_band": row.quality_band.value,
         "needs_review_reason": row.needs_review_reason,
@@ -609,6 +735,7 @@ def assessment_to_dict(row: DecompositionAssessment) -> dict[str, Any]:
         "tool_outputs": tools,
         "stories_evaluated": row.stories_evaluated,
         "stories_needing_revision": row.stories_needing_revision,
+        "reused": False,
         "assessed_at": row.assessed_at.isoformat() if row.assessed_at else None,
     }
 
@@ -616,11 +743,201 @@ def assessment_to_dict(row: DecompositionAssessment) -> dict[str, Any]:
 def gate_to_dict(row: DecompositionAssessment) -> dict[str, Any]:
     return {
         "requirement_id": str(row.requirement_id),
-        "gate_status": row.gate_status.value,
+        "readiness": row.readiness_status.value,
+        "readiness_reason": row.readiness_reason,
+        "gate_status": row.gate_status.value if row.gate_status else None,
         "decomposition_quality_score": float(row.decomposition_quality_score),
         "quality_band": row.quality_band.value,
         "needs_review_reason": row.needs_review_reason,
         "analysis_failed": row.analysis_failed,
         "failure_reason": row.failure_reason,
+        "assessed_at": row.assessed_at.isoformat() if row.assessed_at else None,
+    }
+
+
+# --- Task validation ------------------------------------------------------
+
+
+def save_task_validation(
+    db: Session,
+    user_story: UserStory,
+    session_id: uuid.UUID,
+    agent_result: dict[str, Any],
+    tasks: list[UserStoryTask] | None = None,
+    target_user_id: uuid.UUID | None = None,
+    input_hash: str | None = None,
+) -> TaskValidationAssessment:
+    """Unpack one ``TaskValidationResult`` (agentic_framework schemas.py
+    shape) into the normalized tables. Mirrors save_assessment: a NEW row is
+    created on every run (no uniqueness constraint on user_story_id), so
+    re-running validation is always safe and preserves history."""
+    cov = agent_result.get("coverage") or {}
+    task_results = agent_result.get("tasks") or []
+    readiness = agent_result.get("readiness", "Coverage Warning")
+
+    assessment = TaskValidationAssessment(
+        user_story_id=user_story.id,
+        pipeline_session_id=session_id,
+        readiness_status=TaskReadinessStatus(readiness),
+        readiness_reason=agent_result.get("readiness_reason") or "",
+        quality_score=agent_result.get("quality_score", 0.0),
+        quality_band=QualityBand(agent_result.get("quality_band", "Very poor")),
+        coverage_percentage=cov.get("coverage_percentage", 0.0),
+        confidence=max(0.0, min(1.0, float(agent_result.get("confidence", 0.8)))),
+        analysis_failed=bool(agent_result.get("analysis_failed", False)),
+        failure_reason=agent_result.get("failure_reason"),
+        input_hash=input_hash,
+        assessed_at=datetime.now(UTC),
+    )
+    db.add(assessment)
+    db.flush()
+
+    task_map = {str(t.id): t for t in (tasks or [])}
+    unmatched: list[str] = []
+    for ti in task_results:
+        tid = ti.get("task_id", "")
+        task_row = task_map.get(tid)
+        if not task_row:
+            unmatched.append(tid)
+            continue
+
+        db.add(
+            TaskAssessment(
+                task_validation_assessment_id=assessment.id,
+                user_story_task_id=task_row.id,
+                task_ready=bool(ti.get("task_ready", False)),
+            )
+        )
+        for criterion_name in TASK_CRITERIA:
+            c = ti.get(criterion_name) or {}
+            try:
+                result = TaskCriterionOutcome(c.get("result", "Cannot Assess"))
+            except ValueError:
+                result = TaskCriterionOutcome.CANNOT_ASSESS
+            db.add(
+                TaskCriterionResultRow(
+                    task_validation_assessment_id=assessment.id,
+                    user_story_task_id=task_row.id,
+                    criterion=TaskCriterion(criterion_name),
+                    result=result,
+                    note=c.get("note"),
+                    evidence=c.get("evidence"),
+                )
+            )
+
+    if unmatched:
+        logger.warning(
+            "save_task_validation: %d task_id(s) from the agent had no matching "
+            "UserStoryTask (story=%s, session=%s): %s",
+            len(unmatched), user_story.id, session_id, unmatched,
+        )
+
+    if target_user_id:
+        feedback_type = (
+            FeedbackType.ACTIONABLE_IMPROVEMENT
+            if readiness == "Valid"
+            else FeedbackType.REVISION_REQUIRED
+        )
+        for bullet in agent_result.get("student_feedback") or []:
+            db.add(
+                Feedback(
+                    pipeline_session_id=session_id,
+                    user_story_id=user_story.id,
+                    task_validation_assessment_id=assessment.id,
+                    target_user_id=target_user_id,
+                    feedback_stage=FeedbackStage.TASK_VALIDATION,
+                    feedback_type=feedback_type,
+                    feedback_text=bullet,
+                )
+            )
+
+    db.flush()
+    return assessment
+
+
+def get_latest_task_validation(
+    db: Session, user_story_id: uuid.UUID
+) -> TaskValidationAssessment | None:
+    return db.scalars(
+        select(TaskValidationAssessment)
+        .where(TaskValidationAssessment.user_story_id == user_story_id)
+        .options(
+            selectinload(TaskValidationAssessment.task_assessments),
+            selectinload(TaskValidationAssessment.criterion_results),
+            selectinload(TaskValidationAssessment.feedbacks),
+        )
+        .order_by(TaskValidationAssessment.assessed_at.desc())
+    ).first()
+
+
+def get_latest_task_validations(
+    db: Session, user_story_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, TaskValidationAssessment]:
+    """Batch version of get_latest_task_validation, for serializing a whole
+    story list (e.g. GET /planning/stories) without one query per story."""
+    if not user_story_ids:
+        return {}
+    rows = db.scalars(
+        select(TaskValidationAssessment)
+        .where(TaskValidationAssessment.user_story_id.in_(user_story_ids))
+        .options(
+            selectinload(TaskValidationAssessment.task_assessments),
+            selectinload(TaskValidationAssessment.criterion_results),
+        )
+        .order_by(
+            TaskValidationAssessment.user_story_id,
+            TaskValidationAssessment.assessed_at.desc(),
+        )
+    ).all()
+    latest: dict[uuid.UUID, TaskValidationAssessment] = {}
+    for row in rows:
+        latest.setdefault(row.user_story_id, row)
+    return latest
+
+
+def task_validation_to_dict(row: TaskValidationAssessment) -> dict[str, Any]:
+    """The single, unified shape returned by both the validate endpoint and
+    the GET validation-result endpoint."""
+    criteria_by_task: dict[uuid.UUID, dict[str, Any]] = {}
+    for cr in row.criterion_results:
+        criteria_by_task.setdefault(cr.user_story_task_id, {})[cr.criterion.value] = {
+            "result": cr.result.value,
+            "note": cr.note,
+            "evidence": cr.evidence,
+        }
+    task_ready_by_task = {
+        ta.user_story_task_id: ta.task_ready for ta in row.task_assessments
+    }
+
+    tasks = []
+    for task_id, criteria in criteria_by_task.items():
+        tasks.append(
+            {
+                "task_id": str(task_id),
+                "task_ready": task_ready_by_task.get(task_id, False),
+                **{c: criteria.get(c) for c in TASK_CRITERIA},
+            }
+        )
+
+    student_feedback = [
+        f.feedback_text for f in sorted(row.feedbacks, key=lambda f: f.created_at)
+    ]
+
+    return {
+        "user_story_id": str(row.user_story_id),
+        "readiness": row.readiness_status.value,
+        "readiness_reason": row.readiness_reason,
+        "recommended_action": _TASK_RECOMMENDED_ACTION.get(row.readiness_status.value),
+        "quality_score": float(row.quality_score),
+        "quality_band": row.quality_band.value,
+        "coverage": {
+            "coverage_percentage": float(row.coverage_percentage),
+        },
+        "tasks": tasks,
+        "student_feedback": student_feedback,
+        "confidence": float(row.confidence),
+        "analysis_failed": row.analysis_failed,
+        "failure_reason": row.failure_reason,
+        "reused": False,
         "assessed_at": row.assessed_at.isoformat() if row.assessed_at else None,
     }

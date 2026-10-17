@@ -40,20 +40,39 @@ import DartButton from '../../../components/DartButton.jsx'
 import RequirementListPanel from '../../../components/RequirementListPanel.jsx'
 import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
-import { useStories } from '../../../hooks/useDecomposition.js'
+import { useStories, useTaskValidation } from '../../../hooks/useDecomposition.js'
 import { useEstimates, useSaveEstimate, useConfirmEstimate } from '../../../hooks/useEstimates.js'
-import { mapStoryRows } from '../../../adapters/decomposition.js'
+import { mapStoryRows, mapTaskValidationResult } from '../../../adapters/decomposition.js'
 import { STORY_POINT_SCALE } from '../../../data/mockData.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
 import { showToast } from '@/shared/utils/toast.jsx'
 
+const TASK_READINESS_TONE = {
+  Valid: 'success',
+  'Needs Improvement': 'warning',
+  'Coverage Warning': 'primary',
+}
+
 function StoryRow({ req, story }) {
-  const { estimations, setEstimation, confirmEstimation } = usePlanningData()
+  const { estimations, setEstimation, confirmEstimation, getTaskValidationEvaluation, recordTaskValidation } =
+    usePlanningData()
   const saveEstimate = useSaveEstimate()
   const confirmEstimateMut = useConfirmEstimate()
   const [expanded, setExpanded] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const est = estimations[story.id]
+  const taskEvaluation = getTaskValidationEvaluation(story.id)
+
+  // Display-only hydration: fetches the story's latest stored task
+  // validation if the student navigated here without visiting Decomposition
+  // first in this session (and nothing is cached in local storage yet).
+  const taskValidationQuery = useTaskValidation(story.id, (story.tasks || []).length > 0 && !taskEvaluation)
+  useEffect(() => {
+    if (!taskValidationQuery.data?.assessment) return
+    const mapped = mapTaskValidationResult(taskValidationQuery.data)
+    if (mapped) recordTaskValidation(story.id, mapped)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskValidationQuery.data])
 
   async function confirm() {
     const finalPoints = est?.finalPoints ?? est?.studentPoints ?? 3
@@ -81,7 +100,18 @@ function StoryRow({ req, story }) {
       <button type="button" onClick={() => setExpanded((v) => !v)} className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-muted/30 transition-colors">
         <div className="min-w-0 flex-1">
           <p className="text-sm text-foreground truncate">{story.title}</p>
-          <p className="text-xs text-muted-foreground">{story.id} · {req.id} · {(story.tasks || []).length} task(s)</p>
+          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+            <p className="text-xs text-muted-foreground">{story.id} · {req.id} · {(story.tasks || []).length} task(s)</p>
+            {taskEvaluation && !taskEvaluation.analysisFailed && !taskEvaluation.malformed && (
+              <Badge
+                tone={TASK_READINESS_TONE[taskEvaluation.readiness] || 'neutral'}
+                className="text-[9px] px-1.5 py-0"
+                title={taskEvaluation.readinessReason}
+              >
+                Tasks: {taskEvaluation.readiness}
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-4 shrink-0">
           <div className="text-center">

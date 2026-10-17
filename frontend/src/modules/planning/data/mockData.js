@@ -291,8 +291,8 @@ export const USER_STORIES_SEED = {
     {
       id: 'US-101-1',
       title: "As a student, I want to type my requirement in plain English so I don't need special syntax",
-      acceptanceCriteria:
-        'Given the intake form, when I submit free text, then the system stores it verbatim before parsing.',
+      description:
+        'As a student, I want to submit a requirement in plain English so that the system stores it for later parsing.',
       investResult: null,
       status: 'Draft',
       tasks: [],
@@ -302,15 +302,15 @@ export const USER_STORIES_SEED = {
       id: 'US-101-2',
       title:
         'As the system, I want to parse free text into a structured requirement object so that it can be scored immediately',
-      acceptanceCriteria:
-        'Given raw text, when parsed, then priority, description and dimension scores are populated.',
+      description:
+        'As the system, I want to parse submitted text into a structured requirement with priority, description, and dimension scores.',
       investResult: {
         independent: { pass: true, note: 'No hard dependency language found — this can plausibly be built on its own.' },
         negotiable: { pass: true, note: 'Describes the outcome, not a fixed implementation.' },
         valuable: { pass: true, note: 'States who wants this and why.' },
         estimable: { pass: true, note: 'Concrete enough to size with reasonable confidence.' },
         small: { pass: true, note: 'Scoped to a single, shippable unit of work.' },
-        testable: { pass: true, note: 'Acceptance criteria gives a concrete condition to verify against.' },
+        testable: { pass: true, note: 'The described parsing outcome is observable and can be verified.' },
         overallPass: true,
       },
       status: 'Accepted',
@@ -336,7 +336,7 @@ export const USER_STORIES_SEED = {
     {
       id: 'US-105-1',
       title: 'As a student, I want an effort estimate for my requirement so that I can plan my sprint',
-      acceptanceCriteria: 'The system should quickly show a point estimate and a confidence interval for the requirement.',
+      description: 'As a student, I want to view a point estimate and confidence interval for my requirement so that I can plan a sprint.',
       investResult: null,
       status: 'Draft',
       tasks: [],

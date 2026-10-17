@@ -3,7 +3,7 @@ requirement and evaluate the coverage-gate checks (C1-C10).
 
 C1 (parent linkage), C6 (no orphan stories) and C9 (no out-of-scope behavior) are
 computed deterministically in Python from the coverage matrix the LLM returns;
-C2-C5/C7/C8/C10 are judgment calls made in the SAME LLM pass (splitting them into
+C2-C5/C7/C8 are judgment calls made in the SAME LLM pass (splitting them into
 separate calls would add cost/latency with no extra grounding, since they all
 reason over the same matrix).
 """
@@ -25,7 +25,7 @@ from app.agents.project_planning.schemas import (
 
 logger = logging.getLogger(__name__)
 
-_JUDGMENT_CHECKS = ("C2", "C3", "C4", "C5", "C7", "C8", "C10")
+_JUDGMENT_CHECKS = ("C2", "C3", "C4", "C5", "C7", "C8")
 _ALL_CHECKS = ("C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10")
 _ELEMENT_TYPES = ", ".join(t.value for t in CoverageElementType)
 
@@ -40,19 +40,21 @@ the main action, an input, an output, a business rule, a constraint, a permissio
 rule, an exception/error/recovery behavior, or a quality constraint).
 
 Step 2 — For each element, decide which student stories (by story_id) cover it, by \
-reading each story's title and acceptance criteria. An element is "Covered" only if \
+reading each story's title and user story description. An element is "Covered" only if \
 at least one story clearly addresses it; otherwise it is "Missing". An element may be \
 covered by more than one story.
 
 Step 3 — Using the coverage matrix you just built, evaluate these checks and give a \
-rationale with evidence (element_ids and/or story_ids) for every result:
+rationale with evidence (element_ids and/or story_ids) for every result. When a check \
+Fails, also give a concrete "suggestion": one sentence telling the student exactly what \
+to add or change, with a short concrete example (not just "add more detail") — this \
+feedback is shown directly to the student to help them improve, not to block them:
   - C2 functional_coverage: every functional behavior in the requirement is represented in at least one story.
   - C3 data_coverage: all required inputs, outputs, data fields and data rules are covered.
   - C4 condition_coverage: all triggers, preconditions, business rules, constraints and permissions are covered.
   - C5 exception_coverage: all defined error, failure, alternative, boundary and recovery behaviors are covered.
   - C7 no_duplicate_scope: stories do not substantially overlap or repeat the same behavior (list any overlapping element_ids in duplicate_elements).
   - C8 no_scope_loss: no necessary part of the requirement was omitted.
-  - C10 acceptance_criteria_linkage: every material story behavior has at least one specific, verifiable acceptance criterion.
 
 Step 4 — List any story_id that introduces behavior unrelated to this requirement in \
 out_of_scope_stories.
@@ -69,19 +71,19 @@ Reply with a STRICT JSON object only (no markdown):
       "required": true, "covered_by": ["US-1"], "coverage_result": "Covered"|"Missing", "evidence": "..."}}
   ],
   "checks": {{
-    "C2": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": ["E1"]}},
-    "C3": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": []}},
-    "C4": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": []}},
-    "C5": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": []}},
-    "C7": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": []}},
-    "C8": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": []}},
-    "C10": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": []}}
+    "C2": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": ["E1"], "suggestion": "..."}},
+    "C3": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": [], "suggestion": "..."}},
+    "C4": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": [], "suggestion": "..."}},
+    "C5": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": [], "suggestion": "..."}},
+    "C7": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": [], "suggestion": "..."}},
+    "C8": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": [], "suggestion": "..."}}
   }},
   "duplicate_elements": ["E3"],
   "out_of_scope_stories": ["US-4"],
   "needs_review": false,
   "needs_review_reason": null
-}}"""
+}}
+"suggestion" is only required when result is "Fail"; use "" when Pass."""
 
 
 def _unavailable_analysis(reason: str) -> CoverageAnalysis:
@@ -113,7 +115,7 @@ async def analyze_coverage(
         return _unavailable_analysis("LLM unavailable — coverage could not be assessed.")
 
     story_block = "\n".join(
-        f'- {s.get("id")}: "{s.get("title", "")}" | AC: "{s.get("acceptance_criteria", "")}"'
+        f'- {s.get("id")}: "{s.get("title", "")}" | Description: "{s.get("description", "")}"'
         for s in stories
     )
     user_prompt = (
@@ -177,6 +179,12 @@ async def analyze_coverage(
                 else "Every story links to the parent requirement."
             ),
             evidence=unlinked,
+            suggestion=(
+                f"Set each story's parent requirement to {requirement_id} "
+                f"(currently missing on {', '.join(unlinked)})."
+                if unlinked
+                else ""
+            ),
         )
     }
 
@@ -193,6 +201,7 @@ async def analyze_coverage(
             result=result,
             rationale=str(c.get("rationale", "")),
             evidence=[str(x) for x in (c.get("evidence") or [])],
+            suggestion=str(c.get("suggestion", "")) if result == CheckResult.FAIL else "",
         )
 
     # C6 — no orphan stories (deterministic): every story must cover >=1 element.
@@ -208,6 +217,34 @@ async def analyze_coverage(
             else "Every story traces back to the parent requirement via at least one element."
         ),
         evidence=orphan_stories,
+        suggestion=(
+            f"Revise {', '.join(orphan_stories)} so its title/description "
+            "clearly maps to a specific behavior in the parent requirement "
+            "(e.g. the trigger, action, or output it names)."
+            if orphan_stories
+            else ""
+        ),
+    )
+
+    # C10 verifies that each story has a parent trace and covers at least one
+    # behavior extracted from that parent requirement.
+    untraceable_stories = sorted(set(unlinked) | set(orphan_stories))
+    checks["C10"] = CoverageCheck(
+        check_id="C10",
+        result=CheckResult.FAIL if untraceable_stories else CheckResult.PASS,
+        rationale=(
+            "Story(ies) lack a valid parent link or assigned-behavior coverage: "
+            + ", ".join(untraceable_stories)
+            if untraceable_stories
+            else "Every story is linked to the parent requirement and covers at least one assigned behavior."
+        ),
+        evidence=untraceable_stories,
+        suggestion=(
+            f"Make sure {', '.join(untraceable_stories)} is linked to this "
+            "requirement and describes a behavior that traces back to it."
+            if untraceable_stories
+            else ""
+        ),
     )
 
     # C9 — no out-of-scope behavior: cross-check the LLM's judgment against the
@@ -225,6 +262,13 @@ async def analyze_coverage(
             else "No out-of-scope behavior detected."
         ),
         evidence=out_of_scope_signal,
+        suggestion=(
+            f"Check whether {', '.join(out_of_scope_signal)} actually belongs "
+            "to this requirement, or move it under the requirement it really "
+            "describes."
+            if out_of_scope_signal
+            else ""
+        ),
     )
 
     gate_passed = all(c.result == CheckResult.PASS for c in checks.values())

@@ -31,6 +31,9 @@ export const ENDPOINTS = {
     STORIES: '/planning/stories',
     STORY: (ref) => `/planning/stories/${ref}`,
     STORY_TASKS: (ref) => `/planning/stories/${ref}/tasks`,
+    STORY_TASK: (ref, taskId) => `/planning/stories/${ref}/tasks/${taskId}`,
+    STORY_TASKS_VALIDATE: (ref) => `/planning/stories/${ref}/tasks/validate`,
+    STORY_TASKS_VALIDATION: (ref) => `/planning/stories/${ref}/tasks/validation`,
     DECOMPOSITION: '/planning/decomposition',
     DECOMPOSITION_HISTORY: (ref) => `/planning/decomposition/${ref}/history`,
     // Estimation

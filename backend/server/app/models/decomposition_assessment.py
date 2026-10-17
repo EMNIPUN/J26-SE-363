@@ -23,12 +23,16 @@ from app.models.enums import (
     CoverageElementType,
     CoverageResult,
     DecompositionGateStatus,
+    DecompositionReadiness,
     DecompositionTaskType,
     InvestCriterion,
     InvestResult,
     Priority,
     QualityBand,
     StoryStatus,
+    TaskCriterion,
+    TaskCriterionOutcome,
+    TaskReadinessStatus,
     TaskStatus,
     ToolStatus,
 )
@@ -97,6 +101,7 @@ class UserStoryTask(TimestampMixin, Base):
         ForeignKey("rqa_user_story_tasks.id", ondelete="CASCADE"), index=True
     )
     title: Mapped[str] = mapped_column(String(500))
+    description: Mapped[str] = mapped_column(Text, default="")
     task_type: Mapped[DecompositionTaskType] = mapped_column(
         string_enum(DecompositionTaskType, "decomposition_task_type"), default=DecompositionTaskType.TASK
     )
@@ -158,7 +163,14 @@ class DecompositionAssessment(TimestampMixin, Base):
     pipeline_session_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("rqa_pipeline_sessions.id", ondelete="CASCADE"), index=True
     )
-    gate_status: Mapped[DecompositionGateStatus] = mapped_column(
+    readiness_status: Mapped[DecompositionReadiness] = mapped_column(
+        string_enum(DecompositionReadiness, "decomposition_readiness")
+    )
+    readiness_reason: Mapped[str] = mapped_column(Text, default="")
+    # Deprecated: superseded by readiness_status. Kept nullable, written as a
+    # best-effort legacy projection only, for any lingering historical-data
+    # consumer — nothing reads this to decide whether a student can proceed.
+    gate_status: Mapped[DecompositionGateStatus | None] = mapped_column(
         string_enum(DecompositionGateStatus, "decomposition_gate_status")
     )
     decomposition_quality_score: Mapped[float] = mapped_column(Numeric(3, 2))
@@ -168,11 +180,16 @@ class DecompositionAssessment(TimestampMixin, Base):
     needs_review_reason: Mapped[str | None] = mapped_column(Text)
     # True only when the coverage LLM call itself could not run (unavailable
     # or errored) - distinct from a real analysis that concluded incomplete.
-    # When true, decomposition_quality_score/quality_band/gate_status checks
+    # When true, decomposition_quality_score/quality_band/readiness_status
     # are a mechanical placeholder, not a real assessment, and must be shown
     # to the student as a system error rather than as feedback.
     analysis_failed: Mapped[bool] = mapped_column(Boolean, default=False)
     failure_reason: Mapped[str | None] = mapped_column(Text)
+    # SHA-256 of the submitted stories' (story_ref, title, description),
+    # sorted by ref — lets POST /planning/decomposition detect "nothing
+    # changed since the last run" and reuse that run instead of spending
+    # another LLM call. NULL on rows persisted before this column existed.
+    input_hash: Mapped[str | None] = mapped_column(String(64), index=True)
     # Deprecated: superseded by decomposition_quality_score (0-4 scale). Kept
     # nullable, unwritten, for any lingering historical-data consumer.
     composite_score: Mapped[float | None] = mapped_column(Numeric(5, 2))
@@ -341,3 +358,103 @@ class DecompositionToolOutput(Base):
     decomposition_assessment: Mapped["DecompositionAssessment"] = relationship(
         back_populates="tool_outputs"
     )
+
+
+class TaskValidationAssessment(TimestampMixin, Base):
+    """One row per AI task-validation run, scoped to a single user story.
+    Mirrors DecompositionAssessment: deliberately NOT unique on
+    user_story_id, so re-running validation creates a new row and history is
+    preserved rather than overwritten."""
+
+    __tablename__ = "rqa_task_validation_assessments"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_story_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("rqa_user_stories.id", ondelete="CASCADE"), index=True
+    )
+    pipeline_session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("rqa_pipeline_sessions.id", ondelete="CASCADE"), index=True
+    )
+    readiness_status: Mapped[TaskReadinessStatus] = mapped_column(
+        string_enum(TaskReadinessStatus, "task_validation_readiness")
+    )
+    readiness_reason: Mapped[str] = mapped_column(Text, default="")
+    quality_score: Mapped[float] = mapped_column(Numeric(3, 2))
+    quality_band: Mapped[QualityBand] = mapped_column(
+        string_enum(QualityBand, "task_validation_quality_band")
+    )
+    coverage_percentage: Mapped[float] = mapped_column(Numeric(5, 2), default=0)
+    confidence: Mapped[float] = mapped_column(Numeric(3, 2), default=0.8)
+    # True only when the validation LLM call itself could not run (unavailable
+    # or errored) - distinct from a real run that concluded Needs Improvement
+    # / Coverage Warning. A mechanical placeholder, not a real assessment.
+    analysis_failed: Mapped[bool] = mapped_column(Boolean, default=False)
+    failure_reason: Mapped[str | None] = mapped_column(Text)
+    # SHA-256 of the submitted tasks' (id, title, description), sorted - lets
+    # the validate endpoint detect "nothing changed since the last run" and
+    # reuse that run instead of spending another LLM call.
+    input_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    assessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user_story: Mapped["UserStory"] = relationship()
+    task_assessments: Mapped[list["TaskAssessment"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
+    criterion_results: Mapped[list["TaskCriterionResultRow"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
+    feedbacks: Mapped[list["Feedback"]] = relationship(
+        back_populates="task_validation_assessment", passive_deletes=True,
+    )
+
+
+class TaskAssessment(Base):
+    """One row per task per task-validation run - task_ready is run-scoped,
+    not task-scoped, so it can't live on the per-criterion
+    TaskCriterionResultRow rows (which would need 4 copies to always agree)."""
+
+    __tablename__ = "rqa_task_assessments"
+    __table_args__ = (
+        UniqueConstraint("task_validation_assessment_id", "user_story_task_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    task_validation_assessment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("rqa_task_validation_assessments.id", ondelete="CASCADE"),
+        index=True,
+    )
+    user_story_task_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("rqa_user_story_tasks.id", ondelete="CASCADE"), index=True
+    )
+    task_ready: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    user_story_task: Mapped["UserStoryTask"] = relationship()
+
+
+class TaskCriterionResultRow(Base):
+    """One row per task per criterion (relevance/scope/actionability/
+    duplication) per task-validation run."""
+
+    __tablename__ = "rqa_task_criterion_results"
+    __table_args__ = (
+        UniqueConstraint(
+            "task_validation_assessment_id", "user_story_task_id", "criterion"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    task_validation_assessment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("rqa_task_validation_assessments.id", ondelete="CASCADE"),
+        index=True,
+    )
+    user_story_task_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("rqa_user_story_tasks.id", ondelete="CASCADE"), index=True
+    )
+    criterion: Mapped[TaskCriterion] = mapped_column(
+        string_enum(TaskCriterion, "task_validation_criterion")
+    )
+    result: Mapped[TaskCriterionOutcome] = mapped_column(
+        string_enum(TaskCriterionOutcome, "task_validation_criterion_outcome")
+    )
+    note: Mapped[str | None] = mapped_column(Text)
+    evidence: Mapped[str | None] = mapped_column(Text)

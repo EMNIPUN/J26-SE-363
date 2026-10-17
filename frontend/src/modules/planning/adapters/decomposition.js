@@ -3,10 +3,22 @@
 // Backend contract (both POST /planning/decomposition's `assessment` and each
 // item of GET /planning/decomposition's `results` use the SAME flat shape —
 // see decomposition_service.assessment_to_dict):
-//   { requirement_id, gate_status, decomposition_quality_score, quality_band,
-//     needs_review_reason, coverage: { coverage_percentage, elements, checks },
+//   { requirement_id, readiness, readiness_reason, decomposition_quality_score,
+//     quality_band, coverage: { coverage_percentage, elements, checks },
 //     stories: [{ story_ref, story_ready, independent: {result, note}, ... }],
-//     student_feedback: [string], assessed_at }
+//     student_feedback: [string], reused, assessed_at }
+//
+// `readiness` is one of three NON-BLOCKING tiers — Ready / Ready with
+// Improvements / Needs Attention — the student can always proceed to effort
+// estimation regardless of tier. `gate_status` (COMPLETE/INCOMPLETE/
+// NEEDS_REVIEW) is kept on the payload for backward compat only; nothing in
+// the UI should branch on it anymore.
+//
+// Task validation (POST/GET .../tasks/validate|validation) uses the SAME
+// flat-shape convention, with its own three NON-BLOCKING readiness tiers —
+// Valid / Needs Improvement / Coverage Warning — see
+// decomposition_service.task_validation_to_dict and mapTaskValidationResult
+// below.
 
 const CRITERIA = ['independent', 'negotiable', 'valuable', 'estimable', 'small', 'testable']
 
@@ -29,6 +41,8 @@ export function mapDecompositionResult(result) {
       malformed: true,
       stale: false,
       persistError: result.persist_error || 'Analysis could not be saved.',
+      readiness: 'Needs Attention',
+      readinessReason: '',
       gateStatus: 'INCOMPLETE',
       score: 0,
       qualityBand: 'Very poor',
@@ -39,10 +53,12 @@ export function mapDecompositionResult(result) {
   }
 
   const r = result.assessment ?? result.result ?? result
-  if (!r || typeof r !== 'object' || !('gate_status' in r)) {
+  if (!r || typeof r !== 'object' || !('readiness' in r)) {
     return {
       malformed: true,
       stale: false,
+      readiness: 'Needs Attention',
+      readinessReason: '',
       gateStatus: 'INCOMPLETE',
       score: 0,
       qualityBand: 'Very poor',
@@ -83,7 +99,10 @@ export function mapDecompositionResult(result) {
     // not a real finding — the UI must show this as a system error.
     analysisFailed: Boolean(r.analysis_failed),
     failureReason: r.failure_reason || null,
-    gateStatus: r.gate_status,
+    // Authoritative, non-blocking status — see module header.
+    readiness: r.readiness || 'Needs Attention',
+    readinessReason: r.readiness_reason || '',
+    gateStatus: r.gate_status || null, // legacy, unused by the UI
     needsReviewReason: r.needs_review_reason || null,
     score: r.decomposition_quality_score ?? 0,
     qualityBand: r.quality_band || 'Very poor',
@@ -99,6 +118,10 @@ export function mapDecompositionResult(result) {
     confidence: r.confidence || 'moderate',
     storiesEvaluated: r.stories_evaluated ?? 0,
     storiesNeedingRevision: r.stories_needing_revision ?? 0,
+    // True when the backend reused a prior run instead of re-analyzing
+    // (stories unchanged since the last call) — lets the UI show "already
+    // up to date" instead of implying a fresh analysis just ran.
+    reused: Boolean(r.reused),
     evaluatedAt: r.assessed_at || new Date().toISOString(),
   }
 }
@@ -120,12 +143,12 @@ export function mapStoryRows(rows) {
     const story = row.data || {
       id: row.id || row.story_ref,
       story_ref: row.story_ref,
+      parentRequirementRef: reqRef,
       title: row.title,
       as_a: row.as_a,
       i_want: row.i_want,
       so_that: row.so_that,
       description: row.description,
-      acceptanceCriteria: row.acceptance_criteria,
       student_story_points: row.student_story_points,
       priority: row.priority,
       status: row.status,
@@ -136,6 +159,7 @@ export function mapStoryRows(rows) {
       created_at: row.created_at,
       updated_at: row.updated_at,
     }
+    story.parentRequirementRef ??= reqRef
     map[reqRef].push(story)
   }
   return map
@@ -154,4 +178,101 @@ export function mapPersistedDecompositions(rows) {
     map[row.requirement_id] = mapDecompositionResult(row)
   }
   return map
+}
+
+const TASK_CRITERIA = ['relevance', 'scope', 'actionability', 'duplication']
+
+function emptyTaskCoverage() {
+  return 0
+}
+
+/**
+ * Map one backend task-validation assessment into the UI evaluation shape.
+ * Mirrors mapDecompositionResult's malformed/stale/reused conventions —
+ * `readiness` is one of three NON-BLOCKING tiers (Valid / Needs Improvement /
+ * Coverage Warning); the student can always proceed to effort estimation
+ * regardless of tier.
+ */
+export function mapTaskValidationResult(result) {
+  if (!result) return null
+
+  if (result.persisted === false && !result.assessment) {
+    return {
+      malformed: true,
+      stale: false,
+      persistError: result.persist_error || 'Validation could not be saved.',
+      readiness: 'Coverage Warning',
+      readinessReason: '',
+      score: 0,
+      qualityBand: 'Very poor',
+      coveragePercentage: emptyTaskCoverage(),
+      taskResults: {},
+      studentFeedback: [],
+    }
+  }
+
+  const r = result.assessment ?? result.result ?? result
+  if (!r || typeof r !== 'object' || !('readiness' in r)) {
+    return {
+      malformed: true,
+      stale: false,
+      readiness: 'Coverage Warning',
+      readinessReason: '',
+      score: 0,
+      qualityBand: 'Very poor',
+      coveragePercentage: emptyTaskCoverage(),
+      taskResults: {},
+      studentFeedback: [],
+      summary: 'Validation response was malformed or incomplete.',
+    }
+  }
+
+  const taskResults = {}
+  for (const task of r.tasks || []) {
+    const mapped = {}
+    for (const criterion of TASK_CRITERIA) {
+      const c = task[criterion] || {}
+      const result = c.result || 'Cannot Assess'
+      mapped[criterion] = {
+        result,
+        note: c.note || '',
+        pass: result === 'Pass' || result === 'Needs Improvement',
+      }
+    }
+    mapped.taskReady = task.task_ready ?? false
+    if (task.task_id) taskResults[task.task_id] = mapped
+  }
+
+  return {
+    malformed: false,
+    stale: false,
+    // True only when the validator LLM call itself could not run - distinct
+    // from a real run that concluded Needs Improvement / Coverage Warning.
+    analysisFailed: Boolean(r.analysis_failed),
+    failureReason: r.failure_reason || null,
+    // Authoritative, non-blocking status — see module header.
+    readiness: r.readiness || 'Coverage Warning',
+    readinessReason: r.readiness_reason || '',
+    score: r.quality_score ?? 0,
+    qualityBand: r.quality_band || 'Very poor',
+    coveragePercentage: r.coverage?.coverage_percentage ?? 0,
+    taskResults,
+    studentFeedback: r.student_feedback || [],
+    recommendedAction: r.recommended_action || null,
+    confidence: r.confidence ?? 0,
+    // True when the backend reused a prior run instead of re-validating
+    // (tasks unchanged since the last call).
+    reused: Boolean(r.reused),
+    evaluatedAt: r.assessed_at || new Date().toISOString(),
+  }
+}
+
+/**
+ * Map a persisted task-validation result from GET
+ * /planning/stories/{ref}/tasks/validation into the store's
+ * taskValidationEvaluations map { [storyId]: evaluation }.
+ */
+export function mapPersistedTaskValidation(storyId, data) {
+  if (!storyId || !data?.assessment) return null
+  return mapTaskValidationResult(data)
 }

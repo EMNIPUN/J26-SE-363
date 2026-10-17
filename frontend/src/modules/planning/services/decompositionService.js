@@ -10,6 +10,15 @@ export const decompositionService = {
 
   createTask: (ref, task) => apiClient.post(ENDPOINTS.PLANNING.STORY_TASKS(ref), task),
 
+  updateTask: (ref, taskId, patch) => apiClient.patch(ENDPOINTS.PLANNING.STORY_TASK(ref, taskId), patch),
+
+  deleteTask: (ref, taskId) => apiClient.delete(ENDPOINTS.PLANNING.STORY_TASK(ref, taskId)),
+
+  validateTasks: (ref, { tasks }) =>
+    apiClient.post(ENDPOINTS.PLANNING.STORY_TASKS_VALIDATE(ref), { tasks }, { timeout: 120000 }),
+
+  getTaskValidation: (ref) => apiClient.get(ENDPOINTS.PLANNING.STORY_TASKS_VALIDATION(ref)),
+
   deleteStory: (ref) => apiClient.delete(ENDPOINTS.PLANNING.STORY(ref)),
 
   analyzeDecomposition: ({ requirement, stories, threshold = 75 }) =>

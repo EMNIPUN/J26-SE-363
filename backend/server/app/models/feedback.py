@@ -9,7 +9,10 @@ from app.database.base import Base, TimestampMixin, string_enum
 from app.models.enums import FeedbackStage, FeedbackType, Severity
 
 if TYPE_CHECKING:
-    from app.models.decomposition_assessment import DecompositionAssessment
+    from app.models.decomposition_assessment import (
+        DecompositionAssessment,
+        TaskValidationAssessment,
+    )
 
 
 class Feedback(TimestampMixin, Base):
@@ -35,6 +38,13 @@ class Feedback(TimestampMixin, Base):
         ForeignKey("rqa_decomposition_assessments.id", ondelete="SET NULL"),
         index=True,
     )
+    user_story_task_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("rqa_user_story_tasks.id", ondelete="SET NULL")
+    )
+    task_validation_assessment_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("rqa_task_validation_assessments.id", ondelete="SET NULL"),
+        index=True,
+    )
     feedback_stage: Mapped[FeedbackStage] = mapped_column(
         string_enum(FeedbackStage, "feedback_stage")
     )
@@ -53,5 +63,8 @@ class Feedback(TimestampMixin, Base):
     acted_upon_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     decomposition_assessment: Mapped["DecompositionAssessment | None"] = relationship(
+        back_populates="feedbacks"
+    )
+    task_validation_assessment: Mapped["TaskValidationAssessment | None"] = relationship(
         back_populates="feedbacks"
     )

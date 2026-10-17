@@ -25,6 +25,10 @@ import {
   Trash2,
   AlertTriangle,
   CheckSquare,
+  Circle,
+  Save,
+  X,
+  ShieldAlert,
 } from 'lucide-react'
 import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import Card from '../../../../../shared/components/Card.jsx'
@@ -53,6 +57,7 @@ import DartButton from '../../../components/DartButton.jsx'
 import RequirementListPanel from '../../../components/RequirementListPanel.jsx'
 import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
 import DecompositionEvidencePanel from '../../../components/DecompositionEvidencePanel.jsx'
+import TaskValidationEvidencePanel from '../../../components/TaskValidationEvidencePanel.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
 import { useDartCases } from '../../../hooks/useDart.js'
 import { useQualityResults } from '../../../hooks/useQuality.js'
@@ -64,6 +69,10 @@ import {
   useDecompositionResults,
   useCreateStory,
   useCreateStoryTask,
+  useUpdateStoryTask,
+  useDeleteStoryTask,
+  useValidateTasks,
+  useTaskValidation,
   useUpdateStory,
   useDeleteStory,
 } from '../../../hooks/useDecomposition.js'
@@ -71,6 +80,7 @@ import {
   mapDecompositionResult,
   mapStoryRows,
   mapPersistedDecompositions,
+  mapTaskValidationResult,
 } from '../../../adapters/decomposition.js'
 import { showToast } from '@/shared/utils/toast.jsx'
 import { QUALITY_GATE_THRESHOLD, formatRelativeTime } from '../../../utils.js'
@@ -81,51 +91,198 @@ const INVEST_CRITERIA = [
   { key: 'valuable', code: 'V', label: 'Valuable', description: 'The story delivers clear, stated value to a stakeholder or user persona.' },
   { key: 'estimable', code: 'E', label: 'Estimable', description: 'The story is concrete enough for the team to size effort with confidence.' },
   { key: 'small', code: 'S', label: 'Small', description: 'The story is scoped to a single concern and completable within a single sprint.' },
-  { key: 'testable', code: 'T', label: 'Testable', description: 'The story has concrete acceptance criteria that can be verified.' },
+  { key: 'testable', code: 'T', label: 'Testable', description: 'The story describes observable behavior that can be verified.' },
 ]
 
 const BUG_SEVERITY_TONE = { Low: 'neutral', Medium: 'warning', High: 'danger' }
 
+const TASK_STATUS_META = {
+  todo: { label: 'To Do', tone: 'neutral' },
+  in_progress: { label: 'In Progress', tone: 'primary' },
+  blocked: { label: 'Blocked', tone: 'danger' },
+  done: { label: 'Done', tone: 'success' },
+}
+
+// Normalizes both the real backend's lowercase/underscore status values and
+// the legacy Title-Case seed-data values to one label/tone pair.
+function taskStatusMeta(status) {
+  const key = (status || 'todo').toLowerCase().replace(/\s+/g, '_')
+  return TASK_STATUS_META[key] || { label: status || 'To Do', tone: 'neutral' }
+}
+
+// Legacy mock-data subtasks use a `done` boolean; real backend subtasks are
+// just tasks with a `status` field — support both shapes.
+function isSubtaskDone(st) {
+  if (st.status) return st.status.toLowerCase() === 'done'
+  return Boolean(st.done)
+}
+
+const TASK_CRITERIA_META = {
+  relevance: 'Relevance',
+  scope: 'Scope',
+  actionability: 'Actionability',
+  duplication: 'Duplication',
+}
+
+function TaskValidationBadges({ validation }) {
+  if (!validation) return null
+  return (
+    <div className="flex items-center gap-1 flex-wrap mt-1.5">
+      {Object.entries(TASK_CRITERIA_META).map(([key, label]) => {
+        const c = validation[key]
+        if (!c) return null
+        const pass = c.result === 'Pass' || c.result === 'Needs Improvement'
+        return (
+          <span
+            key={key}
+            title={`${label}: ${c.result}${c.note ? ` — ${c.note}` : ''}`}
+            className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+              c.result === 'Cannot Assess'
+                ? 'border-border text-muted-foreground'
+                : pass
+                  ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5'
+                  : 'border-destructive/30 text-destructive bg-destructive/5'
+            }`}
+          >
+            {label[0]}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
 function TaskRow({ reqId, storyId, task, readOnly = false }) {
   const { toggleSubtask } = usePlanningData()
   const createTaskMutation = useCreateStoryTask()
+  const updateTaskMutation = useUpdateStoryTask()
+  const deleteTaskMutation = useDeleteStoryTask()
   const [expanded, setExpanded] = useState(true)
   const [newSubtask, setNewSubtask] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [draftTitle, setDraftTitle] = useState(task.title)
+  const [draftDescription, setDraftDescription] = useState(task.description || '')
+  const statusMeta = taskStatusMeta(task.status)
+
+  function saveEdits() {
+    if (!draftTitle.trim()) return
+    updateTaskMutation.mutate(
+      { ref: storyId, taskId: task.id, patch: { title: draftTitle.trim(), description: draftDescription } },
+      {
+        onSuccess: () => setEditing(false),
+        onError: () => showToast.error('Could not update task'),
+      },
+    )
+  }
+
+  function handleDelete() {
+    deleteTaskMutation.mutate(
+      { ref: storyId, taskId: task.id },
+      { onError: () => showToast.error('Could not delete task') },
+    )
+  }
 
   return (
     <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center gap-2 text-left cursor-pointer"
-      >
-        {expanded ? (
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-        )}
-        <span className="text-xs font-semibold text-foreground flex-1">{task.title}</span>
-        <Badge
-          tone={task.status === 'Done' ? 'success' : task.status === 'In Progress' ? 'primary' : 'neutral'}
-          className="text-[10px] px-1.5 py-0"
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex items-center gap-2 text-left cursor-pointer flex-1 min-w-0"
         >
-          {task.status}
+          {expanded ? (
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          )}
+          <span className="text-xs font-semibold text-foreground flex-1 truncate">{task.title}</span>
+        </button>
+        <Badge tone={statusMeta.tone} className="text-[10px] px-1.5 py-0 shrink-0">
+          {statusMeta.label}
         </Badge>
-      </button>
+        {!readOnly && (
+          <div className="flex items-center gap-0.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setDraftTitle(task.title)
+                setDraftDescription(task.description || '')
+                setEditing((v) => !v)
+              }}
+              className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+              title="Edit task"
+            >
+              <PenLine className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+              title="Delete task"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {task.description && !editing && (
+        <p className="text-[11px] text-muted-foreground mt-1 ml-5 pl-0.5">{task.description}</p>
+      )}
+
+      <div className="ml-5 pl-0.5">
+        <TaskValidationBadges validation={task.validation} />
+      </div>
+
+      {editing && (
+        <div className="mt-2 ml-5 space-y-1.5 p-2.5 rounded-lg border border-primary/20 bg-background">
+          <Input
+            value={draftTitle}
+            onChange={(e) => setDraftTitle(e.target.value)}
+            className="h-7 text-xs"
+            placeholder="Task title"
+          />
+          <Textarea
+            value={draftDescription}
+            onChange={(e) => setDraftDescription(e.target.value)}
+            rows={2}
+            className="text-xs"
+            placeholder="What exactly needs to be built…"
+          />
+          <div className="flex gap-1.5 justify-end">
+            <Button size="sm" variant="outline" className="h-6 text-[11px] px-2" onClick={() => setEditing(false)}>
+              <X className="h-3 w-3" /> Cancel
+            </Button>
+            <Button size="sm" className="h-6 text-[11px] px-2" onClick={saveEdits} disabled={!draftTitle.trim()}>
+              <Save className="h-3 w-3" /> Save
+            </Button>
+          </div>
+        </div>
+      )}
+
       {expanded && (
         <div className="mt-2.5 ml-5 space-y-1.5">
           {task.subtasks.map((st) => (
             <label
               key={st.id}
               className={`flex items-center gap-2 text-xs text-foreground cursor-pointer ${
-                st.done ? 'line-through text-muted-foreground' : ''
+                isSubtaskDone(st) ? 'line-through text-muted-foreground' : ''
               }`}
             >
               <input
                 type="checkbox"
-                checked={st.done}
+                checked={isSubtaskDone(st)}
                 disabled={readOnly}
-                onChange={() => toggleSubtask(reqId, storyId, task.id, st.id)}
+                onChange={() => {
+                  const nextStatus = isSubtaskDone(st) ? 'todo' : 'done'
+                  updateTaskMutation.mutate(
+                    { ref: storyId, taskId: st.id, patch: { status: nextStatus } },
+                    {
+                      onSuccess: () => toggleSubtask(reqId, storyId, task.id, st.id),
+                      onError: () => showToast.error('Could not update sub-task'),
+                    },
+                  )
+                }}
                 className="rounded border-border"
               />
               {st.title}
@@ -314,24 +471,75 @@ function InvestBadges({ investResult }) {
 }
 
 function StoryCard({ reqId, story, readOnly = false }) {
-  const { updateStoryText, acceptStory, deleteStory } = usePlanningData()
+  const { updateStoryText, acceptStory, deleteStory, getTaskValidationEvaluation, recordTaskValidation } =
+    usePlanningData()
   const updateMutation = useUpdateStory()
   const createTaskMutation = useCreateStoryTask()
   const deleteMutation = useDeleteStory()
+  const validateTasksMutation = useValidateTasks()
   const [editing, setEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState(story.title)
-  const [draftCriteria, setDraftCriteria] = useState(story.acceptanceCriteria)
+  const [draftDescription, setDraftDescription] = useState(story.description || '')
   const [newTask, setNewTask] = useState('')
 
   const accepted = story.status === 'accepted' || story.status === 'Accepted'
   const unlocked = story.investResult?.overallPass === true || accepted
+  const taskEvaluation = getTaskValidationEvaluation(story.id)
+
+  // Hydrate this story's task-validation evaluation once (not on every
+  // render) so it survives a page reload without waiting for a fresh
+  // "Validate Tasks" click — mirrors the requirement/decomposition hydration
+  // pattern elsewhere on this page, scoped per-story since there is no bulk
+  // task-validation list endpoint.
+  const taskValidationQuery = useTaskValidation(story.id, unlocked && story.tasks.length > 0 && !taskEvaluation)
+  useEffect(() => {
+    if (!taskValidationQuery.data?.assessment) return
+    const mapped = mapTaskValidationResult(taskValidationQuery.data)
+    if (mapped) recordTaskValidation(story.id, mapped)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskValidationQuery.data])
+
+  function runTaskValidation() {
+    const tasksPayload = story.tasks.map((t) => ({ id: t.id, title: t.title, description: t.description || '' }))
+    validateTasksMutation.mutate(
+      { ref: story.id, tasks: tasksPayload },
+      {
+        onSuccess: (data) => {
+          if (data?.persisted === false) {
+            showToast.warning('Validation complete, but not saved', {
+              description: data.persist_error || 'Please re-run validation to retry saving.',
+            })
+          }
+          const mapped = mapTaskValidationResult(data)
+          if (mapped?.malformed) {
+            showToast.error('Validation response was invalid', { description: mapped.persistError })
+            return
+          }
+          if (mapped) {
+            recordTaskValidation(story.id, mapped)
+            if (mapped.reused) {
+              showToast.info('Already up to date', {
+                description: 'Your tasks haven’t changed since the last validation — showing that result.',
+              })
+            } else {
+              showToast.success('Task validation complete', {
+                description: `${mapped.readiness} · score ${mapped.score}/4 (${mapped.qualityBand}).`,
+              })
+            }
+          }
+        },
+        onError: (err) =>
+          showToast.error('Validation failed', { description: err?.response?.data?.detail || err.message }),
+      },
+    )
+  }
 
   function saveEdits() {
     updateMutation.mutate(
-      { ref: story.id, patch: { title: draftTitle, acceptance_criteria: draftCriteria } },
+      { ref: story.id, patch: { title: draftTitle, description: draftDescription } },
       {
         onSuccess: () => {
-          updateStoryText(reqId, story.id, { title: draftTitle, acceptanceCriteria: draftCriteria })
+          updateStoryText(reqId, story.id, { title: draftTitle, description: draftDescription })
           setEditing(false)
           showToast.info('Story updated', { description: 'Run decomposition analysis to re-check coverage and INVEST criteria.' })
         },
@@ -357,6 +565,7 @@ function StoryCard({ reqId, story, readOnly = false }) {
           <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-primary/10 text-primary">
             {story.id}
           </span>
+          <span className="text-[10px] text-muted-foreground">Parent: {story.parentRequirementRef || reqId}</span>
           <Badge
             tone={
               accepted
@@ -388,7 +597,7 @@ function StoryCard({ reqId, story, readOnly = false }) {
                 className="h-7 text-xs px-2 cursor-pointer gap-1 text-muted-foreground hover:text-foreground"
                 onClick={() => {
                   setDraftTitle(story.title)
-                  setDraftCriteria(story.acceptanceCriteria)
+                  setDraftDescription(story.description || '')
                   setEditing(true)
                 }}
               >
@@ -423,11 +632,11 @@ function StoryCard({ reqId, story, readOnly = false }) {
           </div>
           <div>
             <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-              Acceptance Criteria (Given / When / Then)
+              User Story Description
             </label>
             <Textarea
-              value={draftCriteria}
-              onChange={(e) => setDraftCriteria(e.target.value)}
+              value={draftDescription}
+              onChange={(e) => setDraftDescription(e.target.value)}
               rows={3}
               className="text-xs leading-relaxed font-sans"
               placeholder="Given [precondition], when [action], then [outcome]…"
@@ -445,10 +654,10 @@ function StoryCard({ reqId, story, readOnly = false }) {
       ) : (
         <div className="mb-3 space-y-1.5">
           <p className="text-xs font-semibold text-foreground leading-snug">{story.title}</p>
-          {story.acceptanceCriteria && (
+          {story.description && (
             <p className="text-[11px] text-muted-foreground leading-relaxed p-2.5 rounded-lg bg-muted/30 border border-border/60">
-              <span className="font-semibold text-foreground block mb-0.5">Acceptance Criteria:</span>
-              {story.acceptanceCriteria}
+              <span className="font-semibold text-foreground block mb-0.5">User Story Description:</span>
+              {story.description}
             </p>
           )}
         </div>
@@ -469,11 +678,54 @@ function StoryCard({ reqId, story, readOnly = false }) {
       <div className="mt-3.5 pt-3 border-t border-border/60">
         {unlocked ? (
           <>
+            <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Tasks ({story.tasks.length})
+              </span>
+              <div className="flex items-center gap-1.5">
+                {taskEvaluation && !taskEvaluation.analysisFailed && !taskEvaluation.malformed && (
+                  <Badge
+                    tone={
+                      taskEvaluation.readiness === 'Valid'
+                        ? 'success'
+                        : taskEvaluation.readiness === 'Coverage Warning'
+                          ? 'primary'
+                          : 'warning'
+                    }
+                    className="text-[10px] px-2 py-0.5"
+                  >
+                    {taskEvaluation.stale ? 'Stale · ' : ''}
+                    {taskEvaluation.readiness}
+                  </Badge>
+                )}
+                {!readOnly && story.tasks.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[11px] px-2 gap-1 cursor-pointer"
+                    disabled={validateTasksMutation.isPending}
+                    onClick={runTaskValidation}
+                    title="Check task relevance, scope, actionability, duplication, and story coverage"
+                  >
+                    <ShieldAlert className={`h-3 w-3 ${validateTasksMutation.isPending ? 'animate-pulse' : ''}`} />
+                    {validateTasksMutation.isPending ? 'Validating…' : 'Validate Tasks'}
+                  </Button>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-2 mb-3">
               {story.tasks.map((task) => (
                 <TaskRow key={task.id} reqId={reqId} storyId={story.id} task={task} readOnly={readOnly} />
               ))}
+              {story.tasks.length === 0 && (
+                <p className="text-[11px] text-muted-foreground italic">
+                  No tasks yet — break this story down into concrete development tasks below.
+                </p>
+              )}
             </div>
+
+            <TaskValidationEvidencePanel evaluation={taskEvaluation} />
 
             {!readOnly && (
               <div className="flex items-center gap-2 mb-3">
@@ -544,18 +796,18 @@ function StoryCard({ reqId, story, readOnly = false }) {
 function NewStoryForm({ reqId, initialTitle = '', onDone }) {
   const createMutation = useCreateStory()
   const [title, setTitle] = useState(initialTitle)
-  const [acceptanceCriteria, setAcceptanceCriteria] = useState('')
+  const [description, setDescription] = useState('')
 
   function submit() {
-    if (!title.trim()) return
+    if (!title.trim() || !description.trim()) return
     createMutation.mutate({
       requirement_ref: reqId,
       title: title.trim(),
-      acceptance_criteria: acceptanceCriteria.trim(),
+      description: description.trim(),
     }, {
       onSuccess: () => {
         setTitle('')
-        setAcceptanceCriteria('')
+        setDescription('')
         onDone?.()
         showToast.success('User story created', {
           description: 'Run decomposition analysis to evaluate INVEST criteria and parent coverage.',
@@ -569,11 +821,6 @@ function NewStoryForm({ reqId, initialTitle = '', onDone }) {
     if (!title.trim()) {
       setTitle('As a [registered user], I want [capability], so that [business value].')
     }
-    if (!acceptanceCriteria.trim()) {
-      setAcceptanceCriteria(
-        'Given [precondition is met],\nWhen [action is performed],\nThen [system outcome occurs successfully].',
-      )
-    }
   }
 
   return (
@@ -585,7 +832,7 @@ function NewStoryForm({ reqId, initialTitle = '', onDone }) {
             Write User Story (Agile Format)
           </p>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            Model concrete personas and testable acceptance criteria to achieve high INVEST and coverage scores.
+            Model concrete personas, observable behavior, and clear value to achieve high INVEST and coverage scores.
           </p>
         </div>
         <Button
@@ -613,11 +860,11 @@ function NewStoryForm({ reqId, initialTitle = '', onDone }) {
         </div>
         <div>
           <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-            Acceptance Criteria (Given / When / Then)
+            User Story Description
           </label>
           <Textarea
-            value={acceptanceCriteria}
-            onChange={(e) => setAcceptanceCriteria(e.target.value)}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             placeholder="Given …, when …, then … (verifiable conditions)"
             rows={3}
             className="text-xs leading-relaxed font-sans bg-background"
@@ -632,7 +879,7 @@ function NewStoryForm({ reqId, initialTitle = '', onDone }) {
         <Button
           size="sm"
           onClick={submit}
-          disabled={!title.trim()}
+          disabled={!title.trim() || !description.trim()}
           className="text-xs h-8 cursor-pointer gap-1.5"
         >
           <Plus className="h-3.5 w-3.5" /> Save User Story
@@ -652,7 +899,7 @@ const CHECK_LABELS = {
   C7: 'No duplicate scope',
   C8: 'No scope loss',
   C9: 'No out-of-scope behavior',
-  C10: 'Acceptance-criteria linkage',
+  C10: 'Parent traceability & behavior coverage',
 }
 
 const INVEST_RESULT_TONE = {
@@ -690,10 +937,11 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
           <div>
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
               <CheckSquare className="h-4 w-4 text-primary" />
-              Coverage Gate — C1 through C10
+              Coverage Checklist — C1 through C10
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              All ten checks must pass before INVEST readiness is evaluated.
+              These checks focus on covering the parent requirement fully and traceably — the most important
+              signal for readiness. Failing checks are improvement guidance, not a hard block.
             </p>
           </div>
           <Badge
@@ -806,10 +1054,10 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            INVEST Readiness Matrix
+            INVEST Improvement Guidance
           </h3>
           <span className="text-xs text-muted-foreground font-medium">
-            Ready = Pass or Pass with note on all six
+            Guidance, not a requirement — Pass or Pass with note on all six means polished
           </span>
         </div>
         {investStories.length === 0 ? (
@@ -908,10 +1156,10 @@ function RevisionHistorySection({ history }) {
                 ) : (
                   <>
                     <Badge
-                      tone={entry.gateStatus === 'COMPLETE' ? 'success' : entry.gateStatus === 'NEEDS_REVIEW' ? 'primary' : 'warning'}
+                      tone={entry.readiness === 'Ready' ? 'success' : entry.readiness === 'Needs Attention' ? 'warning' : 'primary'}
                       className="text-[10px] font-semibold px-2 py-0"
                     >
-                      {entry.score}/4 · {entry.gateStatus || 'INCOMPLETE'}
+                      {entry.score}/4 · {entry.readiness || 'Needs Attention'}
                     </Badge>
                     {entry.qualityBand && (
                       <span className="text-[11px] text-muted-foreground">{entry.qualityBand}</span>
@@ -956,6 +1204,7 @@ export default function Decomposition() {
     getDecompositionHistory,
     finalizeDecomposition,
     loadStories,
+    getTaskValidationEvaluation,
   } = usePlanningData()
 
   // An active requirement in Decomposition must pass IEEE 830 quality (>=75%) AND have proceeded/finalized
@@ -1029,7 +1278,24 @@ export default function Decomposition() {
   const analyzing = analyzeMutation.isPending
 
   const isDecompFinalized = Boolean(requirement?.decompFinalized)
-  const isDecompPassed = evaluation?.gateStatus === 'COMPLETE'
+  // Readiness is a three-tier, NON-BLOCKING signal (Ready / Ready with
+  // Improvements / Needs Attention) — the student can proceed to effort
+  // estimation once any real analysis has run, regardless of tier. Only
+  // "no analysis has run yet" and "the last run was a system error" withhold
+  // the button; a low score or missing coverage never does.
+  const readiness = evaluation?.readiness || null
+  const isDecompPassed = readiness === 'Ready'
+  const canProceedProvisionally = Boolean(evaluation) && !evaluation.analysisFailed && !evaluation.malformed
+  const canRunAnalysis = stories.length > 0 && (!evaluation || evaluation.stale || evaluation.analysisFailed)
+
+  // Task-validation readiness is tracked per story, not per requirement —
+  // surface the worst tier across the requirement's stories so the proceed
+  // confirmation can mention it too. Never blocks on its own, same as
+  // decomposition readiness.
+  const taskEvaluations = stories
+    .map((s) => getTaskValidationEvaluation(s.id))
+    .filter((e) => e && !e.analysisFailed && !e.malformed)
+  const storiesWithCoverageWarning = taskEvaluations.filter((e) => e.readiness === 'Coverage Warning')
 
   // History tracking for the active requirement
   const rawHistory = getDecompositionHistory(selectedReqId) || []
@@ -1054,10 +1320,10 @@ export default function Decomposition() {
     const eval_ = getDecompositionEvaluation(r.id)
     const isFinal = Boolean(r.decompFinalized)
     const percent = eval_ ? Math.round(((eval_.score ?? 0) / 4) * 100) : 0
-    const gatePassed = eval_?.gateStatus === 'COMPLETE'
+    const isReady = eval_?.readiness === 'Ready'
     return {
       percent,
-      tone: isFinal || gatePassed ? 'success' : percent > 0 ? 'warning' : 'neutral',
+      tone: isFinal || isReady ? 'success' : percent > 0 ? 'warning' : 'neutral',
       locked: false,
       finalized: isFinal,
     }
@@ -1068,7 +1334,7 @@ export default function Decomposition() {
     const storiesPayload = stories.map((s) => ({
       id: s.id,
       title: s.title,
-      acceptance_criteria: s.acceptanceCriteria || '',
+      description: s.description || '',
     }))
     analyzeMutation.mutate(
       {
@@ -1091,9 +1357,15 @@ export default function Decomposition() {
           }
           if (mapped) {
             recordDecompositionAnalysis(selectedReqId, mapped)
-            showToast.success('Decomposition analysis complete', {
-              description: `Gate: ${mapped.gateStatus} · score ${mapped.score}/4 (${mapped.qualityBand}).`,
-            })
+            if (mapped.reused) {
+              showToast.info('Already up to date', {
+                description: 'Your stories haven’t changed since the last analysis — showing that result.',
+              })
+            } else {
+              showToast.success('Decomposition analysis complete', {
+                description: `${mapped.readiness} · score ${mapped.score}/4 (${mapped.qualityBand}).`,
+              })
+            }
           }
         },
         onError: (err) => {
@@ -1105,14 +1377,30 @@ export default function Decomposition() {
     )
   }
 
-  function handleProceedToEstimation(targetReq) {
+  const [provisionalConfirmOpen, setProvisionalConfirmOpen] = useState(false)
+
+  function completeProceedToEstimation(targetReq) {
     const target = targetReq || requirement
     if (!target) return
     finalizeDecomposition(target.id)
-    showToast.success('Decomposition gate finalized', {
-      description: `${target.id} stories finalized & locked for Effort Estimation.`,
+    showToast.success('Decomposition finalized', {
+      description: `${target.id} stories finalized for Effort Estimation.`,
     })
     navigate(team(`/planning/requirements/estimation?req=${target.id}`))
+  }
+
+  // Ready proceeds immediately; Ready with Improvements / Needs Attention
+  // still proceed — never a hard block — but ask for one explicit
+  // confirmation first so the student has actually seen the warning instead
+  // of clicking past it unnoticed.
+  function handleProceedToEstimation(targetReq) {
+    const target = targetReq || requirement
+    if (!target) return
+    if ((readiness && readiness !== 'Ready') || storiesWithCoverageWarning.length > 0) {
+      setProvisionalConfirmOpen(true)
+      return
+    }
+    completeProceedToEstimation(target)
   }
 
   function handleAddGapStory(gapLabel) {
@@ -1126,7 +1414,7 @@ export default function Decomposition() {
 
   const eligibleCount = unlockedReqs.length
   const decomposedCount = unlockedReqs.filter(
-    (r) => Boolean(r.decompFinalized) || getDecompositionEvaluation(r.id)?.gateStatus === 'COMPLETE',
+    (r) => Boolean(r.decompFinalized) || getDecompositionEvaluation(r.id)?.readiness === 'Ready',
   ).length
   const overallDecompPercent = eligibleCount ? Math.round((decomposedCount / eligibleCount) * 100) : 0
 
@@ -1221,7 +1509,7 @@ export default function Decomposition() {
             </h2>
 
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Decompose quality-gated functional requirements into atomic, testable user stories with concrete acceptance criteria (Given / When / Then). The agent validates INVEST compliance and detects unrepresented requirement scope.
+              Decompose quality-gated functional requirements into atomic user stories with a title, description, and parent-requirement trace. The agent validates INVEST compliance and detects unrepresented requirement scope.
             </p>
 
             <div className="flex items-center gap-4 flex-wrap pt-1 text-xs text-muted-foreground">
@@ -1392,10 +1680,26 @@ export default function Decomposition() {
                         <span>Proceed to Effort Estimation</span>
                         <ArrowRight className="h-3.5 w-3.5" />
                       </Button>
+                    ) : canProceedProvisionally ? (
+                      <Button
+                        size="sm"
+                        onClick={() => handleProceedToEstimation(requirement)}
+                        className={`text-xs font-bold gap-1.5 cursor-pointer shadow-sm transition-all shrink-0 ${
+                          readiness === 'Needs Attention'
+                            ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                            : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                        }`}
+                        title="Decomposition is not required to be perfect before estimation — review the suggestions, or proceed provisionally."
+                      >
+                        <span>
+                          {readiness === 'Needs Attention' ? 'Proceed Anyway' : 'Proceed to Effort Estimation'}
+                        </span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
                     ) : (
                       <div
                         className="flex items-center gap-1.5"
-                        title="Decomposition gate locked: all coverage checks (C1-C10) must pass and every story must be INVEST-ready to unlock effort estimation."
+                        title="Run a decomposition analysis first so the agent's feedback can guide your stories."
                       >
                         <Button
                           disabled
@@ -1404,7 +1708,7 @@ export default function Decomposition() {
                           className="text-xs gap-1.5 opacity-60 cursor-not-allowed bg-muted text-muted-foreground"
                         >
                           <Lock className="h-3.5 w-3.5" />
-                          Proceed to Estimation (Locked)
+                          Run Analysis First
                         </Button>
                       </div>
                     )}
@@ -1451,11 +1755,11 @@ export default function Decomposition() {
                             tone={
                               evaluation.analysisFailed || evaluation.malformed
                                 ? 'danger'
-                                : evaluation.gateStatus === 'COMPLETE'
+                                : evaluation.readiness === 'Ready'
                                   ? 'success'
-                                  : evaluation.gateStatus === 'NEEDS_REVIEW'
-                                    ? 'primary'
-                                    : 'warning'
+                                  : evaluation.readiness === 'Needs Attention'
+                                    ? 'warning'
+                                    : 'primary'
                             }
                             className="text-xs font-semibold px-2.5 py-0.5"
                           >
@@ -1463,7 +1767,7 @@ export default function Decomposition() {
                               ? 'Analysis Failed'
                               : evaluation.malformed
                                 ? 'Analysis Error'
-                                : `${evaluation.score}/4 · ${evaluation.gateStatus}`}
+                                : `${evaluation.score}/4 · ${evaluation.readiness}`}
                           </Badge>
                         </>
                       ) : (
@@ -1514,7 +1818,7 @@ export default function Decomposition() {
                     </div>
                   )}
 
-                  {evaluation?.gateStatus === 'NEEDS_REVIEW' && !evaluation.stale && !evaluation.analysisFailed && (
+                  {evaluation?.needsReviewReason && !evaluation.stale && !evaluation.analysisFailed && (
                     <div className="mb-4 flex items-center gap-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/25 text-blue-800 dark:text-blue-300">
                       <UserCheck className="h-4 w-4 shrink-0" />
                       <p className="text-xs">
@@ -1577,13 +1881,22 @@ export default function Decomposition() {
                       <div className="flex items-center gap-2 shrink-0">
                         <Button
                           size="sm"
+                          variant={!analyzing && evaluation && !canRunAnalysis ? 'outline' : 'default'}
                           onClick={runAnalysis}
                           disabled={analyzing || stories.length === 0}
                           className="text-xs cursor-pointer gap-1.5"
-                          title="Evaluate current user stories against INVEST and coverage"
+                          title={
+                            !analyzing && evaluation && !canRunAnalysis
+                              ? 'Your stories haven’t changed since the last analysis — running again will reuse that result.'
+                              : 'Evaluate current user stories against INVEST and coverage'
+                          }
                         >
                           <Brain className={`h-3.5 w-3.5 ${analyzing ? 'animate-pulse' : ''}`} />
-                          {analyzing ? 'Analyzing with Agent…' : 'Run Decomposition Analysis'}
+                          {analyzing
+                            ? 'Analyzing with Agent…'
+                            : evaluation && !canRunAnalysis
+                              ? 'Up to Date — Re-run Anyway'
+                              : 'Run Decomposition Analysis'}
                         </Button>
 
                         {!isDecompFinalized && !showNewStoryForm && (
@@ -1743,6 +2056,75 @@ export default function Decomposition() {
                 <p className="text-xs text-muted-foreground leading-relaxed">{criterion.description}</p>
               </div>
             ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Provisional Progression Confirmation Dialog */}
+      <Dialog open={provisionalConfirmOpen} onOpenChange={setProvisionalConfirmOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="p-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="h-4 w-4" />
+              </span>
+              <DialogTitle className="text-lg font-bold">Proceed with Open Improvements?</DialogTitle>
+            </div>
+            <DialogDescription className="text-xs">
+              {evaluation?.readinessReason ||
+                'A few quality improvements are still suggested for this decomposition.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 pt-1">
+            {(evaluation?.studentFeedback || []).slice(0, 3).length > 0 && (
+              <ul className="space-y-1.5">
+                {evaluation.studentFeedback.slice(0, 3).map((bullet, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-foreground">
+                    <Circle className="h-2.5 w-2.5 mt-1 text-amber-500 shrink-0 fill-current" />
+                    <span>{bullet}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {storiesWithCoverageWarning.length > 0 && (
+              <div className="p-2.5 rounded-lg border border-blue-500/25 bg-blue-500/5">
+                <p className="text-[11px] font-bold text-blue-700 dark:text-blue-400 mb-1">
+                  {storiesWithCoverageWarning.length} stor{storiesWithCoverageWarning.length === 1 ? 'y has' : 'ies have'} a task
+                  coverage warning
+                </p>
+                <ul className="space-y-1">
+                  {storiesWithCoverageWarning.slice(0, 3).map((e, i) => (
+                    <li key={i} className="text-[11px] text-muted-foreground">{e.readinessReason}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              You can proceed to Effort Estimation now and address these later, or go back and refine your stories
+              first. Your stories and this analysis will not be lost either way.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setProvisionalConfirmOpen(false)}
+              className="text-xs cursor-pointer"
+            >
+              Go Back &amp; Refine
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setProvisionalConfirmOpen(false)
+                completeProceedToEstimation(requirement)
+              }}
+              className="text-xs font-bold cursor-pointer bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Proceed Anyway
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

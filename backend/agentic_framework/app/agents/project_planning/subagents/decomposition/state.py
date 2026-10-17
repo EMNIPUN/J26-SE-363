@@ -16,7 +16,7 @@ class DecompositionState(TypedDict, total=False):
     # inputs
     requirement_id: str
     requirement_text: str
-    stories: list[dict]  # [{id, title, acceptance_criteria, linked_parent_requirement}]
+    stories: list[dict]  # [{id, title, description, linked_parent_requirement}]
     threshold: int
 
     # working memory

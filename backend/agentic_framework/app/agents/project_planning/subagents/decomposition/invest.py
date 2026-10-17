@@ -30,10 +30,10 @@ _AMBIGUOUS_RE = re.compile(
 )
 
 
-def detect_invest_signals(title: str, ac: str) -> dict[str, dict]:
+def detect_invest_signals(title: str, description: str) -> dict[str, dict]:
     """Deterministic rule-based signals for each INVEST criterion, fed to the LLM
     as evidence (and used directly as the LLM-unavailable fallback)."""
-    combined = f"{title} {ac}"
+    combined = f"{title} {description}"
 
     independent = (
         {"signal": "fail", "note": "Wording implies dependency on another story."}
@@ -69,10 +69,11 @@ def detect_invest_signals(title: str, ac: str) -> dict[str, dict]:
         else {"signal": "pass", "note": "Scoped to a single unit of work."}
     )
 
+    has_observable_outcome = bool(re.search(r"\b(can|able to|view|receive|create|update|delete|submit|display|store|send|access|download|upload|validate)\b", combined, re.IGNORECASE))
     testable = (
-        {"signal": "pass", "note": "Acceptance criteria gives a concrete condition to verify."}
-        if len(ac.strip()) >= 20
-        else {"signal": "fail", "note": "Acceptance criteria is missing or too brief to verify."}
+        {"signal": "pass", "note": "The story describes an observable behavior that can be verified."}
+        if len(description.strip()) >= 20 and has_observable_outcome
+        else {"signal": "fail", "note": "Describe a concrete, observable outcome so the story can be verified."}
     )
 
     return {
@@ -101,14 +102,14 @@ unclear dependency.
 MySQL triggers to update the inventory table".
   - Valuable: the story identifies a user, stakeholder, or system value -> fails on "As a developer, I \
 want to create a database table" with no user value.
-  - Estimable: the story contains enough information for a reasonable estimate -> fails on missing \
-acceptance criteria, unclear scope, or undefined rules.
+  - Estimable: the title and user story description contain enough information for a reasonable estimate -> \
+fails on unclear scope or undefined rules.
   - Small: the story represents one coherent unit of work -> fails on a story covering registration, \
 login, password reset, and profile management all at once.
-  - Testable: the story has observable acceptance criteria with clear pass/fail conditions (ideally \
-Given/When/Then) -> fails on "The system should work well".
+  - Testable: the story description states observable behavior with a clear, verifiable outcome -> fails on \
+"The system should work well". Do not require acceptance criteria; they are intentionally absent.
 
-You are given each story (title + acceptance criteria) and deterministic rule signals already detected \
+You are given each story (title + user story description) and deterministic rule signals already detected \
 for it. Use these signals as evidence but apply your own judgment — rules can have false positives/negatives.
 
 Reply with a STRICT JSON object only (no markdown), one entry per story_id exactly as given:
@@ -146,7 +147,7 @@ async def validate_invest(
         return []
 
     signals_by_story = {
-        s.get("id", ""): detect_invest_signals(s.get("title", ""), s.get("acceptance_criteria", ""))
+        s.get("id", ""): detect_invest_signals(s.get("title", ""), s.get("description", ""))
         for s in stories
     }
 
@@ -157,7 +158,7 @@ async def validate_invest(
             story_block = "\n\n".join(
                 f'Story {s.get("id")}:\n'
                 f'  Title: "{s.get("title", "")}"\n'
-                f'  Acceptance criteria: "{s.get("acceptance_criteria", "")}"\n'
+                f'  User story description: "{s.get("description", "")}"\n'
                 f"  Rule signals: "
                 + "; ".join(f"{k}={v['signal']}" for k, v in signals_by_story[s.get("id", "")].items())
                 for s in stories
@@ -178,7 +179,7 @@ async def validate_invest(
     for story in stories:
         sid = story.get("id", "")
         title = story.get("title", "")
-        ac = story.get("acceptance_criteria", "")
+        description = story.get("description", "")
         signals = signals_by_story[sid]
         story_llm = llm_results.get(sid) if isinstance(llm_results, dict) else None
 
@@ -202,7 +203,7 @@ async def validate_invest(
         results.append(
             StoryInvest(
                 story_id=sid,
-                story_text=f"{title} {ac}".strip(),
+                story_text=f"{title} {description}".strip(),
                 linked_parent_requirement=story.get("linked_parent_requirement", requirement_id),
                 story_ready=story_ready,
                 **criteria,

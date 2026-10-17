@@ -158,7 +158,7 @@ DEFAULT_DECOMPOSITION_THRESHOLD = 75
 class StoryInput(BaseModel):
     id: str
     title: str
-    acceptance_criteria: str = ""
+    description: str = ""
     # Populated by the Core API from the owning requirement's id (stories are
     # always scoped to one requirement per analyze_decomposition call). Used
     # by the deterministic C1 parent-linkage check.
@@ -221,10 +221,13 @@ class CheckResult(str, Enum):
 
 
 class CoverageCheck(BaseModel):
-    check_id: str  # "C1".."C10"
+    check_id: str  # "C1".."C10"; C10 verifies story traceability and assigned-behavior coverage.
     result: CheckResult
     rationale: str = ""
     evidence: list[str] = Field(default_factory=list)  # element_ids / story_ids
+    # Concrete "how to fix" guidance for a Fail result - what the research-doc
+    # feedback rules call an "example", not just a diagnosis. Empty on Pass.
+    suggestion: str = ""
 
 
 class CoverageGateResult(BaseModel):
@@ -287,9 +290,28 @@ class InvestGateResult(BaseModel):
 
 
 class DecompositionGateStatus(str, Enum):
+    """Deprecated — superseded by DecompositionReadiness. Kept only so any
+    remaining consumer that reads gate_status keeps working; it is now a
+    best-effort projection of the readiness tier (see gate.py), never a hard
+    block on its own."""
+
     COMPLETE = "COMPLETE"
     INCOMPLETE = "INCOMPLETE"
     NEEDS_REVIEW = "NEEDS_REVIEW"
+
+
+class DecompositionReadiness(str, Enum):
+    """Student-friendly, three-tier decomposition readiness. Replaces the
+    strict pass/fail gate: ALL three outcomes allow the student to proceed to
+    effort estimation — there is no hard block. The tier only changes how
+    prominently the UI warns them and what it asks them to improve first.
+    Coverage/traceability (the C1-C10 checks) dominates the tier; INVEST
+    results are guidance and can at most downgrade Ready -> Ready with
+    Improvements, never force Needs Attention on their own."""
+
+    READY = "Ready"
+    READY_WITH_IMPROVEMENTS = "Ready with Improvements"
+    NEEDS_ATTENTION = "Needs Attention"
 
 
 class QualityBand(str, Enum):
@@ -307,7 +329,11 @@ class DecompositionResult(BaseModel):
     invest_gate: InvestGateResult = Field(default_factory=InvestGateResult)
     decomposition_quality_score: float = 0.0  # 0-4, computed from gate evidence
     quality_band: QualityBand = QualityBand.VERY_POOR
-    gate_status: DecompositionGateStatus = DecompositionGateStatus.INCOMPLETE
+    # Authoritative status - see DecompositionReadiness. Never a hard block:
+    # the student can always proceed to effort estimation regardless of tier.
+    readiness: DecompositionReadiness = DecompositionReadiness.NEEDS_ATTENTION
+    readiness_reason: str = ""  # 1-2 sentence explanation of the tier
+    gate_status: DecompositionGateStatus = DecompositionGateStatus.INCOMPLETE  # deprecated, see above
     needs_review_reason: str | None = None
     student_feedback: list[str] = Field(default_factory=list)
     patterns: list[dict] = Field(default_factory=list)
@@ -326,6 +352,100 @@ class DecompositionResult(BaseModel):
 class AnalyzeDecompositionResult(BaseModel):
     threshold: int = DEFAULT_DECOMPOSITION_THRESHOLD
     result: DecompositionResult | None = None
+
+
+# ---------------------------------------------------------------------------
+# Task validation — relevance/scope/actionability/duplication per task, plus
+# whether the task set as a whole covers the story's main work.
+# ---------------------------------------------------------------------------
+
+TASK_CRITERIA: tuple[str, ...] = (
+    "relevance",
+    "scope",
+    "actionability",
+    "duplication",
+)
+
+
+class TaskInput(BaseModel):
+    id: str
+    title: str
+    description: str = ""
+
+
+class AnalyzeTaskValidationInput(BaseModel):
+    """Payload for the ``planning.validate_tasks`` action."""
+
+    story: StoryInput
+    # Parent requirement text, for context when a task's relevance to the
+    # story is ambiguous. Optional - most judgments only need the story.
+    requirement_text: str = ""
+    tasks: list[TaskInput] = Field(default_factory=list)
+
+
+class TaskCriterionOutcome(str, Enum):
+    """Four-state per-criterion task validation verdict (mirrors InvestResult)."""
+
+    PASS = "Pass"
+    NEEDS_IMPROVEMENT = "Needs Improvement"
+    FAIL = "Fail"
+    CANNOT_ASSESS = "Cannot Assess"
+
+
+class TaskCriterionResult(BaseModel):
+    result: TaskCriterionOutcome = TaskCriterionOutcome.CANNOT_ASSESS
+    note: str = ""
+    evidence: str = ""
+
+
+class TaskValidationItem(BaseModel):
+    task_id: str
+    relevance: TaskCriterionResult = Field(default_factory=TaskCriterionResult)
+    scope: TaskCriterionResult = Field(default_factory=TaskCriterionResult)
+    actionability: TaskCriterionResult = Field(default_factory=TaskCriterionResult)
+    duplication: TaskCriterionResult = Field(default_factory=TaskCriterionResult)
+    task_ready: bool = False  # True only if all 4 are Pass or Needs Improvement
+
+
+class TaskSetCoverage(BaseModel):
+    coverage_percentage: float = 0.0  # feedback-only, never the sole gate input
+    missing_work_items: list[str] = Field(default_factory=list)
+
+
+class TaskReadiness(str, Enum):
+    """Student-friendly, three-tier task-validation readiness. ALL three allow
+    the student to proceed to effort estimation — there is no hard block.
+    Coverage Warning is reserved for a significant gap in the task set's
+    coverage of the story's main work; per-task issues alone can at most
+    reach Needs Improvement."""
+
+    VALID = "Valid"
+    NEEDS_IMPROVEMENT = "Needs Improvement"
+    COVERAGE_WARNING = "Coverage Warning"
+
+
+class TaskValidationResult(BaseModel):
+    story_ref: str
+    coverage: TaskSetCoverage = Field(default_factory=TaskSetCoverage)
+    tasks: list[TaskValidationItem] = Field(default_factory=list)
+    quality_score: float = 0.0  # 0-4, computed from gate evidence
+    quality_band: QualityBand = QualityBand.VERY_POOR
+    # Authoritative status - see TaskReadiness. Never a hard block: the
+    # student can always proceed to effort estimation regardless of tier.
+    readiness: TaskReadiness = TaskReadiness.COVERAGE_WARNING
+    readiness_reason: str = ""  # 1-2 sentence explanation of the tier
+    student_feedback: list[str] = Field(default_factory=list)
+    confidence: float = 1.0
+    # True only when the validation LLM call itself could not run (unavailable
+    # or errored) - distinct from a real run that concluded Needs Improvement
+    # / Coverage Warning. When true, quality_score/quality_band/readiness are
+    # a mechanical placeholder, not a real assessment.
+    analysis_failed: bool = False
+    failure_reason: str | None = None
+
+
+class AnalyzeTaskValidationResult(BaseModel):
+    result: TaskValidationResult | None = None
 
 
 # ---------------------------------------------------------------------------

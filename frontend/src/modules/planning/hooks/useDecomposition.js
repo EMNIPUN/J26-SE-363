@@ -33,6 +33,39 @@ export function useCreateStoryTask() {
   })
 }
 
+export function useUpdateStoryTask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ref, taskId, patch }) => decompositionService.updateTask(ref, taskId, patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['planning-stories'] }),
+  })
+}
+
+export function useDeleteStoryTask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ref, taskId }) => decompositionService.deleteTask(ref, taskId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['planning-stories'] }),
+  })
+}
+
+export function useValidateTasks() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ref, tasks }) => decompositionService.validateTasks(ref, { tasks }),
+    onSuccess: (_data, { ref }) =>
+      qc.invalidateQueries({ queryKey: ['task-validation', ref] }),
+  })
+}
+
+export function useTaskValidation(storyRef, enabled = true) {
+  return useQuery({
+    queryKey: ['task-validation', storyRef],
+    queryFn: () => decompositionService.getTaskValidation(storyRef),
+    enabled: enabled && Boolean(storyRef),
+  })
+}
+
 export function useDeleteStory() {
   const qc = useQueryClient()
   return useMutation({

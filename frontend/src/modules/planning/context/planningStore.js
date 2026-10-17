@@ -25,12 +25,24 @@ function nextId(prefix) {
   return `${prefix}-${idCounter}`
 }
 
+// Content signature for a task list (recursive over subtasks), deliberately
+// excluding the embedded `validation` field so a validation run itself never
+// looks like a task edit — used by loadStories to detect real task changes.
+function tasksSignature(tasks) {
+  return JSON.stringify(
+    (tasks || []).map((t) => [
+      t.id, t.title, t.description || '', t.status, tasksSignature(t.subtasks),
+    ]),
+  )
+}
+
 const FINALIZED_STORAGE_KEY = 'selvia_finalized_requirements'
 const FINALIZED_DECOMP_STORAGE_KEY = 'selvia_finalized_decompositions'
 const CACHED_REQUIREMENTS_KEY = 'selvia_cached_requirements'
 const CACHED_USER_STORIES_KEY = 'selvia_cached_user_stories'
 const CACHED_DECOMP_EVALUATIONS_KEY = 'selvia_cached_decomp_evaluations'
 const CACHED_DECOMP_HISTORY_KEY = 'selvia_cached_decomp_history'
+const CACHED_TASK_VALIDATIONS_KEY = 'selvia_cached_task_validations'
 
 function readFinalizedIds() {
   try {
@@ -152,10 +164,30 @@ function saveCachedDecompHistory(history) {
   }
 }
 
+function readCachedTaskValidations() {
+  try {
+    const raw = localStorage.getItem(CACHED_TASK_VALIDATIONS_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveCachedTaskValidations(evaluations) {
+  try {
+    if (evaluations && typeof evaluations === 'object') {
+      localStorage.setItem(CACHED_TASK_VALIDATIONS_KEY, JSON.stringify(evaluations))
+    }
+  } catch {
+    // ignore
+  }
+}
+
 const initialRequirements = readCachedRequirements()
 const initialStories = readCachedUserStories()
 const initialDecompEvaluations = readCachedDecompEvaluations()
 const initialDecompHistory = readCachedDecompHistory()
+const initialTaskValidations = readCachedTaskValidations()
 
 // Synchronously hydrated from local cache on initial load/reload so the UI never
 // flashes 0% or empty state before background network queries resolve.
@@ -173,6 +205,7 @@ let state = {
   decompositionHistory: initialDecompHistory,
   activityLog: [],
   decompositionEvaluations: initialDecompEvaluations,
+  taskValidationEvaluations: initialTaskValidations,
 }
 
 const listeners = new Set()
@@ -190,6 +223,9 @@ function setState(patch) {
   }
   if (patch.decompositionHistory) {
     saveCachedDecompHistory(state.decompositionHistory)
+  }
+  if (patch.taskValidationEvaluations) {
+    saveCachedTaskValidations(state.taskValidationEvaluations)
   }
   listeners.forEach((listener) => listener())
 }
@@ -323,19 +359,39 @@ export const actions = {
   // the decomposition-results query can't wipe out investResult/stale badges
   // the latter already attached (defense-in-depth; the server-side adapter
   // fix is the primary guard — see adapters/decomposition.js).
+  //
+  // Also detects task-set changes per story (content, not just reference) and
+  // flags that story's task-validation evaluation stale — this is the single
+  // place every task create/edit/delete mutation funnels through (they all
+  // invalidate ['planning-stories'] and re-hydrate via this function), so it
+  // catches staleness regardless of which mutation caused it.
   loadStories(map) {
     if (!map || Object.keys(map).length === 0) return
     const merged = { ...state.userStories }
+    const changedTaskStoryIds = new Set()
     for (const [reqId, incomingStories] of Object.entries(map)) {
       const existingById = new Map((merged[reqId] || []).map((s) => [s.id, s]))
       merged[reqId] = incomingStories.map((incoming) => {
         const existing = existingById.get(incoming.id)
+        if (existing && tasksSignature(existing.tasks) !== tasksSignature(incoming.tasks)) {
+          changedTaskStoryIds.add(incoming.id)
+        }
         return existing
           ? { ...existing, ...incoming, investResult: incoming.investResult ?? existing.investResult }
           : incoming
       })
     }
-    setState({ userStories: merged })
+    const patch = { userStories: merged }
+    if (changedTaskStoryIds.size > 0) {
+      const nextEvaluations = { ...state.taskValidationEvaluations }
+      for (const storyId of changedTaskStoryIds) {
+        if (nextEvaluations[storyId]) {
+          nextEvaluations[storyId] = { ...nextEvaluations[storyId], stale: true }
+        }
+      }
+      patch.taskValidationEvaluations = nextEvaluations
+    }
+    setState(patch)
   },
 
   loadEstimations(map) {
@@ -402,7 +458,7 @@ export const actions = {
     const prevHistory = state.decompositionHistory[reqId] || []
     const fingerprint = (entry) => [
       entry.timestamp || '',
-      entry.gateStatus || '',
+      entry.readiness || '',
       entry.score ?? '',
       entry.analysisFailed ? 'failed' : 'complete',
     ].join('|')
@@ -410,7 +466,9 @@ export const actions = {
       version: prevHistory.length + 1,
       score: result.score,
       coverage: result.coverage,
-      gateStatus: result.gateStatus,
+      readiness: result.readiness,
+      readinessReason: result.readinessReason,
+      gateStatus: result.gateStatus, // legacy, unused by the UI
       qualityBand: result.qualityBand,
       analysisFailed: Boolean(result.analysisFailed),
       failureReason: result.failureReason || null,
@@ -446,14 +504,37 @@ export const actions = {
       activityLog: withActivity(
         result.analysisFailed
           ? `Decomposition analysis for ${reqId} could not be completed — system error, please re-run.`
-          : `Decomposition Agent analyzed ${reqId} — gate ${result.gateStatus}, score ${result.score}/4 (${result.qualityBand}).`,
-        result.analysisFailed ? 'danger' : result.gateStatus === 'COMPLETE' ? 'success' : 'warning',
+          : `Decomposition Agent analyzed ${reqId} — ${result.readiness}, score ${result.score}/4 (${result.qualityBand}).`,
+        result.analysisFailed ? 'danger' : result.readiness === 'Ready' ? 'success' : 'warning',
       ),
     })
   },
 
   getDecompositionHistory(reqId) {
     return state.decompositionHistory[reqId] || []
+  },
+
+  getTaskValidationEvaluation(storyId) {
+    return state.taskValidationEvaluations[storyId] || null
+  },
+
+  // Records one task-validation agent pass against a story's current task
+  // set. Mirrors recordDecompositionAnalysis: a fresh result is never stale,
+  // and nothing about the story's tasks is ever discarded regardless of the
+  // readiness tier or score.
+  recordTaskValidation(storyId, result) {
+    setState({
+      taskValidationEvaluations: {
+        ...state.taskValidationEvaluations,
+        [storyId]: { ...result, stale: false },
+      },
+      activityLog: withActivity(
+        result.analysisFailed
+          ? `Task validation for ${storyId} could not be completed — system error, please re-run.`
+          : `Task Validation Agent analyzed ${storyId}'s tasks — ${result.readiness}, score ${result.score}/4 (${result.qualityBand}).`,
+        result.analysisFailed ? 'danger' : result.readiness === 'Valid' ? 'success' : 'warning',
+      ),
+    })
   },
 
   deleteStory(reqId, storyId) {
@@ -510,36 +591,10 @@ export const actions = {
     })
   },
 
-  addTask(reqId, storyId, title) {
-    setState({
-      userStories: {
-        ...state.userStories,
-        [reqId]: (state.userStories[reqId] || []).map((s) =>
-          s.id === storyId
-            ? { ...s, tasks: [...s.tasks, { id: nextId('T'), title, status: 'Todo', subtasks: [] }] }
-            : s,
-        ),
-      },
-    })
-  },
-
-  addSubtask(reqId, storyId, taskId, title) {
-    setState({
-      userStories: {
-        ...state.userStories,
-        [reqId]: (state.userStories[reqId] || []).map((s) => {
-          if (s.id !== storyId) return s
-          return {
-            ...s,
-            tasks: s.tasks.map((t) =>
-              t.id === taskId ? { ...t, subtasks: [...t.subtasks, { id: nextId('ST'), title, done: false }] } : t,
-            ),
-          }
-        }),
-      },
-    })
-  },
-
+  // Subtasks are just UserStoryTask rows with a parent_task_id, so "done" is
+  // status === 'done' (the real backend status enum), not a separate local
+  // boolean — this optimistically mirrors what the PATCH .../tasks/{id} call
+  // just persisted (see the TaskRow call site).
   toggleSubtask(reqId, storyId, taskId, subtaskId) {
     setState({
       userStories: {
@@ -551,7 +606,14 @@ export const actions = {
             tasks: s.tasks.map((t) =>
               t.id !== taskId
                 ? t
-                : { ...t, subtasks: t.subtasks.map((st) => (st.id === subtaskId ? { ...st, done: !st.done } : st)) },
+                : {
+                    ...t,
+                    subtasks: t.subtasks.map((st) =>
+                      st.id === subtaskId
+                        ? { ...st, status: st.status === 'done' ? 'todo' : 'done' }
+                        : st,
+                    ),
+                  },
             ),
           }
         }),

@@ -154,6 +154,7 @@ class DartTriggerReason(str, enum.Enum):
 class FeedbackStage(str, enum.Enum):
     QUALITY = "quality"
     DECOMPOSITION = "decomposition"
+    TASK_VALIDATION = "task_validation"
     ESTIMATION = "estimation"
     DART = "dart"
 
@@ -182,11 +183,23 @@ class AlertType(str, enum.Enum):
 
 
 class DecompositionGateStatus(str, enum.Enum):
-    """Two-level mandatory gate outcome for a decomposition analysis run."""
+    """Deprecated — superseded by DecompositionReadiness. Kept only for any
+    historical row / lingering consumer; never drives UI behavior anymore."""
 
     COMPLETE = "COMPLETE"
     INCOMPLETE = "INCOMPLETE"
     NEEDS_REVIEW = "NEEDS_REVIEW"
+
+
+class DecompositionReadiness(str, enum.Enum):
+    """Student-friendly, three-tier decomposition readiness. ALL three allow
+    the student to proceed to effort estimation — there is no hard block.
+    Coverage/traceability (C1-C10) dominates the tier; INVEST results are
+    improvement guidance and can at most downgrade Ready one notch."""
+
+    READY = "Ready"
+    READY_WITH_IMPROVEMENTS = "Ready with Improvements"
+    NEEDS_ATTENTION = "Needs Attention"
 
 
 class QualityBand(str, enum.Enum):
@@ -237,3 +250,33 @@ class CoverageElementType(str, enum.Enum):
     ERROR_HANDLING = "error_handling"
     RECOVERY_RETRY = "recovery_retry"
     QUALITY_CONSTRAINT = "quality_constraint"
+
+
+class TaskCriterion(str, enum.Enum):
+    """The four criteria an AI task-validation run judges each task on."""
+
+    RELEVANCE = "relevance"
+    SCOPE = "scope"
+    ACTIONABILITY = "actionability"
+    DUPLICATION = "duplication"
+
+
+class TaskCriterionOutcome(str, enum.Enum):
+    """Four-state per-criterion task validation verdict (mirrors InvestResult)."""
+
+    PASS = "Pass"
+    NEEDS_IMPROVEMENT = "Needs Improvement"
+    FAIL = "Fail"
+    CANNOT_ASSESS = "Cannot Assess"
+
+
+class TaskReadinessStatus(str, enum.Enum):
+    """Student-friendly, three-tier task-validation readiness. ALL three allow
+    the student to proceed to effort estimation — there is no hard block.
+    Coverage Warning is reserved for a significant story-coverage gap in the
+    task set as a whole; per-task issues alone can at most reach Needs
+    Improvement."""
+
+    VALID = "Valid"
+    NEEDS_IMPROVEMENT = "Needs Improvement"
+    COVERAGE_WARNING = "Coverage Warning"

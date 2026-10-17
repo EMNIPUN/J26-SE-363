@@ -31,6 +31,8 @@ from app.agents.project_planning.schemas import (
     AnalyzeDecompositionResult,
     AnalyzeQualityInput,
     AnalyzeQualityResult,
+    AnalyzeTaskValidationInput,
+    AnalyzeTaskValidationResult,
     ArbitrateDartInput,
     ArbitrateDartResult,
     ExtractRequirementsInput,
@@ -43,12 +45,16 @@ from app.agents.project_planning.subagents.decomposition.graph import (
     run_decomposition_agent,
 )
 from app.agents.project_planning.subagents.quality.graph import run_quality_agent
+from app.agents.project_planning.subagents.task_validation.graph import (
+    run_task_validation_agent,
+)
 
 # Actions this component owns (all under the ``planning.`` prefix).
 ACTION_ANALYZE_QUALITY = "planning.analyze_quality"
 ACTION_EXTRACT_REQUIREMENTS = "planning.extract_requirements"
 ACTION_GET_SRS_TEMPLATE = "planning.get_srs_template"
 ACTION_ANALYZE_DECOMPOSITION = "planning.analyze_decomposition"
+ACTION_VALIDATE_TASKS = "planning.validate_tasks"
 ACTION_ARBITRATE_DART = "planning.arbitrate"
 
 logger = logging.getLogger(__name__)
@@ -71,6 +77,8 @@ class ProjectPlanningAgent:
             return self._get_srs_template(request)
         if request.action == ACTION_ANALYZE_DECOMPOSITION:
             return await self._analyze_decomposition(request)
+        if request.action == ACTION_VALIDATE_TASKS:
+            return await self._validate_tasks(request)
         if request.action == ACTION_ARBITRATE_DART:
             return await self._arbitrate_dart(request)
 
@@ -165,6 +173,29 @@ class ProjectPlanningAgent:
         )
 
     # ------------------------------------------------------------------
+    # planning.validate_tasks
+    # ------------------------------------------------------------------
+    async def _validate_tasks(self, request: AgentRequest) -> AgentResponse:
+        payload = AnalyzeTaskValidationInput.model_validate(request.input)
+        if not payload.tasks:
+            return self._failed(request, "no_tasks", "At least one task is required.")
+
+        result = await run_task_validation_agent(
+            payload.story.id,
+            f"{payload.story.title} {payload.story.description}".strip(),
+            payload.requirement_text,
+            [{"id": t.id, "title": t.title, "description": t.description} for t in payload.tasks],
+        )
+        wrapped = AnalyzeTaskValidationResult(result=result)
+        return AgentResponse(
+            request_id=request.request_id,
+            agent_name=self.name,
+            status=ResultStatus.COMPLETED,
+            result=wrapped.model_dump(),
+            evidence=[_task_validation_evidence(result)],
+        )
+
+    # ------------------------------------------------------------------
     # planning.arbitrate  (DART — Diagnostic Arbitration using Reasoning Traces)
     # ------------------------------------------------------------------
     async def _arbitrate_dart(self, request: AgentRequest) -> AgentResponse:
@@ -234,17 +265,41 @@ def _decomposition_evidence(r) -> Evidence:
         source="decomposition_agent",
         description=(
             f"{r.requirement_ref}: {r.decomposition_quality_score}/4 ({r.quality_band.value}) "
-            f"— gate {r.gate_status.value}; coverage {r.coverage.coverage_percentage}%; "
+            f"— {r.readiness.value}; coverage {r.coverage.coverage_percentage}%; "
             f"{ready_stories}/{len(r.stories)} stories ready; confidence {r.confidence:.2f}"
         ),
         data={
             "requirement_ref": r.requirement_ref,
-            "gate_status": r.gate_status.value,
+            "readiness": r.readiness.value,
+            "readiness_reason": r.readiness_reason,
             "dart_triggered": r.dart_triggered,
             "coverage_percentage": r.coverage.coverage_percentage,
             "failed_checks": [
                 c.check_id for c in r.coverage.gate.checks.values() if c.result.value == "Fail"
             ],
+        },
+    )
+
+
+def _task_validation_evidence(r) -> Evidence:
+    from app.agents.project_planning.schemas import TaskValidationResult
+
+    if not isinstance(r, TaskValidationResult):
+        return Evidence(source="task_validation_agent", description="unknown result type", data={})
+    ready_tasks = sum(1 for t in r.tasks if t.task_ready)
+    return Evidence(
+        source="task_validation_agent",
+        description=(
+            f"{r.story_ref}: {r.quality_score}/4 ({r.quality_band.value}) "
+            f"— {r.readiness.value}; coverage {r.coverage.coverage_percentage}%; "
+            f"{ready_tasks}/{len(r.tasks)} tasks ready; confidence {r.confidence:.2f}"
+        ),
+        data={
+            "story_ref": r.story_ref,
+            "readiness": r.readiness.value,
+            "readiness_reason": r.readiness_reason,
+            "coverage_percentage": r.coverage.coverage_percentage,
+            "missing_work_items": r.coverage.missing_work_items,
         },
     )
 
