@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ChevronRight, Search, LogOut, Menu } from 'lucide-react'
 import { useAuth } from '../auth/useAuth.js'
 import { getRoleLabel } from '../constants/roles.js'
@@ -43,7 +44,9 @@ export default function TopNavbar({ onToggleMobileMenu, sidebarCollapsed = false
           </ShadcnButton>
         )}
 
-        <SelviaLogo size={32} showText={!sidebarCollapsed} />
+        <Link to="/home" aria-label="All teams" className="outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
+          <SelviaLogo size={32} showText={!sidebarCollapsed} />
+        </Link>
       </div>
 
       <div className="h-5 w-px bg-border/60 hidden md:block" />

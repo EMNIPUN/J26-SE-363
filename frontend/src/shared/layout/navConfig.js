@@ -22,6 +22,7 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
   if (role === "student") {
     return [
       { label: "Overview", icon: LayoutDashboard, to: t("/app") },
+      { label: "Team", icon: Users, to: t("/members") },
       {
         label: "Project Planning",
         icon: BookOpen,
@@ -70,6 +71,7 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
   if (role === "instructor") {
     return [
       { label: "Dashboard", icon: LayoutDashboard, to: t("/app") },
+      { label: "Team", icon: Users, to: t("/members") },
       { label: "Projects", icon: FolderKanban, to: t("/planning/instructor/projects") },
       {
         label: "Groups & Students",

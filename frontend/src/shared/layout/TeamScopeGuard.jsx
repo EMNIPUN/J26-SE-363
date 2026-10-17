@@ -1,33 +1,26 @@
 import { useEffect } from 'react'
-import { useParams, Outlet, Navigate, useLocation } from 'react-router-dom'
+import { useParams, Outlet } from 'react-router-dom'
 import { useScope } from '../context/useScope.js'
-import { GROUPS } from '../constants/academicScope.js'
+import NotFound from '../pages/NotFound.jsx'
 
+/**
+ * Guards /teams/:teamId/*: the team must be one the person belongs to. Anything else (a typo,
+ * someone else's team) is "not found", and the page never falls back to a different team.
+ */
 export default function TeamScopeGuard() {
   const { teamId } = useParams()
-  const location = useLocation()
-  const { selectedGroup, setGroupId } = useScope()
+  const { groups, selectedGroupId, setGroupId, isLoading } = useScope()
 
-  // Match teamId from URL against GROUPS by code or id (case-insensitive)
-  const matchedGroup = GROUPS.find(
-    (g) =>
-      g.code?.toLowerCase() === teamId?.toLowerCase() ||
-      g.id?.toLowerCase() === teamId?.toLowerCase(),
+  const matchedGroup = groups.find(
+    (g) => g.code?.toLowerCase() === teamId?.toLowerCase() || g.id === teamId,
   )
 
-  // Synchronize ScopeContext with URL when valid
+  // Keep the active team in step with the address.
   useEffect(() => {
-    if (matchedGroup && selectedGroup?.id !== matchedGroup.id) {
-      setGroupId(matchedGroup.id)
-    }
-  }, [matchedGroup, selectedGroup, setGroupId])
+    if (matchedGroup && selectedGroupId !== matchedGroup.id) setGroupId(matchedGroup.id)
+  }, [matchedGroup, selectedGroupId, setGroupId])
 
-  // Fallback: If teamId in URL does not exist in registry, redirect to the active team.
-  if (!matchedGroup) {
-    const targetCode = selectedGroup?.code || GROUPS[0].code
-    const safePath = location.pathname.replace(teamId, targetCode)
-    return <Navigate to={safePath} replace />
-  }
-
+  if (isLoading) return <div className="min-h-[40svh]" />
+  if (!matchedGroup) return <NotFound />
   return <Outlet />
 }

@@ -1,101 +1,102 @@
 import { createContext, useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '../auth/useAuth.js'
-import {
-  BATCHES,
-  GROUPS,
-  STUDENTS,
-} from '../constants/academicScope.js'
+import { useMyTeams, useTeam } from '../hooks/useTeams.js'
 
 const ScopeContext = createContext(null)
 
 const STORAGE_KEY = 'selvia_active_scope'
 
+function readStoredGroupId() {
+  try {
+    const saved = sessionStorage.getItem(STORAGE_KEY)
+    return saved ? JSON.parse(saved).groupId || null : null
+  } catch {
+    return null
+  }
+}
+
+// The shape the module pages already use for "the active team".
+function toGroup(team) {
+  return {
+    id: team.id,
+    code: team.code,
+    name: team.name,
+    projectTitle: team.project?.title ?? '',
+    repositoryUrl: team.repo_url ?? '',
+    batchId: team.term ?? '',
+    status: team.status,
+    myRole: team.my_role,
+  }
+}
+
+function toStudent(member, group) {
+  return {
+    id: member.user_id,
+    name: member.name,
+    email: member.email ?? '',
+    githubUsername: member.github_username ?? '',
+    groupId: group?.id,
+    isLeader: member.role === 'leader',
+  }
+}
+
+/**
+ * The teams the signed-in person belongs to, and which one the app is focused on.
+ * The home page lists the teams; opening one (/teams/:code) makes it the active team.
+ */
 export function ScopeProvider({ children }) {
   const { user } = useAuth()
-  const isStudent = user?.role === 'student'
+  const ready = Boolean(user?.onboarded)
 
-  // Identify student record if logged-in user is a student
-  const studentProfile = useMemo(() => {
-    if (!isStudent || !user) return null
-    return (
-      STUDENTS.find((s) => s.email?.toLowerCase() === user.email?.toLowerCase()) ||
-      STUDENTS.find((s) => s.studentId?.toLowerCase() === user.preferred_username?.toLowerCase()) ||
-      STUDENTS[0] // fallback to default student
-    )
-  }, [isStudent, user])
+  const teamsQuery = useMyTeams({ enabled: ready })
+  const groups = useMemo(() => (teamsQuery.data ?? []).map(toGroup), [teamsQuery.data])
 
-  // Initial group ID derived from sessionStorage, enrolled student group, or first group.
-  const [selectedGroupId, setSelectedGroupIdState] = useState(() => {
-    if (typeof window === 'undefined') return GROUPS[0].id
-    try {
-      const saved = sessionStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed.groupId) return parsed.groupId
-      }
-    } catch {
-      // ignore JSON parse error
-    }
-    return studentProfile?.groupId || GROUPS[0].id
-  })
-
-  // Resolved active group object
+  const [selectedGroupId, setSelectedGroupIdState] = useState(readStoredGroupId)
   const selectedGroup = useMemo(
-    () => GROUPS.find((g) => g.id === selectedGroupId) || GROUPS[0],
-    [selectedGroupId],
+    () => groups.find((g) => g.id === selectedGroupId) ?? groups[0] ?? null,
+    [groups, selectedGroupId],
   )
 
-  // Students belonging to the active team
+  // Members of the active team (students only), for the pages that list students.
+  const detailQuery = useTeam(selectedGroup?.code, { enabled: ready })
   const teamStudents = useMemo(
-    () => STUDENTS.filter((s) => s.groupId === selectedGroupId),
-    [selectedGroupId],
+    () =>
+      (detailQuery.data?.members ?? [])
+        .filter((member) => member.role !== 'lecturer')
+        .map((member) => toStudent(member, selectedGroup)),
+    [detailQuery.data, selectedGroup],
   )
 
-  // Active batch metadata (for display)
-  const selectedBatch = useMemo(
-    () => BATCHES.find((b) => b.id === selectedGroup?.batchId) || BATCHES[0],
-    [selectedGroup],
+  const isStudent = user?.role === 'student'
+  const studentProfile = useMemo(
+    () => (isStudent ? (teamStudents.find((s) => s.name === user?.name) ?? null) : null),
+    [isStudent, teamStudents, user?.name],
   )
 
-  // Setter for the active project group.
-  const setGroupId = useCallback((newGroupId) => {
-    setSelectedGroupIdState(newGroupId)
-  }, [])
+  const setGroupId = useCallback((newGroupId) => setSelectedGroupIdState(newGroupId), [])
 
-  // Persist active group in sessionStorage.
   useEffect(() => {
-    if (selectedGroupId) {
-      try {
-        sessionStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ groupId: selectedGroupId }),
-        )
-      } catch {
-        // ignore storage errors
-      }
+    if (!selectedGroupId) return
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ groupId: selectedGroupId }))
+    } catch {
+      // ignore storage errors
     }
   }, [selectedGroupId])
 
   const value = useMemo(
     () => ({
       isStudent,
+      isLoading: ready && teamsQuery.isPending,
       studentProfile,
-      selectedGroupId,
+      groups,
+      selectedGroupId: selectedGroup?.id ?? null,
       selectedGroup,
+      selectedBatch: selectedGroup ? { id: selectedGroup.batchId, name: selectedGroup.batchId } : null,
       teamStudents,
-      groups: GROUPS,
-      selectedBatch,
       setGroupId,
     }),
-    [
-      isStudent,
-      studentProfile,
-      selectedGroupId,
-      selectedGroup,
-      teamStudents,
-      selectedBatch,
-      setGroupId,
-    ],
+    [isStudent, ready, teamsQuery.isPending, studentProfile, groups, selectedGroup, teamStudents, setGroupId],
   )
 
   return <ScopeContext.Provider value={value}>{children}</ScopeContext.Provider>
