@@ -5,6 +5,8 @@ routers) and calls it without a token. Each one must answer 401, before any requ
 validation or database access happens.
 """
 
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -38,7 +40,9 @@ def test_operation_rejects_requests_without_a_token(method, path):
     if (method, path) in PUBLIC_OPERATIONS:
         pytest.skip("intentionally public")
 
-    response = TestClient(app).request(method, path.replace("{job_id}", "1"))
+    response = TestClient(app).request(method, re.sub(r"\{[^}]+\}", "1", path))
 
-    assert response.status_code == 401, f"{method} {path} answered {response.status_code}"
+    assert response.status_code == 401, (
+        f"{method} {path} answered {response.status_code}"
+    )
     assert response.headers.get("www-authenticate") == "Bearer"

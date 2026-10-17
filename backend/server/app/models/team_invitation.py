@@ -51,4 +51,4 @@ class TeamInvitation(TimestampMixin, Base):
         ForeignKey("users.id", ondelete="SET NULL")
     )
 
-    group: Mapped["Group"] = relationship()
+    group: Mapped["Group"] = relationship(back_populates="invitations")

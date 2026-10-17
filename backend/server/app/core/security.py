@@ -35,6 +35,8 @@ class CurrentUser(BaseModel):
     username: str | None = None
     name: str | None = None
     email: str | None = None
+    # Keycloak confirmed the address (by link, or because Google/Microsoft/GitHub did).
+    email_verified: bool = False
     role: UserRole
     roles: list[str] = []
 
@@ -97,6 +99,7 @@ class TokenVerifier:
             username=claims.get("preferred_username"),
             name=claims.get("name"),
             email=claims.get("email"),
+            email_verified=bool(claims.get("email_verified", False)),
             role=primary_role(realm_roles),
             roles=realm_roles,
         )

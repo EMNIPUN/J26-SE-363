@@ -10,6 +10,7 @@ from app.database.base import Base, TimestampMixin, string_enum
 
 if TYPE_CHECKING:
     from app.models.project import Project
+    from app.models.team_invitation import TeamInvitation
     from app.models.user import User
 
 
@@ -52,6 +53,9 @@ class Group(TimestampMixin, Base):
         back_populates="group", cascade="all, delete-orphan", passive_deletes=True
     )
     projects: Mapped[list["Project"]] = relationship(back_populates="group")
+    invitations: Mapped[list["TeamInvitation"]] = relationship(
+        back_populates="group", cascade="all, delete-orphan", passive_deletes=True
+    )
 
 
 class GroupMember(Base):
