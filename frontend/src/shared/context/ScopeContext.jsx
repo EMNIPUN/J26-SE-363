@@ -49,7 +49,11 @@ export function ScopeProvider({ children }) {
   const ready = Boolean(user?.onboarded)
 
   const teamsQuery = useMyTeams({ enabled: ready })
-  const groups = useMemo(() => (teamsQuery.data ?? []).map(toGroup), [teamsQuery.data])
+  // A team still being set up has no workspace yet.
+  const groups = useMemo(
+    () => (teamsQuery.data ?? []).filter((team) => team.status !== 'pending').map(toGroup),
+    [teamsQuery.data],
+  )
 
   const [selectedGroupId, setSelectedGroupIdState] = useState(readStoredGroupId)
   const selectedGroup = useMemo(

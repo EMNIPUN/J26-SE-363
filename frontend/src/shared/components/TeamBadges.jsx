@@ -2,6 +2,7 @@ import PropTypes from 'prop-types'
 import Badge from './Badge.jsx'
 
 const TEAM_STATUS = {
+  pending: { tone: 'warning', label: 'Pending' },
   forming: { tone: 'neutral', label: 'Forming' },
   active: { tone: 'success', label: 'Active' },
 }

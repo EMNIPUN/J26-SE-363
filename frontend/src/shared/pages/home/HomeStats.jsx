@@ -5,7 +5,8 @@ import StatCard from '../../components/StatCard.jsx'
 const sum = (teams, key) => teams.reduce((total, team) => total + (team[key] ?? 0), 0)
 
 /** A short row of numbers about the person's teams. Lecturers and students see different ones. */
-export default function HomeStats({ teams, invitations, isStaff, loading }) {
+export default function HomeStats({ teams: all, invitations, isStaff, loading }) {
+  const teams = all.filter((team) => team.status !== 'pending') // drafts are not counted yet
   const cards = isStaff
     ? [
         { icon: UsersRound, label: 'Teams', value: teams.length },

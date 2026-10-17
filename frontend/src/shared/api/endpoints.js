@@ -20,6 +20,8 @@ export const ENDPOINTS = {
     MINE: '/me/teams',
     CREATE: '/teams',
     DETAIL: (team) => `/teams/${team}`,
+    PROJECT: (team) => `/teams/${team}/project`,
+    ACTIVATE: (team) => `/teams/${team}/activate`,
     INVITATIONS: (team) => `/teams/${team}/invitations`,
     INVITATION: (team, invitationId) => `/teams/${team}/invitations/${invitationId}`,
     RESEND_INVITATION: (team, invitationId) => `/teams/${team}/invitations/${invitationId}/resend`,
@@ -27,6 +29,9 @@ export const ENDPOINTS = {
     LEADER_TRANSFER: (team) => `/teams/${team}/leader-transfer`,
     LEADER_ACCEPT: (team) => `/teams/${team}/leader-transfer/accept`,
     LEADER_DECLINE: (team) => `/teams/${team}/leader-transfer/decline`,
+  },
+  TERMS: {
+    LIST: '/terms',
   },
   INVITATIONS: {
     MINE: '/me/invitations',

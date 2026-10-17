@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import { ChevronDown, Menu, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useMyInvitations, useMyTeams } from '../hooks/useTeams.js'
+import { teamHref } from '../utils/teams.js'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,7 +57,7 @@ function TeamsMenu({ canCreate }) {
         )}
         {teams.slice(0, RECENT_TEAMS).map((team) => (
           <DropdownMenuItem key={team.id} asChild className="cursor-pointer">
-            <Link to={`/teams/${team.code}`} className="flex items-center justify-between gap-3">
+            <Link to={teamHref(team)} className="flex items-center justify-between gap-3">
               <span className="truncate">{team.name}</span>
               <span className="font-mono text-xs text-muted-foreground">{team.code}</span>
             </Link>

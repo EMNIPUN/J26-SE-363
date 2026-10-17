@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
-import { useParams, Outlet } from 'react-router-dom'
+import { useParams, Outlet, Navigate } from 'react-router-dom'
+import { useMyTeams } from '../hooks/useTeams.js'
+import { teamHref } from '../utils/teams.js'
 import { useScope } from '../context/useScope.js'
 import NotFound from '../pages/NotFound.jsx'
 
@@ -10,6 +12,10 @@ import NotFound from '../pages/NotFound.jsx'
 export default function TeamScopeGuard() {
   const { teamId } = useParams()
   const { groups, selectedGroupId, setGroupId, isLoading } = useScope()
+  const teams = useMyTeams()
+  const pending = teams.data?.find(
+    (t) => t.status === 'pending' && (t.code.toLowerCase() === teamId?.toLowerCase() || t.id === teamId),
+  )
 
   const matchedGroup = groups.find(
     (g) => g.code?.toLowerCase() === teamId?.toLowerCase() || g.id === teamId,
@@ -21,6 +27,7 @@ export default function TeamScopeGuard() {
   }, [matchedGroup, selectedGroupId, setGroupId])
 
   if (isLoading) return <div className="min-h-[40svh]" />
+  if (pending) return <Navigate to={teamHref(pending)} replace /> // finish the setup first
   if (!matchedGroup) return <NotFound />
   return <Outlet />
 }

@@ -2,6 +2,7 @@ import PropTypes from 'prop-types'
 import { Link } from 'react-router-dom'
 import { AlertCircle } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { teamHref } from '../../utils/teams.js'
 
 /** Teams with something unfinished: no repository, no leader, invitations still unanswered. */
 export default function NeedsAttention({ items }) {
@@ -14,7 +15,7 @@ export default function NeedsAttention({ items }) {
         {items.map(({ key, team, message }) => (
           <li key={key}>
             <Link
-              to={`/teams/${team.code}`}
+              to={teamHref(team)}
               className="flex items-center gap-3 px-4 py-2.5 text-sm outline-none hover:bg-muted/40 focus-visible:bg-muted/40"
             >
               <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />

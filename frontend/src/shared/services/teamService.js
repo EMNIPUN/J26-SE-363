@@ -7,6 +7,10 @@ export const teamService = {
   getTeam: (team) => apiClient.get(ENDPOINTS.TEAMS.DETAIL(team)),
   createTeam: (payload) => apiClient.post(ENDPOINTS.TEAMS.CREATE, payload),
   updateTeam: (team, updates) => apiClient.patch(ENDPOINTS.TEAMS.DETAIL(team), updates),
+  // Setting a team up: createTeam is step 1, then the project, the people, and activateTeam last.
+  saveProject: (team, payload) => apiClient.put(ENDPOINTS.TEAMS.PROJECT(team), payload),
+  activateTeam: (team) => apiClient.post(ENDPOINTS.TEAMS.ACTIVATE(team)),
+  discardTeam: (team) => apiClient.delete(ENDPOINTS.TEAMS.DETAIL(team)),
 
   invite: (team, payload) => apiClient.post(ENDPOINTS.TEAMS.INVITATIONS(team), payload),
   resendInvitation: (team, invitationId) =>

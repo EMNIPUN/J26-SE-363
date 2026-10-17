@@ -9,9 +9,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { teamHref } from '../../utils/teams.js'
 import { TeamRoleBadge, TeamStatusBadge } from '../../components/TeamBadges.jsx'
 
-const teamPath = (team) => `/teams/${team.code}`
 
 /** Lecturers: every team in a table, with who is still to answer. */
 export function TeamsTable({ teams }) {
@@ -35,11 +35,11 @@ export function TeamsTable({ teams }) {
             <TableRow
               key={team.id}
               className="cursor-pointer"
-              onClick={() => navigate(teamPath(team))}
+              onClick={() => navigate(teamHref(team))}
             >
               <TableCell className="pl-4">
                 <Link
-                  to={teamPath(team)}
+                  to={teamHref(team)}
                   onClick={(event) => event.stopPropagation()}
                   className="font-medium text-foreground hover:underline"
                 >
@@ -76,7 +76,7 @@ export function TeamCards({ teams }) {
       {teams.map((team) => (
         <Link
           key={team.id}
-          to={teamPath(team)}
+          to={teamHref(team)}
           className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Card className="card-hover-lift h-full gap-3 p-4">

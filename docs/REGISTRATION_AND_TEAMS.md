@@ -29,8 +29,9 @@ Onboarding (first time only, 3 steps)
         v
 Home  /home   the teams you belong to, and invitations waiting for you
         |
-        +-- lecturer: Create team  /teams/new   (team, people, review)
-        |                -> invitations are emailed
+        +-- lecturer: Create team  /teams/new   (team, project, people, review)
+        |                each step is saved; the team is "pending" until the last one
+        |                -> invitations are emailed at the end
         |
         +-- student: Accept an invitation -> the team appears
         |
@@ -47,7 +48,8 @@ no account yet signs up first; after onboarding they are returned to the link.
 | Topic | Rule |
 | --- | --- |
 | Account type | Chosen once, in onboarding. There is no approval step. It cannot be changed afterwards. Administrators come from Keycloak (the `admin` realm role) and skip onboarding |
-| Creating teams | Lecturers only |
+| Creating teams | Lecturers only. A team is set up in four steps (team, project, people, review) and every step is a request to the Core API. Until the last one the team is **pending**: only its lecturer sees it, no invitation is emailed and none can be answered. The lecturer can leave and carry on from Home (it shows "Pending"), or discard it |
+| Terms | A team's term comes from a list. A lecturer can add a term from the dropdown (type it, choose "Add new"); lookups ignore case, so "2026-s1" finds "2026-S1" |
 | Lecturers in a team | Several are allowed. The creator adds others by invitation. They **evaluate**; they take no part in development |
 | One team per term | A student can be in one team per term (a team has a `term` such as `2026-S1`). Accepting a second team in the same term is refused |
 | Team leader | At most one, always a student member. The lecturer can flag one invited student; otherwise the **first student on the list** is flagged. The flag takes effect when that student accepts. If the flagged student declines, the student who joined first becomes leader. A team with students always has a leader |
@@ -89,13 +91,14 @@ Frontend map (`frontend/src/shared/`): `auth/` (`AuthContext`, `RequireAccount`)
 
 ## 4. Data model
 
-Added by migration `ec66f4d17052` (see `docs/SCHEMA_CHANGE_GUIDE.md`).
+Added by migrations `ec66f4d17052` and `d8a41c7e5b90` (see `docs/SCHEMA_CHANGE_GUIDE.md`).
 
 | Table | New in this feature |
 | --- | --- |
 | `users` | `email`, `institution`, `department`, `title`, `github_username` (unique, lower case), `consent_version`, `consent_at`, `onboarding_completed_at`. `role` is empty until onboarding is finished |
-| `groups` (shown as teams) | `term`, `status` (`forming` / `active`), `repo_url`, `created_by_id`, `leader_id`, `pending_leader_id` |
+| `groups` (shown as teams) | `term`, `status` (`pending` / `forming` / `active`), `repo_url`, `created_by_id`, `leader_id`, `pending_leader_id` |
 | `group_members` | `role` (`lecturer` / `member`), `term` (students only; `unique(user_id, term)` is the one-team-per-term rule), `joined_at` |
+| `terms` | New (migration `d8a41c7e5b90`): `name` (unique), `created_by_id`. Filled from the terms existing teams use |
 | `team_invitations` | New: team, `email`, role, `as_leader`, status (`pending` / `accepted` / `declined` / `revoked`), `token_hash` (SHA-256; the link secret is never stored), `expires_at`, `invited_by_id`. "Expired" is not stored: it is `expires_at` in the past |
 
 The leader and the pending leadership offer are columns on the team, not rows, so a team cannot
@@ -113,10 +116,15 @@ All under `/api/v1`, all require `Authorization: Bearer <token>`. Errors are
 | `PATCH /me/profile` | onboarded | Change details (not the role) |
 | `GET /me/teams` | onboarded | My teams |
 | `GET /me/invitations` | onboarded | Invitations waiting for my verified email |
-| `POST /teams` | lecturers | Create a team and its project, invite people |
+| `GET /terms` | anyone onboarded | The term list, newest first |
+| `POST /terms` | lecturers | Add a term (`409 term_exists` if it is there already) |
+| `POST /teams` | lecturers | Step 1: create a pending team (name, code, term). The term must be in the list |
+| `PUT /teams/{team}/project` | the team's lecturers | Step 2: the project's title and description |
+| `POST /teams/{team}/activate` | the team's lecturers | Last step: open the team and email the saved invitations (`400 setup_incomplete` without a project) |
+| `DELETE /teams/{team}` | the team's lecturers | Discard a team that is still pending |
 | `GET /teams/{team}` | members, admins | Team, members, and for lecturers the invitations. `{team}` is the id or the code |
-| `PATCH /teams/{team}` | lecturers (name), lecturers and the leader (repository) | Edit |
-| `POST /teams/{team}/invitations` | the team's lecturers | Invite students or lecturers |
+| `PATCH /teams/{team}` | lecturers (name, and the term while pending), lecturers and the leader (repository) | Edit |
+| `POST /teams/{team}/invitations` | the team's lecturers | Step 3, and later: invite students or lecturers. Safe to repeat. While the team is pending they are saved, not emailed |
 | `POST /teams/{team}/invitations/{id}/resend` | the team's lecturers | New link, new expiry |
 | `DELETE /teams/{team}/invitations/{id}` | the team's lecturers | Withdraw |
 | `DELETE /teams/{team}/members/{user}` | lecturers, or the person themselves | Remove or leave |
@@ -128,7 +136,7 @@ All under `/api/v1`, all require `Authorization: Bearer <token>`. Errors are
 
 Common error codes: `onboarding_required`, `role_not_allowed`, `lecturer_only`, `already_onboarded`,
 `consent_outdated`, `github_username_taken`, `student_number_taken`, `team_code_taken`,
-`already_in_team_for_term`, `role_mismatch`, `email_not_verified`, `invitation_wrong_account`,
+`already_in_team_for_term`, `unknown_term`, `term_exists`, `team_not_pending`, `team_pending`, `setup_incomplete`, `role_mismatch`, `email_not_verified`, `invitation_wrong_account`,
 `invitation_invalid`, `leader_must_transfer`, `last_lecturer`, `too_many_invitations`.
 
 Every route is behind authentication. `backend/server/tests/test_route_protection.py` fails if a

@@ -19,7 +19,7 @@ import TeamScopeRedirect from './shared/layout/TeamScopeRedirect.jsx'
 import NotFound from './shared/pages/NotFound.jsx'
 import OnboardingPage from './shared/pages/onboarding/OnboardingPage.jsx'
 import HomePage from './shared/pages/home/HomePage.jsx'
-import CreateTeamPage from './shared/pages/teams/CreateTeamPage.jsx'
+import TeamSetupPage from './shared/pages/teams/TeamSetupPage.jsx'
 import TeamMembersPage from './shared/pages/teams/TeamMembersPage.jsx'
 import InvitationPage from './shared/pages/invitations/InvitationPage.jsx'
 import TeamsPage from './shared/pages/teams/TeamsPage.jsx'
@@ -83,7 +83,8 @@ function AppContent() {
             <Route path="/home" element={<HomePage />} />
             <Route path="/teams" element={<TeamsPage />} />
             <Route element={<RequireRole allowedRoles={['instructor']} />}>
-              <Route path="/teams/new" element={<CreateTeamPage />} />
+              <Route path="/teams/new" element={<TeamSetupPage />} />
+              <Route path="/teams/new/:code" element={<TeamSetupPage />} />
             </Route>
             <Route path="/invitations" element={<InvitationPage />} />
             <Route path="/profile" element={<ProfilePage />} />

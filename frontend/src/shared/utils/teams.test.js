@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeInvitation, formatDate, needsAttention } from './teams.js'
+import { describeInvitation, formatDate, needsAttention, teamHref } from './teams.js'
 
 const team = (over) => ({
   id: 't1',
@@ -10,6 +10,13 @@ const team = (over) => ({
   pending_invitations: 0,
   my_role: 'lecturer',
   ...over,
+})
+
+describe('teamHref', () => {
+  it('opens a team, or its setup while it is pending', () => {
+    expect(teamHref({ code: 'A-1', status: 'active' })).toBe('/teams/A-1')
+    expect(teamHref({ code: 'A-1', status: 'pending' })).toBe('/teams/new/A-1')
+  })
 })
 
 describe('needsAttention', () => {
@@ -24,6 +31,11 @@ describe('needsAttention', () => {
       'has no repository linked',
       'has 2 invitations waiting for a reply',
     ])
+  })
+
+  it('points a pending team at its setup and says nothing else about it', () => {
+    const items = needsAttention([team({ status: 'pending', repo_url: null, leader: null })], true)
+    expect(items.map((item) => item.message)).toEqual(['is waiting for you to finish setting it up'])
   })
 
   it('does not ask for a leader before any student is in the team', () => {
