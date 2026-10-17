@@ -69,6 +69,7 @@ export default function InviteDialog({ team, hasLeader, open, onOpenChange }) {
         <div className="grid gap-5">
           <EmailListEditor
             label="Students"
+            hint="Type or paste emails and press space after each."
             emails={students}
             onChange={setStudents}
             leader={leader}

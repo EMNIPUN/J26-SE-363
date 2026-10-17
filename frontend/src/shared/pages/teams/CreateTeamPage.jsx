@@ -171,7 +171,7 @@ export default function CreateTeamPage() {
           <div className="grid gap-6">
             <EmailListEditor
               label="Students"
-              hint="Paste emails, separated by lines or commas. They get an invitation to accept."
+              hint="Type or paste emails and press space after each. The crown marks the team leader."
               emails={students}
               onChange={setStudents}
               leader={leader}
