@@ -1,0 +1,117 @@
+"""Sends the application's emails without ever failing the request that triggered them."""
+
+import logging
+import secrets
+from functools import lru_cache
+
+from app.core.config import settings
+from app.services.email import templates
+from app.services.email.senders import (
+    ConsoleEmailSender,
+    Email,
+    EmailError,
+    EmailSender,
+    SmtpEmailSender,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class EmailService:
+    def __init__(self, sender: EmailSender, base_url: str):
+        self._sender = sender
+        self._base_url = base_url.rstrip("/")
+
+    # --- delivery ---------------------------------------------------------------------------
+
+    def deliver(self, message: Email) -> None:
+        """Send one message. Meant for FastAPI background tasks: errors are logged, not raised,
+        because the action that caused the email has already succeeded."""
+        try:
+            self._sender.send(message)
+        except EmailError:
+            logger.exception("Email delivery failed")
+        except Exception:  # a sender bug must not crash the worker thread
+            logger.exception("Unexpected error while sending an email")
+
+    # --- messages ---------------------------------------------------------------------------
+
+    def team_invitation(
+        self,
+        to: str,
+        *,
+        inviter_name: str,
+        team_name: str,
+        as_lecturer: bool,
+        token: str,
+        expires_in_days: int,
+    ) -> Email:
+        return templates.team_invitation(
+            to,
+            inviter_name=inviter_name,
+            team_name=team_name,
+            as_lecturer=as_lecturer,
+            link=f"{self._base_url}/invitations?token={token}",
+            expires_in_days=expires_in_days,
+        )
+
+    def invitation_response(
+        self, to: str, *, member_name: str, team_name: str, accepted: bool
+    ) -> Email:
+        return templates.invitation_response(
+            to,
+            member_name=member_name,
+            team_name=team_name,
+            accepted=accepted,
+            link=f"{self._base_url}/home",
+        )
+
+    def leader_transfer_request(
+        self, to: str, *, from_name: str, team_name: str
+    ) -> Email:
+        return templates.leader_transfer_request(
+            to, from_name=from_name, team_name=team_name, link=f"{self._base_url}/home"
+        )
+
+    def leader_transfer_result(
+        self, to: str, *, member_name: str, team_name: str, accepted: bool
+    ) -> Email:
+        return templates.leader_transfer_result(
+            to,
+            member_name=member_name,
+            team_name=team_name,
+            accepted=accepted,
+            link=f"{self._base_url}/home",
+        )
+
+    def verification_code(
+        self, to: str, *, code: str, purpose: str, minutes_valid: int
+    ) -> Email:
+        return templates.verification_code(
+            to, code=code, purpose=purpose, minutes_valid=minutes_valid
+        )
+
+
+def generate_code(length: int = 6) -> str:
+    """A random numeric one-time code, for `verification_code` emails."""
+    return "".join(secrets.choice("0123456789") for _ in range(length))
+
+
+def build_sender() -> EmailSender:
+    if settings.EMAIL_BACKEND == "smtp":
+        return SmtpEmailSender(
+            host=settings.SMTP_HOST or "",
+            port=settings.SMTP_PORT,
+            from_address=settings.EMAIL_FROM_ADDRESS,
+            from_name=settings.EMAIL_FROM_NAME,
+            username=settings.SMTP_USERNAME,
+            password=settings.SMTP_PASSWORD,
+            security=settings.SMTP_SECURITY,
+        )
+    return ConsoleEmailSender()
+
+
+@lru_cache
+def get_email_service() -> EmailService:
+    """FastAPI dependency. Tests replace it with `app.dependency_overrides`."""
+    return EmailService(build_sender(), settings.APP_BASE_URL)
