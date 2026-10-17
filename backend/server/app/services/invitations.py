@@ -234,6 +234,22 @@ def _in_team(group: Group, invitation_id) -> TeamInvitation:
     return invitation
 
 
+def sent_by(db: Session, user: User) -> list[TeamInvitation]:
+    """Invitations this person sent that are still open, oldest first, for teams that are open."""
+    rows = db.scalars(
+        select(TeamInvitation)
+        .join(Group, Group.id == TeamInvitation.group_id)
+        .where(
+            TeamInvitation.invited_by_id == user.id,
+            TeamInvitation.status == InvitationStatus.PENDING,
+            Group.status != TeamStatus.PENDING,
+        )
+        .order_by(TeamInvitation.created_at.asc())
+        .limit(100)
+    ).all()
+    return [row for row in rows if rules.is_open(row)]
+
+
 # --- the invited person ----------------------------------------------------------------------
 
 

@@ -10,6 +10,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.invitations import router as invitations_router
 from app.api.v1.jobs import router as jobs_router
 from app.api.v1.me import router as me_router
+from app.api.v1.students import router as students_router
 from app.api.v1.teams import router as teams_router
 from app.api.v1.terms import router as terms_router
 from app.api.v1.users import router as users_router
@@ -22,6 +23,7 @@ public_router = APIRouter()
 protected_router = APIRouter(dependencies=[Depends(get_current_user)])
 protected_router.include_router(auth_router)
 protected_router.include_router(me_router)
+protected_router.include_router(students_router)
 protected_router.include_router(teams_router)
 protected_router.include_router(terms_router)
 protected_router.include_router(users_router)

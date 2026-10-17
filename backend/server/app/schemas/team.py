@@ -45,6 +45,9 @@ class InviteList(BaseModel):
     """Who to invite. Students come first on purpose: the first one is the default leader."""
 
     students: list[str] = Field(default_factory=list, max_length=MAX_STUDENTS)
+    # Students picked from "students without a team" (GET /students/available), by id. Their
+    # addresses are looked up here, so the lecturer never sees them.
+    student_ids: list[uuid.UUID] = Field(default_factory=list, max_length=MAX_STUDENTS)
     lecturers: list[str] = Field(default_factory=list, max_length=MAX_LECTURERS)
     # One of `students`; becomes the team leader when they accept.
     leader_email: str | None = None
@@ -173,8 +176,11 @@ class TeamSummary(BaseModel):
     leader: PersonOut | None
     student_count: int
     lecturer_count: int
-    # Lecturers only: invitations still waiting for an answer.
+    # Lecturers only: invitations still waiting for an answer, and how many of them are students.
     pending_invitations: int | None
+    pending_student_invitations: int | None
+    # Is a leadership offer waiting for the viewer to accept?
+    leadership_offer_to_me: bool
     repo_url: str | None
 
 
@@ -219,3 +225,34 @@ class InvitationResult(BaseModel):
 
 class InviteSummary(BaseModel):
     results: list[InvitationResult]
+
+
+class SentInvitation(BaseModel):
+    """An invitation the viewer sent that nobody has answered yet, for the home page."""
+
+    id: uuid.UUID
+    team_id: uuid.UUID
+    team_code: str
+    team_name: str
+    email: str
+    role: Literal["lecturer", "member"]
+    created_at: datetime
+    expires_at: datetime
+
+
+class AvailableStudent(BaseModel):
+    """A student with no team this term. No email: invite them by id."""
+
+    id: uuid.UUID
+    name: str
+    institution: str | None
+    github_username: str | None
+    picture: str | None
+
+
+class AvailableStudents(BaseModel):
+    term: str
+    # The viewer's institution; students are listed only when it matches theirs. None when the
+    # viewer has not given one, in which case nobody is listed.
+    institution: str | None
+    students: list[AvailableStudent]

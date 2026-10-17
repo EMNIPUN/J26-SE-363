@@ -40,7 +40,7 @@ from app.schemas.team import (
     TeamSummary,
     TeamUpdate,
 )
-from app.services import invitations, team_views, teams
+from app.services import invitations, students, team_views, teams
 from app.services.email import EmailService, get_email_service
 
 router = APIRouter(tags=["Teams"])
@@ -155,12 +155,15 @@ def invite_people(
 ) -> InviteSummary:
     group, member = teams.team_for(db, team, account.user)
     teams.require_lecturer(member)
+    # Students picked from the "without a team" list come in by id; their addresses stay here.
+    picked = students.emails_for(db, account.user, group, body.student_ids)
+    named = [e for e in picked if e not in body.students]
     invited = invitations.invite(
         db,
         group,
         account.user,
         mailer,
-        students=body.students,
+        students=[*body.students, *named],
         lecturers=body.lecturers,
         leader_email=body.leader_email,
     )

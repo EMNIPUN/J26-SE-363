@@ -1,6 +1,7 @@
 """Invitations, from the invited person's side.
 
 GET  /api/v1/me/invitations               invitations waiting for me
+GET  /api/v1/invitations/sent             invitations I sent that nobody has answered (lecturers)
 POST /api/v1/invitations/lookup           what the link in an invitation email is about
 POST /api/v1/invitations/{id}/accept      join the team
 POST /api/v1/invitations/{id}/decline     say no
@@ -13,17 +14,19 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
+from shared.contracts import UserRole
 from sqlalchemy.orm import Session
 
-from app.api.deps import Account, get_onboarded_account
+from app.api.deps import Account, get_onboarded_account, require_account_role
 from app.database.session import get_db
-from app.schemas.team import InvitationLookup, MyInvitation, TeamSummary
+from app.schemas.team import InvitationLookup, MyInvitation, SentInvitation, TeamSummary
 from app.services import invitations, team_views
 from app.services.email import EmailService, get_email_service
 
 router = APIRouter(tags=["Invitations"])
 
 Onboarded = Annotated[Account, Depends(get_onboarded_account)]
+Lecturer = Annotated[Account, Depends(require_account_role(UserRole.LECTURER))]
 Db = Annotated[Session, Depends(get_db)]
 Mailer = Annotated[EmailService, Depends(get_email_service)]
 
@@ -36,6 +39,17 @@ def my_invitations(account: Onboarded, db: Db) -> list[MyInvitation]:
     if email is None:
         return []
     return [team_views.my_invitation(i) for i in invitations.open_for_email(db, email)]
+
+
+@router.get(
+    "/invitations/sent",
+    response_model=list[SentInvitation],
+    summary="Invitations I sent that are waiting for an answer",
+)
+def sent_invitations(account: Lecturer, db: Db) -> list[SentInvitation]:
+    return [
+        team_views.sent_invitation(i) for i in invitations.sent_by(db, account.user)
+    ]
 
 
 @router.post(

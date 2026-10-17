@@ -115,6 +115,8 @@ All under `/api/v1`, all require `Authorization: Bearer <token>`. Errors are
 | `GET /me` | anyone signed in | The account (created on first call), role, whether onboarding is done |
 | `POST /me/onboarding` | not yet onboarded | Choose student or lecturer, give details, accept the consent version |
 | `PATCH /me/profile` | onboarded | Change details (not the role) |
+| `GET /students/available?term=` | lecturers | Students with no team that term, **from the lecturer's own institution** (same text, ignoring case); name, institution, GitHub login and picture only, no email. Empty if the lecturer gave no institution |
+| `GET /invitations/sent` | lecturers | Invitations I sent that are still waiting (teams that are set up), oldest first |
 | `PUT /me/picture` | anyone signed in | Upload a profile picture: the image itself as the request body (JPEG, PNG or WebP, 500 KB at most; the web app sends a 256 px JPEG) |
 | `DELETE /me/picture` | anyone signed in | Remove the upload; the provider's picture, if any, shows again |
 | `GET /users/{id}/avatar` | onboarded | An uploaded picture. Only its owner, people in a team with them and administrators; anyone else gets 404 |
@@ -128,7 +130,7 @@ All under `/api/v1`, all require `Authorization: Bearer <token>`. Errors are
 | `DELETE /teams/{team}` | the team's lecturers | Discard a team that is still pending |
 | `GET /teams/{team}` | members, admins | Team, members, and for lecturers the invitations. `{team}` is the id or the code |
 | `PATCH /teams/{team}` | lecturers (name, and the term while pending), lecturers and the leader (repository) | Edit |
-| `POST /teams/{team}/invitations` | the team's lecturers | Step 3, and later: invite students or lecturers. Safe to repeat. While the team is pending they are saved, not emailed |
+| `POST /teams/{team}/invitations` | the team's lecturers | Step 3, and later: invite students or lecturers, by email or (`student_ids`) from the list above. Safe to repeat. While the team is pending they are saved, not emailed |
 | `POST /teams/{team}/invitations/{id}/resend` | the team's lecturers | New link, new expiry |
 | `DELETE /teams/{team}/invitations/{id}` | the team's lecturers | Withdraw |
 | `DELETE /teams/{team}/members/{user}` | lecturers, or the person themselves | Remove or leave |

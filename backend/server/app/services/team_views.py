@@ -9,6 +9,7 @@ from app.schemas.team import (
     MyInvitation,
     PersonOut,
     ProjectOut,
+    SentInvitation,
     TeamDetail,
     TeamRole,
     TeamSummary,
@@ -61,6 +62,14 @@ def summary(group: Group, viewer: User, viewer_role: UserRole | None) -> TeamSum
         pending_invitations=sum(1 for i in group.invitations if rules.is_open(i))
         if staff
         else None,
+        pending_student_invitations=sum(
+            1
+            for i in group.invitations
+            if rules.is_open(i) and i.role is MemberRole.MEMBER
+        )
+        if staff
+        else None,
+        leadership_offer_to_me=group.pending_leader_id == viewer.id,
         repo_url=group.repo_url,
     )
 
@@ -134,4 +143,18 @@ def my_invitation(invitation: TeamInvitation) -> MyInvitation:
         team_name=group.name,
         term=group.term,
         project_title=project.title if project else None,
+    )
+
+
+def sent_invitation(invitation: TeamInvitation) -> SentInvitation:
+    group = invitation.group
+    return SentInvitation(
+        id=invitation.id,
+        team_id=group.id,
+        team_code=group.code,
+        team_name=group.name,
+        email=invitation.email,
+        role=invitation.role.value,
+        created_at=rules.as_utc(invitation.created_at),
+        expires_at=rules.as_utc(invitation.expires_at),
     )
