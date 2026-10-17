@@ -1,7 +1,7 @@
 /**
  * Centralized API Endpoint Registry
  *
- * Single source of truth for all backend route paths across the MENTOR architecture.
+ * Single source of truth for all backend route paths across the SELVIA architecture.
  * Developers never hardcode string URLs inside components.
  */
 export const ENDPOINTS = {
@@ -10,6 +10,33 @@ export const ENDPOINTS = {
     LOGOUT: '/auth/logout',
     REFRESH: '/auth/refresh',
     ME: '/auth/me',
+  },
+  BATCHES: {
+    LIST: '/v1/batches',
+    CREATE: '/v1/batches',
+    DETAIL: (id) => `/v1/batches/${id}`,
+    UPDATE: (id) => `/v1/batches/${id}`,
+  },
+  PROJECTS: {
+    LIST: '/v1/projects',
+    CREATE: '/v1/projects',
+    DETAIL: (id) => `/v1/projects/${id}`,
+  },
+  TEAMS: {
+    LIST: '/v1/teams',
+    BULK: '/v1/teams/bulk',
+    DETAIL: (id) => `/v1/teams/${id}`,
+    ADD_MEMBER: (id) => `/v1/teams/${id}/members`,
+    REMOVE_MEMBER: (teamId, studentId) => `/v1/teams/${teamId}/members/${studentId}`,
+  },
+  STUDENTS: {
+    ME: '/v1/students/me',
+    LINK_GITHUB: '/v1/students/me/github',
+    DETAIL: (id) => `/v1/students/${id}`,
+  },
+  JOBS: {
+    PUBLISH: '/v1/jobs',
+    DETAIL: (id) => `/v1/jobs/${id}`,
   },
   PLANNING: {
     PROJECTS: '/planning/projects',

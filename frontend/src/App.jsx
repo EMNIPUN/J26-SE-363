@@ -7,9 +7,13 @@ import { Toaster } from './components/ui/sonner.jsx'
 import { ModalProvider } from './shared/context/ModalContext.jsx'
 import SplashScreen from './shared/components/SplashScreen.jsx'
 import { AuthProvider } from './shared/auth/AuthContext.jsx'
+import { ScopeProvider } from './shared/context/ScopeContext.jsx'
 import { useAuth } from './shared/auth/useAuth.js'
 import RequireAuth from './shared/auth/RequireAuth.jsx'
+import RequireRole from './shared/auth/RequireRole.jsx'
 import DashboardShell from './shared/layout/DashboardShell.jsx'
+import TeamScopeGuard from './shared/layout/TeamScopeGuard.jsx'
+import TeamScopeRedirect from './shared/layout/TeamScopeRedirect.jsx'
 import NotFound from './shared/pages/NotFound.jsx'
 import StudentHome from './shared/pages/dashboards/StudentHome.jsx'
 import InstructorHome from './shared/pages/dashboards/InstructorHome.jsx'
@@ -19,6 +23,8 @@ import PerformanceRoutes from './modules/performance/routes.jsx'
 import TutorRoutes from './modules/tutor/routes.jsx'
 import SecurityRoutes from './modules/security/routes.jsx'
 import AdminRoutes from './modules/admin/routes.jsx'
+import ProjectSetupWizardPage from './shared/pages/ProjectSetupWizardPage.jsx'
+import { WizardProvider } from './shared/context/WizardContext.jsx'
 
 function RootRedirect() {
   const { user, isInitialized, isLoggingOut, loginWithKeycloak } = useAuth()
@@ -33,7 +39,19 @@ function RootRedirect() {
     return <div className="min-h-screen bg-background" />
   }
 
-  return <Navigate to={`/${user.role}`} replace />
+  return <Navigate to="/app" replace />
+}
+
+function RoleDashboard() {
+  const { user } = useAuth()
+
+  if (user?.role === 'admin') {
+    return <AdminHome />
+  }
+  if (user?.role === 'instructor') {
+    return <InstructorHome />
+  }
+  return <StudentHome />
 }
 
 function AppContent() {
@@ -48,14 +66,34 @@ function AppContent() {
 
         <Route element={<RequireAuth />}>
           <Route element={<DashboardShell />}>
-            <Route path="/student" element={<StudentHome />} />
-            <Route path="/instructor" element={<InstructorHome />} />
-            <Route path="/admin" element={<AdminHome />} />
-            <Route path="/admin/*" element={<AdminRoutes />} />
-            <Route path="/planning/*" element={<PlanningRoutes />} />
-            <Route path="/performance/*" element={<PerformanceRoutes />} />
-            <Route path="/tutor/*" element={<TutorRoutes />} />
-            <Route path="/security/*" element={<SecurityRoutes />} />
+            {/* Team-Scoped Core Application Routes */}
+            <Route path="/teams/:teamId" element={<TeamScopeGuard />}>
+              <Route index element={<RoleDashboard />} />
+              <Route path="app" element={<RoleDashboard />} />
+              <Route path="projects/new" element={<ProjectSetupWizardPage />} />
+              <Route path="planning/*" element={<PlanningRoutes />} />
+              <Route path="performance/*" element={<PerformanceRoutes />} />
+              <Route path="tutor/*" element={<TutorRoutes />} />
+              <Route path="security/*" element={<SecurityRoutes />} />
+            </Route>
+
+            {/* Admin-only system routes */}
+            <Route element={<RequireRole allowedRoles={['admin']} />}>
+              <Route path="/admin/*" element={<AdminRoutes />} />
+            </Route>
+
+            {/* Backward-compatibility / Unscoped URL Redirectors */}
+            <Route path="/app" element={<TeamScopeRedirect />} />
+            <Route path="/projects/new" element={<TeamScopeRedirect />} />
+            <Route path="/planning/*" element={<TeamScopeRedirect />} />
+            <Route path="/performance/*" element={<TeamScopeRedirect />} />
+            <Route path="/tutor/*" element={<TeamScopeRedirect />} />
+            <Route path="/security/*" element={<TeamScopeRedirect />} />
+
+            {/* Legacy bookmark redirects */}
+            <Route path="/student" element={<Navigate to="/app" replace />} />
+            <Route path="/instructor" element={<Navigate to="/app" replace />} />
+
             <Route path="*" element={<NotFound />} />
           </Route>
         </Route>
@@ -69,11 +107,15 @@ function AppContent() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="system" storageKey="mentor-theme">
+      <ThemeProvider defaultTheme="dark" storageKey="selvia-theme">
         <ModalProvider>
           <Toaster />
           <AuthProvider>
-            <AppContent />
+            <ScopeProvider>
+              <WizardProvider>
+                <AppContent />
+              </WizardProvider>
+            </ScopeProvider>
           </AuthProvider>
         </ModalProvider>
       </ThemeProvider>

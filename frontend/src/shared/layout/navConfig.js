@@ -2,125 +2,122 @@ import {
   LayoutDashboard,
   BookOpen,
   BarChart3,
-  Bot,
   ShieldCheck,
+  Bot,
   Users,
   Settings,
-} from 'lucide-react'
+} from "lucide-react";
 
 // One nav tree per role. `to` on a parent makes the whole group a link too
 // (used for single-page sections); `children` renders an expandable list.
-export function getNavForRole(role) {
-  if (role === 'student') {
+export function getNavForRole(role, teamCode = "J26-SE-363") {
+  const t = (path) => `/teams/${teamCode}${path}`;
+
+  if (role === "student") {
     return [
-      { label: 'Overview', icon: LayoutDashboard, to: '/student' },
+      { label: "Overview", icon: LayoutDashboard, to: t("/app") },
       {
-        label: 'Project Planning',
+        label: "Project Planning",
         icon: BookOpen,
+        color: "#2563eb",
+        children: [
+          { label: 'Dashboard', to: t('/planning/dashboard') },
+          { label: 'SRS Quality', to: t('/planning/requirements/srs-quality') },
+          { label: 'Decomposition', to: t('/planning/requirements/decomposition') },
+          { label: 'Effort Estimation', to: t('/planning/requirements/estimation') },
+          { label: 'Sprint Management', to: t('/planning/sprint-management') },
+        ],
+      },
+      {
+        label: "Performance",
+        icon: BarChart3,
+        color: '#2563eb',
+        to: t('/performance/my-progress'),
+      },
+      {
+        label: "Tutor Agent",
+        icon: Bot,
+        color: "#0891b2",
+        to: t("/tutor/landing"),
+      },
+      {
+        label: "Project Security",
+        icon: ShieldCheck,
         color: '#2563eb',
         children: [
-          { label: 'Dashboard', to: '/planning/dashboard' },
-          { label: 'Blackboard', to: '/planning/blackboard' },
-          { label: 'Traceability', to: '/planning/requirements/traceability' },
-          { label: 'Estimation', to: '/planning/requirements/estimation' },
-          { label: 'SRS Quality', to: '/planning/requirements/srs-quality' },
-          { label: 'Decomposition', to: '/planning/requirements/decomposition' },
+          { label: "Dashboard", to: t("/security/dashboard") },
+          { label: "Scan Report", to: t("/security/scan-report") },
+          { label: "Remediation", to: t("/security/remediation") },
         ],
       },
       {
-        label: 'Performance',
-        icon: BarChart3,
-        color: '#7c3aed',
-        to: '/performance/student/my-progress',
-      },
-      {
-        label: 'AI Tutor',
+        label: 'Tutor Agent',
         icon: Bot,
-        color: '#16a34a',
+        color: '#2563eb',
         children: [
-          { label: 'Landing', to: '/tutor/landing' },
-          { label: 'Chat', to: '/tutor/chat' },
-          { label: 'Nudges', to: '/tutor/nudges' },
-        ],
-      },
-      {
-        label: 'Project Security',
-        icon: ShieldCheck,
-        color: '#dc2626',
-        children: [
-          { label: 'Dashboard', to: '/security/dashboard' },
-          { label: 'Scan Report', to: '/security/scan-report' },
-          { label: 'Remediation', to: '/security/remediation' },
+          { label: 'Dashboard', to: t('/tutor/landing') },
+          { label: 'Chat', to: t('/tutor/chat') },
+          { label: 'Nudges', to: t('/tutor/nudges') },
         ],
       },
     ]
   }
 
-  if (role === 'instructor') {
+  if (role === "instructor") {
     return [
-      { label: 'Overview', icon: LayoutDashboard, to: '/instructor' },
+      { label: "Overview", icon: LayoutDashboard, to: t("/app") },
       {
-        label: 'Project Planning',
+        label: "Project Planning",
         icon: BookOpen,
+        color: "#2563eb",
+        children: [
+          { label: 'Dashboard', to: t('/planning/instructor/dashboard') },
+          { label: 'Projects', to: t('/planning/instructor/projects') },
+          { label: 'Groups', to: t('/planning/instructor/groups') },
+          { label: 'Arbitration Oversight', to: t('/planning/instructor/arbitration') },
+        ],
+      },
+      {
+        label: "Performance",
+        icon: BarChart3,
         color: '#2563eb',
         children: [
-          { label: 'Dashboard', to: '/planning/instructor/dashboard' },
-          { label: 'Projects', to: '/planning/instructor/projects' },
-          { label: 'Groups', to: '/planning/instructor/groups' },
+          { label: "Dashboard", to: t("/performance/dashboard") },
+          { label: "Student Detail", to: t("/performance/students") },
+          { label: "Assessments", to: t("/performance/assessments") },
+          { label: "Reports", to: t("/performance/reports") },
         ],
       },
       {
-        label: 'Performance',
-        icon: BarChart3,
-        color: '#7c3aed',
-        children: [
-          { label: 'Dashboard', to: '/performance/instructor/dashboard' },
-          { label: 'Student Detail', to: '/performance/instructor/student-detail' },
-          { label: 'Assessments', to: '/performance/instructor/assessments' },
-          { label: 'Reports', to: '/performance/instructor/reports' },
-        ],
-      },
-      {
-        label: 'AI Tutor',
-        icon: Bot,
-        color: '#16a34a',
-        children: [
-          { label: 'Landing', to: '/tutor/landing' },
-          { label: 'Chat', to: '/tutor/chat' },
-          { label: 'Nudges', to: '/tutor/nudges' },
-        ],
-      },
-      {
-        label: 'Security',
+        label: "Security",
         icon: ShieldCheck,
-        color: '#dc2626',
+        color: '#2563eb',
         children: [
-          { label: 'Dashboard', to: '/security/dashboard' },
-          { label: 'Scan Report', to: '/security/scan-report' },
-          { label: 'Remediation', to: '/security/remediation' },
+          { label: "Dashboard", to: t("/security/dashboard") },
+          { label: "Scan Report", to: t("/security/scan-report") },
+          { label: "Remediation", to: t("/security/remediation") },
         ],
       },
-    ]
+    ];
   }
 
   // admin
   return [
-    { label: 'Overview', icon: LayoutDashboard, to: '/admin' },
-    { label: 'Users', icon: Users, to: '/admin/users' },
-    { label: 'Settings', icon: Settings, to: '/admin/settings' },
+    { label: "Overview", icon: LayoutDashboard, to: t("/app") },
+    { label: "Users", icon: Users, to: "/admin/users" },
+    { label: "Settings", icon: Settings, to: "/admin/settings" },
     {
-      label: 'Project Planning',
+      label: "Project Planning",
       icon: BookOpen,
-      color: '#2563eb',
-      to: '/planning/instructor/dashboard',
+      color: "#2563eb",
+      to: t("/planning/dashboard"),
     },
     {
-      label: 'Performance',
+      label: "Performance",
       icon: BarChart3,
-      color: '#7c3aed',
-      to: '/performance/instructor/dashboard',
+      color: '#2563eb',
+      to: t('/performance/dashboard'),
     },
-    { label: 'AI Tutor', icon: Bot, color: '#16a34a', to: '/tutor/landing' },
-    { label: 'Security', icon: ShieldCheck, color: '#dc2626', to: '/security/dashboard' },
+    { label: 'Security', icon: ShieldCheck, color: '#2563eb', to: t('/security/dashboard') },
   ]
 }

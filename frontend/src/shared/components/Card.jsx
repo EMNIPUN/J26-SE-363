@@ -23,7 +23,7 @@ export default function Card({
   }
 
   return (
-    <ShadcnCard className={`p-6 shadow-sm border border-border bg-card text-card-foreground ${className}`} {...props}>
+    <ShadcnCard className={`p-6 card-elevated ring-0 border border-border/60 bg-card text-card-foreground ${className}`} {...props}>
       {children}
     </ShadcnCard>
   )

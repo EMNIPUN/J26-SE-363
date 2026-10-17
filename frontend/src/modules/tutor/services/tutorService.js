@@ -4,7 +4,7 @@ import { ENDPOINTS } from '@/shared/api/endpoints.js'
 /**
  * AI Tutor & Multi-Agent Orchestration Service
  *
- * Encapsulates network operations for conversational AI mentorship,
+ * Encapsulates network operations for conversational AI tutoring,
  * session transcripts, and automated multi-agent code/task reviews.
  */
 export const tutorService = {
@@ -16,7 +16,7 @@ export const tutorService = {
   },
 
   /**
-   * Send message to the AI Mentor Agent
+   * Send message to the SELVIA AI Tutor Agent
    * @param {string|number} sessionId
    * @param {{ message: string, context?: Object }} payload
    */
