@@ -26,7 +26,7 @@ SERVER_DIR = Path(__file__).resolve().parents[1]
 # The tables the security revision secures; later tables enable RLS in their own migration, which
 # test_every_model_table_and_the_version_table_get_rls checks.
 SECURITY_TABLES = {"users", "groups", "group_members", "projects", "project_documents", "agent_runs"}
-APP_TABLES = SECURITY_TABLES | {"team_invitations"}
+APP_TABLES = SECURITY_TABLES | {"team_invitations", "terms"}
 INITIAL_REVISION = "c9da91ebdddb"
 SECURITY_REVISION = "4f6d2a9c8e1b"
 SECURED_TABLES = SECURITY_TABLES | {"alembic_version"}
@@ -137,8 +137,10 @@ def test_postgres_upgrade_sql_creates_only_application_tables():
     assert "procrastinate" not in sql
     # Upgrades never destroy anything. (DROP NOT NULL only relaxes a rule, so a bare "DROP "
     # check would be too strict.)
-    for statement in ("DROP TABLE", "DROP COLUMN", "DROP INDEX", "DROP CONSTRAINT", "DROP TYPE"):
+    for statement in ("DROP TABLE", "DROP COLUMN", "DROP INDEX", "DROP TYPE"):
         assert statement not in sql
+    # The one constraint that is replaced is the team status check, to allow 'pending'.
+    assert sql.count("DROP CONSTRAINT") == 1 and "DROP CONSTRAINT ck_groups_status" in sql
     assert "JSONB" in sql
     assert sql.count("CHECK (status IN ('queued', 'running', 'succeeded', 'failed'))") == 1
     assert "CREATE TYPE" not in sql

@@ -15,13 +15,16 @@ if TYPE_CHECKING:
 
 
 class TeamStatus(str, Enum):
+    # Being set up by its lecturer: nobody else sees it and its invitations are not sent yet.
+    PENDING = "pending"
     FORMING = "forming"  # created, nobody has accepted yet
     ACTIVE = "active"  # at least one student has joined
 
 
 class MemberRole(str, Enum):
     LECTURER = "lecturer"  # evaluates the team, takes no part in development
-    MEMBER = "member"  # a student; the team leader is a member named by `Group.leader_id`
+    # A student. The team leader is a member named by `Group.leader_id`.
+    MEMBER = "member"
 
 
 class Group(TimestampMixin, Base):
@@ -43,7 +46,9 @@ class Group(TimestampMixin, Base):
         ForeignKey("users.id", ondelete="SET NULL")
     )
     # One leader per team: a single column cannot hold two people. Must be a student member.
-    leader_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    leader_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
     # Member the leader offered the role to; becomes `leader_id` once they accept.
     pending_leader_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
@@ -69,7 +74,9 @@ class GroupMember(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    group_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("groups.id", ondelete="CASCADE"))
+    group_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("groups.id", ondelete="CASCADE")
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )

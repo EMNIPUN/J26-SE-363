@@ -22,6 +22,7 @@ from app.models import (
     InvitationStatus,
     MemberRole,
     TeamInvitation,
+    TeamStatus,
     User,
 )
 from app.schemas.team import InvitationResult
@@ -57,6 +58,10 @@ def invite(
             "leader_exists",
             "This team already has a leader. Ask the leader to transfer leadership.",
         )
+    if leader_email is None and students and not _has_leader_flag(group):
+        leader_email = students[
+            0
+        ]  # nobody was named: the first student on the list leads
     own = (inviter.email or "").lower()
     if own and own in {*students, *lecturers}:
         raise bad_request(
@@ -83,6 +88,8 @@ def invite(
         as_leader = role is MemberRole.MEMBER and address == leader_email
         existing = next((i for i in group.invitations if i.email == address), None)
         if existing is not None and rules.is_open(existing):
+            if as_leader:  # the lecturer changed their mind about who leads
+                existing.as_leader = True
             results.append(InvitationResult(email=address, outcome="already_invited"))
             continue
 
@@ -110,18 +117,49 @@ def invite(
             existing.invited_by_id = inviter.id
             outcome = "reinvited"
         results.append(InvitationResult(email=address, outcome=outcome))
-        emails.append(
-            email_service.team_invitation(
-                address,
-                inviter_name=inviter.name,
-                team_name=group.name,
-                as_lecturer=role is MemberRole.LECTURER,
-                token=raw,
-                expires_in_days=settings.INVITATION_TTL_DAYS,
+        if (
+            group.status is not TeamStatus.PENDING
+        ):  # a pending team's mail waits for activation
+            emails.append(
+                email_service.team_invitation(
+                    address,
+                    inviter_name=inviter.name,
+                    team_name=group.name,
+                    as_lecturer=role is MemberRole.LECTURER,
+                    token=raw,
+                    expires_in_days=settings.INVITATION_TTL_DAYS,
+                )
             )
-        )
     db.flush()
     return Invited(results, emails)
+
+
+def _has_leader_flag(group: Group) -> bool:
+    """Does the team already have a leader, or an open invitation that will make one?"""
+    return group.leader_id is not None or any(
+        i.as_leader and rules.is_open(i) for i in group.invitations
+    )
+
+
+def ensure_leader_flag(group: Group) -> None:
+    """If invitations were withdrawn along the way, the earliest remaining student leads."""
+    if _has_leader_flag(group):
+        return
+    open_students = [
+        i for i in group.invitations if i.role is MemberRole.MEMBER and rules.is_open(i)
+    ]
+    if open_students:
+        first = min(open_students, key=lambda i: (rules.as_utc(i.created_at), i.email))
+        first.as_leader = True
+
+
+def send_open(group: Group, inviter: User, email_service: EmailService) -> list[Email]:
+    """A fresh link for every invitation still waiting, e.g. when a pending team is activated."""
+    return [
+        _reissue(group, invitation, inviter, email_service)
+        for invitation in group.invitations
+        if rules.is_open(invitation)
+    ]
 
 
 def _check_quota(db: Session, inviter: User, adding: int) -> None:
@@ -158,8 +196,21 @@ def resend(
     group: Group, invitation_id, inviter: User, email_service: EmailService
 ) -> Email:
     invitation = _in_team(group, invitation_id)
+    if group.status is TeamStatus.PENDING:
+        raise conflict(
+            "team_pending", "Invitations are sent when the team's setup is finished"
+        )
     if invitation.status is not InvitationStatus.PENDING:
         raise conflict("invitation_closed", "This invitation has already been answered")
+    return _reissue(group, invitation, inviter, email_service)
+
+
+def _reissue(
+    group: Group,
+    invitation: TeamInvitation,
+    inviter: User,
+    email_service: EmailService,
+) -> Email:
     # The secret is not stored, so sending again means issuing a new one (the old link stops).
     raw, hashed = rules.new_token()
     invitation.token_hash = hashed
@@ -189,9 +240,12 @@ def _in_team(group: Group, invitation_id) -> TeamInvitation:
 def open_for_email(db: Session, email: str) -> list[TeamInvitation]:
     rows = db.scalars(
         select(TeamInvitation)
+        .join(Group, Group.id == TeamInvitation.group_id)
         .where(
             TeamInvitation.email == email,
             TeamInvitation.status == InvitationStatus.PENDING,
+            Group.status
+            != TeamStatus.PENDING,  # a team still being set up is not offered yet
         )
         .order_by(TeamInvitation.created_at.desc())
     ).all()
@@ -209,7 +263,11 @@ def find_by_token(db: Session, token: str) -> TeamInvitation | None:
 def lookup_by_token(db: Session, token: str, email: str | None) -> TeamInvitation:
     """The invitation behind an email link, for the person it was sent to."""
     invitation = find_by_token(db, token)
-    if invitation is None or not rules.is_open(invitation):
+    if (
+        invitation is None
+        or not rules.is_open(invitation)
+        or invitation.group.status is TeamStatus.PENDING
+    ):
         raise ApiError(
             410, "invitation_invalid", "This invitation link is no longer valid"
         )
@@ -253,6 +311,8 @@ def respond(
         rules.team_query().where(Group.id == invitation.group_id).with_for_update()
     )
     invitation = next(i for i in group.invitations if i.id == invitation.id)
+    if group.status is TeamStatus.PENDING:
+        raise ApiError(410, "invitation_invalid", "This invitation is no longer open")
 
     now = rules.utcnow()
     if accept:

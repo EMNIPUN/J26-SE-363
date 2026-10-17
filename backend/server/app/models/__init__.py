@@ -5,6 +5,7 @@ from app.models.agent_run import AgentRun, AgentRunStatus
 from app.models.group import Group, GroupMember, MemberRole, TeamStatus
 from app.models.project import Project, ProjectDocument
 from app.models.team_invitation import InvitationStatus, TeamInvitation
+from app.models.term import Term
 from app.models.user import User
 
 __all__ = [
@@ -18,5 +19,6 @@ __all__ = [
     "ProjectDocument",
     "TeamInvitation",
     "TeamStatus",
+    "Term",
     "User",
 ]

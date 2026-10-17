@@ -1,7 +1,10 @@
 """Teams: the groups a lecturer creates and students join.
 
 GET    /api/v1/me/teams                               my teams (the home page)
-POST   /api/v1/teams                                  create a team and invite people (lecturers)
+POST   /api/v1/teams                                  step 1: create a pending team (lecturers)
+PUT    /api/v1/teams/{team}/project                   step 2: the project's title and description
+POST   /api/v1/teams/{team}/activate                  last step: open the team and send the invitations
+DELETE /api/v1/teams/{team}                           discard a team that is still pending
 GET    /api/v1/teams/{team}                           team, members and, for lecturers, invitations
 PATCH  /api/v1/teams/{team}                           rename (lecturers), set repository (leader too)
 POST   /api/v1/teams/{team}/invitations               invite more students or lecturers
@@ -31,8 +34,8 @@ from app.schemas.team import (
     InviteList,
     InviteSummary,
     LeaderTransferRequest,
+    ProjectUpdate,
     TeamCreate,
-    TeamCreated,
     TeamDetail,
     TeamSummary,
     TeamUpdate,
@@ -66,21 +69,12 @@ def list_my_teams(account: Onboarded, db: Db) -> list[TeamSummary]:
 
 @router.post(
     "/teams",
-    response_model=TeamCreated,
+    response_model=TeamDetail,
     status_code=status.HTTP_201_CREATED,
-    summary="Create a team",
+    summary="Create a team (step 1)",
 )
-def create_team(
-    body: TeamCreate,
-    account: Lecturer,
-    db: Db,
-    mailer: Mailer,
-    background: BackgroundTasks,
-) -> TeamCreated:
-    group, invited = teams.create_team(db, account.user, body, mailer)
-    for message in invited.emails:
-        background.add_task(mailer.deliver, message)
-    return TeamCreated(team=_detail(group, account), invitations=invited.results)
+def create_team(body: TeamCreate, account: Lecturer, db: Db) -> TeamDetail:
+    return _detail(teams.create_team(db, account.user, body), account)
 
 
 @router.get("/teams/{team}", response_model=TeamDetail, summary="A team")
@@ -92,9 +86,57 @@ def read_team(team: str, account: Onboarded, db: Db) -> TeamDetail:
 @router.patch("/teams/{team}", response_model=TeamDetail, summary="Edit a team")
 def edit_team(team: str, body: TeamUpdate, account: Onboarded, db: Db) -> TeamDetail:
     group, member = teams.team_for(db, team, account.user)
-    teams.update_team(group, account.user, member, body)
+    teams.update_team(db, group, account.user, member, body)
     db.commit()
     return _detail(group, account)
+
+
+@router.put(
+    "/teams/{team}/project",
+    response_model=TeamDetail,
+    summary="Set the project (step 2)",
+)
+def set_project(
+    team: str, body: ProjectUpdate, account: Lecturer, db: Db
+) -> TeamDetail:
+    group, member = teams.team_for(db, team, account.user)
+    teams.require_lecturer(member)
+    teams.set_project(group, account.user, body)
+    db.commit()
+    return _detail(group, account)
+
+
+@router.post(
+    "/teams/{team}/activate",
+    response_model=TeamDetail,
+    summary="Finish setting up a team",
+)
+def activate_team(
+    team: str,
+    account: Lecturer,
+    db: Db,
+    mailer: Mailer,
+    background: BackgroundTasks,
+) -> TeamDetail:
+    group, member = teams.team_for(db, team, account.user)
+    teams.require_lecturer(member)
+    for message in teams.activate_team(group, account.user, mailer):
+        background.add_task(mailer.deliver, message)
+    db.commit()
+    return _detail(group, account)
+
+
+@router.delete(
+    "/teams/{team}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Discard a team that is still being set up",
+)
+def discard_team(team: str, account: Lecturer, db: Db) -> Response:
+    group, member = teams.team_for(db, team, account.user)
+    teams.require_lecturer(member)
+    teams.discard_team(db, group)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # --- invitations (lecturer side) -------------------------------------------------------------

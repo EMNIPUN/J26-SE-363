@@ -1,7 +1,7 @@
 """Creating and running a team: details, members and leadership.
 
 Who may do what:
-  create a team            lecturers
+  create a team            lecturers (it stays "pending" until its setup is finished)
   invite, edit, remove     the team's lecturers (lecturers evaluate; they never develop)
   set the repository URL   the team's lecturers and its leader
   leave                    any member, except the leader while other students remain
@@ -18,8 +18,8 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import bad_request, conflict, forbidden, not_found
 from app.models import Group, GroupMember, MemberRole, Project, TeamStatus, User
-from app.schemas.team import TeamCreate, TeamUpdate
-from app.services import invitations
+from app.schemas.team import ProjectUpdate, TeamCreate, TeamUpdate
+from app.services import invitations, terms
 from app.services import team_rules as rules
 from app.services.email import Email, EmailService
 
@@ -78,47 +78,29 @@ def my_teams(db: Session, user: User) -> list[Group]:
 # --- create / edit ---------------------------------------------------------------------------
 
 
-def create_team(
-    db: Session, creator: User, data: TeamCreate, email_service: EmailService
-) -> tuple[Group, invitations.Invited]:
+def create_team(db: Session, creator: User, data: TeamCreate) -> Group:
+    """Step 1: the team exists, as "pending", with its creator as the only member."""
+    term = terms.require(db, data.term)
     code = data.code or _generate_code(db, data.name)
     if _code_exists(db, code):
         raise conflict("team_code_taken", f"The team code {code} is already used")
 
-    now = rules.utcnow()
     group = Group(
         code=code,
         name=data.name,
-        term=data.term,
-        status=TeamStatus.FORMING,
+        term=term.name,
+        status=TeamStatus.PENDING,
         created_by_id=creator.id,
     )
     group.members.append(
         GroupMember(
-            user_id=creator.id, user=creator, role=MemberRole.LECTURER, joined_at=now
-        )
-    )
-    group.projects.append(
-        Project(
-            created_by_id=creator.id,
-            title=data.project_title,
-            description=data.project_description,
+            user_id=creator.id,
+            user=creator,
+            role=MemberRole.LECTURER,
+            joined_at=rules.utcnow(),
         )
     )
     db.add(group)
-    db.flush()
-
-    # Nobody named a leader: the first student on the list is the default.
-    leader = data.leader_email or (data.students[0] if data.students else None)
-    invited = invitations.invite(
-        db,
-        group,
-        creator,
-        email_service,
-        students=data.students,
-        lecturers=data.lecturers,
-        leader_email=leader,
-    )
     try:
         db.commit()
     except IntegrityError as exc:
@@ -126,11 +108,57 @@ def create_team(
         raise conflict(
             "team_code_taken", f"The team code {code} is already used"
         ) from exc
-    return rules.find_team(db, str(group.id)), invited
+    return rules.find_team(db, str(group.id))
+
+
+def set_project(group: Group, user: User, data: ProjectUpdate) -> None:
+    """Step 2: what the team will build. Creates the project the first time, then edits it."""
+    if group.projects:
+        project = group.projects[0]
+        project.title = data.title
+        project.description = data.description
+    else:
+        group.projects.append(
+            Project(
+                created_by_id=user.id, title=data.title, description=data.description
+            )
+        )
+
+
+def activate_team(group: Group, user: User, email_service: EmailService) -> list[Email]:
+    """The last step: the team opens, and the invitations saved so far are emailed."""
+    if group.status is not TeamStatus.PENDING:
+        raise conflict("team_not_pending", "This team is already set up")
+    if not group.projects:
+        raise bad_request(
+            "setup_incomplete", "Add the project's title before finishing"
+        )
+    group.status = TeamStatus.FORMING
+    # The links were not sent while the team was pending, and only a hash is stored: issue new ones.
+    invitations.ensure_leader_flag(group)
+    emails = invitations.send_open(group, user, email_service)
+    rules.refresh_team(group)
+    return emails
+
+
+def discard_team(db: Session, group: Group) -> None:
+    """Throw away a team that was never finished."""
+    if group.status is not TeamStatus.PENDING:
+        raise conflict(
+            "team_not_pending",
+            "Only a team that is still being set up can be discarded",
+        )
+    for project in group.projects:  # projects restrict deleting their team
+        db.delete(project)
+    db.delete(group)
 
 
 def update_team(
-    group: Group, user: User, member: GroupMember | None, data: TeamUpdate
+    db: Session,
+    group: Group,
+    user: User,
+    member: GroupMember | None,
+    data: TeamUpdate,
 ) -> None:
     is_lecturer = member is not None and member.role is MemberRole.LECTURER
     is_leader = member is not None and group.leader_id == user.id
@@ -141,6 +169,16 @@ def update_team(
                 "lecturer_only", "Only the team's lecturers can rename the team"
             )
         group.name = data.name
+    if "term" in sent and data.term:
+        if not is_lecturer:
+            raise forbidden(
+                "lecturer_only", "Only the team's lecturers can change the term"
+            )
+        if group.status is not TeamStatus.PENDING:
+            raise conflict(
+                "team_not_pending", "The term cannot change once the team is set up"
+            )
+        group.term = terms.require(db, data.term).name
     if "repo_url" in sent:
         if not (is_lecturer or is_leader):
             raise forbidden(
@@ -242,12 +280,15 @@ def cancel_leader_transfer(
 
 
 __all__ = [
+    "activate_team",
     "cancel_leader_transfer",
     "create_team",
+    "discard_team",
     "my_teams",
     "remove_member",
     "require_lecturer",
     "respond_to_leader_transfer",
+    "set_project",
     "start_leader_transfer",
     "team_for",
     "update_team",

@@ -11,6 +11,7 @@ from app.api.v1.invitations import router as invitations_router
 from app.api.v1.jobs import router as jobs_router
 from app.api.v1.me import router as me_router
 from app.api.v1.teams import router as teams_router
+from app.api.v1.terms import router as terms_router
 from app.core.security import get_current_user
 
 # Nothing is public today: login happens in Keycloak, not in this API.
@@ -21,6 +22,7 @@ protected_router = APIRouter(dependencies=[Depends(get_current_user)])
 protected_router.include_router(auth_router)
 protected_router.include_router(me_router)
 protected_router.include_router(teams_router)
+protected_router.include_router(terms_router)
 protected_router.include_router(invitations_router)
 protected_router.include_router(jobs_router)  # additionally admin-only (see jobs.py)
 

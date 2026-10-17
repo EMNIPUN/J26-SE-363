@@ -28,6 +28,7 @@ APP_TABLES = {
     "project_documents",
     "agent_runs",
     "team_invitations",
+    "terms",
 }
 
 

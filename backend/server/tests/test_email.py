@@ -256,5 +256,7 @@ def test_smtp_backend_requires_a_host():
         Settings(EMAIL_BACKEND="smtp", SMTP_HOST=None, _env_file=None)
 
 
-def test_console_backend_is_the_default():
+def test_console_backend_is_the_default(monkeypatch):
+    # A developer's own .env may switch on real mail; the default is what counts here.
+    monkeypatch.delenv("EMAIL_BACKEND", raising=False)
     assert Settings(_env_file=None).EMAIL_BACKEND == "console"

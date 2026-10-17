@@ -68,17 +68,23 @@ class InviteList(BaseModel):
         return self
 
 
-class TeamCreate(InviteList):
+TermName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)
+]
+
+
+class TermCreate(BaseModel):
+    name: TermName
+
+
+class TeamCreate(BaseModel):
+    """Step 1 of setting up a team. The team stays "pending" until it is activated."""
+
     name: Text255
     # Optional: generated from the name when empty.
     code: str | None = None
-    term: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)
-    ]
-    project_title: Text255
-    project_description: Annotated[
-        str | None, StringConstraints(strip_whitespace=True, max_length=5000)
-    ] = None
+    # Must be in the term list (GET /terms; POST /terms adds one).
+    term: TermName
 
     @field_validator("code", mode="after")
     @classmethod
@@ -93,8 +99,19 @@ class TeamCreate(InviteList):
         return code
 
 
+class ProjectUpdate(BaseModel):
+    """Step 2: what the team will build."""
+
+    title: Text255
+    description: Annotated[
+        str | None, StringConstraints(strip_whitespace=True, max_length=5000)
+    ] = None
+
+
 class TeamUpdate(BaseModel):
     name: Text255 | None = None
+    # Only while the team is pending.
+    term: TermName | None = None
     repo_url: Annotated[
         str | None, StringConstraints(strip_whitespace=True, max_length=1024)
     ] = None
@@ -139,12 +156,17 @@ class MemberOut(PersonOut):
     joined_at: datetime | None
 
 
+class TermOut(BaseModel):
+    name: str
+
+
 class TeamSummary(BaseModel):
     id: uuid.UUID
     code: str
     name: str
     term: str | None
-    status: Literal["forming", "active"]
+    # "pending" while a lecturer is still setting the team up; only that lecturer sees it.
+    status: Literal["pending", "forming", "active"]
     project: ProjectOut | None
     my_role: TeamRole
     leader: PersonOut | None
@@ -196,8 +218,3 @@ class InvitationResult(BaseModel):
 
 class InviteSummary(BaseModel):
     results: list[InvitationResult]
-
-
-class TeamCreated(BaseModel):
-    team: TeamDetail
-    invitations: list[InvitationResult]

@@ -40,7 +40,14 @@ def student(api, sub):
     return onboard(api, sub, "student")
 
 
-def new_team(api, **overrides):
+def add_term(api, name=TERM):
+    """Put a term in the list (a team can only use a term that exists)."""
+    response = api.post("/terms", {"name": name})
+    assert response.status_code in (201, 409), response.text
+
+
+def new_team(api, *, finish=True, **overrides):
+    """A team set up through all its steps. With finish=False it is left pending."""
     body = {
         "name": "Team Alpha",
         "term": TERM,
@@ -48,9 +55,32 @@ def new_team(api, **overrides):
         "students": ["sam@example.com", "kim@example.com", "lee@example.com"],
         **overrides,
     }
-    response = api.post("/teams", body)
-    assert response.status_code == 201, response.text
-    return response.json()
+    add_term(api, body["term"])
+    created = api.post(
+        "/teams",
+        {k: body[k] for k in ("name", "term", "code") if k in body},
+    )
+    assert created.status_code == 201, created.text
+    code = created.json()["code"]
+    project = api.put(
+        f"/teams/{code}/project",
+        {
+            "title": body["project_title"],
+            "description": body.get("project_description"),
+        },
+    )
+    assert project.status_code == 200, project.text
+    people = {
+        k: body[k] for k in ("students", "lecturers", "leader_email") if k in body
+    }
+    invited = api.post(f"/teams/{code}/invitations", people)
+    assert invited.status_code == 200, invited.text
+    team = project.json()
+    if finish:
+        activated = api.post(f"/teams/{code}/activate")
+        assert activated.status_code == 200, activated.text
+        team = activated.json()
+    return {"team": team, "invitations": invited.json()["results"]}
 
 
 def token_from(api, to):
@@ -127,7 +157,7 @@ def test_the_first_student_is_the_default_leader_unless_the_lecturer_picks_one(a
 def test_students_cannot_create_teams(api):
     student(api, "sam")
 
-    response = api.post("/teams", {"name": "X", "term": TERM, "project_title": "Y"})
+    response = api.post("/teams", {"name": "X", "term": TERM})
 
     assert response.status_code == 403
     assert response.json()["code"] == "role_not_allowed"
@@ -136,7 +166,7 @@ def test_students_cannot_create_teams(api):
 def test_creating_a_team_needs_onboarding(api):
     api.sign_in("new", email="new@example.com")
 
-    response = api.post("/teams", {"name": "X", "term": TERM, "project_title": "Y"})
+    response = api.post("/teams", {"name": "X", "term": TERM})
 
     assert response.status_code == 403
     assert response.json()["code"] == "onboarding_required"
@@ -144,63 +174,303 @@ def test_creating_a_team_needs_onboarding(api):
 
 def test_team_codes_are_unique_and_generated_when_missing(api):
     lecturer(api)
-    first = new_team(api)["team"]["code"]
-    second = new_team(api)["team"]["code"]  # same name
-    explicit = api.post(
-        "/teams",
-        {"name": "Other", "code": "j26-se-363", "term": TERM, "project_title": "P"},
-    )
-    clash = api.post(
-        "/teams",
-        {"name": "Other", "code": "J26-SE-363", "term": TERM, "project_title": "P"},
-    )
+    add_term(api)
+    first = api.post("/teams", {"name": "Team Alpha", "term": TERM}).json()["code"]
+    second = api.post("/teams", {"name": "Team Alpha", "term": TERM}).json()["code"]
+    explicit = api.post("/teams", {"name": "Other", "code": "j26-se-363", "term": TERM})
+    clash = api.post("/teams", {"name": "Other", "code": "J26-SE-363", "term": TERM})
 
     assert (first, second) == ("TEAM-ALPHA", "TEAM-ALPHA-2")
-    assert explicit.json()["team"]["code"] == "J26-SE-363"
+    assert explicit.json()["code"] == "J26-SE-363"
     assert clash.status_code == 409 and clash.json()["code"] == "team_code_taken"
 
 
 @pytest.mark.parametrize(
     "change",
-    [
-        {"students": ["a@example.com", "A@example.com"]},
-        {"students": ["not-an-email"]},
-        {"students": ["a@example.com"], "leader_email": "other@example.com"},
-        {"students": ["a@example.com"], "lecturers": ["a@example.com"]},
-        {"code": "no spaces allowed"},
-        {"term": ""},
-        {"project_title": " "},
-    ],
+    [{"name": " "}, {"code": "no spaces allowed"}, {"term": ""}],
 )
 def test_invalid_team_requests_are_rejected(api, change):
     lecturer(api)
+    add_term(api)
 
-    response = api.post(
-        "/teams", {"name": "X", "term": TERM, "project_title": "Y", **change}
-    )
+    response = api.post("/teams", {"name": "X", "term": TERM, **change})
 
     assert response.status_code == 422
     assert api.get("/me/teams").json() == []
 
 
+@pytest.mark.parametrize(
+    "people",
+    [
+        {"students": ["a@example.com", "A@example.com"]},
+        {"students": ["not-an-email"]},
+        {"students": ["a@example.com"], "leader_email": "other@example.com"},
+        {"students": ["a@example.com"], "lecturers": ["a@example.com"]},
+    ],
+)
+def test_invalid_people_are_rejected(api, people):
+    lecturer(api)
+    code = new_team(api, finish=False, students=[])["team"]["code"]
+
+    response = api.post(f"/teams/{code}/invitations", people)
+
+    assert response.status_code == 422
+    assert api.get(f"/teams/{code}").json()["invitations"] == []
+
+
+def test_a_project_needs_a_title(api):
+    lecturer(api)
+    code = new_team(api, finish=False)["team"]["code"]
+
+    assert api.put(f"/teams/{code}/project", {"title": " "}).status_code == 422
+
+
 def test_a_lecturer_cannot_invite_their_own_address(api):
     lecturer(api, "ada")
+    code = new_team(api, finish=False, students=[])["team"]["code"]
 
-    response = api.post(
-        "/teams",
-        {
-            "name": "X",
-            "term": TERM,
-            "project_title": "Y",
-            "students": ["ada@example.com"],
-        },
-    )
+    response = api.post(f"/teams/{code}/invitations", {"students": ["ada@example.com"]})
 
     assert (
         response.status_code == 400
         and response.json()["code"] == "cannot_invite_yourself"
     )
+
+
+# --- setting a team up, step by step -----------------------------------------------------------
+
+
+def invitation_of(api, code, email):
+    """The lecturer's view of one invitation (sign in as the lecturer first)."""
+    return next(
+        i
+        for i in api.get(f"/teams/{code}").json()["invitations"]
+        if i["email"] == email
+    )
+
+
+def test_step_one_creates_a_pending_team_with_only_its_creator(api):
+    lecturer(api)
+    add_term(api)
+
+    response = api.post("/teams", {"name": "Draft", "term": TERM})
+
+    team = response.json()
+    assert response.status_code == 201
+    assert team["status"] == "pending" and team["project"] is None
+    assert team["student_count"] == 0 and team["lecturer_count"] == 1
+    assert [t["status"] for t in api.get("/me/teams").json()] == ["pending"]
+
+
+def test_a_team_must_use_a_term_from_the_list(api):
+    lecturer(api)
+
+    response = api.post("/teams", {"name": "Draft", "term": "2099-S9"})
+
+    assert response.status_code == 400 and response.json()["code"] == "unknown_term"
     assert api.get("/me/teams").json() == []
+
+
+def test_the_term_is_stored_as_it_is_spelled_in_the_list(api):
+    lecturer(api)
+    add_term(api, "2026-S1")
+
+    team = api.post("/teams", {"name": "Draft", "term": "2026-s1"}).json()
+
+    assert team["term"] == "2026-S1"
+
+
+def test_invitations_for_a_pending_team_are_saved_but_not_sent(api):
+    lecturer(api)
+    created = new_team(api, finish=False)
+
+    detail = api.get(f"/teams/{created['team']['code']}").json()
+    assert api.email.outbox == []
+    assert detail["status"] == "pending" and detail["pending_invitations"] == 3
+    assert {r["outcome"] for r in created["invitations"]} == {"invited"}
+
+
+def test_an_invited_student_does_not_see_a_pending_team(api):
+    lecturer(api)
+    code = new_team(api, finish=False)["team"]["code"]
+    student(api, "sam")
+
+    assert api.get("/me/invitations").json() == []
+    assert api.get(f"/teams/{code}").status_code == 404
+
+
+def test_a_pending_invitation_cannot_be_answered(api):
+    lecturer(api)
+    code = new_team(api, finish=False)["team"]["code"]
+    sam_invitation = invitation_of(api, code, "sam@example.com")
+    student(api, "sam")
+
+    answer = api.post(f"/invitations/{sam_invitation['id']}/accept")
+
+    assert answer.status_code == 410 and answer.json()["code"] == "invitation_invalid"
+
+
+def test_finishing_a_team_opens_it_and_sends_the_invitations(api):
+    lecturer(api)
+    code = new_team(api, finish=False, lecturers=["grace@example.com"])["team"]["code"]
+    assert api.email.outbox == []
+
+    response = api.post(f"/teams/{code}/activate")
+
+    assert response.status_code == 200 and response.json()["status"] == "forming"
+    assert sorted(m.to for m in api.email.outbox) == [
+        "grace@example.com",
+        "kim@example.com",
+        "lee@example.com",
+        "sam@example.com",
+    ]
+    token = token_from(api, "sam@example.com")
+    student(api, "sam")
+    assert len(api.get("/me/invitations").json()) == 1
+    assert api.post("/invitations/lookup", {"token": token}).status_code == 200
+
+
+def test_a_team_cannot_be_finished_without_a_project(api):
+    lecturer(api)
+    add_term(api)
+    code = api.post("/teams", {"name": "Draft", "term": TERM}).json()["code"]
+
+    response = api.post(f"/teams/{code}/activate")
+
+    assert response.status_code == 400 and response.json()["code"] == "setup_incomplete"
+    assert api.get(f"/teams/{code}").json()["status"] == "pending"
+
+
+def test_a_team_can_only_be_finished_once(api):
+    lecturer(api)
+    code = new_team(api)["team"]["code"]
+
+    response = api.post(f"/teams/{code}/activate")
+
+    assert response.status_code == 409 and response.json()["code"] == "team_not_pending"
+
+
+def test_the_leader_can_be_changed_while_the_team_is_pending(api):
+    lecturer(api)
+    code = new_team(api, finish=False)["team"]["code"]  # sam leads by default
+
+    api.post(
+        f"/teams/{code}/invitations",
+        {
+            "students": ["sam@example.com", "kim@example.com"],
+            "leader_email": "kim@example.com",
+        },
+    )
+
+    flagged = {
+        i.email for i in api.db().query(TeamInvitation).filter_by(as_leader=True)
+    }
+    assert flagged == {"kim@example.com"}
+
+
+def test_if_the_flagged_leader_is_withdrawn_someone_else_still_leads(api):
+    lecturer(api)
+    code = new_team(api, finish=False)["team"]["code"]
+    sam = invitation_of(api, code, "sam@example.com")
+    assert api.delete(f"/teams/{code}/invitations/{sam['id']}").status_code == 204
+
+    api.post(f"/teams/{code}/activate")
+
+    flagged = {
+        i.email
+        for i in api.db().query(TeamInvitation).filter_by(as_leader=True).all()
+        if i.status.value == "pending"
+    }
+    assert len(flagged) == 1 and flagged <= {"kim@example.com", "lee@example.com"}
+
+
+def test_a_pending_team_can_be_edited_and_then_discarded(api):
+    lecturer(api)
+    add_term(api, "2026-S2")
+    code = new_team(api, finish=False)["team"]["code"]
+
+    edited = api.patch(f"/teams/{code}", {"name": "Renamed", "term": "2026-S2"})
+    project = api.put(
+        f"/teams/{code}/project", {"title": "New title", "description": "More"}
+    )
+    discarded = api.delete(f"/teams/{code}")
+
+    assert edited.json()["term"] == "2026-S2" and edited.json()["name"] == "Renamed"
+    assert project.json()["project"]["title"] == "New title"
+    assert discarded.status_code == 204
+    assert api.get("/me/teams").json() == []
+    assert api.db().query(TeamInvitation).count() == 0
+
+
+def test_an_open_team_cannot_change_term_or_be_discarded(api):
+    lecturer(api)
+    add_term(api, "2026-S2")
+    code = new_team(api)["team"]["code"]
+
+    term = api.patch(f"/teams/{code}", {"term": "2026-S2"})
+    discarded = api.delete(f"/teams/{code}")
+
+    assert term.status_code == 409 and term.json()["code"] == "team_not_pending"
+    assert discarded.status_code == 409
+
+
+def test_other_lecturers_cannot_touch_a_team_they_are_not_in(api):
+    lecturer(api, "ada")
+    code = new_team(api, finish=False)["team"]["code"]
+    lecturer(api, "grace")
+
+    assert api.put(f"/teams/{code}/project", {"title": "X"}).status_code == 404
+    assert api.post(f"/teams/{code}/activate").status_code == 404
+    assert api.delete(f"/teams/{code}").status_code == 404
+
+
+def test_resending_is_refused_while_a_team_is_pending(api):
+    lecturer(api)
+    code = new_team(api, finish=False)["team"]["code"]
+    sam = invitation_of(api, code, "sam@example.com")
+
+    response = api.post(f"/teams/{code}/invitations/{sam['id']}/resend")
+
+    assert response.status_code == 409 and response.json()["code"] == "team_pending"
+
+
+# --- terms -----------------------------------------------------------------------------------
+
+
+def test_terms_are_listed_newest_first_and_a_lecturer_can_add_one(api):
+    lecturer(api)
+    add_term(api, "2026-S1")
+
+    created = api.post("/terms", {"name": "  2026-S2 "})
+
+    assert created.status_code == 201 and created.json() == {"name": "2026-S2"}
+    assert api.get("/terms").json() == [{"name": "2026-S2"}, {"name": "2026-S1"}]
+
+
+def test_adding_a_term_that_exists_is_refused_whatever_the_case(api):
+    lecturer(api)
+    add_term(api, "2026-S1")
+
+    response = api.post("/terms", {"name": "2026-s1"})
+
+    assert response.status_code == 409 and response.json()["code"] == "term_exists"
+    assert len(api.get("/terms").json()) == 1
+
+
+def test_students_can_read_terms_but_not_add_them(api):
+    lecturer(api)
+    add_term(api)
+    student(api, "sam")
+
+    assert api.get("/terms").json() == [{"name": TERM}]
+    assert api.post("/terms", {"name": "2027-S1"}).status_code == 403
+
+
+def test_term_names_are_validated(api):
+    lecturer(api)
+
+    assert api.post("/terms", {"name": " "}).status_code == 422
+    assert api.post("/terms", {"name": "x" * 33}).status_code == 422
 
 
 # --- answering invitations -------------------------------------------------------------------
@@ -568,22 +838,17 @@ def test_lecturers_can_rename_and_leaders_can_set_the_repository(api):
 def test_invitation_quota_is_enforced(api, monkeypatch):
     monkeypatch.setattr(invitations, "MAX_OPEN_INVITATIONS_PER_PERSON", 2)
     lecturer(api)
+    code = new_team(api, finish=False, students=[])["team"]["code"]
 
     response = api.post(
-        "/teams",
-        {
-            "name": "X",
-            "term": TERM,
-            "project_title": "Y",
-            "students": ["a@example.com", "b@example.com", "c@example.com"],
-        },
+        f"/teams/{code}/invitations",
+        {"students": ["a@example.com", "b@example.com", "c@example.com"]},
     )
 
     assert (
         response.status_code == 429
         and response.json()["code"] == "too_many_invitations"
     )
-    assert api.get("/me/teams").json() == []
 
 
 # --- leadership ------------------------------------------------------------------------------

@@ -130,4 +130,6 @@ def refresh_team(group: Group) -> None:
             )
             group.leader_id = first.user_id
 
-    group.status = TeamStatus.ACTIVE if team_students else TeamStatus.FORMING
+    # A team being set up stays pending until its lecturer finishes (teams.activate_team).
+    if group.status is not TeamStatus.PENDING:
+        group.status = TeamStatus.ACTIVE if team_students else TeamStatus.FORMING

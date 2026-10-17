@@ -85,6 +85,9 @@ class Api:
     def post(self, path: str, json=None, **kwargs):
         return self.request("POST", path, json=json, **kwargs)
 
+    def put(self, path: str, json=None, **kwargs):
+        return self.request("PUT", path, json=json, **kwargs)
+
     def patch(self, path: str, json=None, **kwargs):
         return self.request("PATCH", path, json=json, **kwargs)
 

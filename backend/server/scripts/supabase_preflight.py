@@ -201,7 +201,7 @@ FK_MATCH_SIMPLE = "s"
 ROLE_VALUES = frozenset({"student", "lecturer", "admin"})
 STATUS_VALUES = frozenset({"queued", "running", "succeeded", "failed"})
 MEMBER_ROLE_VALUES = frozenset({"lecturer", "member"})
-TEAM_STATUS_VALUES = frozenset({"forming", "active"})
+TEAM_STATUS_VALUES = frozenset({"pending", "forming", "active"})
 INVITATION_STATUS_VALUES = frozenset({"pending", "accepted", "declined", "revoked"})
 
 
@@ -350,6 +350,21 @@ APP_TABLES: dict[str, TableSpec] = {
             "ix_team_invitations_email": Index(("email",)),
             "ix_team_invitations_group_id": Index(("group_id",)),
         },
+    ),
+    "terms": TableSpec(
+        columns={
+            "id": (UUID, True),
+            "name": (varchar(32), True),
+            "created_by_id": (UUID, False),
+            **TIMESTAMPS,
+        },
+        primary_key=("id",),
+        unique={"uq_terms_name": ("name",)},
+        foreign_keys={
+            "fk_terms_created_by_id_users": ForeignKey(("created_by_id",), "users", ("id",), FK_SET_NULL),
+        },
+        checks={},
+        indexes={},
     ),
     "projects": TableSpec(
         columns={
