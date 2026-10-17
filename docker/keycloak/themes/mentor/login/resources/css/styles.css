@@ -79,14 +79,96 @@ a:hover {
   outline-offset: 2px;
 }
 
-.page {
-  display: flex;
+/* Layout: a brand panel beside the form on wide screens, the form alone on narrow ones */
+.shell {
+  display: grid;
   min-height: 100vh;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.main {
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
   padding: 2rem 1rem;
+}
+
+.aside {
+  display: none;
+}
+
+@media (min-width: 60rem) {
+  .shell {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  }
+
+  .main {
+    padding: 2rem 3rem;
+  }
+
+  .aside {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+    padding: 2.5rem 3rem;
+    color: oklch(0.97 0.01 280);
+    background:
+      radial-gradient(60rem 40rem at 0% 0%, oklch(0.5 0.2 280 / 55%), transparent 60%),
+      radial-gradient(40rem 30rem at 100% 100%, oklch(0.45 0.18 250 / 45%), transparent 60%),
+      oklch(0.2 0.06 275);
+  }
+
+  /* A faint grid, fading out towards the bottom */
+  .aside::before {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(oklch(1 0 0 / 6%) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(1 0 0 / 6%) 1px, transparent 1px);
+    background-size: 3rem 3rem;
+    mask-image: linear-gradient(to bottom, black, transparent 85%);
+    content: "";
+  }
+
+  .aside > * {
+    position: relative;
+  }
+}
+
+.brand-light {
+  color: inherit;
+}
+
+.aside-title {
+  max-width: 22rem;
+  margin: 0 0 1.5rem;
+  font-size: 2rem;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.points {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  color: oklch(0.97 0.01 280 / 80%);
+  list-style: none;
+}
+
+.points li {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.points .icon {
+  color: oklch(0.8 0.14 280);
 }
 
 .brand {
@@ -438,6 +520,25 @@ a:hover {
   color: var(--foreground);
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+/* With the brand panel beside it, the form needs no card of its own */
+@media (min-width: 60rem) {
+  .brand-mobile {
+    display: none;
+  }
+
+  .card {
+    max-width: 25rem;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .title {
+    font-size: 1.625rem;
+  }
 }
 
 @media (max-width: 26rem) {

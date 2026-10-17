@@ -89,8 +89,10 @@ services:
     # version hash and not by file content. On disk that cache survives container restarts and
     # keeps serving the OLD stylesheet after a theme change (login page renders unstyled).
     # In RAM it is emptied whenever the container starts. Cache only: nothing to back up.
+    # mode=1777 because Keycloak does not run as root: a root-owned tmpfs makes every
+    # compressed CSS/JS request fail with a 500 (unstyled pages).
     tmpfs:
-      - /opt/keycloak/data/tmp
+      - /opt/keycloak/data/tmp:mode=1777
     depends_on:
       postgres:
         condition: service_healthy

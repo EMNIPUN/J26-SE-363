@@ -77,8 +77,25 @@
     </#if>
 </head>
 <body>
-<main class="page">
-    <a class="brand" href="${(client.baseUrl)!'#'}" aria-label="SELVIA">
+<div class="shell">
+<aside class="aside" aria-hidden="true">
+    <span class="brand brand-light">
+        <img src="${url.resourcesPath}/img/selvia-mark-128.png" alt="" width="32" height="32">
+        <span>SELVIA</span>
+    </span>
+    <div class="aside-body">
+        <h2 class="aside-title">A mentor for every software project</h2>
+        <ul class="points">
+            <li><@icon name="check"/>Plan the work and track progress</li>
+            <li><@icon name="check"/>Review code, performance and security</li>
+            <li><@icon name="check"/>Learn with an AI tutor</li>
+        </ul>
+    </div>
+    <span></span>
+</aside>
+
+<main class="main">
+    <a class="brand brand-mobile" href="${(client.baseUrl)!'#'}" aria-label="SELVIA">
         <img src="${url.resourcesPath}/img/selvia-mark-128.png" alt="" width="32" height="32">
         <span>SELVIA</span>
     </a>
@@ -100,6 +117,7 @@
         </#if>
     </div>
 </main>
+</div>
 </body>
 </html>
 </#macro>
