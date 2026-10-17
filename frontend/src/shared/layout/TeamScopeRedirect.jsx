@@ -3,15 +3,16 @@ import { useScope } from '../context/useScope.js'
 
 /**
  * Backward-compatibility redirector:
- * Redirects unscoped paths (e.g. /performance/dashboard or /app)
- * to their team-scoped equivalent (/teams/:teamId/performance/dashboard or /teams/:teamId/app).
+ * Redirects unscoped paths (e.g. /performance/dashboard or /app) to their team-scoped
+ * equivalent (/teams/:teamId/performance/dashboard). A person with no team goes to the home page.
  */
 export default function TeamScopeRedirect() {
   const location = useLocation()
-  const { selectedGroup } = useScope()
-  const activeTeamCode = selectedGroup?.code || 'J26-SE-363'
+  const { selectedGroup, isLoading } = useScope()
 
-  // Prepend /teams/:teamCode to the path
-  const targetPath = `/teams/${activeTeamCode}${location.pathname}${location.search}`
-  return <Navigate to={targetPath} replace />
+  if (isLoading) return <div className="min-h-[40svh]" />
+  if (!selectedGroup) return <Navigate to="/home" replace />
+  return (
+    <Navigate to={`/teams/${selectedGroup.code}${location.pathname}${location.search}`} replace />
+  )
 }

@@ -324,6 +324,7 @@ export default function Sidebar({
               <div className="flex justify-center">
                 <Avatar
                   name={user?.name}
+                  picture={user?.picture}
                   size={34}
                   className="border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground"
                 />
@@ -337,6 +338,7 @@ export default function Sidebar({
           <div className="flex items-center gap-3 rounded-lg px-2 py-2 text-sidebar-foreground">
             <Avatar
               name={user?.name}
+              picture={user?.picture}
               size={38}
               className="border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground"
             />

@@ -45,6 +45,10 @@ from scripts import supabase_preflight as pf
 SERVER_DIR = Path(__file__).resolve().parents[1]
 INITIAL_REVISION = "c9da91ebdddb"
 SECURITY_REVISION = "4f6d2a9c8e1b"
+REGISTRATION_REVISION = "ec66f4d17052"
+TERMS_REVISION = "d8a41c7e5b90"
+AVATARS_REVISION = "e5b7a1c3d924"
+NOTIFICATIONS_REVISION = "f2a6c4b8d150"  # head
 REF = "abcdefghijklmnopqrst"
 PASSWORD = "not-a-real-secret"
 # Nothing connects with it, but it must look like a PEM certificate. Its path must never be printed.
@@ -58,7 +62,17 @@ SECRET_PARTS = (PASSWORD, REF, f"postgres.{REF}", CA_FILE)
 ROLE = "postgres"
 EXPECT = pf.Expectations(
     pf.Roles(ROLE, ROLE, ROLE),
-    pf.Revisions((INITIAL_REVISION, SECURITY_REVISION), (SECURITY_REVISION,)),
+    pf.Revisions(
+        (
+            INITIAL_REVISION,
+            SECURITY_REVISION,
+            REGISTRATION_REVISION,
+            TERMS_REVISION,
+            AVATARS_REVISION,
+            NOTIFICATIONS_REVISION,
+        ),
+        (NOTIFICATIONS_REVISION,),
+    ),
     pf.QueueSpec(
         "3.10.0",
         frozenset(pf.QUEUE_TABLES),
@@ -219,8 +233,15 @@ def test_expected_tables_match_the_models():
 
 def test_revisions_come_from_the_repository():
     revisions = pf.load_revisions()
-    assert revisions.ordered == (INITIAL_REVISION, SECURITY_REVISION)
-    assert revisions.heads == (SECURITY_REVISION,)
+    assert revisions.ordered == (
+        INITIAL_REVISION,
+        SECURITY_REVISION,
+        REGISTRATION_REVISION,
+        TERMS_REVISION,
+        AVATARS_REVISION,
+        NOTIFICATIONS_REVISION,
+    )
+    assert revisions.heads == (NOTIFICATIONS_REVISION,)
 
 
 def test_queue_expectations_come_from_the_installed_procrastinate():
@@ -1159,8 +1180,14 @@ def grant_access(s: pf.Snapshot, table: str, browser_privileges) -> None:
     s.column_access[(table, ROLE)] = frozenset(pf.COLUMN_PRIVILEGES)
 
 
-def add_core_tables(s: pf.Snapshot, revision: str | None = SECURITY_REVISION, owner=ROLE) -> pf.Snapshot:
-    secured = revision == SECURITY_REVISION
+def add_core_tables(s: pf.Snapshot, revision: str | None = NOTIFICATIONS_REVISION, owner=ROLE) -> pf.Snapshot:
+    secured = revision in (
+        SECURITY_REVISION,
+        REGISTRATION_REVISION,
+        TERMS_REVISION,
+        AVATARS_REVISION,
+        NOTIFICATIONS_REVISION,
+    )
     for name, spec in pf.APP_TABLES.items():
         s.relations[name] = pf.Relation("r", owner, secured, False)
         s.columns[name] = {column: pf.ColumnInfo(*definition) for column, definition in spec.columns.items()}
@@ -1206,9 +1233,10 @@ def test_service_role_bypassrls_is_reported_and_browser_bypass_fails():
 def test_a_migrated_and_secured_database_passes():
     findings = all_findings(add_queue(add_core_tables(fresh_snapshot())))
     assert not levels(findings) & pf.BLOCKING, messages(findings)
-    assert f"at head {SECURITY_REVISION}" in messages(findings, pf.PASS)
-    assert messages(findings, pf.PASS).count("match the models") == 6
-    assert messages(findings, pf.PASS).count("RLS on, not forced") == 7 + 4
+    assert f"at head {NOTIFICATIONS_REVISION}" in messages(findings, pf.PASS)
+    assert messages(findings, pf.PASS).count("match the models") == len(pf.APP_TABLES)
+    # every application table, the Alembic version table and the four queue tables
+    assert messages(findings, pf.PASS).count("RLS on, not forced") == len(pf.APP_TABLES) + 1 + 4
 
 
 def test_tables_without_alembic_history_fail():
@@ -1250,7 +1278,7 @@ def test_recorded_revision_with_missing_tables_fails():
 
 def test_pending_revisions_are_listed_and_browser_access_only_warns_before_securing():
     s = add_core_tables(fresh_snapshot(), revision=INITIAL_REVISION)
-    assert f"pending: {SECURITY_REVISION}" in messages(pf.evaluate_alembic(s, EXPECT), pf.INFO)
+    assert f"pending: {SECURITY_REVISION}, {REGISTRATION_REVISION}, {TERMS_REVISION}, {AVATARS_REVISION}, {NOTIFICATIONS_REVISION}" in messages(pf.evaluate_alembic(s, EXPECT), pf.INFO)
     rls = pf.evaluate_rls(s, EXPECT)
     assert pf.FAIL not in levels(rls)
     assert "the security migration revokes this" in messages(rls, pf.WARN)
@@ -1458,7 +1486,7 @@ def test_an_unrecognised_check_is_limited_not_passed(capsys):
 def test_extras_that_cannot_reject_rows_only_warn():
     s = add_core_tables(fresh_snapshot())
     s.columns["users"]["nickname"] = pf.ColumnInfo(pf.TEXT, False)
-    s.indexes["users"] = {"ix_users_name": pf.IndexInfo(("name",))}
+    s.indexes["users"] = {**s.indexes["users"], "ix_users_name": pf.IndexInfo(("name",))}
     findings = pf.evaluate_app_tables(s, EXPECT)
     assert levels(finding for finding in findings if finding.subject == "users") == {pf.WARN, pf.PASS}
     assert "users | everything the models define matches" in messages(findings, pf.PASS)
@@ -1488,7 +1516,9 @@ def test_check_values_accepts_only_the_expected_form(definition, expected):
 
 def test_no_column_grants_pass():
     findings = pf.evaluate_rls(add_core_tables(fresh_snapshot()), EXPECT)
-    assert messages(findings, pf.PASS).count("no privileges for PUBLIC or the Supabase browser roles") == 7
+    assert messages(findings, pf.PASS).count(
+        "no privileges for PUBLIC or the Supabase browser roles"
+    ) == len(pf.APP_TABLES) + 1
     assert not levels(findings) & pf.BLOCKING, messages(findings)
 
 
@@ -2203,8 +2233,8 @@ def test_preflight_reports_a_migrated_local_database(test_database_url):
     assert snapshot.limited == {}
     assert not levels(findings) & pf.BLOCKING, messages(findings)
     passed = messages(findings, pf.PASS)
-    assert f"at head {SECURITY_REVISION}" in passed
-    assert passed.count("columns, constraints and indexes match the models") == 6
+    assert f"at head {NOTIFICATIONS_REVISION}" in passed
+    assert passed.count("columns, constraints and indexes match the models") == len(pf.APP_TABLES)
     for table in [*pf.APP_TABLES, pf.VERSION_TABLE]:
         assert f"{table} | RLS on, not forced" in passed
         assert f"{table} | no privileges for PUBLIC or the Supabase browser roles" in passed
