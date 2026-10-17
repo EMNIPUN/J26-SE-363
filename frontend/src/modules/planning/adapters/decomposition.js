@@ -149,6 +149,8 @@ export function mapStoryRows(rows) {
       i_want: row.i_want,
       so_that: row.so_that,
       description: row.description,
+      acceptanceCriteria: row.acceptance_criteria || [],
+      acceptanceCriteriaFeedback: row.acceptance_criteria_feedback || [],
       student_story_points: row.student_story_points,
       priority: row.priority,
       status: row.status,

@@ -63,7 +63,7 @@ class UserStory(TimestampMixin, Base):
     i_want: Mapped[str | None] = mapped_column(String(500))
     so_that: Mapped[str | None] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(Text)
-    acceptance_criteria: Mapped[dict | None] = mapped_column(JSONType)
+    acceptance_criteria: Mapped[list[str] | None] = mapped_column(JSONType)
     student_story_points: Mapped[int | None] = mapped_column(Integer)
     priority: Mapped[Priority] = mapped_column(
         string_enum(Priority, "story_priority"), default=Priority.MEDIUM

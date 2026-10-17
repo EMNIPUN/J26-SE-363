@@ -96,6 +96,11 @@ const INVEST_CRITERIA = [
 
 const BUG_SEVERITY_TONE = { Low: 'neutral', Medium: 'warning', High: 'danger' }
 
+function normalizeAcceptanceCriteria(value) {
+  if (Array.isArray(value)) return value.filter((item) => String(item).trim())
+  return typeof value === 'string' && value.trim() ? [value.trim()] : []
+}
+
 const TASK_STATUS_META = {
   todo: { label: 'To Do', tone: 'neutral' },
   in_progress: { label: 'In Progress', tone: 'primary' },
@@ -480,6 +485,9 @@ function StoryCard({ reqId, story, readOnly = false }) {
   const [editing, setEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState(story.title)
   const [draftDescription, setDraftDescription] = useState(story.description || '')
+  const [draftAcceptanceCriteria, setDraftAcceptanceCriteria] = useState(
+    normalizeAcceptanceCriteria(story.acceptanceCriteria).join('\n'),
+  )
   const [newTask, setNewTask] = useState('')
 
   const accepted = story.status === 'accepted' || story.status === 'Accepted'
@@ -536,10 +544,21 @@ function StoryCard({ reqId, story, readOnly = false }) {
 
   function saveEdits() {
     updateMutation.mutate(
-      { ref: story.id, patch: { title: draftTitle, description: draftDescription } },
+      {
+        ref: story.id,
+        patch: {
+          title: draftTitle,
+          description: draftDescription,
+          acceptance_criteria: draftAcceptanceCriteria.split('\n').map((item) => item.trim()).filter(Boolean),
+        },
+      },
       {
         onSuccess: () => {
-          updateStoryText(reqId, story.id, { title: draftTitle, description: draftDescription })
+          updateStoryText(reqId, story.id, {
+            title: draftTitle,
+            description: draftDescription,
+            acceptanceCriteria: draftAcceptanceCriteria.split('\n').map((item) => item.trim()).filter(Boolean),
+          })
           setEditing(false)
           showToast.info('Story updated', { description: 'Run decomposition analysis to re-check coverage and INVEST criteria.' })
         },
@@ -598,6 +617,7 @@ function StoryCard({ reqId, story, readOnly = false }) {
                 onClick={() => {
                   setDraftTitle(story.title)
                   setDraftDescription(story.description || '')
+                  setDraftAcceptanceCriteria(normalizeAcceptanceCriteria(story.acceptanceCriteria).join('\n'))
                   setEditing(true)
                 }}
               >
@@ -632,6 +652,18 @@ function StoryCard({ reqId, story, readOnly = false }) {
           </div>
           <div>
             <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+              Acceptance Criteria (one per line)
+            </label>
+            <Textarea
+              value={draftAcceptanceCriteria}
+              onChange={(e) => setDraftAcceptanceCriteria(e.target.value)}
+              rows={3}
+              className="text-xs leading-relaxed font-sans"
+              placeholder="Given …, when …, then …"
+            />
+          </div>
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
               User Story Description
             </label>
             <Textarea
@@ -658,6 +690,19 @@ function StoryCard({ reqId, story, readOnly = false }) {
             <p className="text-[11px] text-muted-foreground leading-relaxed p-2.5 rounded-lg bg-muted/30 border border-border/60">
               <span className="font-semibold text-foreground block mb-0.5">User Story Description:</span>
               {story.description}
+            </p>
+          )}
+          {normalizeAcceptanceCriteria(story.acceptanceCriteria).length > 0 && (
+            <div className="text-[11px] text-muted-foreground leading-relaxed p-2.5 rounded-lg bg-muted/30 border border-border/60">
+              <span className="font-semibold text-foreground block mb-1">Acceptance Criteria:</span>
+              <ul className="list-disc pl-4 space-y-0.5">
+                {normalizeAcceptanceCriteria(story.acceptanceCriteria).map((criterion, index) => <li key={`${story.id}-ac-${index}`}>{criterion}</li>)}
+              </ul>
+            </div>
+          )}
+          {(story.acceptanceCriteriaFeedback || []).length > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              <span className="font-semibold text-foreground">Acceptance-criteria feedback:</span> {story.acceptanceCriteriaFeedback.join(' ')}
             </p>
           )}
         </div>
@@ -797,6 +842,7 @@ function NewStoryForm({ reqId, initialTitle = '', onDone }) {
   const createMutation = useCreateStory()
   const [title, setTitle] = useState(initialTitle)
   const [description, setDescription] = useState('')
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState('')
 
   function submit() {
     if (!title.trim() || !description.trim()) return
@@ -804,10 +850,12 @@ function NewStoryForm({ reqId, initialTitle = '', onDone }) {
       requirement_ref: reqId,
       title: title.trim(),
       description: description.trim(),
+      acceptance_criteria: acceptanceCriteria.split('\n').map((item) => item.trim()).filter(Boolean),
     }, {
       onSuccess: () => {
         setTitle('')
         setDescription('')
+        setAcceptanceCriteria('')
         onDone?.()
         showToast.success('User story created', {
           description: 'Run decomposition analysis to evaluate INVEST criteria and parent coverage.',
@@ -834,6 +882,18 @@ function NewStoryForm({ reqId, initialTitle = '', onDone }) {
           <p className="text-[11px] text-muted-foreground mt-0.5">
             Model concrete personas, observable behavior, and clear value to achieve high INVEST and coverage scores.
           </p>
+        </div>
+        <div>
+          <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+            Acceptance Criteria (one per line, optional)
+          </label>
+          <Textarea
+            value={acceptanceCriteria}
+            onChange={(e) => setAcceptanceCriteria(e.target.value)}
+            placeholder="Given …, when …, then …"
+            rows={3}
+            className="text-xs leading-relaxed font-sans bg-background"
+          />
         </div>
         <Button
           size="sm"

@@ -222,7 +222,8 @@ _GRAPH = _build_graph()
 async def run_dart_agent(payload: ArbitrateDartInput) -> DartCaseResult:
     """Run the five-step DART protocol; fall back to ESCALATE on timeout/error."""
     stories_dicts = [
-        {"id": s.id, "title": s.title, "acceptance_criteria": s.acceptance_criteria}
+        {"id": s.id, "title": s.title, "description": s.description,
+         "acceptance_criteria": s.acceptance_criteria}
         for s in payload.stories
     ]
 

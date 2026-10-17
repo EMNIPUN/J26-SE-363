@@ -159,6 +159,9 @@ class StoryInput(BaseModel):
     id: str
     title: str
     description: str = ""
+    # Informational only: acceptance criteria are stored and receive feedback,
+    # but are not an INVEST or coverage-gate input.
+    acceptance_criteria: list[str] = Field(default_factory=list)
     # Populated by the Core API from the owning requirement's id (stories are
     # always scoped to one requirement per analyze_decomposition call). Used
     # by the deterministic C1 parent-linkage check.

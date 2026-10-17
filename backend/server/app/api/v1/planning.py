@@ -156,6 +156,7 @@ class StoryIn(BaseModel):
     i_want: str | None = None
     so_that: str | None = None
     description: str = Field(min_length=1)
+    acceptance_criteria: list[str] = Field(default_factory=list)
     priority: str = "medium"
 
 
@@ -165,6 +166,7 @@ class StoryPatch(BaseModel):
     i_want: str | None = None
     so_that: str | None = None
     description: str | None = None
+    acceptance_criteria: list[str] | None = None
     priority: str | None = None
     status: str | None = None
 

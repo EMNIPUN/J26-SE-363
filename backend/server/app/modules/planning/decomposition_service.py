@@ -74,6 +74,33 @@ PRIORITY_MAP = {
     "low": Priority.LOW,
 }
 
+
+def _normalize_acceptance_criteria(value: Any) -> list[str]:
+    """Keep acceptance criteria as a clean, ordered list for one story."""
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
+
+
+def _acceptance_criteria_feedback(criteria: list[str]) -> list[str]:
+    """Non-blocking feedback shown on the story card.
+
+    Criteria are intentionally not passed into the decomposition coverage or
+    INVEST gates; this feedback helps students improve what they entered.
+    """
+    if not criteria:
+        return ["No acceptance criteria added yet. Add observable outcomes if you want implementation guidance."]
+
+    feedback = [
+        f"{len(criteria)} acceptance {'criterion' if len(criteria) == 1 else 'criteria'} recorded. They are informational and do not affect the decomposition gate."
+    ]
+    for index, criterion in enumerate(criteria, start=1):
+        if len(criterion) < 15:
+            feedback.append(f"Criterion {index} is brief; describe an observable outcome or condition.")
+        elif not any(word in criterion.lower() for word in ("given", "when", "then", "must", "can", "should", "displays", "returns", "creates", "shows")):
+            feedback.append(f"Criterion {index} could be clearer by stating the condition and observable result.")
+    return feedback
+
 _RECOMMENDED_ACTION = {
     "Ready": "Proceed to effort estimation",
     "Ready with Improvements": (
@@ -163,8 +190,7 @@ def create_story(
         i_want=story_data.get("i_want"),
         so_that=story_data.get("so_that"),
         description=story_data.get("description"),
-        # Acceptance criteria are deliberately not part of decomposition stories.
-        acceptance_criteria=None,
+        acceptance_criteria=_normalize_acceptance_criteria(story_data.get("acceptance_criteria")),
         priority=PRIORITY_MAP.get(
             (story_data.get("priority") or "medium").lower(),
             Priority.MEDIUM,
@@ -637,6 +663,10 @@ def story_to_dict(
         "i_want": row.i_want,
         "so_that": row.so_that,
         "description": row.description,
+        "acceptance_criteria": _normalize_acceptance_criteria(row.acceptance_criteria),
+        "acceptance_criteria_feedback": _acceptance_criteria_feedback(
+            _normalize_acceptance_criteria(row.acceptance_criteria)
+        ),
         "student_story_points": row.student_story_points,
         "priority": row.priority.value,
         "status": row.status.value,
