@@ -140,26 +140,28 @@ export function mapStoryRows(rows) {
     const reqRef = row.requirement_ref
     if (!map[reqRef]) map[reqRef] = []
 
-    const story = row.data || {
-      id: row.id || row.story_ref,
-      story_ref: row.story_ref,
+    const base = row.data || {}
+    const story = {
+      ...base,
+      id: row.id || base.id || row.story_ref,
+      story_ref: row.story_ref || base.story_ref,
       parentRequirementRef: reqRef,
-      title: row.title,
-      as_a: row.as_a,
-      i_want: row.i_want,
-      so_that: row.so_that,
-      description: row.description,
-      acceptanceCriteria: row.acceptance_criteria || [],
-      acceptanceCriteriaFeedback: row.acceptance_criteria_feedback || [],
-      student_story_points: row.student_story_points,
-      priority: row.priority,
-      status: row.status,
-      tasks: row.tasks || [],
-      investResult: row.investResult ?? row.invest_result,
-      db_id: row.db_id,
-      editedAt: row.edited_at,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
+      title: row.title ?? base.title,
+      as_a: row.as_a ?? base.as_a,
+      i_want: row.i_want ?? base.i_want,
+      so_that: row.so_that ?? base.so_that,
+      description: row.description ?? base.description,
+      acceptanceCriteria: row.acceptance_criteria || base.acceptanceCriteria || [],
+      acceptanceCriteriaFeedback: row.acceptance_criteria_feedback || base.acceptanceCriteriaFeedback || [],
+      student_story_points: row.student_story_points ?? base.student_story_points ?? null,
+      priority: row.priority ?? base.priority,
+      status: row.status ?? base.status,
+      tasks: row.tasks || base.tasks || [],
+      investResult: row.investResult ?? row.invest_result ?? base.investResult,
+      db_id: row.db_id ?? base.db_id,
+      editedAt: row.edited_at ?? base.editedAt,
+      created_at: row.created_at ?? base.created_at,
+      updated_at: row.updated_at ?? base.updated_at,
     }
     story.parentRequirementRef ??= reqRef
     map[reqRef].push(story)

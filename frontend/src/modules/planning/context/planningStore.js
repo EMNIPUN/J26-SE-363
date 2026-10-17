@@ -183,18 +183,40 @@ function saveCachedTaskValidations(evaluations) {
   }
 }
 
+const CACHED_ESTIMATIONS_KEY = 'selvia_cached_estimations'
+
+function readCachedEstimations() {
+  try {
+    const raw = localStorage.getItem(CACHED_ESTIMATIONS_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveCachedEstimations(estimations) {
+  try {
+    if (estimations && typeof estimations === 'object') {
+      localStorage.setItem(CACHED_ESTIMATIONS_KEY, JSON.stringify(estimations))
+    }
+  } catch {
+    // ignore
+  }
+}
+
 const initialRequirements = readCachedRequirements()
 const initialStories = readCachedUserStories()
 const initialDecompEvaluations = readCachedDecompEvaluations()
 const initialDecompHistory = readCachedDecompHistory()
 const initialTaskValidations = readCachedTaskValidations()
+const initialEstimations = readCachedEstimations()
 
 // Synchronously hydrated from local cache on initial load/reload so the UI never
 // flashes 0% or empty state before background network queries resolve.
 let state = {
   requirements: initialRequirements,
   userStories: initialStories,
-  estimations: {},
+  estimations: initialEstimations,
   kanbanTasks: [],
   requirementHistory: Object.fromEntries(
     initialRequirements.map((r) => [
@@ -217,6 +239,9 @@ function setState(patch) {
   }
   if (patch.userStories) {
     saveCachedUserStories(state.userStories)
+  }
+  if (patch.estimations) {
+    saveCachedEstimations(state.estimations)
   }
   if (patch.decompositionEvaluations) {
     saveCachedDecompEvaluations(state.decompositionEvaluations)

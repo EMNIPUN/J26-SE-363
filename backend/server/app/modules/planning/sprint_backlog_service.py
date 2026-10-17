@@ -6,7 +6,7 @@ import uuid
 from typing import Any
 
 from sqlalchemy import delete, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.enums import (
     EstimationSource,
@@ -64,6 +64,10 @@ def list_items(
             .where(
                 SprintBacklogItem.pipeline_session_id == session_id,
             )
+            .options(
+                selectinload(SprintBacklogItem.user_story),
+                selectinload(SprintBacklogItem.requirement),
+            )
             .order_by(SprintBacklogItem.created_at.asc())
         ).all()
     )
@@ -114,11 +118,17 @@ def delete_item(
 def item_to_dict(
     row: SprintBacklogItem,
 ) -> dict[str, Any]:
+    story_ref = row.user_story.story_ref if row.user_story else None
+    requirement_ref = row.requirement.requirement_ref if row.requirement else None
+    title = row.task_description or (row.user_story.title if row.user_story else "")
     return {
         "id": str(row.id),
         "pipeline_session_id": str(row.pipeline_session_id),
         "user_story_id": str(row.user_story_id),
+        "story_ref": story_ref,
         "requirement_id": str(row.requirement_id),
+        "requirement_ref": requirement_ref,
+        "title": title,
         "sprint_id": (
             str(row.sprint_id) if row.sprint_id else None
         ),
@@ -128,6 +138,8 @@ def item_to_dict(
         "task_type": row.task_type.value,
         "task_description": row.task_description,
         "final_story_points": row.final_story_points,
+        "points": row.final_story_points,
+        "story_points": row.final_story_points,
         "final_estimated_hours": (
             float(row.final_estimated_hours)
             if row.final_estimated_hours is not None

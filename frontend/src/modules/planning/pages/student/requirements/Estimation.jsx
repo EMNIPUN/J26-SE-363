@@ -12,6 +12,12 @@ import {
   Check,
   KanbanSquare,
   Sparkles,
+  CheckSquare,
+  ListTodo,
+  Pencil,
+  Save,
+  Clock,
+  RotateCcw,
 } from 'lucide-react'
 import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import Card from '../../../../../shared/components/Card.jsx'
@@ -47,6 +53,8 @@ import { STORY_POINT_SCALE } from '../../../data/mockData.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
 import { showToast } from '@/shared/utils/toast.jsx'
 
+const FIBONACCI_SCALE = STORY_POINT_SCALE || [1, 2, 3, 5, 8, 13]
+
 const TASK_READINESS_TONE = {
   Valid: 'success',
   'Needs Improvement': 'warning',
@@ -58,14 +66,33 @@ function StoryRow({ req, story }) {
     usePlanningData()
   const saveEstimate = useSaveEstimate()
   const confirmEstimateMut = useConfirmEstimate()
-  const [expanded, setExpanded] = useState(false)
-  const [confirming, setConfirming] = useState(false)
+
   const est = estimations[story.id]
+  const savedPoints = est?.finalPoints ?? est?.studentPoints ?? story.student_story_points ?? null
+  const savedReason = est?.reason ?? ''
+  const isEstimated = savedPoints != null
+  const isConfirmed = Boolean(est?.confirmed)
+
+  const [expanded, setExpanded] = useState(!isEstimated)
+  const [selectedPoints, setSelectedPoints] = useState(savedPoints)
+  const [reason, setReason] = useState(savedReason)
+  const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+
   const taskEvaluation = getTaskValidationEvaluation(story.id)
 
-  // Display-only hydration: fetches the story's latest stored task
-  // validation if the student navigated here without visiting Decomposition
-  // first in this session (and nothing is cached in local storage yet).
+  // Sync state if persisted points change from backend
+  useEffect(() => {
+    if (savedPoints != null && selectedPoints == null) {
+      setSelectedPoints(savedPoints)
+    }
+    if (savedReason && !reason) {
+      setReason(savedReason)
+    }
+  }, [savedPoints, savedReason]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hydrate task validation if needed
   const taskValidationQuery = useTaskValidation(story.id, (story.tasks || []).length > 0 && !taskEvaluation)
   useEffect(() => {
     if (!taskValidationQuery.data?.assessment) return
@@ -74,34 +101,87 @@ function StoryRow({ req, story }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskValidationQuery.data])
 
-  async function confirm() {
-    const finalPoints = est?.finalPoints ?? est?.studentPoints ?? 3
+  // Normalize acceptance criteria
+  const rawCriteria = story.acceptanceCriteria || story.acceptance_criteria || []
+  const criteriaList = Array.isArray(rawCriteria)
+    ? rawCriteria.map((c) => (typeof c === 'string' ? c : c?.text || c?.criterion || JSON.stringify(c))).filter(Boolean)
+    : typeof rawCriteria === 'string' && rawCriteria.trim()
+    ? rawCriteria.split('\n').map((s) => s.trim()).filter(Boolean)
+    : []
+
+  const taskList = story.tasks || []
+
+  async function handleSave() {
+    if (selectedPoints == null) {
+      showToast.error('Please select a story point estimate (1, 2, 3, 5, 8, or 13).')
+      return
+    }
+    setSaving(true)
+    try {
+      await saveEstimate.mutateAsync({
+        story_ref: story.id,
+        story_points: Number(selectedPoints),
+        basis: reason || '',
+      })
+      setEstimation(story.id, {
+        studentPoints: Number(selectedPoints),
+        finalPoints: Number(selectedPoints),
+        reason: reason || '',
+        confirmed: isConfirmed,
+      })
+      setIsEditing(false)
+      showToast.success(isEstimated ? 'Estimate updated' : 'Estimate saved', {
+        description: `${story.id} saved at ${selectedPoints} SP. Eligible for Sprint Creation Backlog.`,
+      })
+    } catch (err) {
+      showToast.error('Failed to save estimate', {
+        description: err?.response?.data?.detail || err?.message || 'Server error',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleConfirm() {
+    const finalPoints = selectedPoints ?? savedPoints ?? 3
     setConfirming(true)
     try {
       await saveEstimate.mutateAsync({
         story_ref: story.id,
-        estimated_story_points: finalPoints,
-        estimation_basis: est?.reason || '',
+        story_points: Number(finalPoints),
+        basis: reason || '',
       })
-
       await confirmEstimateMut.mutateAsync(story.id)
-
-      confirmEstimation(req.id, story.id, story.title, finalPoints, est?.reason)
-      showToast.success('Effort confirmed', { description: `${story.id} is now on the Sprint Board at ${finalPoints} SP.` })
-    } catch {
-      showToast.error('Failed to confirm estimation')
+      confirmEstimation(req.id, story.id, story.title, Number(finalPoints), reason)
+      setIsEditing(false)
+      showToast.success('Effort confirmed', {
+        description: `${story.id} is confirmed and sent to Sprint Board at ${finalPoints} SP.`,
+      })
+    } catch (err) {
+      showToast.error('Failed to confirm estimation', {
+        description: err?.response?.data?.detail || err?.message || 'Server error',
+      })
     } finally {
       setConfirming(false)
     }
   }
 
   return (
-    <Card className="p-0 overflow-hidden">
-      <button type="button" onClick={() => setExpanded((v) => !v)} className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-muted/30 transition-colors">
+    <Card className={`p-0 overflow-hidden border transition-all ${isEstimated ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-amber-500'}`}>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-muted/30 transition-colors"
+      >
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-foreground truncate">{story.title}</p>
-          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-            <p className="text-xs text-muted-foreground">{story.id} · {req.id} · {(story.tasks || []).length} task(s)</p>
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span className="font-mono text-xs font-bold text-primary">{story.id}</span>
+            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground font-medium">{req.id}</span>
+            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">{taskList.length} task(s)</span>
+            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">{criteriaList.length} criteria</span>
             {taskEvaluation && !taskEvaluation.analysisFailed && !taskEvaluation.malformed && (
               <Badge
                 tone={TASK_READINESS_TONE[taskEvaluation.readiness] || 'neutral'}
@@ -112,77 +192,285 @@ function StoryRow({ req, story }) {
               </Badge>
             )}
           </div>
+          <p className="text-sm font-semibold text-foreground truncate">{story.title}</p>
         </div>
-        <div className="flex items-center gap-4 shrink-0">
-          <div className="text-center">
+
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="text-right">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Points</p>
-            <p className="text-sm font-semibold text-foreground">{est?.confirmed ? `${est.finalPoints} SP` : est?.studentPoints ? `${est.studentPoints} SP` : '—'}</p>
+            <p className="text-sm font-bold text-foreground">
+              {savedPoints != null ? `${savedPoints} SP` : '—'}
+            </p>
           </div>
-          {est?.confirmed && (
-            <Badge tone="success">Confirmed</Badge>
+          {isEstimated ? (
+            <Badge tone="success" className="gap-1 text-xs">
+              <CheckCircle2 className="h-3 w-3" /> Estimated
+            </Badge>
+          ) : (
+            <Badge tone="warning" className="gap-1 text-xs">
+              <Clock className="h-3 w-3" /> Pending
+            </Badge>
+          )}
+          {isConfirmed && (
+            <Badge tone="primary" className="text-xs">
+              Confirmed
+            </Badge>
           )}
           <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </div>
       </button>
 
-      {expanded && !est?.confirmed && (
-        <div className="px-4 pb-4 space-y-4 animate-fade-rise">
-          <div className="p-3 rounded-lg border border-border">
-            <p className="text-xs font-semibold text-muted-foreground mb-2">Assign story points</p>
-            <Select
-              value={String(est?.studentPoints ?? '')}
-              onValueChange={(v) => setEstimation(story.id, { studentPoints: Number(v), finalPoints: Number(v) })}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select story points" />
-              </SelectTrigger>
-              <SelectContent>
-                {STORY_POINT_SCALE.map((p) => (
-                  <SelectItem key={p} value={String(p)}>{p} SP</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {expanded && (
+        <div className="px-4 pb-4 space-y-4 animate-fade-rise border-t border-border/40 pt-3">
+          {/* User Story Statement */}
+          <div className="p-3 rounded-lg border border-border bg-muted/20 space-y-1">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">User Story Statement</p>
+            {story.as_a || story.i_want ? (
+              <p className="text-xs text-foreground font-medium leading-relaxed">
+                <span className="text-primary font-bold">As a</span> {story.as_a || 'user'},{' '}
+                <span className="text-primary font-bold">I want</span> {story.i_want || story.title}
+                {story.so_that ? (
+                  <>
+                    , <span className="text-primary font-bold">so that</span> {story.so_that}
+                  </>
+                ) : null}.
+              </p>
+            ) : (
+              <p className="text-xs text-foreground font-medium leading-relaxed">
+                {story.description || story.title}
+              </p>
+            )}
+            {story.description && story.description !== story.title && (story.as_a || story.i_want) && (
+              <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/40 mt-1.5">{story.description}</p>
+            )}
           </div>
 
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground mb-1.5">Reason (optional)</p>
-            <Textarea
-              value={est?.reason || ''}
-              onChange={(e) => setEstimation(story.id, { reason: e.target.value })}
-              placeholder="e.g. Complex API integration with multiple dependencies…"
-              className="text-xs"
-            />
-          </div>
-
-          {(story.tasks || []).length > 0 && (
-            <div className="p-3 rounded-lg border border-border bg-muted/20">
-              <p className="text-xs font-semibold text-muted-foreground mb-2">Tasks breakdown</p>
-              <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
-                {story.tasks.map((t) => (
-                  <li key={t.id}>{t.title} ({(t.subtasks || []).length} subtask{(t.subtasks || []).length === 1 ? '' : 's'})</li>
+          {/* Acceptance Criteria Breakdown */}
+          <div className="p-3 rounded-lg border border-border bg-muted/15 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <CheckSquare className="h-3.5 w-3.5 text-primary" /> Acceptance Criteria
+              </p>
+              <Badge tone="neutral" className="text-[10px]">{criteriaList.length} criteria</Badge>
+            </div>
+            {criteriaList.length > 0 ? (
+              <ul className="space-y-1.5 text-xs text-muted-foreground">
+                {criteriaList.map((criterion, idx) => (
+                  <li key={idx} className="flex items-start gap-2 bg-background/70 p-2 rounded border border-border/50">
+                    <span className="text-[10px] font-mono font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10 shrink-0 mt-0.5">AC-{idx + 1}</span>
+                    <span className="text-foreground/90 leading-snug">{criterion}</span>
+                  </li>
                 ))}
               </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">No acceptance criteria defined for this story.</p>
+            )}
+          </div>
+
+          {/* Implementation Tasks Breakdown */}
+          <div className="p-3 rounded-lg border border-border bg-muted/15 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <ListTodo className="h-3.5 w-3.5 text-primary" /> Implementation Tasks
+              </p>
+              <Badge tone="neutral" className="text-[10px]">{taskList.length} task(s)</Badge>
+            </div>
+            {taskList.length > 0 ? (
+              <div className="space-y-1.5 text-xs">
+                {taskList.map((task) => (
+                  <div key={task.id} className="flex items-center justify-between p-2 rounded bg-background/70 border border-border/50 text-foreground/90 flex-wrap gap-2">
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="font-mono text-[10px] font-semibold text-muted-foreground">{task.id}</span>
+                      <span className="truncate">{task.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-muted-foreground">
+                        {(task.subtasks || []).length} subtask{(task.subtasks || []).length === 1 ? '' : 's'}
+                      </span>
+                      <Badge tone={task.status === 'done' ? 'success' : 'neutral'} className="text-[9px] uppercase px-1.5 py-0">
+                        {task.status || 'todo'}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">No implementation tasks decomposed yet.</p>
+            )}
+          </div>
+
+          {/* Effort Estimation Panel */}
+          {isEstimated && !isEditing ? (
+            <div className="p-3.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-2.5">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="p-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                      Saved Estimate: <span className="text-sm font-bold">{savedPoints} Story Points</span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Persisted in database · Eligible for Sprint Creation Backlog
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedPoints(savedPoints)
+                      setReason(savedReason)
+                      setIsEditing(true)
+                    }}
+                    className="text-xs h-8 cursor-pointer"
+                  >
+                    <Pencil className="h-3 w-3 mr-1" /> Edit Estimate
+                  </Button>
+                  {!isConfirmed && (
+                    <Button
+                      size="sm"
+                      onClick={handleConfirm}
+                      disabled={confirming}
+                      className="text-xs h-8 cursor-pointer"
+                    >
+                      <KanbanSquare className="h-3 w-3 mr-1" />
+                      {confirming ? 'Confirming…' : 'Confirm to Sprint'}
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {savedReason && (
+                <div className="pt-2 border-t border-emerald-500/20 text-xs">
+                  <span className="text-muted-foreground font-medium">Estimation basis / reasoning: </span>
+                  <span className="text-foreground">{savedReason}</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-4 rounded-lg border border-border bg-card space-y-3.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-foreground">
+                    {isEstimated ? 'Update Story Point Estimate' : 'Assign Fibonacci Story Points'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Allowed Fibonacci scale: 1, 2, 3, 5, 8, 13
+                  </p>
+                </div>
+                {isEditing && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setSelectedPoints(savedPoints)
+                      setReason(savedReason)
+                      setIsEditing(false)
+                    }}
+                    className="text-xs h-7 cursor-pointer"
+                  >
+                    <RotateCcw className="h-3 w-3 mr-1" /> Cancel
+                  </Button>
+                )}
+              </div>
+
+              {/* Fibonacci Quick Buttons */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Select Story Points</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {FIBONACCI_SCALE.map((p) => {
+                    const isSel = selectedPoints === p
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPoints(p)
+                          setEstimation(story.id, { studentPoints: p, finalPoints: p })
+                        }}
+                        className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                          isSel
+                            ? 'bg-primary text-primary-foreground shadow-sm ring-2 ring-primary ring-offset-1 scale-105'
+                            : 'bg-muted/70 hover:bg-muted text-foreground border border-border/80'
+                        }`}
+                      >
+                        {p} SP
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Dropdown alternative */}
+              <div className="pt-1">
+                <Select
+                  value={selectedPoints != null ? String(selectedPoints) : ''}
+                  onValueChange={(v) => {
+                    const val = Number(v)
+                    setSelectedPoints(val)
+                    setEstimation(story.id, { studentPoints: val, finalPoints: val })
+                  }}
+                >
+                  <SelectTrigger className="w-full text-xs">
+                    <SelectValue placeholder="Or choose story points from dropdown" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FIBONACCI_SCALE.map((p) => (
+                      <SelectItem key={p} value={String(p)}>{p} SP</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1.5">Estimation Basis / Reasoning (optional)</p>
+                <Textarea
+                  value={reason}
+                  onChange={(e) => {
+                    setReason(e.target.value)
+                    setEstimation(story.id, { reason: e.target.value })
+                  }}
+                  placeholder="e.g. Depends on authentication API, requires database migration and automated unit tests…"
+                  className="text-xs min-h-[70px]"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {selectedPoints ? (
+                    <span className="font-medium text-foreground">Selected: <strong className="text-primary">{selectedPoints} SP</strong></span>
+                  ) : (
+                    <span className="text-amber-600 dark:text-amber-400 font-medium">Select points above to save</span>
+                  )}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={selectedPoints == null || saving}
+                    className="text-xs h-8 cursor-pointer"
+                  >
+                    <Save className="h-3.5 w-3.5 mr-1" />
+                    {saving ? 'Saving to Database…' : isEstimated ? 'Update Estimate' : 'Save Estimate'}
+                  </Button>
+                  {!isConfirmed && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleConfirm}
+                      disabled={selectedPoints == null || confirming}
+                      className="text-xs h-8 cursor-pointer"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                      {confirming ? 'Confirming…' : 'Save & Send to Sprint'}
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
-
-          <div className="flex justify-end">
-            <Button size="sm" onClick={confirm} disabled={est?.studentPoints == null || confirming} className="active:scale-[0.98]">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              {confirming ? 'Confirming…' : 'Confirm & send to Sprint Board'}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {expanded && est?.confirmed && (
-        <div className="px-4 pb-4 animate-fade-rise">
-          <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-              <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Estimation confirmed — {est.finalPoints} SP</p>
-            </div>
-            {est.reason && <p className="text-[11px] text-muted-foreground">{est.reason}</p>}
-          </div>
         </div>
       )}
     </Card>
@@ -193,6 +481,7 @@ export default function Estimation() {
   const { requirements, userStories, estimations, setEstimation, loadStories, loadEstimations } = usePlanningData()
   const [searchParams] = useSearchParams()
   const reqParam = searchParams.get('req')
+  const [activeFilter, setActiveFilter] = useState('all') // 'all' | 'pending' | 'estimated'
 
   // Sort requirements: finalized decompositions first, then passing SRS, then others
   const sortedRequirements = [...requirements].sort((a, b) => {
@@ -205,7 +494,7 @@ export default function Estimation() {
   })
 
   const eligibleReqs = sortedRequirements.filter(
-    (r) => r.decompFinalized || (r.status === 'Passing' && (userStories[r.id] || []).some((s) => s.status === 'Accepted'))
+    (r) => r.decompFinalized || (r.status === 'Passing' && (userStories[r.id] || []).length > 0)
   )
   const defaultReqId = (reqParam && requirements.some((r) => r.id === reqParam))
     ? reqParam
@@ -231,8 +520,8 @@ export default function Estimation() {
       const storyRef = row.story_ref || row.user_story_id
       if (!storyRef) continue
       estMap[storyRef] = {
-        studentPoints: row.estimated_story_points ?? row.studentPoints ?? null,
-        finalPoints: row.final_story_points ?? row.finalPoints ?? row.estimated_story_points ?? null,
+        studentPoints: row.estimated_story_points ?? row.story_points ?? null,
+        finalPoints: row.final_story_points ?? row.story_points ?? row.estimated_story_points ?? null,
         reason: row.estimation_basis ?? row.reason ?? '',
         confirmed: row.confirmed ?? false,
       }
@@ -240,56 +529,64 @@ export default function Estimation() {
     if (Object.keys(estMap).length > 0) loadEstimations(estMap)
   }, [estimatesResp]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const acceptedStories = []
+  // Collect all decomposed user stories (ignoring rejected ones)
+  const allDecomposedStories = []
   for (const req of requirements) {
     for (const story of userStories[req.id] || []) {
-      if (story.status === 'accepted' || story.status === 'Accepted') acceptedStories.push({ req, story })
+      if (story.status !== 'rejected' && story.status !== 'Rejected') {
+        allDecomposedStories.push({ req, story })
+      }
     }
   }
 
-  useEffect(() => {
-    acceptedStories.forEach(({ story }) => {
-      if (!estimations[story.id]) {
-        setEstimation(story.id, {
-          studentPoints: null,
-          finalPoints: null,
-          reason: '',
-          confirmed: false,
-        })
-      }
-    })
-  }, [acceptedStories.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  const isStoryEstimated = (story) => {
+    const est = estimations[story.id]
+    return (
+      est?.studentPoints != null ||
+      est?.finalPoints != null ||
+      story.student_story_points != null ||
+      est?.confirmed
+    )
+  }
 
-  const estimatedCount = acceptedStories.filter(({ story }) => estimations[story.id]?.confirmed).length
-  const pendingCount = acceptedStories.length - estimatedCount
-  const totalSP = acceptedStories.reduce((s, { story }) => s + (estimations[story.id]?.finalPoints ?? 0), 0)
+  const estimatedCount = allDecomposedStories.filter(({ story }) => isStoryEstimated(story)).length
+  const pendingCount = allDecomposedStories.length - estimatedCount
+  const totalSP = allDecomposedStories.reduce((s, { story }) => {
+    const est = estimations[story.id]
+    const pts = est?.finalPoints ?? est?.studentPoints ?? story.student_story_points ?? 0
+    return s + (Number(pts) || 0)
+  }, 0)
 
   const requirement = requirements.find((r) => r.id === selectedReqId)
   const isEligible = requirement?.status === 'Passing'
-  const reqAccepted = isEligible ? acceptedStories.filter(({ req }) => req.id === selectedReqId) : []
-  const reqPending = reqAccepted.filter(({ story }) => !estimations[story.id]?.confirmed)
-  const reqDone = reqAccepted.filter(({ story }) => estimations[story.id]?.confirmed)
+  const reqStories = isEligible ? allDecomposedStories.filter(({ req }) => req.id === selectedReqId) : []
+  const reqPending = reqStories.filter(({ story }) => !isStoryEstimated(story))
+  const reqEstimated = reqStories.filter(({ story }) => isStoryEstimated(story))
+
+  const displayedStories =
+    activeFilter === 'pending'
+      ? reqPending
+      : activeFilter === 'estimated'
+      ? reqEstimated
+      : reqStories
 
   const [consultOpen, setConsultOpen] = useState(false)
   const [guideOpen, setGuideOpen] = useState(false)
   const navigate = useNavigate()
   const team = useTeamPath()
 
-  const estimationProgressPercent = acceptedStories.length
-    ? Math.round((estimatedCount / acceptedStories.length) * 100)
+  const estimationProgressPercent = allDecomposedStories.length
+    ? Math.round((estimatedCount / allDecomposedStories.length) * 100)
     : 0
 
   function getEstimationMeta(r) {
     if (r.status !== 'Passing') return { percent: 0, tone: 'neutral', locked: true }
-    const accepted = (userStories[r.id] || []).filter(
-      (s) => s.status === 'accepted' || s.status === 'Accepted',
+    const stories = (userStories[r.id] || []).filter(
+      (s) => s.status !== 'rejected' && s.status !== 'Rejected',
     )
-    if (!r.decompFinalized && accepted.length === 0) {
-      return { percent: 0, tone: 'neutral', locked: true }
-    }
-    if (accepted.length === 0) return { percent: 0, tone: 'neutral', locked: false }
-    const done = accepted.filter((s) => estimations[s.id]?.confirmed).length
-    const percent = Math.round((done / accepted.length) * 100)
+    if (stories.length === 0) return { percent: 0, tone: 'neutral', locked: false }
+    const done = stories.filter((s) => isStoryEstimated(s)).length
+    const percent = Math.round((done / stories.length) * 100)
     return { percent, tone: percent === 100 ? 'success' : 'warning', locked: false }
   }
 
@@ -306,7 +603,7 @@ export default function Estimation() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
             Effort Estimation &amp; Story Point Sizing
             <Badge tone="primary" className="text-xs font-medium">
-              Scale: 1 to 21 SP
+              Scale: 1 to 13 SP
             </Badge>
           </h1>
         </div>
@@ -333,7 +630,7 @@ export default function Estimation() {
             onClick={() => navigate(team('/planning/sprint-management'))}
             className="text-xs cursor-pointer gap-1.5"
           >
-            <KanbanSquare className="h-3.5 w-3.5" /> Sprint Board
+            <KanbanSquare className="h-3.5 w-3.5" /> Sprint Backlog &amp; Board
           </Button>
         </div>
       </div>
@@ -348,7 +645,7 @@ export default function Estimation() {
               <span>·</span>
               <span className="font-semibold text-foreground">{COURSE_INFO.department}</span>
               <span>·</span>
-              <span>Protocol: <strong className="text-foreground">Manual Story Point Assignment</strong></span>
+              <span>Protocol: <strong className="text-foreground">Manual Fibonacci Sizing (1, 2, 3, 5, 8, 13)</strong></span>
             </div>
 
             <h2 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
@@ -356,7 +653,7 @@ export default function Estimation() {
             </h2>
 
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Assign story points to accepted user stories using the Fibonacci scale. Confirmed stories flow directly to the Sprint Board for execution tracking.
+              Assign story points to decomposed user stories using the Fibonacci scale (1, 2, 3, 5, 8, 13). Persisted estimates become immediately eligible for the Sprint Creation Backlog.
             </p>
 
             <div className="flex items-center gap-4 flex-wrap pt-1 text-xs text-muted-foreground">
@@ -367,7 +664,7 @@ export default function Estimation() {
               <span className="h-1 w-1 rounded-full bg-border" />
               <span className="flex items-center gap-1.5">
                 <Gauge className="h-3.5 w-3.5 text-primary" />
-                {estimatedCount} of {acceptedStories.length} Stories Sized
+                {estimatedCount} of {allDecomposedStories.length} Stories Sized
               </span>
               <span className="h-1 w-1 rounded-full bg-border" />
               <span className="flex items-center gap-1.5">
@@ -406,15 +703,25 @@ export default function Estimation() {
         <Card className="lg:col-span-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Overview</p>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Total stories</span><span className="font-medium text-foreground">{acceptedStories.length}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Estimated</span><span className="font-medium text-foreground">{estimatedCount}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Remaining</span><span className="font-medium text-foreground">{pendingCount}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Total stories</span><span className="font-semibold text-foreground">{allDecomposedStories.length}</span></div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block" /> Estimated
+              </span>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">{estimatedCount}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-amber-500 inline-block" /> Pending
+              </span>
+              <span className="font-semibold text-amber-600 dark:text-amber-400">{pendingCount}</span>
+            </div>
           </div>
         </Card>
 
         <Card className="lg:col-span-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Story Point Summary</p>
-          <p className="text-[11px] text-muted-foreground mb-3">Total effort committed to the sprint backlog so far.</p>
+          <p className="text-[11px] text-muted-foreground mb-3">Total effort committed across all sized user stories in the backlog.</p>
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground w-16 shrink-0">Total</span>
             <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
@@ -444,48 +751,75 @@ export default function Estimation() {
             />
           )}
 
-          {requirement && isEligible && reqAccepted.length === 0 && (
+          {requirement && isEligible && reqStories.length === 0 && (
             <EmptyState
               icon={Sparkles}
-              title="Nothing to estimate yet"
-              description={`No accepted user stories for ${requirement.id} yet. Clear the Decomposition Quality Gate and finalize decomposition first.`}
+              title="No stories to estimate yet"
+              description={`No user stories have been decomposed for ${requirement.id} yet. Decompose the requirement first to generate user stories.`}
               actionLabel="Go to Decomposition"
               onAction={() => navigate(team(`/planning/requirements/decomposition?req=${requirement.id}`))}
             />
           )}
 
-          {requirement && isEligible && reqAccepted.length > 0 && (
+          {requirement && isEligible && reqStories.length > 0 && (
             <>
               <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{requirement.id}</p>
                   <h3 className="text-sm font-semibold text-foreground">{requirement.title}</h3>
                 </div>
-                <Link to={team('/planning/sprint-management')} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline shrink-0">
-                  Go to Sprint Management <ArrowRight className="h-3 w-3" />
-                </Link>
+                <div className="flex items-center gap-3">
+                  {/* Filter tabs */}
+                  <div className="flex items-center rounded-lg border border-border p-0.5 bg-muted/40 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setActiveFilter('all')}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                        activeFilter === 'all' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      All ({reqStories.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveFilter('pending')}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                        activeFilter === 'pending' ? 'bg-background text-amber-600 dark:text-amber-400 shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Pending ({reqPending.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveFilter('estimated')}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                        activeFilter === 'estimated' ? 'bg-background text-emerald-600 dark:text-emerald-400 shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Estimated ({reqEstimated.length})
+                    </button>
+                  </div>
+                  <Link to={team('/planning/sprint-management')} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline shrink-0">
+                    Sprint Backlog <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
               </Card>
 
-              {reqPending.length > 0 && (
+              {displayedStories.length === 0 ? (
+                <EmptyState
+                  title={activeFilter === 'pending' ? 'All stories are estimated!' : 'No estimated stories yet'}
+                  description={
+                    activeFilter === 'pending'
+                      ? 'Every user story for this requirement has an effort estimate assigned.'
+                      : 'Assign story points to user stories below to see them here.'
+                  }
+                />
+              ) : (
                 <div className="space-y-3">
-                  {reqPending.map(({ req, story }) => (
+                  {displayedStories.map(({ req, story }) => (
                     <StoryRow key={story.id} req={req} story={story} />
                   ))}
                 </div>
-              )}
-
-              {reqDone.length > 0 && (
-                <Card>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Already estimated</p>
-                  <ul className="space-y-1.5">
-                    {reqDone.map(({ story }) => (
-                      <li key={story.id} className="flex items-center justify-between text-sm">
-                        <span className="text-foreground truncate">{story.title}</span>
-                        <Badge tone="success">{estimations[story.id]?.finalPoints} SP</Badge>
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
               )}
             </>
           )}
@@ -510,7 +844,7 @@ export default function Estimation() {
               <DialogTitle className="text-lg font-bold">Agile Story Point Estimation &amp; Fibonacci Scale</DialogTitle>
             </div>
             <DialogDescription className="text-xs">
-              Academic principles for sizing software work units.
+              Academic principles for sizing software work units (1, 2, 3, 5, 8, 13 SP).
             </DialogDescription>
           </DialogHeader>
 
@@ -526,7 +860,7 @@ export default function Estimation() {
 
             <div className="p-3.5 rounded-xl border border-border bg-card space-y-2">
               <h4 className="font-bold text-foreground text-xs flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5 text-primary" /> Modified Fibonacci Reference Scale
+                <Check className="h-3.5 w-3.5 text-primary" /> Predefined Fibonacci Scale
               </h4>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
                 <div className="p-2 rounded bg-muted/40 border border-border/50">
@@ -542,8 +876,8 @@ export default function Estimation() {
                   <span className="text-muted-foreground">Substantial scope, cross-module integration.</span>
                 </div>
                 <div className="p-2 rounded bg-muted/40 border border-border/50">
-                  <span className="font-bold text-destructive block">13 – 21 SP</span>
-                  <span className="text-muted-foreground">Epic size: Must be decomposed before sprint.</span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400 block">13 SP</span>
+                  <span className="text-muted-foreground">High complexity: Maximum single story size.</span>
                 </div>
               </div>
             </div>

@@ -1,10 +1,15 @@
+from typing import TYPE_CHECKING
 import uuid
 
 from sqlalchemy import ForeignKey, Integer, Numeric, Text, UniqueConstraint, Uuid
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base, TimestampMixin, string_enum
 from app.models.enums import EstimationSource, Priority, TaskStatus, TaskType
+
+if TYPE_CHECKING:
+    from app.models.decomposition_assessment import UserStory
+    from app.models.requirement import Requirement
 
 
 class SprintBacklogItem(TimestampMixin, Base):
@@ -43,3 +48,6 @@ class SprintBacklogItem(TimestampMixin, Base):
         string_enum(EstimationSource, "backlog_estimation_source"),
         default=EstimationSource.STUDENT_ONLY,
     )
+
+    user_story: Mapped["UserStory"] = relationship("UserStory", foreign_keys=[user_story_id])
+    requirement: Mapped["Requirement"] = relationship("Requirement", foreign_keys=[requirement_id])

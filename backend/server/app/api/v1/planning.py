@@ -77,7 +77,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 from shared.contracts import (
     OrchestrationRequest,
     RequesterContext,
@@ -195,12 +195,33 @@ class DecompositionRequest(BaseModel):
     project_id: str | None = None
 
 
+ALLOWED_FIBONACCI_POINTS = {1, 2, 3, 5, 8, 13}
+
+
 class EstimateIn(BaseModel):
     story_ref: str
-    story_points: int
-    hours: float | None = None
-    basis: str | None = None
+    story_points: int = Field(
+        validation_alias=AliasChoices("story_points", "estimated_story_points")
+    )
+    hours: float | None = Field(
+        default=None,
+        validation_alias=AliasChoices("hours", "estimated_hours"),
+    )
+    basis: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("basis", "estimation_basis"),
+    )
     technique: str = "fibonacci"
+
+    @field_validator("story_points")
+    @classmethod
+    def validate_fibonacci(cls, v: int) -> int:
+        if v not in ALLOWED_FIBONACCI_POINTS:
+            raise ValueError(
+                f"Invalid story-point value {v}. Supported Fibonacci values are: "
+                f"{sorted(ALLOWED_FIBONACCI_POINTS)}"
+            )
+        return v
 
 
 class BacklogItemIn(BaseModel):
@@ -1595,6 +1616,29 @@ async def get_decomposition_gate(
 # ── Estimation ───────────────────────────────────────────────
 
 
+def _check_project_access(
+    db: Session, user: CurrentUser, session: PipelineSession
+) -> None:
+    if user.role in (UserRole.ADMIN, UserRole.LECTURER):
+        return
+    user_db_id = _resolve_user_db_id(db, user)
+    if not user_db_id:
+        return
+    if session.initiated_by == user_db_id:
+        return
+    membership = db.scalars(
+        select(GroupMember).where(
+            GroupMember.group_id == session.group_id,
+            GroupMember.user_id == user_db_id,
+        )
+    ).first()
+    if not membership:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to estimate stories for this project.",
+        )
+
+
 @router.post(
     "/estimates",
     summary="Save a student effort estimate",
@@ -1607,6 +1651,9 @@ async def save_estimate(
 ) -> dict[str, Any]:
     session = await run_in_threadpool(
         _require_session, db, x_team_id, None, user
+    )
+    await run_in_threadpool(
+        _check_project_access, db, user, session
     )
     story = await run_in_threadpool(
         decomposition_service.get_story_by_ref,
@@ -1633,8 +1680,6 @@ async def save_estimate(
         body.basis,
         body.technique,
     )
-    if story.status != StoryStatus.IN_BACKLOG:
-        story.status = StoryStatus.ESTIMATED
     db.commit()
     return {
         "ok": True,
@@ -1662,6 +1707,9 @@ async def list_estimates(
     )
     if not session:
         return {"estimates": []}
+    await run_in_threadpool(
+        _check_project_access, db, user, session
+    )
     rows = await run_in_threadpool(
         estimation_service.list_estimates, db, session.id
     )
@@ -1686,6 +1734,9 @@ async def confirm_estimate(
     session = await run_in_threadpool(
         _require_session, db, x_team_id, None, user
     )
+    await run_in_threadpool(
+        _check_project_access, db, user, session
+    )
     story = await run_in_threadpool(
         decomposition_service.get_story_by_ref,
         db,
@@ -1704,7 +1755,7 @@ async def confirm_estimate(
         (e for e in estimates if e.user_story_id == story.id),
         None,
     )
-    points = est.estimated_story_points if est else 0
+    points = est.estimated_story_points if est else (story.student_story_points or 0)
     hours = (
         float(est.estimated_hours)
         if est and est.estimated_hours

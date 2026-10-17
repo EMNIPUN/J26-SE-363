@@ -353,7 +353,7 @@ export const USER_STORIES_SEED = {
 // page seeds automatically for any newly-accepted story.
 export const STORY_ESTIMATIONS_SEED = {}
 
-export const STORY_POINT_SCALE = [1, 2, 3, 5, 8, 13, 21]
+export const STORY_POINT_SCALE = [1, 2, 3, 5, 8, 13]
 
 // ---------------------------------------------------------------------------
 // Sprint Management — Kanban board, seeded with a few already-confirmed cards

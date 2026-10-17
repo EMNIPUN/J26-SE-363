@@ -15,7 +15,11 @@ export function useSaveEstimate() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body) => estimationService.saveEstimate(body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEY })
+      qc.invalidateQueries({ queryKey: ['planning-stories'] })
+      qc.invalidateQueries({ queryKey: ['backlog-items'] })
+    },
   })
 }
 

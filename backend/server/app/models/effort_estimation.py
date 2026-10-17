@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 import uuid
 from datetime import datetime
 
@@ -21,6 +22,9 @@ from app.models.enums import (
     ToolStatus,
 )
 
+if TYPE_CHECKING:
+    from app.models.decomposition_assessment import UserStory
+
 
 class StudentEffortEstimate(TimestampMixin, Base):
     __tablename__ = "rqa_student_effort_estimates"
@@ -42,6 +46,12 @@ class StudentEffortEstimate(TimestampMixin, Base):
     estimation_technique: Mapped[EstimationTechnique] = mapped_column(
         string_enum(EstimationTechnique, "estimation_technique"),
         default=EstimationTechnique.FIBONACCI,
+    )
+
+    user_story: Mapped["UserStory"] = relationship(
+        "UserStory",
+        foreign_keys=[user_story_id],
+        back_populates="estimates",
     )
 
 

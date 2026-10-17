@@ -77,9 +77,14 @@ PRIORITY_MAP = {
 
 def _normalize_acceptance_criteria(value: Any) -> list[str]:
     """Keep acceptance criteria as a clean, ordered list for one story."""
-    if not isinstance(value, list):
+    if not value:
         return []
-    return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str):
+        lines = [line.strip().lstrip("-*•").strip() for line in value.splitlines() if line.strip()]
+        return lines or [value.strip()]
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return []
 
 
 def _acceptance_criteria_feedback(criteria: list[str]) -> list[str]:

@@ -38,6 +38,7 @@ from app.models.enums import (
 )
 
 if TYPE_CHECKING:
+    from app.models.effort_estimation import StudentEffortEstimate
     from app.models.feedback import Feedback
 
 
@@ -82,6 +83,12 @@ class UserStory(TimestampMixin, Base):
         passive_deletes=True,
     )
     tasks: Mapped[list["UserStoryTask"]] = relationship(
+        back_populates="user_story",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    estimates: Mapped[list["StudentEffortEstimate"]] = relationship(
+        "StudentEffortEstimate",
         back_populates="user_story",
         cascade="all, delete-orphan",
         passive_deletes=True,

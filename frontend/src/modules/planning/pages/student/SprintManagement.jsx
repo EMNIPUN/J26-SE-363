@@ -20,6 +20,7 @@ import {
   UserCheck,
   Sparkles,
   BookOpen,
+  ArrowRight,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -69,7 +70,10 @@ import SupervisorConsultationModal from "../../components/SupervisorConsultation
 import { COURSE_INFO } from "../../data/lmsAcademicData.js";
 import { usePlanningData } from "../../context/usePlanningData.js";
 import { useSprintTasks, useUpdateSprintTask } from "../../hooks/useSprint.js";
+import { useStories } from "../../hooks/useDecomposition.js";
+import { useEstimates } from "../../hooks/useEstimates.js";
 import { mapSprintTasks } from "../../adapters/sprint.js";
+import { mapStoryRows } from "../../adapters/decomposition.js";
 import {
   KANBAN_COLUMNS,
   BURNDOWN_SEED,
@@ -710,6 +714,7 @@ function BacklogView({ onMove, onAssign }) {
   const {
     requirements,
     userStories,
+    estimations,
     kanbanTasks,
     teamMembers,
     projectInfo,
@@ -721,13 +726,40 @@ function BacklogView({ onMove, onAssign }) {
   const inSprintStoryIds = new Set(
     kanbanTasks.map((t) => t.storyId).filter(Boolean),
   );
-  const backlogItems = [];
+
+  // A story is eligible for the Sprint Creation Backlog if it has a saved estimate
+  // (persisted in DB on StudentEffortEstimate or UserStory.student_story_points)
+  const eligibleBacklogStories = [];
+  const pendingEstimationStories = [];
+
   for (const req of requirements) {
     for (const s of userStories[req.id] || []) {
-      if (!inSprintStoryIds.has(s.id))
-        backlogItems.push({ story: s, requirementId: req.id });
+      if (inSprintStoryIds.has(s.id)) continue;
+      const pts =
+        estimations[s.id]?.finalPoints ??
+        estimations[s.id]?.studentPoints ??
+        s.student_story_points ??
+        null;
+
+      if (pts != null) {
+        eligibleBacklogStories.push({
+          story: s,
+          requirementId: req.id,
+          points: pts,
+        });
+      } else {
+        pendingEstimationStories.push({
+          story: s,
+          requirementId: req.id,
+        });
+      }
     }
   }
+
+  const eligibleTotalSP = eligibleBacklogStories.reduce(
+    (sum, item) => sum + (Number(item.points) || 0),
+    0,
+  );
 
   const membersWithLoad = teamMembers.map((m) => ({
     ...m,
@@ -750,7 +782,7 @@ function BacklogView({ onMove, onAssign }) {
             </span>
             <Badge tone="primary">{totalPoints} SP</Badge>
           </div>
-          <Badge tone="success">Active</Badge>
+          <Badge tone="success">Active Sprint</Badge>
         </div>
         {kanbanTasks.length === 0 ? (
           <EmptyState
@@ -778,38 +810,42 @@ function BacklogView({ onMove, onAssign }) {
         )}
       </Card>
 
+      {/* Sprint Creation Backlog: displays actual persisted user stories and estimates */}
       <Card className="p-0 overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-muted/20">
-          <h3 className="text-sm font-semibold text-foreground">Backlog</h3>
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-muted/20 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-sm font-semibold text-foreground">Sprint Creation Backlog</h3>
+            <Badge tone="primary" className="text-xs">{eligibleTotalSP} SP Available</Badge>
+          </div>
           <span className="text-xs text-muted-foreground">
-            {backlogItems.length} item{backlogItems.length === 1 ? "" : "s"}
+            {eligibleBacklogStories.length} eligible stor{eligibleBacklogStories.length === 1 ? "y" : "ies"}
           </span>
         </div>
-        {backlogItems.length === 0 ? (
+        {eligibleBacklogStories.length === 0 ? (
           <EmptyState
-            title="Backlog is clear"
-            description="Every groomed story has already been pulled into the sprint."
+            title="Sprint Backlog is empty"
+            description="No estimated user stories found. Assign story points in Effort Estimation to make stories eligible for the sprint backlog."
+            actionLabel="Go to Effort Estimation"
+            onAction={() => navigate(team("/planning/requirements/estimation"))}
           />
         ) : (
           <div className="divide-y divide-border">
-            {backlogItems.map(({ story, requirementId }) => (
+            {eligibleBacklogStories.map(({ story, requirementId, points }) => (
               <IssueRow
                 key={story.id}
                 id={story.id}
                 title={story.title}
                 requirementId={requirementId}
                 requirements={requirements}
-                points={null}
-                statusLabel={story.status}
-                statusTone={story.status === "Accepted" ? "success" : "neutral"}
+                points={points}
+                statusLabel="Estimated"
+                statusTone="success"
                 member={null}
                 isStory
                 onClick={() =>
                   navigate(
                     team(
-                      story.status === "Accepted"
-                        ? "/planning/requirements/estimation"
-                        : "/planning/requirements/decomposition",
+                      `/planning/requirements/estimation?req=${requirementId}`,
                     ),
                   )
                 }
@@ -818,6 +854,35 @@ function BacklogView({ onMove, onAssign }) {
           </div>
         )}
       </Card>
+
+      {/* Pending Estimation Informational Panel */}
+      {pendingEstimationStories.length > 0 && (
+        <Card className="p-4 border-dashed border-amber-500/40 bg-amber-500/5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <span className="p-1.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <Clock className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-xs font-semibold text-foreground">
+                  {pendingEstimationStories.length} User Stor{pendingEstimationStories.length === 1 ? "y" : "ies"} Pending Effort Estimation
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  These stories cannot be scheduled into sprints until estimated using the Fibonacci scale (1, 2, 3, 5, 8, 13).
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate(team("/planning/requirements/estimation"))}
+              className="text-xs h-8 cursor-pointer gap-1"
+            >
+              Assign Story Points <ArrowRight className="h-3 w-3" />
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <TaskDetailDialog
         task={openTask}
@@ -1109,9 +1174,22 @@ function ReportsView() {
 }
 
 export default function SprintManagement() {
-  const { projectInfo, teamMembers, kanbanTasks, requirements, loadKanbanTasks, moveKanbanTask, assignKanbanTask } =
-    usePlanningData();
+  const {
+    projectInfo,
+    teamMembers,
+    kanbanTasks,
+    requirements,
+    userStories,
+    estimations,
+    loadKanbanTasks,
+    loadStories,
+    loadEstimations,
+    moveKanbanTask,
+    assignKanbanTask,
+  } = usePlanningData();
   const { data: tasksResp } = useSprintTasks();
+  const { data: storiesResp } = useStories();
+  const { data: estimatesResp } = useEstimates();
   const updateTask = useUpdateSprintTask();
   const [tab, setTab] = useState("board");
   const [today] = useState(() => Date.now());
@@ -1124,6 +1202,30 @@ export default function SprintManagement() {
     const mapped = mapSprintTasks(items);
     loadKanbanTasks(mapped);
   }, [tasksResp]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const stories = storiesResp?.data?.stories || storiesResp?.stories;
+    if (!stories) return;
+    const mapped = mapStoryRows(stories);
+    loadStories(mapped);
+  }, [storiesResp]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const rows = estimatesResp?.data?.estimates || estimatesResp?.estimates;
+    if (!rows || rows.length === 0) return;
+    const estMap = {};
+    for (const row of rows) {
+      const storyRef = row.story_ref || row.user_story_id;
+      if (!storyRef) continue;
+      estMap[storyRef] = {
+        studentPoints: row.estimated_story_points ?? row.story_points ?? null,
+        finalPoints: row.final_story_points ?? row.story_points ?? row.estimated_story_points ?? null,
+        reason: row.estimation_basis ?? row.reason ?? '',
+        confirmed: row.confirmed ?? false,
+      };
+    }
+    if (Object.keys(estMap).length > 0) loadEstimations(estMap);
+  }, [estimatesResp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleMove(taskId, newStatus) {
     moveKanbanTask(taskId, newStatus);
