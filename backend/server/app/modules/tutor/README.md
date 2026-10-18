@@ -5,7 +5,7 @@ Pedagogical tutoring sessions, interactive chat history, and student comprehensi
 Public entry: `POST /api/v1/tutor/chat` (student Keycloak auth).
 
 Secure Core→AI channels (when enabled):
-- Service auth: `Authorization: Bearer <AI_BACKEND_INTERNAL_TOKEN>`
+- Service auth: `X-Internal-Token: <AI_BACKEND_INTERNAL_TOKEN>`
 - Tutor MCP token: `X-SELVIA-Tutor-Token` (never in JSON)
 
 Public tutor chat is enabled when `is_adaptive_tutor_execution_ready()` is true and

@@ -1,33 +1,39 @@
 import { useEffect } from 'react'
-import { useParams, Outlet, Navigate, useLocation } from 'react-router-dom'
+import { useParams, Outlet, Navigate } from 'react-router-dom'
+import { useMyTeams } from '../hooks/useTeams.js'
+import { rememberTeam } from '../utils/recentTeams.js'
+import { teamHref } from '../utils/teams.js'
 import { useScope } from '../context/useScope.js'
-import { GROUPS } from '../constants/academicScope.js'
+import NotFound from '../pages/NotFound.jsx'
 
+/**
+ * Guards /teams/:teamId/*: the team must be one the person belongs to. Anything else (a typo,
+ * someone else's team) is "not found", and the page never falls back to a different team.
+ */
 export default function TeamScopeGuard() {
   const { teamId } = useParams()
-  const location = useLocation()
-  const { selectedGroup, setGroupId } = useScope()
-
-  // Match teamId from URL against GROUPS by code or id (case-insensitive)
-  const matchedGroup = GROUPS.find(
-    (g) =>
-      g.code?.toLowerCase() === teamId?.toLowerCase() ||
-      g.id?.toLowerCase() === teamId?.toLowerCase(),
+  const { groups, selectedGroupId, setGroupId, isLoading } = useScope()
+  const teams = useMyTeams()
+  const pending = teams.data?.find(
+    (t) => t.status === 'pending' && (t.code.toLowerCase() === teamId?.toLowerCase() || t.id === teamId),
   )
 
-  // Synchronize ScopeContext with URL when valid
+  const matchedGroup = groups.find(
+    (g) => g.code?.toLowerCase() === teamId?.toLowerCase() || g.id === teamId,
+  )
+
+  // Keep the active team in step with the address.
   useEffect(() => {
-    if (matchedGroup && selectedGroup?.id !== matchedGroup.id) {
-      setGroupId(matchedGroup.id)
-    }
-  }, [matchedGroup, selectedGroup, setGroupId])
+    if (matchedGroup && selectedGroupId !== matchedGroup.id) setGroupId(matchedGroup.id)
+  }, [matchedGroup, selectedGroupId, setGroupId])
 
-  // Fallback: If teamId in URL does not exist in registry, redirect to the active team.
-  if (!matchedGroup) {
-    const targetCode = selectedGroup?.code || GROUPS[0].code
-    const safePath = location.pathname.replace(teamId, targetCode)
-    return <Navigate to={safePath} replace />
-  }
+  // Remember it for the "Recently opened" row on the home page.
+  useEffect(() => {
+    if (matchedGroup?.code) rememberTeam(matchedGroup.code)
+  }, [matchedGroup?.code])
 
+  if (isLoading) return <div className="min-h-[40svh]" />
+  if (pending) return <Navigate to={teamHref(pending)} replace /> // finish the setup first
+  if (!matchedGroup) return <NotFound />
   return <Outlet />
 }

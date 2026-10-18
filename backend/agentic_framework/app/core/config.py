@@ -23,7 +23,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "SELVIA AI Backend"
     APP_ENV: str = "development"
 
-    # Core API → AI Backend shared service credential (Bearer). Not Keycloak / tutor tokens.
+    # Shared secret the Core API sends in ``X-Internal-Token``
+    # (env: AI_BACKEND_INTERNAL_TOKEN). Not Keycloak / tutor tokens.
     INTERNAL_TOKEN: Optional[str] = None
 
     # Platform MCP resource URL for the Adaptive Tutor (env: AI_BACKEND_TUTOR_MCP_URL).

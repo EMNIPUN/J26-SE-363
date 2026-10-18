@@ -1,6 +1,7 @@
 import * as React from "react"
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 import { cn } from "cn"
+import { Loader2 } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
 
 function AlertDialog({ ...props }) {
@@ -87,13 +88,19 @@ function AlertDialogDescription({ className, ...props }) {
   )
 }
 
-function AlertDialogAction({ className, ...props }) {
+function AlertDialogAction({ className, loading = false, disabled, children, ...props }) {
   return (
     <AlertDialogPrimitive.Action
       data-slot="alert-dialog-action"
-      className={cn(buttonVariants(), "cursor-pointer active:scale-95 transition-transform", className)}
+      data-loading={loading ? "true" : undefined}
+      aria-busy={loading || undefined}
+      disabled={disabled || loading}
+      className={cn(buttonVariants(), "cursor-pointer active:scale-95 transition-transform data-[loading=true]:disabled:opacity-80", className)}
       {...props}
-    />
+    >
+      {loading && <Loader2 className="animate-spin" aria-hidden="true" />}
+      {children}
+    </AlertDialogPrimitive.Action>
   )
 }
 

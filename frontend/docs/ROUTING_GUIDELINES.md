@@ -17,8 +17,9 @@ In legacy or poorly-structured web apps, developers often prefix routes with use
 
 ### The SELVIA Routing Solution
 1. **Team-Scoped Workspaces (`/teams/:teamId/*`)**: All module workflows operate inside an active team workspace (e.g., `/teams/J26-SE-363/performance/dashboard`).
-2. **Backward-Compatible Redirects**: Unscoped routes (e.g., `/app` or `/performance/dashboard`) automatically redirect to the active team (`/teams/J26-SE-363/...`).
-3. **Domain-Driven Modules**: Each research module owns an independent URL namespace (`planning/*`, `performance/*`, `tutor/*`, `security/*`). Developers never edit other team members' route tables.
+2. **Backward-Compatible Redirects**: Unscoped routes (e.g., `/app` or `/performance/dashboard`) automatically redirect to the active team (`/teams/J26-SE-363/...`), or to `/home` when the person has no team yet.
+3. **A home page before the workspace**: after sign-in people land on `/home`: what needs an answer, a few numbers, and their teams by term. It is about the person and all their teams; what happens inside one team belongs in that team's workspace. Lecturers also see drafts to finish, students without a team (their own institution only) and invitations nobody has answered; students see their team for the term as one card. `/teams` lists every team with a term filter and search. Both sit under a top bar (`HubLayout`) that is full width up to 96rem. First-time users are sent through `/onboarding` first (see [REGISTRATION_AND_TEAMS.md](../../docs/REGISTRATION_AND_TEAMS.md)).
+4. **Domain-Driven Modules**: Each research module owns an independent URL namespace (`planning/*`, `performance/*`, `tutor/*`, `security/*`). Developers never edit other team members' route tables.
 
 ---
 
@@ -26,8 +27,12 @@ In legacy or poorly-structured web apps, developers often prefix routes with use
 
 ```mermaid
 flowchart TD
-    Login["Keycloak Login (IAM)"] --> Redirect["Root Redirect to /app"]
-    Redirect --> AppRoute["/app (Unified Entrypoint)"]
+    Login["Keycloak Login (IAM)"] --> Onboarded{"Onboarded?"}
+    Onboarded -->|"no"| Onboarding["/onboarding"]
+    Onboarding --> Home
+    Onboarded -->|"yes"| Home["/home (my teams, invitations)"]
+    Home -->|"lecturer"| NewTeam["/teams/new"]
+    Home -->|"open a team"| AppRoute["/teams/:code/app (Unified Entrypoint)"]
     
     subgraph RoleDashboards ["RoleDashboard Switcher (/app)"]
         StudentDash["StudentHome Component"]
@@ -53,7 +58,7 @@ flowchart TD
 
 ## 🛡️ Authentication & Route Protection Lifecycle
 
-The route protection lifecycle is handled by [`RequireAuth.jsx`](../src/shared/auth/RequireAuth.jsx) and [`DashboardShell.jsx`](../src/shared/layout/DashboardShell.jsx):
+The route protection lifecycle is handled by [`RequireAuth.jsx`](../src/shared/auth/RequireAuth.jsx) (signed in), [`RequireAccount.jsx`](../src/shared/auth/RequireAccount.jsx) (the account has loaded and onboarding is finished) and [`DashboardShell.jsx`](../src/shared/layout/DashboardShell.jsx):
 
 ```mermaid
 sequenceDiagram
@@ -72,6 +77,8 @@ sequenceDiagram
     else Unauthenticated
         Guard->>Auth: loginWithKeycloak()
         Auth-->>User: Redirect to Keycloak IAM Login
+    else Authenticated but not onboarded
+        Guard-->>User: Redirect to /onboarding (then back to where they were going)
     else Authenticated
         Guard->>Shell: Mount Layout Shell
         Shell->>Page: Render active Route Component in <Outlet />
@@ -87,6 +94,7 @@ To ensure complete developer isolation and eliminate merge conflicts, the applic
 | Domain / Module | Path Prefix | Directory | Team Owner |
 | :--- | :--- | :--- | :--- |
 | **Unified Shell** | `/app` | `src/shared/pages/dashboards/` | Shared Platform |
+| **Home, onboarding, teams** | `/home`, `/teams`, `/onboarding`, `/teams/new`, `/invitations`, `/profile` (with `/profile/security` and `/profile/teams`), `/teams/:teamId/members` | `src/shared/pages/` (`home`, `onboarding`, `teams`, `invitations`, `profile`) | Shared Platform |
 | **Project Planning** | `/planning/*` | `src/modules/planning/routes.jsx` | Planning Dev |
 | **Performance Analytics** | `/performance/*` | `src/modules/performance/routes.jsx` | Performance Dev |
 | **Adaptive AI Tutor** | `/tutor/*` | `src/modules/tutor/routes.jsx` | AI Tutor Dev |

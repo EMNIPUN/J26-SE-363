@@ -6,7 +6,7 @@ change safely onto the shared Supabase database. Read
 connection URLs and the safety guards this guide relies on.
 
 This covers the Core API tables only: `users`, `groups`, `group_members`, `projects`,
-`project_documents`, `agent_runs`, and any table added later with a model. The job queue's
+`project_documents`, `agent_runs`, `team_invitations`, and any table added later with a model. The job queue's
 `procrastinate_*` tables are managed separately (see [Procrastinate upgrades](#procrastinate-upgrades)).
 
 All commands run from `backend/server/` in PowerShell.

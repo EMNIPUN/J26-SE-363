@@ -2,6 +2,7 @@ import * as React from "react"
 import { cva } from "class-variance-authority";
 import { cn } from "cn"
 import { Slot } from "radix-ui"
+import { Loader2 } from "lucide-react"
 
 const buttonVariants = cva(
   "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all duration-150 ease-out outline-none select-none cursor-pointer focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
@@ -40,23 +41,56 @@ const buttonVariants = cva(
   }
 )
 
+/**
+ * `loading` is for a button that waits for a response: it shows a spinning ring, disables the
+ * button (so a second click cannot send the request twice) and tells assistive technology it is
+ * busy. An icon-only button shows just the ring in place of its icon.
+ */
 function Button({
   className,
   variant = "default",
   size = "default",
   asChild = false,
+  loading = false,
+  disabled,
+  children,
   ...props
 }) {
-  const Comp = asChild ? Slot.Root : "button"
+  const classes = cn(
+    buttonVariants({ variant, size, className }),
+    // a button that is busy stays readable, unlike one that is simply unavailable
+    "data-[loading=true]:disabled:opacity-80"
+  )
 
+  if (asChild) {
+    return (
+      <Slot.Root
+        data-slot="button"
+        data-variant={variant}
+        data-size={size}
+        className={classes}
+        {...props}
+      >
+        {children}
+      </Slot.Root>
+    )
+  }
+
+  const iconOnly = String(size).startsWith("icon")
   return (
-    <Comp
+    <button
       data-slot="button"
       data-variant={variant}
       data-size={size}
-      className={cn(buttonVariants({ variant, size, className }))}
+      data-loading={loading ? "true" : undefined}
+      aria-busy={loading || undefined}
+      disabled={disabled || loading}
+      className={classes}
       {...props}
-    />
+    >
+      {loading && <Loader2 className="animate-spin" aria-hidden="true" />}
+      {!(loading && iconOnly) && children}
+    </button>
   )
 }
 

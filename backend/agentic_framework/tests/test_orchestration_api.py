@@ -71,7 +71,7 @@ def client(monkeypatch):
 
 
 def auth_headers(**extra) -> dict[str, str]:
-    return {"Authorization": f"Bearer {INTERNAL}", **extra}
+    return {"X-Internal-Token": INTERNAL, **extra}
 
 
 def test_ai_backend_starts(client):
@@ -92,7 +92,7 @@ def test_orchestration_rejects_invalid_service_credential(client):
     response = client.post(
         "/api/v1/orchestration",
         json=VALID_REQUEST,
-        headers={"Authorization": "Bearer wrong-token-that-is-long-enough-xx"},
+        headers={"X-Internal-Token": "wrong-token-that-is-long-enough-xx"},
     )
     assert response.status_code == 401
     assert INTERNAL not in response.text

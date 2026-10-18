@@ -5,8 +5,9 @@ SQLAlchemy models for the Core API database:
 | Module | Models |
 |---|---|
 | `user.py` | `User` |
-| `group.py` | `Group`, `GroupMember` |
+| `group.py` | `Group`, `GroupMember`, `MemberRole`, `TeamStatus` |
 | `project.py` | `Project`, `ProjectDocument` |
+| `team_invitation.py` | `TeamInvitation`, `InvitationStatus` |
 | `agent_run.py` | `AgentRun`, `AgentRunStatus` |
 
 Every new model must be imported in `__init__.py`, otherwise Alembic's autogenerate won't see it.

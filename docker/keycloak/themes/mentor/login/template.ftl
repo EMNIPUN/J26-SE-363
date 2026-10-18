@@ -1,273 +1,172 @@
-<#macro icon name class="icon">
-<svg class="${class}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><#switch name>
-<#case "mail"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><#break>
-<#case "lock"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><#break>
-<#case "key"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/><#break>
-<#case "user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><#break>
-<#case "user-plus"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/><#break>
-<#case "at-sign"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/><#break>
-<#case "arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/><#break>
-<#case "arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/><#break>
-<#case "alert-circle"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/><#break>
-<#case "alert-triangle"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/><#break>
+<#--
+  SELVIA login theme. One centred card on the app's canvas: logo, heading, message, form.
+  Colours and radius mirror frontend/src/index.css, so sign-in looks like the rest of the app.
+-->
+<#macro icon name>
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><#switch name>
+<#case "alert"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/><#break>
+<#case "check"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/><#break>
 <#case "info"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/><#break>
-<#case "check"><path d="M20 6 9 17l-5-5"/><#break>
-<#case "check-circle"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/><#break>
-<#case "log-out"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><#break>
 <#case "eye"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/><#break>
 <#case "eye-off"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M2 2l20 20"/><#break>
-<#case "sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/><#break>
-<#case "moon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/><#break>
-<#case "graduation-cap"><path d="M22 10v6"/><path d="M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/><#break>
-<#case "presentation"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/><#break>
-<#case "shield-check"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/><#break>
-<#case "book-open"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/><#break>
-<#case "bar-chart"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/><#break>
-<#case "bot"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/><#break>
 <#default><circle cx="12" cy="12" r="10"/>
+</#switch></svg>
+</#macro>
+
+<#-- Brand icons for the social buttons (single colour, so they work in both themes). -->
+<#macro providerIcon alias>
+<svg class="provider-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><#switch alias>
+<#case "google"><path d="M21.35 11.1H12v2.98h5.35c-.23 1.4-1.64 4.1-5.35 4.1a5.9 5.9 0 0 1 0-11.8c1.87 0 3.12.8 3.84 1.48l2.1-2.03C20.6 4.5 18.5 3.6 12 3.6a8.4 8.4 0 0 0 0 16.8c4.85 0 8.07-3.4 8.07-8.2 0-.55-.06-.97-.14-1.4z"/><#break>
+<#case "microsoft"><path d="M3 3h8.5v8.5H3zM12.5 3H21v8.5h-8.5zM3 12.5h8.5V21H3zM12.5 12.5H21V21h-8.5z"/><#break>
+<#case "github"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.1-1.46-1.1-1.46-.9-.62.07-.6.07-.6 1 .07 1.52 1.03 1.52 1.03.89 1.52 2.34 1.08 2.9.83.09-.64.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.9-1.29 2.74-1.02 2.74-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/><#break>
+<#default><circle cx="12" cy="12" r="9"/>
 </#switch></svg>
 </#macro>
 
 <#macro passwordToggle target>
 <button type="button" class="input-action" data-toggle-password="${target}" aria-controls="${target}" aria-pressed="false" aria-label="Show password">
-    <@icon name="eye" class="icon icon-eye"/>
-    <@icon name="eye-off" class="icon icon-eye-off"/>
+    <span class="when-hidden"><@icon name="eye"/></span>
+    <span class="when-shown"><@icon name="eye-off"/></span>
 </button>
 </#macro>
 
 <#macro fieldError name>
 <#if messagesPerField.existsError(name)>
-<span id="${name}-error" class="field-error" aria-live="polite">
-    <@icon name="alert-circle"/>
-    <span>${kcSanitize(messagesPerField.get(name))?no_esc}</span>
-</span>
+<p id="${name}-error" class="field-error" aria-live="polite">${kcSanitize(messagesPerField.get(name))?no_esc}</p>
+</#if>
+</#macro>
+
+<#--
+  The "confirm your details" form: the account's profile attributes (email, first and last name...).
+  Used after signing in with a provider (idp-review-user-profile) and for the update-profile action.
+-->
+<#macro profileForm cancellable=false>
+<form id="kc-update-profile-form" class="form" action="${url.loginAction}" method="post">
+    <#if profile?? && profile.attributes??>
+        <#list profile.attributes as attribute>
+            <#if attribute.name != "username" || !realm.registrationEmailAsUsername>
+            <div class="field">
+                <label for="${attribute.name}" class="label">${attribute.displayName!attribute.name}</label>
+                <input id="${attribute.name}" name="${attribute.name}" class="input"
+                       type="<#if attribute.name == 'email'>email<#else>text</#if>" value="${attribute.value!''}"
+                       <#if attribute.required>required</#if> <#if attribute.readOnly>readonly</#if>
+                       <#if messagesPerField.existsError(attribute.name)>aria-invalid="true"</#if>>
+                <@fieldError name=attribute.name/>
+            </div>
+            </#if>
+        </#list>
+    </#if>
+    <div class="actions">
+        <button class="btn btn-primary" type="submit" data-busy-label="Saving…">Continue</button>
+        <#if cancellable>
+            <button class="btn btn-outline" type="submit" name="cancel-aia" value="true" formnovalidate>Cancel</button>
+        </#if>
+    </div>
+</form>
+</#macro>
+
+<#--
+  Sign-in and sign-up with Google, Microsoft or GitHub. Only the providers configured in the
+  realm are listed (docker/keycloak/README.md), and nothing is drawn when there are none.
+-->
+<#macro socialProviders>
+<#if social?? && social.providers?? && social.providers?has_content>
+<div class="providers">
+    <#list social.providers as provider>
+    <a id="social-${provider.alias}" class="btn btn-outline" href="${provider.loginUrl}">
+        <@providerIcon alias=provider.alias/>
+        <span>Continue with ${provider.displayName!provider.alias}</span>
+    </a>
+    </#list>
+</div>
+<div class="divider"><span>or</span></div>
 </#if>
 </#macro>
 
 <#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false>
-<#assign currentPage = (pageId!(.main_template_name!''))?remove_ending('.ftl')>
-<#assign isRegister = currentPage == "register">
-<#switch currentPage>
-    <#case "login">
-        <#assign pageTitle = "Welcome back">
-        <#assign pageSubtitle = "Sign in to continue to your SELVIA workspace.">
-        <#assign pageIcon = "">
-        <#break>
-    <#case "register">
-        <#assign pageTitle = "Create your account">
-        <#assign pageSubtitle = "Join your team's workspace. It only takes a minute.">
-        <#assign pageIcon = "">
-        <#break>
-    <#case "login-reset-password">
-        <#assign pageTitle = "Forgot your password?">
-        <#assign pageSubtitle = "Enter the email you use for SELVIA and we'll send you a link to reset it.">
-        <#assign pageIcon = "key">
-        <#break>
-    <#case "login-update-password">
-        <#assign pageTitle = "Set a new password">
-        <#assign pageSubtitle = "Choose a strong password that you haven't used before.">
-        <#assign pageIcon = "lock">
-        <#break>
-    <#case "logout-confirm">
-        <#assign pageTitle = "Sign out of SELVIA?">
-        <#assign pageSubtitle = "You'll need to sign in again to get back to your workspace.">
-        <#assign pageIcon = "log-out">
-        <#break>
-    <#case "error">
-        <#assign pageTitle = "Something went wrong">
-        <#assign pageSubtitle = "We couldn't complete your request.">
-        <#assign pageIcon = "alert-triangle">
-        <#break>
-    <#case "info">
-        <#assign pageTitle = (messageHeader??)?then(msg(messageHeader!''), "Just so you know")>
-        <#assign pageSubtitle = "">
-        <#assign pageIcon = "info">
-        <#break>
-    <#default>
-        <#assign pageTitle = "">
-        <#assign pageSubtitle = "">
-        <#assign pageIcon = "shield-check">
-</#switch>
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="${(locale.currentLanguageTag)!'en'}">
 <head>
     <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <meta name="color-scheme" content="light dark">
-    <title><#if isRegister>Create your account · SELVIA<#elseif currentPage == "login">Sign in · SELVIA<#else>SELVIA</#if></title>
-    <link rel="icon" type="image/png" href="${url.resourcesPath}/img/selvia-mark.png" />
-    <link rel="apple-touch-icon" href="${url.resourcesPath}/img/selvia-mark.png" />
-    <script>
-        (function () {
-            var theme = null;
-            try { theme = localStorage.getItem('selvia-auth-theme'); } catch (e) {}
-            if (theme !== 'light' && theme !== 'dark') {
-                theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            }
-            document.documentElement.setAttribute('data-theme', theme);
-        })();
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>SELVIA</title>
+    <link rel="icon" type="image/svg+xml" href="${url.resourcesPath}/img/favicon.svg">
+    <link rel="preload" href="${url.resourcesPath}/fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
     <#if properties.styles?has_content>
         <#list properties.styles?split(' ') as style>
-            <link href="${url.resourcesPath}/${style}" rel="stylesheet" />
+    <link rel="stylesheet" href="${url.resourcesPath}/${style}">
         </#list>
     </#if>
     <#if properties.scripts?has_content>
         <#list properties.scripts?split(' ') as script>
-            <script src="${url.resourcesPath}/${script}" defer></script>
-        </#list>
-    </#if>
-    <#if scripts??>
-        <#list scripts as script>
-            <script src="${script}" defer></script>
+    <script src="${url.resourcesPath}/${script}" defer></script>
         </#list>
     </#if>
 </head>
-<body class="${bodyClass}">
-<div class="auth-shell">
-    <aside class="showcase" aria-hidden="true">
-        <div class="brand">
-            <img src="${url.resourcesPath}/img/selvia-mark.png" alt="" class="brand-mark" width="44" height="44" />
-            <span class="brand-text">
-                <span class="brand-name">SELVIA</span>
-                <span class="brand-tagline">Engineering Workspace</span>
-            </span>
-        </div>
-
-        <div class="showcase-body">
-            <span class="eyebrow"><span class="eyebrow-dot"></span>Student &amp; Lecturer portals</span>
-            <h1 class="showcase-title">
-                Your software project,<br/>
-                <span class="accent">all in one workspace.</span>
-            </h1>
-            <p class="showcase-lead">
-                Plan sprints, track team performance, fix security issues and learn with an AI tutor.
-                Built for student teams and the lecturers who guide them.
-            </p>
-
-            <div class="preview">
-                <div class="preview-head">
-                    <div>
-                        <p class="preview-eyebrow">Sprint 4 &middot; Group 07</p>
-                        <p class="preview-title">AEGIS &mdash; Security Assistant</p>
-                    </div>
-                    <span class="preview-badge"><span></span>On track</span>
-                </div>
-
-                <div class="preview-stats">
-                    <div class="preview-stat">
-                        <span class="preview-stat-icon blue"><@icon name="check-circle"/></span>
-                        <span class="preview-stat-value">18/24</span>
-                        <span class="preview-stat-label">Tasks done</span>
-                    </div>
-                    <div class="preview-stat">
-                        <span class="preview-stat-icon green"><@icon name="bar-chart"/></span>
-                        <span class="preview-stat-value">92%</span>
-                        <span class="preview-stat-label">Quality gate</span>
-                    </div>
-                    <div class="preview-stat">
-                        <span class="preview-stat-icon amber"><@icon name="shield-check"/></span>
-                        <span class="preview-stat-value">2</span>
-                        <span class="preview-stat-label">Open findings</span>
-                    </div>
-                </div>
-
-                <div class="preview-progress">
-                    <div class="preview-progress-meta"><span>Sprint progress</span><span>75%</span></div>
-                    <div class="preview-progress-bar"><span style="width: 75%"></span></div>
-                </div>
-
-                <div class="preview-nudge">
-                    <span class="preview-nudge-icon"><@icon name="bot"/></span>
-                    <p><strong>Tutor Agent</strong> Review your story points before Friday's planning session.</p>
-                </div>
+<body>
+<div class="shell">
+<aside class="aside" aria-hidden="true">
+    <span class="brand brand-light">
+        <img src="${url.resourcesPath}/img/selvia-mark-128.png" alt="" width="32" height="32">
+        <span>SELVIA</span>
+    </span>
+    <div class="aside-body">
+        <h2 class="aside-title">A mentor for every software project</h2>
+        <#-- A small picture of the app: plan, review, tutor. Decorative only. -->
+        <div class="preview">
+            <div class="mock mock-plan">
+                <div class="mock-head"><span>Sprint plan</span><span class="mock-pill">3 of 5</span></div>
+                <div class="mock-bar"><span style="width: 60%"></span></div>
+                <ul class="mock-tasks">
+                    <li class="done"><@icon name="check"/>Set up the repository</li>
+                    <li class="done"><@icon name="check"/>Design the database</li>
+                    <li><span class="dot"></span>Build the sign-in page</li>
+                </ul>
             </div>
-
-            <div class="module-row">
-                <span class="module-chip"><@icon name="book-open"/>Project Planning</span>
-                <span class="module-chip"><@icon name="bar-chart"/>Performance</span>
-                <span class="module-chip"><@icon name="bot"/>Tutor Agent</span>
-                <span class="module-chip"><@icon name="shield-check"/>AEGIS Security</span>
+            <div class="mock mock-review">
+                <div class="mock-head"><span>Code review</span><span class="mock-pill warn">Security</span></div>
+                <div class="mock-code">
+                    <span style="width: 62%"></span>
+                    <span style="width: 40%"></span>
+                    <span class="flag" style="width: 74%"></span>
+                    <span style="width: 52%"></span>
+                </div>
+                <p class="mock-note">Validate this input before using it</p>
+            </div>
+            <div class="mock mock-tutor">
+                <span class="mock-avatar"><@icon name="info"/></span>
+                <p>Try splitting this into two smaller functions.</p>
             </div>
         </div>
+    </div>
+    <span></span>
+</aside>
 
-        <div class="showcase-footer">
-            <span class="trust"><@icon name="lock"/>Secured with single sign-on</span>
-            <span>Engineering Workspace</span>
+<main class="main">
+    <a class="brand brand-mobile" href="${(client.baseUrl)!'#'}" aria-label="SELVIA">
+        <img src="${url.resourcesPath}/img/selvia-mark-128.png" alt="" width="32" height="32">
+        <span>SELVIA</span>
+    </a>
+
+    <div class="card">
+        <h1 class="title"><#nested "header"></h1>
+
+        <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
+        <div class="alert alert-${message.type}" role="<#if message.type == 'error'>alert<#else>status</#if>">
+            <#if message.type = 'success'><@icon name="check"/><#elseif message.type = 'error' || message.type = 'warning'><@icon name="alert"/><#else><@icon name="info"/></#if>
+            <span>${kcSanitize(message.summary)?no_esc}</span>
         </div>
-    </aside>
+        </#if>
 
-    <main class="auth-panel">
-        <header class="auth-topbar">
-            <span class="brand">
-                <img src="${url.resourcesPath}/img/selvia-mark.png" alt="" class="brand-mark" width="36" height="36" />
-                <span class="brand-text">
-                    <span class="brand-name">SELVIA</span>
-                </span>
-            </span>
-            <div class="topbar-actions">
-                <button type="button" class="icon-btn" data-theme-toggle aria-label="Switch between light and dark theme" title="Toggle theme">
-                    <@icon name="moon" class="icon theme-icon-light"/>
-                    <@icon name="sun" class="icon theme-icon-dark"/>
-                </button>
-            </div>
-        </header>
+        <#nested "form">
 
-        <div class="auth-main">
-            <div class="auth-card<#if isRegister> wide</#if>">
-                <div class="auth-header">
-                    <#if pageIcon?has_content>
-                        <span class="auth-header-icon<#if currentPage == 'error'> danger</#if>"><@icon name=pageIcon/></span>
-                    </#if>
-                    <h2 class="auth-title"><#if pageTitle?has_content>${pageTitle}<#else><#nested "header"></#if></h2>
-                    <#if pageSubtitle?has_content>
-                        <p class="auth-subtitle">${pageSubtitle}</p>
-                    </#if>
-                    <#if displayRequiredFields>
-                        <p class="required-note"><span class="req">*</span> Required fields</p>
-                    </#if>
-                </div>
-
-                <#if auth?has_content && auth.showUsername() && !auth.showResetCredentials()>
-                    <div class="attempted-user">
-                        <span class="attempted-user-avatar"><@icon name="user"/></span>
-                        <span class="attempted-user-name">${auth.attemptedUsername}</span>
-                        <a class="attempted-user-change" href="${url.loginRestartFlowUrl}">Change</a>
-                    </div>
-                </#if>
-
-                <#if displayMessage && message?has_content && (message.type != 'warning' || !isAppInitiatedAction??)>
-                    <div class="alert alert-${message.type}" <#if message.type == 'error'>role="alert"<#else>role="status"</#if>>
-                        <#switch message.type>
-                            <#case "success"><@icon name="check-circle"/><#break>
-                            <#case "warning"><@icon name="alert-triangle"/><#break>
-                            <#case "info"><@icon name="info"/><#break>
-                            <#default><@icon name="alert-circle"/>
-                        </#switch>
-                        <span>${kcSanitize(message.summary)?no_esc}</span>
-                    </div>
-                </#if>
-
-                <#nested "form">
-
-                <#if displayInfo>
-                    <div class="auth-info">
-                        <#nested "info">
-                    </div>
-                </#if>
-            </div>
-        </div>
-
-        <footer class="auth-footer">
-            <span>Trouble signing in? Contact your lecturer or project admin.</span>
-            <span>&copy; ${.now?string('yyyy')} SELVIA</span>
-        </footer>
-    </main>
+        <#if displayInfo>
+        <div class="card-foot"><#nested "info"></div>
+        </#if>
+    </div>
+</main>
 </div>
 </body>
 </html>

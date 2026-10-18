@@ -1,27 +1,38 @@
 {
   "realm": "mentor",
   "enabled": true,
-  "displayName": "SELVIA Platform",
+  "displayName": "SELVIA",
   "sslRequired": "external",
+  "loginTheme": "mentor",
+  "emailTheme": "mentor",
   "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
+  "editUsernameAllowed": false,
+  "verifyEmail": true,
   "resetPasswordAllowed": true,
-  "rememberMe": true,
-  "loginTheme": "mentor",
+  "rememberMe": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "minimumQuickLoginWaitSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "passwordPolicy": "length(10) and notUsername and notEmail",
   "roles": {
     "realm": [
       {
         "name": "student",
-        "description": "Student role with access to learning tasks"
+        "description": "Kept for compatibility. A person's student or lecturer role is chosen in the app and stored in the Core API database."
       },
       {
         "name": "lecturer",
-        "description": "Lecturer role with access to monitoring and analytics"
+        "description": "Kept for compatibility. See the student role."
       },
       {
         "name": "admin",
-        "description": "Administrator with full system access"
+        "description": "Platform administrator. The Core API trusts this role from the token."
       }
     ]
   },
@@ -34,28 +45,20 @@
       "protocol": "openid-connect",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": true,
+      "directAccessGrantsEnabled": false,
       "rootUrl": "http://localhost:5173",
       "baseUrl": "http://localhost:5173",
       "redirectUris": [
-        "https://mentor-frontend-testing.vercel.app/*",
-        "https://mentor-frontend-testing.vercel.app/",
-        "https://mentor-frontend-testing.vercel.app",
         "http://localhost:5173/*",
-        "http://localhost:5173",
-        "http://localhost:*/*",
-        "http://127.0.0.1:*/*",
-        "https://*/*",
-        "https://*"
+        "https://mentor-frontend-testing.vercel.app/*"
       ],
       "webOrigins": [
-        "+",
-        "https://mentor-frontend-testing.vercel.app",
-        "*"
+        "http://localhost:5173",
+        "https://mentor-frontend-testing.vercel.app"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "+##https://mentor-frontend-testing.vercel.app/*##https://mentor-frontend-testing.vercel.app/##https://mentor-frontend-testing.vercel.app##http://localhost:5173/*##http://localhost:5173##http://localhost:*/*##https://*/*"
+        "post.logout.redirect.uris": "http://localhost:5173/*##https://mentor-frontend-testing.vercel.app/*"
       },
       "defaultClientScopes": [
         "web-origins",
@@ -63,34 +66,6 @@
         "roles",
         "profile",
         "email"
-      ]
-    },
-    {
-      "clientId": "account-console",
-      "name": "Account Console",
-      "enabled": true,
-      "publicClient": true,
-      "protocol": "openid-connect",
-      "redirectUris": [
-        "/realms/mentor/account/*",
-        "https://*/*"
-      ],
-      "webOrigins": [
-        "+"
-      ]
-    },
-    {
-      "clientId": "account",
-      "name": "Account",
-      "enabled": true,
-      "publicClient": true,
-      "protocol": "openid-connect",
-      "redirectUris": [
-        "/realms/mentor/account/*",
-        "https://*/*"
-      ],
-      "webOrigins": [
-        "+"
       ]
     }
   ]

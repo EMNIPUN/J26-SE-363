@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from shared.contracts import OrchestrationRequest, OrchestrationResponse
 
 from app.api.dependencies import get_orchestrator
-from app.core.internal_auth import require_internal_service
+from app.core.security import require_internal_token
 from app.core.tutor_token_context import (
     TUTOR_ACCESS_TOKEN_HEADER,
     TUTOR_CHAT_ACTION,
@@ -15,13 +15,15 @@ from app.core.tutor_token_context import (
 )
 from app.orchestrator import Orchestrator
 
-router = APIRouter(tags=["Orchestration"])
+router = APIRouter(
+    tags=["Orchestration"],
+    dependencies=[Depends(require_internal_token)],
+)
 
 
 @router.post(
     "/orchestration",
     response_model=OrchestrationResponse,
-    dependencies=[Depends(require_internal_service)],
 )
 async def orchestrate(
     request: OrchestrationRequest,

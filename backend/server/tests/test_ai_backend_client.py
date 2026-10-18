@@ -13,6 +13,7 @@ from app.clients.ai_backend import (
     AIBackendClient,
     AIBackendConfigError,
     AIBackendError,
+    INTERNAL_TOKEN_HEADER,
     TUTOR_ACCESS_TOKEN_HEADER,
     get_ai_backend_client,
 )
@@ -44,7 +45,7 @@ async def test_sends_orchestration_request_with_service_auth_and_parses_response
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
         assert request.url.path == "/api/v1/orchestration"
-        assert request.headers.get("Authorization") == f"Bearer {INTERNAL}"
+        assert request.headers.get(INTERNAL_TOKEN_HEADER) == INTERNAL
         assert TUTOR_ACCESS_TOKEN_HEADER not in request.headers
         sent = json.loads(request.content)
         assert sent["request_id"] == "req-001"
@@ -62,7 +63,7 @@ async def test_sends_orchestration_request_with_service_auth_and_parses_response
 @pytest.mark.asyncio
 async def test_tutor_token_sent_only_in_dedicated_header():
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.headers.get("Authorization") == f"Bearer {INTERNAL}"
+        assert request.headers.get(INTERNAL_TOKEN_HEADER) == INTERNAL
         assert request.headers.get(TUTOR_ACCESS_TOKEN_HEADER) == TUTOR_TOKEN
         sent = json.loads(request.content)
         dumped = json.dumps(sent)

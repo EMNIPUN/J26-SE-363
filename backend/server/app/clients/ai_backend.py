@@ -10,6 +10,7 @@ from app.core.config import settings
 ORCHESTRATION_PATH = "/api/v1/orchestration"
 # Dedicated channel for short-lived tutor MCP tokens (never put in JSON / jobs / logs).
 TUTOR_ACCESS_TOKEN_HEADER = "X-SELVIA-Tutor-Token"
+INTERNAL_TOKEN_HEADER = "X-Internal-Token"
 
 
 class AIBackendError(Exception):
@@ -49,25 +50,35 @@ class AIBackendClient:
         Optional ``tutor_access_token`` is sent only in ``X-SELVIA-Tutor-Token``.
         It is never merged into the request body.
         """
+        # The AI Backend trusts the requester in the body, so it only accepts callers
+        # that hold the shared secret.
         headers = {
-            "Authorization": f"Bearer {self._internal_token}",
+            INTERNAL_TOKEN_HEADER: self._internal_token,
             "Accept": "application/json",
             "Content-Type": "application/json",
         }
         if tutor_access_token is not None:
             if not isinstance(tutor_access_token, str) or not tutor_access_token.strip():
-                raise AIBackendError("tutor_access_token must be a non-empty string when provided")
+                raise AIBackendError(
+                    "tutor_access_token must be a non-empty string when provided"
+                )
             headers[TUTOR_ACCESS_TOKEN_HEADER] = tutor_access_token
 
         body = request.model_dump(mode="json")
         if tutor_access_token and tutor_access_token in str(body):
-            raise AIBackendError("Refusing to send orchestration JSON that embeds a tutor token")
+            raise AIBackendError(
+                "Refusing to send orchestration JSON that embeds a tutor token"
+            )
 
         try:
             async with httpx.AsyncClient(
-                base_url=self._base_url, timeout=self._timeout, transport=self._transport
+                base_url=self._base_url,
+                timeout=self._timeout,
+                transport=self._transport,
             ) as client:
-                response = await client.post(ORCHESTRATION_PATH, json=body, headers=headers)
+                response = await client.post(
+                    ORCHESTRATION_PATH, json=body, headers=headers
+                )
                 response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             raise AIBackendError(

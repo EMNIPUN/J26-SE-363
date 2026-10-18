@@ -35,6 +35,10 @@ class CurrentUser(BaseModel):
     username: str | None = None
     name: str | None = None
     email: str | None = None
+    # Keycloak confirmed the address (by link, or because Google/Microsoft/GitHub did).
+    email_verified: bool = False
+    # The provider's profile picture (an address), when Keycloak passes it on.
+    picture: str | None = None
     role: UserRole
     roles: list[str] = []
 
@@ -49,7 +53,10 @@ def primary_role(realm_roles: Iterable[str]) -> UserRole:
     receive Keycloak's default roles. This matches the frontend's resolveRole().
     """
     known = {role.value for role in UserRole}
-    found = {ROLE_ALIASES.get(r) or (UserRole(r) if r in known else None) for r in realm_roles}
+    found = {
+        ROLE_ALIASES.get(r) or (UserRole(r) if r in known else None)
+        for r in realm_roles
+    }
     return next((role for role in ROLE_PRIORITY if role in found), UserRole.STUDENT)
 
 
@@ -89,7 +96,9 @@ class TokenVerifier:
             raise AuthenticationError(str(exc)) from exc
 
         if claims.get("azp") not in self._allowed_clients:
-            raise AuthenticationError(f"Token was issued to client {claims.get('azp')!r}")
+            raise AuthenticationError(
+                f"Token was issued to client {claims.get('azp')!r}"
+            )
 
         realm_roles = claims.get("realm_access", {}).get("roles", [])
         return CurrentUser(
@@ -97,6 +106,10 @@ class TokenVerifier:
             username=claims.get("preferred_username"),
             name=claims.get("name"),
             email=claims.get("email"),
+            email_verified=bool(claims.get("email_verified", False)),
+            picture=claims.get("picture")
+            if isinstance(claims.get("picture"), str)
+            else None,
             role=primary_role(realm_roles),
             roles=realm_roles,
         )
@@ -138,9 +151,13 @@ def get_current_user(
 
 
 def require_roles(*roles: UserRole) -> Callable[[CurrentUser], CurrentUser]:
-    def check_role(user: Annotated[CurrentUser, Depends(get_current_user)]) -> CurrentUser:
+    def check_role(
+        user: Annotated[CurrentUser, Depends(get_current_user)],
+    ) -> CurrentUser:
         if user.role not in roles:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed"
+            )
         return user
 
     return check_role

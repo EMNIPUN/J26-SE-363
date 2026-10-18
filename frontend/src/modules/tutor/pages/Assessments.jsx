@@ -122,7 +122,7 @@ export default function Assessments() {
                   Next
                 </Button>
               ) : (
-                <Button type="button" onClick={submit} disabled={submitting || unanswered.length > 0}>
+                <Button type="button" onClick={submit} loading={submitting} disabled={unanswered.length > 0}>
                   {submitting ? 'Submitting…' : 'Submit attempt'}
                 </Button>
               )}

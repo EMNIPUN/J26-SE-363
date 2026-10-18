@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -56,6 +56,29 @@ class Settings(BaseSettings):
     # Browser origins allowed to call the Core API, as a JSON list.
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
+    # Email (invitations and notifications; Keycloak sends its own verification and reset mail,
+    # configured separately in the realm, see docker/keycloak/README.md).
+    # "console" only logs messages, which is enough for development. "smtp" delivers them
+    # through any SMTP provider; backend/server/.env.example lists the variables.
+    EMAIL_BACKEND: Literal["console", "smtp"] = "console"
+    EMAIL_FROM_ADDRESS: str = "no-reply@selvia.local"
+    EMAIL_FROM_NAME: str = "SELVIA"
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    # "starttls" (port 587), "ssl" (port 465) or "none" (a local test server such as Mailpit).
+    SMTP_SECURITY: Literal["starttls", "ssl", "none"] = "starttls"
+    # The web app that links in emails open when the request does not say which one the person
+    # uses. Normally the link follows the request's Origin (localhost in development, the deployed
+    # address in production) as long as it is in CORS_ORIGINS; see app/services/email/service.py.
+    APP_BASE_URL: str = "http://localhost:5173"
+    # How long an invitation link stays valid.
+    INVITATION_TTL_DAYS: int = 14
+    # Invitations only match an account whose email address Keycloak has verified. Turn this
+    # off only for local development, where the realm does not verify addresses.
+    REQUIRE_VERIFIED_EMAIL: bool = True
+
     # GitHub Ingestion Settings
     GITHUB_TOKEN: Optional[str] = None
 
@@ -65,8 +88,8 @@ class Settings(BaseSettings):
     # AI Backend (internal service that runs the Main Orchestrator)
     AI_BACKEND_URL: str = "http://localhost:8003"
     AI_BACKEND_TIMEOUT_SECONDS: float = 60.0
-    # Shared Core→AI Backend service credential (not Keycloak, not tutor MCP tokens).
-    # Must match AI Backend AI_BACKEND_INTERNAL_TOKEN. No default; fail closed when unset.
+    # Shared secret sent to the AI Backend as `X-Internal-Token`; must equal the value in
+    # backend/agentic_framework/.env (AI_BACKEND_INTERNAL_TOKEN). No default; fail closed.
     AI_BACKEND_INTERNAL_TOKEN: Optional[str] = None
 
     # SLAP internal tutor-access-token mint (Core API only; never expose to browsers or AI Backend).
@@ -95,6 +118,12 @@ class Settings(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @model_validator(mode="after")
+    def smtp_needs_a_host(self) -> "Settings":
+        if self.EMAIL_BACKEND == "smtp" and not self.SMTP_HOST:
+            raise ValueError("EMAIL_BACKEND=smtp needs SMTP_HOST")
+        return self
 
     @model_validator(mode="after")
     def resolve_database_url(self) -> "Settings":
