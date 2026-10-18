@@ -98,28 +98,43 @@ class Scope:
         return self._out(f"{sha} {path} lines {start}-{end - 1} of {len(lines)}\n{body}{tail}")
 
     def search_changes(self, query, max_results=MAX_SEARCH_RESULTS):
-        """Case-insensitive search of the student's own changed lines. Returns commit, file, line index and the line."""
+        """Case-insensitive search of the student's own changed lines. Returns commit, file, line index and the line.
+
+        A regular expression is tried first. If nothing matches, the words of the query (3 letters or more) are tried one by one and the lines
+        are ranked by how many of the words they contain, so a query worded differently from the code still finds something.
+        """
         self._log("search_changes", query=query)
         try:
             rx = re.compile(query, re.I)
         except re.error:
             rx = re.compile(re.escape(query), re.I)
-        hits = []
+        words = [re.compile(re.escape(w), re.I) for w in dict.fromkeys(re.findall(r"[A-Za-z0-9_]{3,}", query))]
+        exact, partial = [], {}
         for sha, c in self._own.items():
             for f in c["files"]:
                 for i, line in enumerate(self.bench.hunk(sha, f["path"])):
-                    if line.startswith("+") and rx.search(line):
-                        hits.append((sha, f["path"], i, line))
-                        if len(hits) >= max_results:
-                            break
-                if len(hits) >= max_results:
-                    break
-            if len(hits) >= max_results:
+                    if not line.startswith("+"):
+                        continue
+                    if rx.search(line):
+                        if len(exact) < max_results:
+                            exact.append((sha, f["path"], i, line))
+                    elif words and not exact:
+                        n = sum(1 for w in words if w.search(line))
+                        if n:
+                            partial[(sha, f["path"], i)] = (n, line)
+            if len(exact) >= max_results:
                 break
+        if exact:
+            hits, note = exact, ""
+        elif partial:
+            ranked = sorted(partial.items(), key=lambda kv: (-kv[1][0], kv[0]))[:max_results]
+            hits = [(k[0], k[1], k[2], v[1]) for k, v in ranked]
+            note = "no exact match; lines containing some of the words (best first):\n"
+        else:
+            return self._out("no match in your changes; try other words, or read a file of the commits listed")
         for sha, path, i, _ in hits:
             self.seen.add((sha, path, i))
-        text = "\n".join(f"{sha} {path}:{i}: {line}" for sha, path, i, line in hits)
-        return self._out(text or "no match in your changes")
+        return self._out(note + "\n".join(f"{sha} {path}:{i}: {line}" for sha, path, i, line in hits))
 
     # --- facts for scoring (not tools) -------------------------------------------------------------------------------------
 
