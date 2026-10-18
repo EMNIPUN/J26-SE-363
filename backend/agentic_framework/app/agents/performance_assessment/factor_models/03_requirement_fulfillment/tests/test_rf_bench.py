@@ -195,6 +195,34 @@ class Pacing(unittest.TestCase):
         self.assertNotIn("gsk_secretvalue", json.dumps(pool.daily))
 
 
+class Runner(unittest.TestCase):
+    def test_a_daily_quota_pauses_the_run_and_records_nothing(self):
+        import argparse
+        import shutil
+        import types
+        from rf_bench import runner
+
+        class Exp:
+            name = "fake"
+            dry_responder = staticmethod(lambda m, t: "{}")
+
+            def config(self):
+                return {}
+
+            def assess(self, bench, tid, scope, llm, usage, run=0):
+                usage.failures.append("quota")
+                return {"error": "every key is exhausted for today", "error_kind": "quota"}
+        mod = types.ModuleType("fake_exp")
+        mod.Exp = Exp
+        sys.modules["fake_exp"] = mod
+        out = ".runs/test_pause"
+        shutil.rmtree(runner.RF / out, ignore_errors=True)
+        runner.cmd_run(argparse.Namespace(exp="fake_exp:Exp", split="dev", per_bucket=1, runs=1, out=out, workers=2, model=None, fallback=None, effort="low", dry=True))
+        res = runner.RF / out / "results.jsonl"
+        self.assertTrue(not res.exists() or res.read_text(encoding="utf-8").strip() == "")
+        shutil.rmtree(runner.RF / out, ignore_errors=True)
+
+
 class Rubric(unittest.TestCase):
     def test_parse(self):
         self.assertEqual(parse_verdicts('{"verdicts": ["met", "Not Met", "partial"]}', 3), ["met", "not_met", "partly"])

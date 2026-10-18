@@ -96,9 +96,12 @@ def cmd_run(a):
     jobs = [(tid, k) for k in range(a.runs) for tid in items if (tid, k) not in done]
     lock = threading.Lock()
     counter = {"n": 0}
+    paused = threading.Event()  # set when the account's daily limit is reached: stop, record nothing, resume later with the same command
 
     def work(job):
         tid, k = job
+        if paused.is_set():
+            return
         t = bench.tasks[tid]
         scope = Scope(bench, t["sprint"], t["student"])
         usage = Usage()
@@ -106,6 +109,9 @@ def cmd_run(a):
             res = exp.assess(bench, tid, scope, llm, usage, run=k)
         except Exception as e:  # a bug or an unexpected reply is a failure of this item, recorded
             res = {"error": f"{type(e).__name__}: {str(e)[:200]}", "error_kind": "exception"}
+        if res.get("error_kind") == "quota" or "quota" in usage.failures:
+            paused.set()  # the daily limit is not a result: the item is left undone so a later run does it
+            return
         row = {"task_id": tid, "run": k, "usage": usage.as_dict(), **res}
         row.setdefault("coverage", round(scope.coverage(), 4))
         with lock:
@@ -118,6 +124,9 @@ def cmd_run(a):
     print(f"{exp.name}: {len(jobs)} jobs ({len(items)} tasks x {a.runs} runs), model {llm.model}", flush=True)
     with ThreadPoolExecutor(max_workers=a.workers) as ex:
         list(ex.map(work, jobs))
+    left = sum(1 for tid, k in jobs if (tid, k) not in {(json.loads(x)["task_id"], json.loads(x)["run"]) for x in results_path.read_text(encoding="utf-8").splitlines()}) if results_path.exists() else len(jobs)
+    if paused.is_set():
+        print(f"PAUSED: the daily token limit of the account is reached; {left} of {len(jobs)} jobs are not done. Run the same command again after the limit resets.")
     print("run finished ->", results_path)
 
 
