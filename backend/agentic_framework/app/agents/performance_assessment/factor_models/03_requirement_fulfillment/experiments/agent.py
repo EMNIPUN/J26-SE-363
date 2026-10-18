@@ -24,7 +24,8 @@ from rf_bench.llm import parse_json
 from rf_bench.schema import est_tokens
 
 MAX_STEPS = 4
-MAX_TOKENS = 1200
+MAX_TOKENS = 1200          # the mapping call
+ACT_TOKENS = 600           # an action call: a function call is short, and the reserve counts against the per-minute limit
 OBS_CHARS = 3200          # one observation shown to the model, at most
 KEEP_OBS = 3              # observations kept in the prompt for the current criterion
 COMMITS_CHARS = 9000      # the commit list shown in the mapping call, at most
@@ -123,27 +124,43 @@ def decide(state, config):
     if last:
         user += "\nThis is your last action for this criterion: it must be a verdict."
     messages = [{"role": "system", "content": rubric.RUBRIC + "\n" + TOOLS.replace("{steps}", str(MAX_STEPS))}, {"role": "user", "content": user}]
-    tools = [t for t in TOOL_DEFS if t["function"]["name"] == "give_verdict"] if last else TOOL_DEFS
-    reply = cfg["usage"].add(cfg["llm"].chat(messages, max_tokens=MAX_TOKENS, temperature=0.0, tag=f"agent:decide:{task['id']}:C{ci + 1}:{step}", seed=cfg["run"], tools=tools))
+    verdict_only = [t for t in TOOL_DEFS if t["function"]["name"] == "give_verdict"]
+    action = _call_action(cfg, messages, TOOL_DEFS, f"agent:decide:{task['id']}:C{ci + 1}:{step}")
+    if "error" in action:
+        return action
+    if last and action.get("action") != "verdict":  # out of steps: ask once more, now only the verdict is possible
+        nudge = messages + [{"role": "user", "content": "You have no actions left. Call give_verdict now with what you have seen."}]
+        action = _call_action(cfg, nudge, verdict_only, f"agent:decide:{task['id']}:C{ci + 1}:final")
+        if "error" in action:
+            return action
+        if action.get("action") != "verdict":
+            action = {"action": "verdict", "verdict": "cannot_tell", "evidence": [], "reason": "out of steps"}
+    return {"action": action}
+
+
+def _call_action(cfg, messages, tools, tag):
+    """One model call that must end in a function call. Returns the action dict, or {"error", "error_kind"} when the call itself failed."""
+    reply = cfg["usage"].add(cfg["llm"].chat(messages, max_tokens=ACT_TOKENS, temperature=0.0, tag=tag, seed=cfg["run"], tools=tools))
     if not reply.ok and reply.error_kind == "bad_request" and ("tool_use_failed" in reply.error or "json_validate_failed" in reply.error):
-        reply.error, reply.error_kind, reply.text, reply.tool_calls = "", "", "", []  # a malformed call: a wasted step, not a failure of the task
+        return {"action": "invalid", "raw": "malformed call"}  # a wasted step, not a failure of the task
     if not reply.ok:
         return {"error": reply.error, "error_kind": reply.error_kind}
     if reply.tool_calls and reply.tool_calls[0]["name"] in ACTION_OF:
-        action = {"action": ACTION_OF[reply.tool_calls[0]["name"]], **(reply.tool_calls[0]["arguments"] if isinstance(reply.tool_calls[0]["arguments"], dict) else {})}
-    else:  # a model that answers in text (and the scripted model of the tests)
-        data = parse_json(reply.text)
-        action = data if isinstance(data, dict) and data.get("action") in ("search", "read", "verdict") else {"action": "invalid", "raw": (reply.text or "")[:120]}
-    if last and action.get("action") != "verdict":
-        action = {"action": "verdict", "verdict": "cannot_tell", "evidence": [], "reason": "out of steps"}
-    return {"action": action}
+        args = reply.tool_calls[0]["arguments"]
+        return {"action": ACTION_OF[reply.tool_calls[0]["name"]], **(args if isinstance(args, dict) else {})}
+    data = parse_json(reply.text)  # a model that answers in text (and the scripted model of the tests)
+    return data if isinstance(data, dict) and data.get("action") in ("search", "read", "verdict") else {"action": "invalid", "raw": (reply.text or "")[:120]}
 
 
 def act(state, config):
     scope = config["configurable"]["scope"]
     a = state["action"]
     if a["action"] == "search":
-        text = scope.search_changes(str(a.get("query", ""))[:200])
+        q = str(a.get("query", ""))[:200]
+        again = sum(1 for tool, args in scope.calls if tool == "search_changes" and args.get("query") == q)
+        text = scope.search_changes(q)
+        if again:
+            text = f"You already ran this exact search for this task. Try different words, or read a file.\n{text}"
     elif a["action"] == "read":
         try:
             text = scope.read_hunk(str(a.get("sha", "")), str(a.get("path", "")), int(a.get("start", 0) or 0), 80)

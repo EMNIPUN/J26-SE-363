@@ -43,7 +43,7 @@ class AgentFlow(unittest.TestCase):
         out, scope, llm, usage = run(tid, search)
         n = len(BENCH.tasks[tid]["criteria"])
         self.assertEqual(out["verdicts"], ["cannot_tell"] * n)
-        self.assertLessEqual(llm.n, 1 + n * MAX_STEPS)
+        self.assertLessEqual(llm.n, 1 + n * (MAX_STEPS + 1))
 
     def test_invented_evidence_is_discarded(self):
         def liar(messages, tag):
