@@ -56,7 +56,8 @@ def log_signed(x):
 def make_splits(d):
     """Role of every record in every (outer test group, inner validation group) combination.
 
-    Synthetic records are training-only, and only when both parents are in training groups.
+    Blended synthetic records are training-only, and only when both parents are in training groups. Simulated students
+    (no parents) are training-only in every fold.
     """
     group_of = dict(zip(d.record_id, d.group))
     rows = []
@@ -67,6 +68,8 @@ def make_splits(d):
             for r in d.itertuples():
                 if r.source == "real":
                     role = "test" if r.group == test else "val" if r.group == val else "train"
+                elif not isinstance(r.parents, str) or not r.parents.strip():  # a simulated student: no parents, never evaluated, in training in every fold
+                    role = "train"
                 else:
                     pa, pb = r.parents.split()
                     role = "train" if group_of[pa] in train and group_of[pb] in train else "excluded"

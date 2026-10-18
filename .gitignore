@@ -18,6 +18,9 @@ backend/agentic_framework/app/agents/performance_assessment/PROPOSAL.md
 .langgraph_api/
 *.pckl
 
+# Requirement Fulfillment working plan (kept local)
+**/03_requirement_fulfillment/plan.md
+
 # Assessment Mock Context & Output Data
 backend/agentic_framework/app/agents/performance_assessment/com_agent/mock_context/
 **/mock_context/**/*.json

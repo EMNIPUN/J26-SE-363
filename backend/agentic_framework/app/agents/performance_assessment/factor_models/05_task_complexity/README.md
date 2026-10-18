@@ -50,3 +50,9 @@ cd ../05_task_complexity
 - This is a finding about data size and label quality, not about the proposal's idea: the code features
   carry more signal than the board features, which suggests measuring complexity from the repository
   before the sprint, with far more rated records to learn it.
+
+## Cleaning (what counts)
+
+Counts only `code` files a task changes with a counted line (no tests, docs, config, generated, comment-only files); dependency reach on the pre-task import graph of source files, two hops, only for files that existed; story points and subtasks are the team's own.
+
+Code: [cleaning.py](cleaning.py), tests: `python -m unittest discover -s 05_task_complexity/tests` from `factor_models/`. See [../ARCHITECTURE.md](../ARCHITECTURE.md).

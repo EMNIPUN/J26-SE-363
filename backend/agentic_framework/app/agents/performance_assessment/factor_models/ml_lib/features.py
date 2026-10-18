@@ -17,6 +17,7 @@ from core import SEED, log_signed
 
 ALPHAS = np.logspace(-2, 3, 11)
 LABEL_SOURCES = ["rated only", "rated + propagated (real)", "rated + propagated (real + synthetic)"]
+SIM_OWN = "rated + simulated (own ratings)"  # clean_ref data: simulated rows carry their own rubric rating, nothing is propagated
 
 
 def transform(x, tf):
@@ -77,7 +78,11 @@ def training_set(d, roles, featurize, label, base_spec, label_source, pseudo_wei
     t = d.loc[roles[roles.role == "train"].record_id]
     gold = t[(t.source == "real") & (t.label_source == "rater")]
     parts = [(gold, gold[label].to_numpy(), 1.0)]
-    if label_source != "rated only":
+    if label_source == SIM_OWN:
+        syn = t[t.source == "synthetic"]
+        if len(syn):
+            parts.append((syn, syn[label].to_numpy(dtype=float), pseudo_weight))
+    elif label_source != "rated only":
         prop = Propagator(gold, base_spec, label)
         unrated = t[(t.source == "real") & (t.label_source != "rater")]
         parts.append((unrated, prop.predict(unrated), pseudo_weight))

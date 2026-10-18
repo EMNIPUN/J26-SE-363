@@ -222,3 +222,20 @@ a model whose error was measured by leave-one-out cross-validation on records it
 Every propagated mark carries a bootstrap interval and an extrapolation flag. This is a
 standard, disclosed way to extend a small expert-labelled sample. It is stronger with two human
 raters and their agreement reported.
+
+## Clean features (steps 9-12) and simulated students
+
+The tables above count lines the way git does (comments, blank lines, markdown and configuration included). The clean tables
+count only real work, through each factor package's own cleaning code (see `../ARCHITECTURE.md`):
+
+| Step | Script | Output |
+|---|---|---|
+| 9 | `scripts/09_clean_commit_stats.py` | `clean/commit_file_stats.csv`: per commit and file, added and deleted lines split into code, comment, blank, format-only (counts only) |
+| 11 | `scripts/11_clean_blame_real.py` | clean blame at the final version (in `private/cache`, git-ignored) |
+| 10 | `scripts/10_features_clean_real.py` | `clean/features_real_clean.csv`: 144 real student-sprints, with the old values beside the new in `*_raw` columns |
+| - | `synthetic_students/materialize.py` | `synthetic_students/out/features_simulated_clean.csv`: 175 simulated student-sprints |
+| 12 | `scripts/12_refit_labels_clean.py` | `clean/final_dataset_clean.csv` (real and simulated, features, estimated marks, intervals) and `clean/marks_report_clean.json` |
+
+On the real students cleaning lowers the counted work: lines by about 20%, commits by 23% and files by 24% (docs-only and
+reformat-only commits stop counting). The 600 blended synthetic rows of `synthetic_dataset.csv` are not part of the clean set;
+the 50 simulated students replace them. Run with `../01_effort/.venv/Scripts/python.exe`.

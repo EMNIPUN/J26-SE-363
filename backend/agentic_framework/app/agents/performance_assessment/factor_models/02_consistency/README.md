@@ -1,4 +1,4 @@
-﻿# Consistency factor model
+# Consistency factor model
 
 Predicts the Consistency score (0-1) of one student in one sprint from the proposal's four features:
 `AWR` (share of the 14 days with a commit), `1 - DC` (work not crowded at the deadline), `1 - LI` (no
@@ -48,3 +48,9 @@ cd ../02_consistency
 - The one unmet criterion needs more rated records to resolve.
 - Propagated labels helped here because the label model is accurate for this factor; they did not
   help Effort or Task Complexity.
+
+## Cleaning (what counts)
+
+A day is active only with a counted commit; a day's size is its counted lines changed (≤800 per commit). Features: `C_AWR, C_DC, C_LI_norm, C_CV_norm, C_first_active_day, C_bimodal, C_no_activity`.
+
+Code: [cleaning.py](cleaning.py), tests: `python -m unittest discover -s 02_consistency/tests` from `factor_models/`. How this fits the agent and the training data: [../ARCHITECTURE.md](../ARCHITECTURE.md).

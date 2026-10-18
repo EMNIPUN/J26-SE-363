@@ -1,0 +1,481 @@
+name,outer_test,inner_val,record_id,y,pred
+mean,A,B,T07-S2-STU-018,0.125,0.14583333333333334
+mean,A,B,T07-S2-STU-013,0.1875,0.14583333333333334
+mean,A,B,T09-S1-STU-001,0.6875,0.14583333333333334
+mean,A,B,T09-S1-STU-007,0.6875,0.14583333333333334
+median,A,B,T07-S2-STU-018,0.125,0.0625
+median,A,B,T07-S2-STU-013,0.1875,0.0625
+median,A,B,T09-S1-STU-001,0.6875,0.0625
+median,A,B,T09-S1-STU-007,0.6875,0.0625
+"active days (AWR, linear)",A,B,T07-S2-STU-018,0.125,0.36455416445461375
+"active days (AWR, linear)",A,B,T07-S2-STU-013,0.1875,0.36455416445461375
+"active days (AWR, linear)",A,B,T09-S1-STU-001,0.6875,1.0
+"active days (AWR, linear)",A,B,T09-S1-STU-007,0.6875,0.8019788148879561
+1 - deadline share (linear),A,B,T07-S2-STU-018,0.125,0.05531880735683822
+1 - deadline share (linear),A,B,T07-S2-STU-013,0.1875,0.09181206463697154
+1 - deadline share (linear),A,B,T09-S1-STU-001,0.6875,0.34735859827927495
+1 - deadline share (linear),A,B,T09-S1-STU-007,0.6875,0.28827576478892214
+"commits (log, linear)",A,B,T07-S2-STU-018,0.125,0.4071929650991834
+"commits (log, linear)",A,B,T07-S2-STU-013,0.1875,0.269735347150137
+"commits (log, linear)",A,B,T09-S1-STU-001,0.6875,0.461785445081925
+"commits (log, linear)",A,B,T09-S1-STU-007,0.6875,0.42777911421933457
+ridge (4 proposal features),A,B,T07-S2-STU-018,0.125,0.21820707595494365
+ridge (4 proposal features),A,B,T07-S2-STU-013,0.1875,0.23105243812805443
+ridge (4 proposal features),A,B,T09-S1-STU-001,0.6875,0.8059917950965072
+ridge (4 proposal features),A,B,T09-S1-STU-007,0.6875,0.5985393134755849
+mean,A,C,T04-S2-STU-027,0.0625,0.2916666666666667
+mean,A,C,T04-S3-STU-010,0.0625,0.2916666666666667
+mean,A,C,T05-S1-STU-012,0.25,0.2916666666666667
+mean,A,C,T05-S3-STU-022,0.0,0.2916666666666667
+median,A,C,T04-S2-STU-027,0.0625,0.25
+median,A,C,T04-S3-STU-010,0.0625,0.25
+median,A,C,T05-S1-STU-012,0.25,0.25
+median,A,C,T05-S3-STU-022,0.0,0.25
+"active days (AWR, linear)",A,C,T04-S2-STU-027,0.0625,0.0
+"active days (AWR, linear)",A,C,T04-S3-STU-010,0.0625,0.0
+"active days (AWR, linear)",A,C,T05-S1-STU-012,0.25,0.27596881339958745
+"active days (AWR, linear)",A,C,T05-S3-STU-022,0.0,0.0
+1 - deadline share (linear),A,C,T04-S2-STU-027,0.0625,0.0
+1 - deadline share (linear),A,C,T04-S3-STU-010,0.0625,0.0
+1 - deadline share (linear),A,C,T05-S1-STU-012,0.25,0.1523393060700982
+1 - deadline share (linear),A,C,T05-S3-STU-022,0.0,0.0
+"commits (log, linear)",A,C,T04-S2-STU-027,0.0625,0.0
+"commits (log, linear)",A,C,T04-S3-STU-010,0.0625,0.0
+"commits (log, linear)",A,C,T05-S1-STU-012,0.25,0.2825966559798132
+"commits (log, linear)",A,C,T05-S3-STU-022,0.0,0.0
+ridge (4 proposal features),A,C,T04-S2-STU-027,0.0625,0.0
+ridge (4 proposal features),A,C,T04-S3-STU-010,0.0625,0.0
+ridge (4 proposal features),A,C,T05-S1-STU-012,0.25,0.22227600534327177
+ridge (4 proposal features),A,C,T05-S3-STU-022,0.0,0.0
+mean,A,D,T08-S1-STU-008,0.25,0.20625
+mean,A,D,T08-S2-STU-025,0.3125,0.20625
+mean,A,D,T14-S1-STU-016,0.375,0.20625
+median,A,D,T08-S1-STU-008,0.25,0.09375
+median,A,D,T08-S2-STU-025,0.3125,0.09375
+median,A,D,T14-S1-STU-016,0.375,0.09375
+"active days (AWR, linear)",A,D,T08-S1-STU-008,0.25,0.16193974147364498
+"active days (AWR, linear)",A,D,T08-S2-STU-025,0.3125,0.16193974147364498
+"active days (AWR, linear)",A,D,T14-S1-STU-016,0.375,0.16193974147364498
+1 - deadline share (linear),A,D,T08-S1-STU-008,0.25,0.39337131454383617
+1 - deadline share (linear),A,D,T08-S2-STU-025,0.3125,0.8087968182403873
+1 - deadline share (linear),A,D,T14-S1-STU-016,0.375,0.8087968182403873
+"commits (log, linear)",A,D,T08-S1-STU-008,0.25,0.2484254261450962
+"commits (log, linear)",A,D,T08-S2-STU-025,0.3125,0.1984255590168331
+"commits (log, linear)",A,D,T14-S1-STU-016,0.375,0.4661587782241548
+ridge (4 proposal features),A,D,T08-S1-STU-008,0.25,0.30883949135549194
+ridge (4 proposal features),A,D,T08-S2-STU-025,0.3125,0.37009750003852954
+ridge (4 proposal features),A,D,T14-S1-STU-016,0.375,0.3373755309534784
+mean,A,E,T06-S1-STU-004,0.0,0.2727272727272727
+mean,A,E,T06-S1-STU-029,0.0,0.2727272727272727
+median,A,E,T06-S1-STU-004,0.0,0.25
+median,A,E,T06-S1-STU-029,0.0,0.25
+"active days (AWR, linear)",A,E,T06-S1-STU-004,0.0,0.0
+"active days (AWR, linear)",A,E,T06-S1-STU-029,0.0,0.0
+1 - deadline share (linear),A,E,T06-S1-STU-004,0.0,0.0
+1 - deadline share (linear),A,E,T06-S1-STU-029,0.0,0.0
+"commits (log, linear)",A,E,T06-S1-STU-004,0.0,0.0
+"commits (log, linear)",A,E,T06-S1-STU-029,0.0,0.0
+ridge (4 proposal features),A,E,T06-S1-STU-004,0.0,0.0
+ridge (4 proposal features),A,E,T06-S1-STU-029,0.0,0.0
+mean,B,A,T01-S1-STU-009,0.125,0.14583333333333334
+mean,B,A,T01-S2-STU-021,0.0,0.14583333333333334
+mean,B,A,T03-S2-STU-011,0.125,0.14583333333333334
+mean,B,A,T03-S3-STU-019,0.3125,0.14583333333333334
+mean,B,A,T11-S2-STU-017,0.5,0.14583333333333334
+mean,B,A,T13-S2-STU-003,0.0,0.14583333333333334
+mean,B,A,T13-S2-STU-006,0.5,0.14583333333333334
+median,B,A,T01-S1-STU-009,0.125,0.0625
+median,B,A,T01-S2-STU-021,0.0,0.0625
+median,B,A,T03-S2-STU-011,0.125,0.0625
+median,B,A,T03-S3-STU-019,0.3125,0.0625
+median,B,A,T11-S2-STU-017,0.5,0.0625
+median,B,A,T13-S2-STU-003,0.0,0.0625
+median,B,A,T13-S2-STU-006,0.5,0.0625
+"active days (AWR, linear)",B,A,T01-S1-STU-009,0.125,0.2552362784170196
+"active days (AWR, linear)",B,A,T01-S2-STU-021,0.0,0.14576528609645967
+"active days (AWR, linear)",B,A,T03-S2-STU-011,0.125,0.14576528609645967
+"active days (AWR, linear)",B,A,T03-S3-STU-019,0.3125,0.2552362784170196
+"active days (AWR, linear)",B,A,T11-S2-STU-017,0.5,0.583189936529802
+"active days (AWR, linear)",B,A,T13-S2-STU-003,0.0,0.2552362784170196
+"active days (AWR, linear)",B,A,T13-S2-STU-006,0.5,0.583189936529802
+1 - deadline share (linear),B,A,T01-S1-STU-009,0.125,0.21075883729576225
+1 - deadline share (linear),B,A,T01-S2-STU-021,0.0,0.05531880735683822
+1 - deadline share (linear),B,A,T03-S2-STU-011,0.125,0.3677610785908564
+1 - deadline share (linear),B,A,T03-S3-STU-019,0.3125,0.3677610785908564
+1 - deadline share (linear),B,A,T11-S2-STU-017,0.5,0.3676048574552394
+1 - deadline share (linear),B,A,T13-S2-STU-003,0.0,0.3289557485035913
+1 - deadline share (linear),B,A,T13-S2-STU-006,0.5,0.3595438468574017
+"commits (log, linear)",B,A,T01-S1-STU-009,0.125,0.2376344433001979
+"commits (log, linear)",B,A,T01-S2-STU-021,0.0,0.19624918034844818
+"commits (log, linear)",B,A,T03-S2-STU-011,0.125,0.13791992828972427
+"commits (log, linear)",B,A,T03-S3-STU-019,0.3125,0.31813944779449066
+"commits (log, linear)",B,A,T11-S2-STU-017,0.5,0.4540074624281194
+"commits (log, linear)",B,A,T13-S2-STU-003,0.0,0.269735347150137
+"commits (log, linear)",B,A,T13-S2-STU-006,0.5,0.36944986216061065
+ridge (4 proposal features),B,A,T01-S1-STU-009,0.125,0.2566869280176045
+ridge (4 proposal features),B,A,T01-S2-STU-021,0.0,0.08242726568360531
+ridge (4 proposal features),B,A,T03-S2-STU-011,0.125,0.2699189651075307
+ridge (4 proposal features),B,A,T03-S3-STU-019,0.3125,0.34363658276765585
+ridge (4 proposal features),B,A,T11-S2-STU-017,0.5,0.5304861944499083
+ridge (4 proposal features),B,A,T13-S2-STU-003,0.0,0.3109981120576818
+ridge (4 proposal features),B,A,T13-S2-STU-006,0.5,0.5241664957532346
+mean,B,C,T04-S2-STU-027,0.0625,0.20833333333333334
+mean,B,C,T04-S3-STU-010,0.0625,0.20833333333333334
+mean,B,C,T05-S1-STU-012,0.25,0.20833333333333334
+mean,B,C,T05-S3-STU-022,0.0,0.20833333333333334
+median,B,C,T04-S2-STU-027,0.0625,0.1875
+median,B,C,T04-S3-STU-010,0.0625,0.1875
+median,B,C,T05-S1-STU-012,0.25,0.1875
+median,B,C,T05-S3-STU-022,0.0,0.1875
+"active days (AWR, linear)",B,C,T04-S2-STU-027,0.0625,0.0
+"active days (AWR, linear)",B,C,T04-S3-STU-010,0.0625,0.0
+"active days (AWR, linear)",B,C,T05-S1-STU-012,0.25,0.31103362396453976
+"active days (AWR, linear)",B,C,T05-S3-STU-022,0.0,0.0
+1 - deadline share (linear),B,C,T04-S2-STU-027,0.0625,0.0
+1 - deadline share (linear),B,C,T04-S3-STU-010,0.0625,0.0
+1 - deadline share (linear),B,C,T05-S1-STU-012,0.25,0.0546815831415729
+1 - deadline share (linear),B,C,T05-S3-STU-022,0.0,0.0
+"commits (log, linear)",B,C,T04-S2-STU-027,0.0625,0.0
+"commits (log, linear)",B,C,T04-S3-STU-010,0.0625,0.0
+"commits (log, linear)",B,C,T05-S1-STU-012,0.25,0.23990133631040275
+"commits (log, linear)",B,C,T05-S3-STU-022,0.0,0.0
+ridge (4 proposal features),B,C,T04-S2-STU-027,0.0625,0.0
+ridge (4 proposal features),B,C,T04-S3-STU-010,0.0625,0.0
+ridge (4 proposal features),B,C,T05-S1-STU-012,0.25,0.18811467612635235
+ridge (4 proposal features),B,C,T05-S3-STU-022,0.0,0.0
+mean,B,D,T08-S1-STU-008,0.25,0.14903846153846154
+mean,B,D,T08-S2-STU-025,0.3125,0.14903846153846154
+mean,B,D,T14-S1-STU-016,0.375,0.14903846153846154
+median,B,D,T08-S1-STU-008,0.25,0.0625
+median,B,D,T08-S2-STU-025,0.3125,0.0625
+median,B,D,T14-S1-STU-016,0.375,0.0625
+"active days (AWR, linear)",B,D,T08-S1-STU-008,0.25,0.18472728135743652
+"active days (AWR, linear)",B,D,T08-S2-STU-025,0.3125,0.18472728135743652
+"active days (AWR, linear)",B,D,T14-S1-STU-016,0.375,0.18472728135743652
+1 - deadline share (linear),B,D,T08-S1-STU-008,0.25,0.15486049866149995
+1 - deadline share (linear),B,D,T08-S2-STU-025,0.3125,0.30229755401343994
+1 - deadline share (linear),B,D,T14-S1-STU-016,0.375,0.30229755401343994
+"commits (log, linear)",B,D,T08-S1-STU-008,0.25,0.201615821831568
+"commits (log, linear)",B,D,T08-S2-STU-025,0.3125,0.15778367404738203
+"commits (log, linear)",B,D,T14-S1-STU-016,0.375,0.3924907383867117
+ridge (4 proposal features),B,D,T08-S1-STU-008,0.25,0.2569002348455222
+ridge (4 proposal features),B,D,T08-S2-STU-025,0.3125,0.23311278974326582
+ridge (4 proposal features),B,D,T14-S1-STU-016,0.375,0.19456754402835877
+mean,B,E,T06-S1-STU-004,0.0,0.20535714285714285
+mean,B,E,T06-S1-STU-029,0.0,0.20535714285714285
+median,B,E,T06-S1-STU-004,0.0,0.1875
+median,B,E,T06-S1-STU-029,0.0,0.1875
+"active days (AWR, linear)",B,E,T06-S1-STU-004,0.0,0.0
+"active days (AWR, linear)",B,E,T06-S1-STU-029,0.0,0.0
+1 - deadline share (linear),B,E,T06-S1-STU-004,0.0,0.0
+1 - deadline share (linear),B,E,T06-S1-STU-029,0.0,0.0
+"commits (log, linear)",B,E,T06-S1-STU-004,0.0,0.0
+"commits (log, linear)",B,E,T06-S1-STU-029,0.0,0.0
+ridge (4 proposal features),B,E,T06-S1-STU-004,0.0,0.0
+ridge (4 proposal features),B,E,T06-S1-STU-029,0.0,0.0
+mean,C,A,T01-S1-STU-009,0.125,0.2916666666666667
+mean,C,A,T01-S2-STU-021,0.0,0.2916666666666667
+mean,C,A,T03-S2-STU-011,0.125,0.2916666666666667
+mean,C,A,T03-S3-STU-019,0.3125,0.2916666666666667
+mean,C,A,T11-S2-STU-017,0.5,0.2916666666666667
+mean,C,A,T13-S2-STU-003,0.0,0.2916666666666667
+mean,C,A,T13-S2-STU-006,0.5,0.2916666666666667
+median,C,A,T01-S1-STU-009,0.125,0.25
+median,C,A,T01-S2-STU-021,0.0,0.25
+median,C,A,T03-S2-STU-011,0.125,0.25
+median,C,A,T03-S3-STU-019,0.3125,0.25
+median,C,A,T11-S2-STU-017,0.5,0.25
+median,C,A,T13-S2-STU-003,0.0,0.25
+median,C,A,T13-S2-STU-006,0.5,0.25
+"active days (AWR, linear)",C,A,T01-S1-STU-009,0.125,0.20537790710549966
+"active days (AWR, linear)",C,A,T01-S2-STU-021,0.0,0.13468813399587398
+"active days (AWR, linear)",C,A,T03-S2-STU-011,0.125,0.13468813399587398
+"active days (AWR, linear)",C,A,T03-S3-STU-019,0.3125,0.20537790710549966
+"active days (AWR, linear)",C,A,T11-S2-STU-017,0.5,0.417150625987763
+"active days (AWR, linear)",C,A,T13-S2-STU-003,0.0,0.20537790710549966
+"active days (AWR, linear)",C,A,T13-S2-STU-006,0.5,0.417150625987763
+1 - deadline share (linear),C,A,T01-S1-STU-009,0.125,0.30340307488510493
+1 - deadline share (linear),C,A,T01-S2-STU-021,0.0,0.0795965680790721
+1 - deadline share (linear),C,A,T03-S2-STU-011,0.125,0.529458893317329
+1 - deadline share (linear),C,A,T03-S3-STU-019,0.3125,0.529458893317329
+1 - deadline share (linear),C,A,T11-S2-STU-017,0.5,0.5292339621547099
+1 - deadline share (linear),C,A,T13-S2-STU-003,0.0,0.47358599252273753
+1 - deadline share (linear),C,A,T13-S2-STU-006,0.5,0.5176275141635629
+"commits (log, linear)",C,A,T01-S1-STU-009,0.125,0.24349972500069997
+"commits (log, linear)",C,A,T01-S2-STU-021,0.0,0.1930950143813109
+"commits (log, linear)",C,A,T03-S2-STU-011,0.125,0.12205356481765453
+"commits (log, linear)",C,A,T03-S3-STU-019,0.3125,0.3415498801894779
+"commits (log, linear)",C,A,T11-S2-STU-017,0.5,0.5070287843110581
+"commits (log, linear)",C,A,T13-S2-STU-003,0.0,0.2825966559798132
+"commits (log, linear)",C,A,T13-S2-STU-006,0.5,0.4040428161628587
+ridge (4 proposal features),C,A,T01-S1-STU-009,0.125,0.28406455189253954
+ridge (4 proposal features),C,A,T01-S2-STU-021,0.0,0.059210297015399566
+ridge (4 proposal features),C,A,T03-S2-STU-011,0.125,0.23521702816451484
+ridge (4 proposal features),C,A,T03-S3-STU-019,0.3125,0.3564223740731939
+ridge (4 proposal features),C,A,T11-S2-STU-017,0.5,0.5232440028103964
+ridge (4 proposal features),C,A,T13-S2-STU-003,0.0,0.27616943421015333
+ridge (4 proposal features),C,A,T13-S2-STU-006,0.5,0.5146095798746078
+mean,C,B,T07-S2-STU-018,0.125,0.20833333333333334
+mean,C,B,T07-S2-STU-013,0.1875,0.20833333333333334
+mean,C,B,T09-S1-STU-001,0.6875,0.20833333333333334
+mean,C,B,T09-S1-STU-007,0.6875,0.20833333333333334
+median,C,B,T07-S2-STU-018,0.125,0.1875
+median,C,B,T07-S2-STU-013,0.1875,0.1875
+median,C,B,T09-S1-STU-001,0.6875,0.1875
+median,C,B,T09-S1-STU-007,0.6875,0.1875
+"active days (AWR, linear)",C,B,T07-S2-STU-018,0.125,0.31103362396453976
+"active days (AWR, linear)",C,B,T07-S2-STU-013,0.1875,0.31103362396453976
+"active days (AWR, linear)",C,B,T09-S1-STU-001,0.6875,1.0
+"active days (AWR, linear)",C,B,T09-S1-STU-007,0.6875,0.7217868628819778
+1 - deadline share (linear),C,B,T07-S2-STU-018,0.125,0.0037312856088743754
+1 - deadline share (linear),C,B,T07-S2-STU-013,0.1875,0.040533974241027684
+1 - deadline share (linear),C,B,T09-S1-STU-001,0.6875,0.2982473221197793
+1 - deadline share (linear),C,B,T09-S1-STU-007,0.6875,0.23866351715111328
+"commits (log, linear)",C,B,T07-S2-STU-018,0.125,0.3998544508419518
+"commits (log, linear)",C,B,T07-S2-STU-013,0.1875,0.23990133631040275
+"commits (log, linear)",C,B,T09-S1-STU-001,0.6875,0.4633812115521343
+"commits (log, linear)",C,B,T09-S1-STU-007,0.6875,0.423809606744622
+ridge (4 proposal features),C,B,T07-S2-STU-018,0.125,0.16890690102201922
+ridge (4 proposal features),C,B,T07-S2-STU-013,0.1875,0.17038911629629644
+ridge (4 proposal features),C,B,T09-S1-STU-001,0.6875,0.673696233690634
+ridge (4 proposal features),C,B,T09-S1-STU-007,0.6875,0.5085270314138817
+mean,C,D,T08-S1-STU-008,0.25,0.25
+mean,C,D,T08-S2-STU-025,0.3125,0.25
+mean,C,D,T14-S1-STU-016,0.375,0.25
+median,C,D,T08-S1-STU-008,0.25,0.125
+median,C,D,T08-S2-STU-025,0.3125,0.125
+median,C,D,T14-S1-STU-016,0.375,0.125
+"active days (AWR, linear)",C,D,T08-S1-STU-008,0.25,0.15502131075799996
+"active days (AWR, linear)",C,D,T08-S2-STU-025,0.3125,0.15502131075799996
+"active days (AWR, linear)",C,D,T14-S1-STU-016,0.375,0.15502131075799996
+1 - deadline share (linear),C,D,T08-S1-STU-008,0.25,0.21322543686274625
+1 - deadline share (linear),C,D,T08-S2-STU-025,0.3125,0.4094362981618391
+1 - deadline share (linear),C,D,T14-S1-STU-016,0.375,0.4094362981618391
+"commits (log, linear)",C,D,T08-S1-STU-008,0.25,0.19139663747683267
+"commits (log, linear)",C,D,T08-S2-STU-025,0.3125,0.13266043148896023
+"commits (log, linear)",C,D,T14-S1-STU-016,0.375,0.4471739375512259
+ridge (4 proposal features),C,D,T08-S1-STU-008,0.25,0.26317786320130926
+ridge (4 proposal features),C,D,T08-S2-STU-025,0.3125,0.25884517353929254
+ridge (4 proposal features),C,D,T14-S1-STU-016,0.375,0.21641408309317323
+mean,C,E,T06-S1-STU-004,0.0,0.29910714285714285
+mean,C,E,T06-S1-STU-029,0.0,0.29910714285714285
+median,C,E,T06-S1-STU-004,0.0,0.28125
+median,C,E,T06-S1-STU-029,0.0,0.28125
+"active days (AWR, linear)",C,E,T06-S1-STU-004,0.0,0.0
+"active days (AWR, linear)",C,E,T06-S1-STU-029,0.0,0.0
+1 - deadline share (linear),C,E,T06-S1-STU-004,0.0,0.0
+1 - deadline share (linear),C,E,T06-S1-STU-029,0.0,0.0
+"commits (log, linear)",C,E,T06-S1-STU-004,0.0,0.0
+"commits (log, linear)",C,E,T06-S1-STU-029,0.0,0.0
+ridge (4 proposal features),C,E,T06-S1-STU-004,0.0,0.0
+ridge (4 proposal features),C,E,T06-S1-STU-029,0.0,0.0
+mean,D,A,T01-S1-STU-009,0.125,0.20625
+mean,D,A,T01-S2-STU-021,0.0,0.20625
+mean,D,A,T03-S2-STU-011,0.125,0.20625
+mean,D,A,T03-S3-STU-019,0.3125,0.20625
+mean,D,A,T11-S2-STU-017,0.5,0.20625
+mean,D,A,T13-S2-STU-003,0.0,0.20625
+mean,D,A,T13-S2-STU-006,0.5,0.20625
+median,D,A,T01-S1-STU-009,0.125,0.09375
+median,D,A,T01-S2-STU-021,0.0,0.09375
+median,D,A,T03-S2-STU-011,0.125,0.09375
+median,D,A,T03-S3-STU-019,0.3125,0.09375
+median,D,A,T11-S2-STU-017,0.5,0.09375
+median,D,A,T13-S2-STU-003,0.0,0.09375
+median,D,A,T13-S2-STU-006,0.5,0.09375
+"active days (AWR, linear)",D,A,T01-S1-STU-009,0.125,0.16193974147364498
+"active days (AWR, linear)",D,A,T01-S2-STU-021,0.0,0.08795133688152955
+"active days (AWR, linear)",D,A,T03-S2-STU-011,0.125,0.08795133688152955
+"active days (AWR, linear)",D,A,T03-S3-STU-019,0.3125,0.16193974147364498
+"active days (AWR, linear)",D,A,T11-S2-STU-017,0.5,0.38359451439156284
+"active days (AWR, linear)",D,A,T13-S2-STU-003,0.0,0.16193974147364498
+"active days (AWR, linear)",D,A,T13-S2-STU-006,0.5,0.38359451439156284
+1 - deadline share (linear),D,A,T01-S1-STU-009,0.125,0.4322612561777666
+1 - deadline share (linear),D,A,T01-S2-STU-021,0.0,0.05947231662323162
+1 - deadline share (linear),D,A,T03-S2-STU-011,0.125,0.8087968182403873
+1 - deadline share (linear),D,A,T03-S3-STU-019,0.3125,0.8087968182403873
+1 - deadline share (linear),D,A,T11-S2-STU-017,0.5,0.8084221559895788
+1 - deadline share (linear),D,A,T13-S2-STU-003,0.0,0.7157307151395366
+1 - deadline share (linear),D,A,T13-S2-STU-006,0.5,0.7890895838478561
+"commits (log, linear)",D,A,T01-S1-STU-009,0.125,0.2484254261450962
+"commits (log, linear)",D,A,T01-S2-STU-021,0.0,0.1984255590168331
+"commits (log, linear)",D,A,T03-S2-STU-011,0.125,0.12795470430636757
+"commits (log, linear)",D,A,T03-S3-STU-019,0.3125,0.3456880563854262
+"commits (log, linear)",D,A,T11-S2-STU-017,0.5,0.5098378574047557
+"commits (log, linear)",D,A,T13-S2-STU-003,0.0,0.28720833611634344
+"commits (log, linear)",D,A,T13-S2-STU-006,0.5,0.4076790579550721
+ridge (4 proposal features),D,A,T01-S1-STU-009,0.125,0.2955096745315916
+ridge (4 proposal features),D,A,T01-S2-STU-021,0.0,0.09422630425980275
+ridge (4 proposal features),D,A,T03-S2-STU-011,0.125,0.27335420575240327
+ridge (4 proposal features),D,A,T03-S3-STU-019,0.3125,0.3735228558593805
+ridge (4 proposal features),D,A,T11-S2-STU-017,0.5,0.5048980087147228
+ridge (4 proposal features),D,A,T13-S2-STU-003,0.0,0.30078956183733085
+ridge (4 proposal features),D,A,T13-S2-STU-006,0.5,0.4970739674077377
+mean,D,B,T07-S2-STU-018,0.125,0.14903846153846154
+mean,D,B,T07-S2-STU-013,0.1875,0.14903846153846154
+mean,D,B,T09-S1-STU-001,0.6875,0.14903846153846154
+mean,D,B,T09-S1-STU-007,0.6875,0.14903846153846154
+median,D,B,T07-S2-STU-018,0.125,0.0625
+median,D,B,T07-S2-STU-013,0.1875,0.0625
+median,D,B,T09-S1-STU-001,0.6875,0.0625
+median,D,B,T09-S1-STU-007,0.6875,0.0625
+"active days (AWR, linear)",D,B,T07-S2-STU-018,0.125,0.277336625936616
+"active days (AWR, linear)",D,B,T07-S2-STU-013,0.1875,0.277336625936616
+"active days (AWR, linear)",D,B,T09-S1-STU-001,0.6875,0.9258614479196656
+"active days (AWR, linear)",D,B,T09-S1-STU-007,0.6875,0.6479037092177306
+1 - deadline share (linear),D,B,T07-S2-STU-018,0.125,0.03635769948252365
+1 - deadline share (linear),D,B,T07-S2-STU-013,0.1875,0.06741947449173469
+1 - deadline share (linear),D,B,T09-S1-STU-001,0.6875,0.2849316815125711
+1 - deadline share (linear),D,B,T09-S1-STU-007,0.6875,0.23464245502077485
+"commits (log, linear)",D,B,T07-S2-STU-018,0.125,0.381199414044724
+"commits (log, linear)",D,B,T07-S2-STU-013,0.1875,0.23561467700851657
+"commits (log, linear)",D,B,T09-S1-STU-001,0.6875,0.43901964955461037
+"commits (log, linear)",D,B,T09-S1-STU-007,0.6875,0.40300270986028447
+ridge (4 proposal features),D,B,T07-S2-STU-018,0.125,0.2200443789564935
+ridge (4 proposal features),D,B,T07-S2-STU-013,0.1875,0.20161775270275614
+ridge (4 proposal features),D,B,T09-S1-STU-001,0.6875,0.6638066736874335
+ridge (4 proposal features),D,B,T09-S1-STU-007,0.6875,0.5106622266585509
+mean,D,C,T04-S2-STU-027,0.0625,0.25
+mean,D,C,T04-S3-STU-010,0.0625,0.25
+mean,D,C,T05-S1-STU-012,0.25,0.25
+mean,D,C,T05-S3-STU-022,0.0,0.25
+median,D,C,T04-S2-STU-027,0.0625,0.125
+median,D,C,T04-S3-STU-010,0.0625,0.125
+median,D,C,T05-S1-STU-012,0.25,0.125
+median,D,C,T05-S3-STU-022,0.0,0.125
+"active days (AWR, linear)",D,C,T04-S2-STU-027,0.0625,0.0
+"active days (AWR, linear)",D,C,T04-S3-STU-010,0.0625,0.0
+"active days (AWR, linear)",D,C,T05-S1-STU-012,0.25,0.23734386128038734
+"active days (AWR, linear)",D,C,T05-S3-STU-022,0.0,0.0
+1 - deadline share (linear),D,C,T04-S2-STU-027,0.0625,0.0
+1 - deadline share (linear),D,C,T04-S3-STU-010,0.0625,0.0
+1 - deadline share (linear),D,C,T05-S1-STU-012,0.25,0.11274877105680747
+1 - deadline share (linear),D,C,T05-S3-STU-022,0.0,0.0
+"commits (log, linear)",D,C,T04-S2-STU-027,0.0625,0.0
+"commits (log, linear)",D,C,T04-S3-STU-010,0.0625,0.0
+"commits (log, linear)",D,C,T05-S1-STU-012,0.25,0.23695597832541349
+"commits (log, linear)",D,C,T05-S3-STU-022,0.0,0.0
+ridge (4 proposal features),D,C,T04-S2-STU-027,0.0625,0.0
+ridge (4 proposal features),D,C,T04-S3-STU-010,0.0625,0.0
+ridge (4 proposal features),D,C,T05-S1-STU-012,0.25,0.20468605304964543
+ridge (4 proposal features),D,C,T05-S3-STU-022,0.0,0.0
+mean,D,E,T06-S1-STU-004,0.0,0.24166666666666667
+mean,D,E,T06-S1-STU-029,0.0,0.24166666666666667
+median,D,E,T06-S1-STU-004,0.0,0.125
+median,D,E,T06-S1-STU-029,0.0,0.125
+"active days (AWR, linear)",D,E,T06-S1-STU-004,0.0,0.0
+"active days (AWR, linear)",D,E,T06-S1-STU-029,0.0,0.0
+1 - deadline share (linear),D,E,T06-S1-STU-004,0.0,0.0
+1 - deadline share (linear),D,E,T06-S1-STU-029,0.0,0.0
+"commits (log, linear)",D,E,T06-S1-STU-004,0.0,0.0
+"commits (log, linear)",D,E,T06-S1-STU-029,0.0,0.0
+ridge (4 proposal features),D,E,T06-S1-STU-004,0.0,0.0
+ridge (4 proposal features),D,E,T06-S1-STU-029,0.0,0.0
+mean,E,A,T01-S1-STU-009,0.125,0.2727272727272727
+mean,E,A,T01-S2-STU-021,0.0,0.2727272727272727
+mean,E,A,T03-S2-STU-011,0.125,0.2727272727272727
+mean,E,A,T03-S3-STU-019,0.3125,0.2727272727272727
+mean,E,A,T11-S2-STU-017,0.5,0.2727272727272727
+mean,E,A,T13-S2-STU-003,0.0,0.2727272727272727
+mean,E,A,T13-S2-STU-006,0.5,0.2727272727272727
+median,E,A,T01-S1-STU-009,0.125,0.25
+median,E,A,T01-S2-STU-021,0.0,0.25
+median,E,A,T03-S2-STU-011,0.125,0.25
+median,E,A,T03-S3-STU-019,0.3125,0.25
+median,E,A,T11-S2-STU-017,0.5,0.25
+median,E,A,T13-S2-STU-003,0.0,0.25
+median,E,A,T13-S2-STU-006,0.5,0.25
+"active days (AWR, linear)",E,A,T01-S1-STU-009,0.125,0.21027282837692057
+"active days (AWR, linear)",E,A,T01-S2-STU-021,0.0,0.14147672125990102
+"active days (AWR, linear)",E,A,T03-S2-STU-011,0.125,0.14147672125990102
+"active days (AWR, linear)",E,A,T03-S3-STU-019,0.3125,0.21027282837692057
+"active days (AWR, linear)",E,A,T11-S2-STU-017,0.5,0.4163724947330826
+"active days (AWR, linear)",E,A,T13-S2-STU-003,0.0,0.21027282837692057
+"active days (AWR, linear)",E,A,T13-S2-STU-006,0.5,0.4163724947330826
+1 - deadline share (linear),E,A,T01-S1-STU-009,0.125,0.31429339918801263
+1 - deadline share (linear),E,A,T01-S2-STU-021,0.0,0.10132586145147297
+1 - deadline share (linear),E,A,T03-S2-STU-011,0.125,0.529401314188236
+1 - deadline share (linear),E,A,T03-S3-STU-019,0.3125,0.529401314188236
+1 - deadline share (linear),E,A,T11-S2-STU-017,0.5,0.5291872764618677
+1 - deadline share (linear),E,A,T13-S2-STU-003,0.0,0.4762343429583301
+1 - deadline share (linear),E,A,T13-S2-STU-006,0.5,0.5181429297812592
+"commits (log, linear)",E,A,T01-S1-STU-009,0.125,0.253602936104754
+"commits (log, linear)",E,A,T01-S2-STU-021,0.0,0.20744187338569509
+"commits (log, linear)",E,A,T03-S2-STU-011,0.125,0.14238150960891455
+"commits (log, linear)",E,A,T03-S3-STU-019,0.3125,0.343398102224438
+"commits (log, linear)",E,A,T11-S2-STU-017,0.5,0.49494509015415444
+"commits (log, linear)",E,A,T13-S2-STU-003,0.0,0.2894082380472144
+"commits (log, linear)",E,A,T13-S2-STU-006,0.5,0.40062966454305393
+ridge (4 proposal features),E,A,T01-S1-STU-009,0.125,0.29232564067144245
+ridge (4 proposal features),E,A,T01-S2-STU-021,0.0,0.08217180340021926
+ridge (4 proposal features),E,A,T03-S2-STU-011,0.125,0.24904042551344094
+ridge (4 proposal features),E,A,T03-S3-STU-019,0.3125,0.3606314826179756
+ridge (4 proposal features),E,A,T11-S2-STU-017,0.5,0.5201993501727789
+ridge (4 proposal features),E,A,T13-S2-STU-003,0.0,0.28812716533962646
+ridge (4 proposal features),E,A,T13-S2-STU-006,0.5,0.5120382574449411
+mean,E,B,T07-S2-STU-018,0.125,0.20535714285714285
+mean,E,B,T07-S2-STU-013,0.1875,0.20535714285714285
+mean,E,B,T09-S1-STU-001,0.6875,0.20535714285714285
+mean,E,B,T09-S1-STU-007,0.6875,0.20535714285714285
+median,E,B,T07-S2-STU-018,0.125,0.1875
+median,E,B,T07-S2-STU-013,0.1875,0.1875
+median,E,B,T09-S1-STU-001,0.6875,0.1875
+median,E,B,T09-S1-STU-007,0.6875,0.1875
+"active days (AWR, linear)",E,B,T07-S2-STU-018,0.125,0.30560269704913284
+"active days (AWR, linear)",E,B,T07-S2-STU-013,0.1875,0.30560269704913284
+"active days (AWR, linear)",E,B,T09-S1-STU-001,0.6875,0.9604966581727256
+"active days (AWR, linear)",E,B,T09-S1-STU-007,0.6875,0.6798091064351537
+1 - deadline share (linear),E,B,T07-S2-STU-018,0.125,0.057924822645140955
+1 - deadline share (linear),E,B,T07-S2-STU-013,0.1875,0.08823503034594633
+1 - deadline share (linear),E,B,T09-S1-STU-001,0.6875,0.30048433581245926
+1 - deadline share (linear),E,B,T09-S1-STU-007,0.6875,0.25141190194069307
+"commits (log, linear)",E,B,T07-S2-STU-018,0.125,0.3897620093628333
+"commits (log, linear)",E,B,T07-S2-STU-013,0.1875,0.2467544379327015
+"commits (log, linear)",E,B,T09-S1-STU-001,0.6875,0.4465587012971715
+"commits (log, linear)",E,B,T09-S1-STU-007,0.6875,0.41117933955302066
+ridge (4 proposal features),E,B,T07-S2-STU-018,0.125,0.2098601430307324
+ridge (4 proposal features),E,B,T07-S2-STU-013,0.1875,0.2005645411052904
+ridge (4 proposal features),E,B,T09-S1-STU-001,0.6875,0.670920513077165
+ridge (4 proposal features),E,B,T09-S1-STU-007,0.6875,0.5163604643373874
+mean,E,C,T04-S2-STU-027,0.0625,0.29910714285714285
+mean,E,C,T04-S3-STU-010,0.0625,0.29910714285714285
+mean,E,C,T05-S1-STU-012,0.25,0.29910714285714285
+mean,E,C,T05-S3-STU-022,0.0,0.29910714285714285
+median,E,C,T04-S2-STU-027,0.0625,0.28125
+median,E,C,T04-S3-STU-010,0.0625,0.28125
+median,E,C,T05-S1-STU-012,0.25,0.28125
+median,E,C,T05-S3-STU-022,0.0,0.28125
+"active days (AWR, linear)",E,C,T04-S2-STU-027,0.0625,0.0
+"active days (AWR, linear)",E,C,T04-S3-STU-010,0.0625,0.0
+"active days (AWR, linear)",E,C,T05-S1-STU-012,0.25,0.27211015895321217
+"active days (AWR, linear)",E,C,T05-S3-STU-022,0.0,0.0
+1 - deadline share (linear),E,C,T04-S2-STU-027,0.0625,0.0
+1 - deadline share (linear),E,C,T04-S3-STU-010,0.0625,0.0
+1 - deadline share (linear),E,C,T05-S1-STU-012,0.25,0.14637886163238487
+1 - deadline share (linear),E,C,T05-S3-STU-022,0.0,0.0
+"commits (log, linear)",E,C,T04-S2-STU-027,0.0625,0.0
+"commits (log, linear)",E,C,T04-S3-STU-010,0.0625,0.0
+"commits (log, linear)",E,C,T05-S1-STU-012,0.25,0.23060181210331615
+"commits (log, linear)",E,C,T05-S3-STU-022,0.0,0.0
+ridge (4 proposal features),E,C,T04-S2-STU-027,0.0625,0.0
+ridge (4 proposal features),E,C,T04-S3-STU-010,0.0625,0.0
+ridge (4 proposal features),E,C,T05-S1-STU-012,0.25,0.17404098620756694
+ridge (4 proposal features),E,C,T05-S3-STU-022,0.0,0.0
+mean,E,D,T08-S1-STU-008,0.25,0.24166666666666667
+mean,E,D,T08-S2-STU-025,0.3125,0.24166666666666667
+mean,E,D,T14-S1-STU-016,0.375,0.24166666666666667
+median,E,D,T08-S1-STU-008,0.25,0.125
+median,E,D,T08-S2-STU-025,0.3125,0.125
+median,E,D,T14-S1-STU-016,0.375,0.125
+"active days (AWR, linear)",E,D,T08-S1-STU-008,0.25,0.16816395866592138
+"active days (AWR, linear)",E,D,T08-S2-STU-025,0.3125,0.16816395866592138
+"active days (AWR, linear)",E,D,T14-S1-STU-016,0.375,0.16816395866592138
+1 - deadline share (linear),E,D,T08-S1-STU-008,0.25,0.22813897845363368
+1 - deadline share (linear),E,D,T08-S2-STU-025,0.3125,0.4092048969786326
+1 - deadline share (linear),E,D,T14-S1-STU-016,0.375,0.4092048969786326
+"commits (log, linear)",E,D,T08-S1-STU-008,0.25,0.21054851342714248
+"commits (log, linear)",E,D,T08-S2-STU-025,0.3125,0.1582632529479807
+"commits (log, linear)",E,D,T14-S1-STU-016,0.375,0.43823401905560705
+ridge (4 proposal features),E,D,T08-S1-STU-008,0.25,0.27544175324368086
+ridge (4 proposal features),E,D,T08-S2-STU-025,0.3125,0.25459084583495806
+ridge (4 proposal features),E,D,T14-S1-STU-016,0.375,0.20886749763235007

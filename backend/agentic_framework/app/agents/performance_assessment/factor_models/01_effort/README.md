@@ -1,4 +1,4 @@
-﻿# Effort factor model
+# Effort factor model
 
 Predicts the Effort score (0-1) of one student in one sprint from commits, capped lines and files
 (the proposal's five features were tested; the evidence supports three). The experiments are
@@ -61,3 +61,9 @@ propagated labels.
   commit-size rules.
 - More rated records, especially high-effort ones, and a rubric that separates quality from volume
   are what would let a richer model show an advantage.
+
+## Cleaning (what counts)
+
+Counts only `code` lines in source and test files (no comments, blanks, docs, config, generated, moved or re-indented lines); a commit counts only if it changes at least one counted line; per-commit net capped at 800. Features: `E_CC, E_LOC_added, E_LOC_deleted, E_LOC_net, E_LOC_net_capped, E_FC, E_CT, E_RD, E_test_lines`.
+
+Code: [cleaning.py](cleaning.py), tests: `python -m unittest discover -s 01_effort/tests` from `factor_models/`. How this fits the agent and the training data: [../ARCHITECTURE.md](../ARCHITECTURE.md).

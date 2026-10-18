@@ -1,0 +1,16 @@
+File types with too few real lines for their own line split (overall source shares used):
+  code .dart: 305 files
+  code .go: 512 files
+  code .kt: 112 files
+  code .py: 588 files
+  code .sql: 7 files
+  code .ts: 350 files
+  code .vue: 61 files
+  test .dart: 257 files
+  test .go: 346 files
+  test .html: 20 files
+  test .kt: 86 files
+  test .py: 516 files
+  test .ts: 309 files
+  test .tsx: 164 files
+  test .vue: 44 files
