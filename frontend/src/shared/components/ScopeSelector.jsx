@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { FolderKanban, Search, Check, ChevronDown, Users2 } from 'lucide-react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { FolderKanban, Search, Check, ChevronDown, LayoutGrid } from 'lucide-react'
 import { useScope } from '../context/useScope.js'
 import {
   Popover,
@@ -76,7 +76,7 @@ export default function ScopeSelector() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search project or group..."
+              placeholder="Search teams"
               className="h-8 pl-8 text-xs bg-background"
               autoFocus
             />
@@ -86,7 +86,7 @@ export default function ScopeSelector() {
         <div className="max-h-72 overflow-y-auto p-1.5 space-y-1 column-scroll-contain">
           {filteredGroups.length === 0 ? (
             <div className="py-6 text-center text-xs text-muted-foreground">
-              No matching projects found
+              No matching teams
             </div>
           ) : (
             filteredGroups.map((group) => {
@@ -125,12 +125,15 @@ export default function ScopeSelector() {
           )}
         </div>
 
-        <div className="px-3 py-2 bg-muted/40 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
-          <span>Current project context</span>
-          <span className="inline-flex items-center gap-1 font-medium text-foreground">
-            <Users2 className="h-3 w-3 text-muted-foreground" />
-            {filteredGroups.length} groups
-          </span>
+        <div className="border-t border-border bg-muted/40 px-3 py-2 text-xs">
+          <Link
+            to="/home"
+            onClick={() => setOpen(false)}
+            className="inline-flex items-center gap-1.5 font-medium text-foreground hover:underline"
+          >
+            <LayoutGrid className="h-3.5 w-3.5 text-muted-foreground" />
+            All teams
+          </Link>
         </div>
       </PopoverContent>
     </Popover>

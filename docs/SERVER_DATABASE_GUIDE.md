@@ -148,14 +148,31 @@ The first migration (`create core tables`) creates:
 
 | Table | Holds |
 |---|---|
-| `users` | Keycloak subject (`keycloak_sub`, unique), role (`student`/`lecturer`/`admin`), name, optional unique student number |
-| `groups` | Stable group code (unique, e.g. `J26-SE-363`) and name |
-| `group_members` | User ↔ group membership; each pair at most once |
+| `users` | Keycloak subject (`keycloak_sub`, unique), role (`student`/`lecturer`/`admin`), name, optional unique student number. Migration `ec66f4d17052` adds email, profile and consent fields and makes `role` optional until onboarding is done |
+| `groups` | Stable group code (unique, e.g. `J26-SE-363`) and name. Shown as a *team*; `ec66f4d17052` adds term, status, repository, creator, leader and pending leader |
+| `group_members` | User ↔ group membership; each pair at most once. `ec66f4d17052` adds the member's role and, for students, the term (one team per term) |
+| `terms` | Academic terms a team can use (`d8a41c7e5b90`): unique name, who added it |
+| `user_avatars` | An uploaded profile picture, one row per person (`e5b7a1c3d924`); `users` gets `picture_url` and `avatar_updated_at` |
+| `notifications`, `notification_preferences` | In-app notifications and each person's email choices (`f2a6c4b8d150`) |
 | `projects` | Required group, creating lecturer, title (not unique), description |
 | `project_documents` | Project, original filename, content type and a storage reference (`storage_key`); the file itself lives in object storage, never in the database |
 | `agent_runs` | Background orchestration runs: request id, action, requester, scope ids, status (`queued`/`running`/`succeeded`/`failed`), JSON response and error |
 
 The second migration (`secure public schema`) creates no tables; it locks the tables down (see F).
+
+The third migration (`registration and teams`, `ec66f4d17052`) adds the account and team columns above and
+the `team_invitations` table (email-addressed invitations with a hashed token, expiry and status), and
+enables row level security on the new table. See [REGISTRATION_AND_TEAMS.md](./REGISTRATION_AND_TEAMS.md).
+
+The fourth migration (`team setup and terms`, `d8a41c7e5b90`) adds the `terms` table (filled from the terms
+teams already use, with row level security) and lets `groups.status` hold `pending`, for a team that is
+still being set up.
+
+The fifth migration (`profile pictures`, `e5b7a1c3d924`) adds `users.picture_url`, `users.avatar_updated_at` and
+the `user_avatars` table (with row level security).
+
+The sixth migration (`notifications`, `f2a6c4b8d150`) adds the `notifications` and `notification_preferences` tables
+(with row level security).
 
 **Alembic never touches Procrastinate's tables** (`procrastinate_*`, the job queue in the same
 database) or any other table without a model: `include_object` in

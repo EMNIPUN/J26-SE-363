@@ -36,3 +36,7 @@ __pycache__/
 venv/
 ENV/
 
+
+# Keycloak plugin build output (docker/keycloak/build_provider.py)
+docker/keycloak/providers/*.jar
+docker/keycloak/providers-src/**/target/

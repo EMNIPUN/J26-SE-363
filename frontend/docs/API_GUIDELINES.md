@@ -21,7 +21,7 @@ This guide explains how to make backend API calls in the **SELVIA** platform fol
 
 ---
 
-## ⚡ 5 Golden Rules for Every Developer
+## ⚡ 6 Golden Rules for Every Developer
 
 1. **NEVER Hardcode URLs**:
    - ❌ Never write `fetch("http://localhost:8000/api/projects")` or `axios.get("https://api.selvia.com/...")`.
@@ -37,6 +37,10 @@ This guide explains how to make backend API calls in the **SELVIA** platform fol
    - ✅ Create a service in `src/modules/<feature>/services/<feature>Service.js` and wrap it in a TanStack Query hook (`useQuery` / `useMutation`).
 5. **Always Use `ENDPOINTS` Registry Constants**:
    - If you need a new route, add it to [`endpoints.js`](../src/shared/api/endpoints.js) first.
+6. **A Button That Waits for a Response Shows It**:
+   - ✅ Give it `loading={mutation.isPending}`. The [`Button`](../src/components/ui/button.jsx) then shows a spinning ring, disables itself (no double submit) and sets `aria-busy`. An icon-only button shows just the ring.
+   - For a row of buttons that share one mutation, pass the row that is busy and its action, and give `loading` only to the button that was clicked (see `InvitationList.jsx`).
+   - ❌ Don't hand-roll `{isPending && <Loader2 />}` inside a button.
 
 ---
 

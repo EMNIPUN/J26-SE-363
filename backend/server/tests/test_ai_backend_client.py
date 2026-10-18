@@ -74,3 +74,38 @@ def test_default_client_uses_settings():
 
     assert client._base_url == settings.AI_BACKEND_URL
     assert client._timeout == settings.AI_BACKEND_TIMEOUT_SECONDS
+
+
+@pytest.mark.asyncio
+async def test_sends_the_internal_token_when_configured():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["token"] = request.headers.get("x-internal-token")
+        return httpx.Response(200, json={"request_id": "req-001", "status": "unavailable"})
+
+    client = AIBackendClient(
+        "http://ai-backend", 5, transport=httpx.MockTransport(handler), internal_token="s3cret"
+    )
+    await client.orchestrate(REQUEST)
+
+    assert seen["token"] == "s3cret"
+
+
+@pytest.mark.asyncio
+async def test_omits_the_internal_token_header_when_not_configured():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["has_header"] = "x-internal-token" in request.headers
+        return httpx.Response(200, json={"request_id": "req-001", "status": "unavailable"})
+
+    await client_with(handler).orchestrate(REQUEST)
+
+    assert seen["has_header"] is False
+
+
+def test_default_client_sends_the_configured_internal_token(monkeypatch):
+    monkeypatch.setattr(settings, "AI_BACKEND_INTERNAL_TOKEN", "from-settings")
+
+    assert get_ai_backend_client()._internal_token == "from-settings"

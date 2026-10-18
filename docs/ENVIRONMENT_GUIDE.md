@@ -197,6 +197,20 @@ services:
 * Keycloak's Quarkus runtime automatically maps environment variables prefixed with `KC_` to its internal configuration settings (e.g. `KC_DB_URL` $\rightarrow$ database connection string).
 * `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` create or configure the initial administrative superuser.
 
+### Sign-in email and social login
+
+Keycloak's mail server, Google, Microsoft and GitHub sign-in and the allowed web app addresses are not
+read from `docker-compose.yml`: Keycloak imports its realm file only once, so these settings are applied to the
+running realm by `docker/keycloak/configure_realm.py`. It reads `KC_SMTP_*`, `*_CLIENT_ID` / `*_CLIENT_SECRET`
+and `FRONTEND_URLS` from the root `.env` (see `.env.example`). Steps, and how to create the OAuth apps, are in
+[`docker/keycloak/README.md`](../docker/keycloak/README.md).
+
+The Core API sends its own email (team invitations and notifications) with `EMAIL_BACKEND`, `SMTP_*` and
+`APP_BASE_URL` in `backend/server/.env`. For development, `docker compose --profile dev up -d mailpit` starts a
+local inbox on http://localhost:8025 (the `dev` profile keeps it off the VPS). The Vite dev server forwards `/api/*`
+to the Core API (`VITE_API_PROXY_TARGET`, default `http://localhost:8002`). See
+[REGISTRATION_AND_TEAMS.md](./REGISTRATION_AND_TEAMS.md).
+
 ### How Kong Gateway Receives Environment Variables
 In `docker-compose.yml`:
 ```yaml
