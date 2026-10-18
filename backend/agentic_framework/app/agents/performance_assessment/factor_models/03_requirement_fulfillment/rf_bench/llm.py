@@ -36,6 +36,7 @@ class Reply:
     attempts: int = 0
     key: int = -1
     meta: dict = field(default_factory=dict)
+    tool_calls: list = field(default_factory=list)   # [{"name": str, "arguments": dict}] when the model called a function
 
     @property
     def ok(self):
@@ -47,7 +48,7 @@ class LLM:
 
     model = "none"
 
-    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None, model=None):
+    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None, model=None, tools=None):
         raise NotImplementedError
 
 
@@ -57,7 +58,7 @@ class ScriptedLLM(LLM):
     def __init__(self, responder, model="scripted", limit_tokens=None):
         self.responder, self.model, self.limit, self.n = responder, model, limit_tokens, 0
 
-    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None, model=None):
+    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None, model=None, tools=None):
         self.n += 1
         prompt = sum(est_tokens(m["content"]) for m in messages)
         if self.limit and prompt > self.limit:
@@ -149,12 +150,15 @@ class GroqPool(LLM):
             self.daily["requests"][str(best.index)] = self.daily["requests"].get(str(best.index), 0) + 1
             return best, best_wait
 
-    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None, model=None):
-        """``model`` overrides the pool's model for this call (the critic uses another family); limits are shared across models."""
+    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None, model=None, tools=None):
+        """``tools``: OpenAI-style function definitions; the model must call one of them (``Reply.tool_calls``). ``model`` overrides the pool's model for this call (the critic uses another family); limits are shared across models."""
         need = sum(est_tokens(m["content"]) for m in messages) + max_tokens
         use = model or self.model
         body = {"model": use, "messages": messages, "max_tokens": max_tokens, "temperature": temperature}
-        if json_mode:
+        if tools:
+            body["tools"] = tools
+            body["tool_choice"] = "required"
+        elif json_mode:
             body["response_format"] = {"type": "json_object"}
         if seed is not None:
             body["seed"] = int(seed)
@@ -199,7 +203,14 @@ class GroqPool(LLM):
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 data = json.loads(resp.read().decode())
                 u = data.get("usage", {})
-                return Reply(text=data["choices"][0]["message"].get("content") or "", prompt_tokens=u.get("prompt_tokens", 0),
+                msg = data["choices"][0]["message"]
+                calls = []
+                for c in msg.get("tool_calls") or []:
+                    try:
+                        calls.append({"name": c["function"]["name"], "arguments": json.loads(c["function"].get("arguments") or "{}")})
+                    except Exception:
+                        calls.append({"name": c.get("function", {}).get("name", ""), "arguments": {}})
+                return Reply(text=msg.get("content") or "", prompt_tokens=u.get("prompt_tokens", 0), tool_calls=calls,
                              completion_tokens=u.get("completion_tokens", 0), model=data.get("model", body["model"]))
         except urllib.error.HTTPError as e:
             text = ""
