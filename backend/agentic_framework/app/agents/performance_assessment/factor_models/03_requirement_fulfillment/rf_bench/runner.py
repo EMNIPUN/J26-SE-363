@@ -89,7 +89,7 @@ def cmd_run(a):
         for line in results_path.read_text(encoding="utf-8").splitlines():
             r = json.loads(line)
             done.add((r["task_id"], r["run"]))
-    llm = ScriptedLLM(exp.dry_responder, model="scripted") if a.dry else GroqPool(model=a.model, fallback=a.fallback, effort=a.effort)
+    llm = ScriptedLLM(exp.dry_responder, model="scripted", limit_tokens=getattr(exp, "dry_limit", None)) if a.dry else GroqPool(model=a.model, fallback=a.fallback, effort=a.effort)
     meta = {"experiment": exp.name, "config": exp.config(), "model": llm.model, "split": a.split, "per_bucket": a.per_bucket, "runs": a.runs,
             "items": len(items), "benchmark_sha256": manifest["sha256"], "code_commit": git_commit(), "dry": a.dry, "started": time.strftime("%Y-%m-%d %H:%M:%S")}
     (out / "run_meta.json").write_text(json.dumps(meta, indent=1), encoding="utf-8")
