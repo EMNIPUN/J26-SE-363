@@ -157,6 +157,21 @@ class Scoring(unittest.TestCase):
         self.assertEqual(r["share_moving_a_band"], 0.0)
 
 
+class Pacing(unittest.TestCase):
+    def test_per_minute_limit_is_respected_across_keys(self):
+        from rf_bench.llm import GroqPool
+        pool = GroqPool(model="m", keys=["a", "b"], tpm=8000)
+        picks = [pool._pick(5000) for _ in range(3)]
+        self.assertEqual([w for _, w in picks[:2]], [0.0, 0.0])      # one request per key fits in the minute
+        self.assertGreater(picks[2][1], 30)                           # the third must wait for a window
+        self.assertEqual(pool._pick(9000)[1], 0.0)                    # too large for any window: sent, the service's refusal is the finding
+
+    def test_keys_are_not_in_the_repr_or_state(self):
+        from rf_bench.llm import GroqPool
+        pool = GroqPool(model="m", keys=["gsk_secretvalue"], tpm=8000)
+        self.assertNotIn("gsk_secretvalue", json.dumps(pool.daily))
+
+
 class Rubric(unittest.TestCase):
     def test_parse(self):
         self.assertEqual(parse_verdicts('{"verdicts": ["met", "Not Met", "partial"]}', 3), ["met", "not_met", "partly"])

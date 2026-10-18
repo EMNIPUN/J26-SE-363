@@ -47,7 +47,7 @@ class LLM:
 
     model = "none"
 
-    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None):
+    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None, model=None):
         raise NotImplementedError
 
 
@@ -57,7 +57,7 @@ class ScriptedLLM(LLM):
     def __init__(self, responder, model="scripted", limit_tokens=None):
         self.responder, self.model, self.limit, self.n = responder, model, limit_tokens, 0
 
-    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None):
+    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None, model=None):
         self.n += 1
         prompt = sum(est_tokens(m["content"]) for m in messages)
         if self.limit and prompt > self.limit:
@@ -139,102 +139,19 @@ class GroqPool(LLM):
             self.daily["requests"][str(best.index)] = self.daily["requests"].get(str(best.index), 0) + 1
             return best, best_wait
 
-    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None):
-        raise NotImplementedError
-
-
-class ScriptedLLM(LLM):
-    """A model that answers from a function; used to test whole pipelines without a network or a key."""
-
-    def __init__(self, responder, model="scripted", limit_tokens=None):
-        self.responder, self.model, self.limit, self.n = responder, model, limit_tokens, 0
-
-    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None):
-        self.n += 1
-        prompt = sum(est_tokens(m["content"]) for m in messages)
-        if self.limit and prompt > self.limit:
-            return Reply(error=f"request too large ({prompt} tokens)", error_kind="too_large", prompt_tokens=prompt, model=self.model, attempts=1)
-        text = self.responder(messages, tag)
-        return Reply(text=text, prompt_tokens=prompt, completion_tokens=est_tokens(text), model=self.model, attempts=1, latency=0.0)
-
-
-# --- Groq ---------------------------------------------------------------------------------------------------------------
-
-class _Key:
-    def __init__(self, index, secret):
-        self.index, self.secret = index, secret
-        self.window = deque()      # (time, tokens) of the last 60 seconds
-        self.lock = threading.Lock()
-        self.dead_until = 0.0
-
-    def used(self, now):
-        while self.window and now - self.window[0][0] > 60:
-            self.window.popleft()
-        return sum(t for _, t in self.window)
-
-
-class GroqPool(LLM):
-    def __init__(self, model=None, fallback=None, tpm=8000, rpd=1000, effort="low", keys=None, timeout=120):
-        raw = keys if keys is not None else [k.strip() for k in os.environ.get("GROQ_API_KEYS", "").split(",") if k.strip()]
-        if not raw:
-            raise RuntimeError("GROQ_API_KEYS is not set in the environment")
-        self.keys = [_Key(i, k) for i, k in enumerate(raw)]
-        self.model = model or os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
-        self.fallback = fallback or os.environ.get("GROQ_FALLBACK_MODEL", "")
-        self.tpm, self.rpd, self.effort, self.timeout = tpm, rpd, effort, timeout
-        self.lock = threading.Lock()
-        self.daily = self._load_daily()
-
-    # daily request counters are kept by key index, never by key value
-    def _load_daily(self):
-        try:
-            d = json.loads(USAGE_FILE.read_text(encoding="utf-8"))
-            return d if d.get("date") == str(date.today()) else {"date": str(date.today()), "requests": {}, "exhausted": []}
-        except Exception:
-            return {"date": str(date.today()), "requests": {}, "exhausted": []}
-
-    def _save_daily(self):
-        try:
-            USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            USAGE_FILE.write_text(json.dumps(self.daily), encoding="utf-8")
-        except Exception:
-            pass
-
-    def _pick(self, need):
-        """The key that can take ``need`` tokens soonest. Reserves the tokens. Returns (key, wait_seconds)."""
-        with self.lock:
-            now = time.time()
-            best, best_wait = None, 1e9
-            for k in self.keys:
-                if k.index in self.daily["exhausted"] or self.daily["requests"].get(str(k.index), 0) >= self.rpd or k.dead_until > now:
-                    continue
-                used = k.used(now)
-                if used + need <= self.tpm or need > self.tpm:
-                    wait = 0.0 if (used + need <= self.tpm) else max(0.0, 60 - (now - k.window[0][0])) if k.window else 0.0
-                else:
-                    cum, wait = used, 0.0
-                    for t, tok in k.window:
-                        cum -= tok
-                        wait = 60 - (now - t)
-                        if cum + need <= self.tpm:
-                            break
-                if wait < best_wait:
-                    best, best_wait = k, wait
-            if best is None:
-                return None, 0.0
-            best.window.append((now + best_wait, min(need, self.tpm)))
-            self.daily["requests"][str(best.index)] = self.daily["requests"].get(str(best.index), 0) + 1
-            return best, best_wait
-
-    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None):
+    def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None, model=None):
+        """``model`` overrides the pool's model for this call (the critic uses another family); limits are shared across models."""
         need = sum(est_tokens(m["content"]) for m in messages) + max_tokens
-        body = {"model": self.model, "messages": messages, "max_tokens": max_tokens, "temperature": temperature}
+        use = model or self.model
+        body = {"model": use, "messages": messages, "max_tokens": max_tokens, "temperature": temperature}
         if json_mode:
             body["response_format"] = {"type": "json_object"}
         if seed is not None:
             body["seed"] = int(seed)
-        if "gpt-oss" in self.model:
+        if "gpt-oss" in use:
             body["reasoning_effort"] = self.effort
+        if "qwen" in use:
+            body["reasoning_format"] = "hidden"  # keep the thinking out of the reply
         t0, attempts = time.time(), 0
         last = Reply(model=self.model, error="no key available", error_kind="no_key")
         while attempts < 6:
@@ -247,6 +164,10 @@ class GroqPool(LLM):
             attempts += 1
             reply = self._call(key, body)
             reply.attempts, reply.key = attempts, key.index
+            if reply.error_kind == "bad_request" and "reasoning" in reply.error.lower() and ("reasoning_format" in body or "reasoning_effort" in body):
+                body.pop("reasoning_format", None)  # this model does not take the option: send without it, once
+                body.pop("reasoning_effort", None)
+                continue
             if reply.ok or reply.error_kind in ("too_large", "bad_request"):
                 reply.latency = time.time() - t0
                 self._save_daily()
@@ -297,6 +218,7 @@ def parse_json(text):
     """The first JSON object in a model reply, or None."""
     if not text:
         return None
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S)
     try:
         return json.loads(text)
     except Exception:
