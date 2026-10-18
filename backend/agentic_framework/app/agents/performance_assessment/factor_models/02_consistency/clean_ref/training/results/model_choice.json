@@ -1,0 +1,33 @@
+{
+ "ridge_best": {
+  "model": "Ridge",
+  "variant": "proposal 4",
+  "MAE": 0.07743812927339833,
+  "bias": 0.001787632013916698,
+  "pearson": 0.8829919271619044,
+  "spearman": 0.8906732503601107
+ },
+ "complex_best": {
+  "model": "Random Forest",
+  "variant": "proposal 4",
+  "MAE": 0.08386634599321477,
+  "bias": -0.009932501092318614,
+  "pearson": 0.8543584064531817,
+  "spearman": 0.8610298931207391
+ },
+ "rule": {
+  "ridge": "Ridge | proposal 4",
+  "complex": "Random Forest | proposal 4",
+  "gain_mae": -0.006428216719816443,
+  "ci": [
+   -0.00999732496296421,
+   -0.00030012520799665987
+  ],
+  "folds_better": 0,
+  "passes_1_3": false
+ },
+ "chosen": [
+  "Ridge",
+  "proposal 4"
+ ]
+}

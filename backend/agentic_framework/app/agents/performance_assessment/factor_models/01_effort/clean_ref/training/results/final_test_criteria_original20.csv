@@ -1,0 +1,8 @@
+criterion,value,minimum,target,verdict,note
+MAE,0.08379934669557129,<= 0.11,<= 0.08,minimum met,95% interval 0.048-0.105
+Pearson and Spearman,0.960 / 0.946,>= 0.8 both,>= 0.9 / 0.85,target met,
+"Beats commit count (log, linear)",gain -0.021 (-34%),interval of the gain excludes 0,>= 10% lower,NOT MET,95% interval -0.041 to +0.010
+Bias,0.05824308941078293,within +-0.05,within +-0.03,NOT MET,
+Calibration slope,0.8518799062859833,0.7-1.3,0.8-1.2,target met,
+Rubric bands within one,1.0,>= 85%,">= 90%, exact >= 50%",target met,exact 80%
+"MAE, students with activity",0.10173246226076174,<= 0.12,<= 0.1,minimum met,n = 15
