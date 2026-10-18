@@ -24,12 +24,12 @@ from rf_bench.llm import parse_json
 from rf_bench.schema import est_tokens
 
 MAX_STEPS = 4
-MAX_TOKENS = 700
+MAX_TOKENS = 1200
 OBS_CHARS = 3200          # one observation shown to the model, at most
 KEEP_OBS = 3              # observations kept in the prompt for the current criterion
 COMMITS_CHARS = 9000      # the commit list shown in the mapping call, at most
 
-TOOLS = """Tools. Reply with exactly one JSON object, no other text:
+TOOLS = """Actions. You cannot call functions; you act by replying with exactly one JSON object, no other text:
 {"action": "search", "query": "<case-insensitive regular expression>"}  -> lines you added that match, with commit id, file and line index
 {"action": "read", "sha": "<commit id>", "path": "<file>", "start": <line index>}  -> up to 80 changed lines of that file from that index
 {"action": "verdict", "verdict": "met" | "partly" | "not_met" | "cannot_tell", "evidence": [{"sha": "...", "path": "...", "lines": "first-last"}], "reason": "<one sentence>"}
@@ -111,6 +111,10 @@ def decide(state, config):
         user += "\nThis is your last action for this criterion: it must be a verdict."
     messages = [{"role": "system", "content": rubric.RUBRIC + "\n" + TOOLS.replace("{steps}", str(MAX_STEPS))}, {"role": "user", "content": user}]
     reply, data = _llm_json(cfg, messages, f"agent:decide:{task['id']}:C{ci + 1}:{step}")
+    if not reply.ok and reply.error_kind == "bad_request" and ("tool_use_failed" in reply.error or "json_validate_failed" in reply.error):
+        # the model tried a native function call, or its reply was not valid JSON: a wasted step, not a failure of the task
+        reply.error, reply.error_kind, data = "", "", None
+        reply.text = ""
     if not reply.ok:
         return {"error": reply.error, "error_kind": reply.error_kind}
     action = data if isinstance(data, dict) and data.get("action") in ("search", "read", "verdict") else {"action": "invalid", "raw": (reply.text or "")[:120]}

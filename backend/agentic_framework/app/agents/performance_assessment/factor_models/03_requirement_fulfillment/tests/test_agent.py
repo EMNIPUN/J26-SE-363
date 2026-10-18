@@ -71,6 +71,23 @@ class AgentFlow(unittest.TestCase):
         self.assertNotIn("verdicts", out)
 
 
+class NativeToolCalls(unittest.TestCase):
+    def test_a_native_function_call_is_a_wasted_step_not_a_failure(self):
+        from rf_bench.llm import LLM, Reply
+
+        class Stubborn(LLM):
+            model = "stub"
+
+            def chat(self, messages, **kw):
+                if kw.get("tag", "").startswith("agent:map"):
+                    return Reply(text='{"commits": []}', model="stub")
+                return Reply(error='HTTP 400: {"code":"tool_use_failed"}', error_kind="bad_request", model="stub")
+        t = BENCH.tasks["S01-S1-SYN-001-T1"]
+        out = Agent().assess(BENCH, t["id"], Scope(BENCH, t["sprint"], t["student"]), Stubborn(), Usage())
+        self.assertNotIn("error", out)
+        self.assertEqual(set(out["verdicts"]), {"cannot_tell"})
+
+
 class ContextDoesNotGrowWithTaskSize(unittest.TestCase):
     def test_every_prompt_stays_small_on_the_largest_tasks(self):
         biggest = sorted(MANIFEST["tasks"], key=lambda t: -MANIFEST["tasks"][t]["tokens"])[:3]
