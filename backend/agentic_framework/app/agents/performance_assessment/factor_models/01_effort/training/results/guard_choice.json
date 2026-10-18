@@ -1,0 +1,14 @@
+{
+  "lines_per_commit": 100,
+  "files_per_commit": 20,
+  "zero_rule": true,
+  "validation_MAE_unguarded": 0.0703,
+  "validation_MAE_guarded": 0.0644,
+  "invariants": {
+    "zero": 0.0,
+    "monotone": true,
+    "spam max": 0.30350466119694786,
+    "dump max": 0.3466300327245468
+  },
+  "status": "all invariants pass"
+}

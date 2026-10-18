@@ -1,0 +1,12 @@
+{
+  "variant": "SP only",
+  "label_source": "rated only",
+  "pseudo_weight": 1.0,
+  "zero_rule": false,
+  "features": [
+    "TC_SP"
+  ],
+  "validation_MAE": 0.1187,
+  "standard_error": 0.0278,
+  "rule": "lowest validation MAE, then simplest within one bootstrap SE"
+}

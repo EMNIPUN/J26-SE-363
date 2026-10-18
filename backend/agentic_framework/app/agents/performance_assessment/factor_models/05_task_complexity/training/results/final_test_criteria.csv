@@ -1,0 +1,8 @@
+criterion,result,minimum (works),target,meets minimum,meets target
+MAE / MAE of always predicting the mean,0.94 (0.116 / 0.124),<= 0.8,<= 0.65,False,False
+Pearson,0.078,>= 0.5,>= 0.7,False,False
+Spearman,0.003,>= 0.5,>= 0.7,False,False
+Beats always predicting the mean,gain +0.008 (95% CI -0.014 to 0.027),interval excludes 0,and >= 20% lower MAE,False,False
+Bias,+0.015,within +-0.05,within +-0.03,True,True
+Calibration slope,0.18,0.5 - 1.5,0.8 - 1.2,False,False
+Rubric bands within one,95%,>= 85%,>= 90%,True,True

@@ -1,0 +1,721 @@
+outer_test,inner_val,model,record_id,group,y,pred,E_CC
+A,B,mean,T07-S2-STU-018,B,0.65,0.2277777777777778,15
+A,B,mean,T07-S2-STU-013,B,0.4,0.2277777777777778,4
+A,B,mean,T09-S1-STU-001,B,0.7,0.2277777777777778,19
+A,B,mean,T09-S1-STU-007,B,0.65,0.2277777777777778,14
+A,B,median,T07-S2-STU-018,B,0.65,0.1,15
+A,B,median,T07-S2-STU-013,B,0.4,0.1,4
+A,B,median,T09-S1-STU-001,B,0.7,0.1,19
+A,B,median,T09-S1-STU-007,B,0.65,0.1,14
+A,B,commits (normalised),T07-S2-STU-018,B,0.65,0.6363952314771766,15
+A,B,commits (normalised),T07-S2-STU-013,B,0.4,0.3694159918548006,4
+A,B,commits (normalised),T09-S1-STU-001,B,0.7,0.687613607593389,19
+A,B,commits (normalised),T09-S1-STU-007,B,0.65,0.6215816362370719,14
+A,B,commits (normalised) + zero rule,T07-S2-STU-018,B,0.65,0.6363952314771766,15
+A,B,commits (normalised) + zero rule,T07-S2-STU-013,B,0.4,0.3694159918548006,4
+A,B,commits (normalised) + zero rule,T09-S1-STU-001,B,0.7,0.687613607593389,19
+A,B,commits (normalised) + zero rule,T09-S1-STU-007,B,0.65,0.6215816362370719,14
+A,B,commits (linear),T07-S2-STU-018,B,0.65,0.6033273150197646,15
+A,B,commits (linear),T07-S2-STU-013,B,0.4,0.3474986630348619,4
+A,B,commits (linear),T09-S1-STU-001,B,0.7,0.6524065173472557,19
+A,B,commits (linear),T09-S1-STU-007,B,0.65,0.5891324206651087,14
+A,B,commits (linear) + zero rule,T07-S2-STU-018,B,0.65,0.6033273150197646,15
+A,B,commits (linear) + zero rule,T07-S2-STU-013,B,0.4,0.3474986630348619,4
+A,B,commits (linear) + zero rule,T09-S1-STU-001,B,0.7,0.6524065173472557,19
+A,B,commits (linear) + zero rule,T09-S1-STU-007,B,0.65,0.5891324206651087,14
+A,B,tasks (linear),T07-S2-STU-018,B,0.65,0.5483606557377048,15
+A,B,tasks (linear),T07-S2-STU-013,B,0.4,0.1877049180327868,4
+A,B,tasks (linear),T09-S1-STU-001,B,0.7,0.5483606557377048,19
+A,B,tasks (linear),T09-S1-STU-007,B,0.65,0.5483606557377048,14
+A,B,tasks (linear) + zero rule,T07-S2-STU-018,B,0.65,0.5483606557377048,15
+A,B,tasks (linear) + zero rule,T07-S2-STU-013,B,0.4,0.1877049180327868,4
+A,B,tasks (linear) + zero rule,T09-S1-STU-001,B,0.7,0.5483606557377048,19
+A,B,tasks (linear) + zero rule,T09-S1-STU-007,B,0.65,0.5483606557377048,14
+A,B,ridge (5 features),T07-S2-STU-018,B,0.65,0.5359211271422895,15
+A,B,ridge (5 features),T07-S2-STU-013,B,0.4,0.28725735359343013,4
+A,B,ridge (5 features),T09-S1-STU-001,B,0.7,0.5817052034739909,19
+A,B,ridge (5 features),T09-S1-STU-007,B,0.65,0.8364642314402748,14
+A,C,mean,T04-S2-STU-027,C,0.1,0.4277777777777778,1
+A,C,mean,T04-S3-STU-010,C,0.05,0.4277777777777778,1
+A,C,mean,T05-S1-STU-012,C,0.45,0.4277777777777778,4
+A,C,mean,T05-S3-STU-022,C,0.0,0.4277777777777778,0
+A,C,median,T04-S2-STU-027,C,0.1,0.45,1
+A,C,median,T04-S3-STU-010,C,0.05,0.45,1
+A,C,median,T05-S1-STU-012,C,0.45,0.45,4
+A,C,median,T05-S3-STU-022,C,0.0,0.45,0
+A,C,commits (normalised),T04-S2-STU-027,C,0.1,0.15329048865267808,1
+A,C,commits (normalised),T04-S3-STU-010,C,0.05,0.15329048865267808,1
+A,C,commits (normalised),T05-S1-STU-012,C,0.45,0.35592949228166565,4
+A,C,commits (normalised),T05-S3-STU-022,C,0.0,0.0,0
+A,C,commits (normalised) + zero rule,T04-S2-STU-027,C,0.1,0.15329048865267808,1
+A,C,commits (normalised) + zero rule,T04-S3-STU-010,C,0.05,0.15329048865267808,1
+A,C,commits (normalised) + zero rule,T05-S1-STU-012,C,0.45,0.35592949228166565,4
+A,C,commits (normalised) + zero rule,T05-S3-STU-022,C,0.0,0.0,0
+A,C,commits (linear),T04-S2-STU-027,C,0.1,0.1717647527112959,1
+A,C,commits (linear),T04-S3-STU-010,C,0.05,0.1717647527112959,1
+A,C,commits (linear),T05-S1-STU-012,C,0.45,0.37403383099386645,4
+A,C,commits (linear),T05-S3-STU-022,C,0.0,0.018754101780387795,0
+A,C,commits (linear) + zero rule,T04-S2-STU-027,C,0.1,0.1717647527112959,1
+A,C,commits (linear) + zero rule,T04-S3-STU-010,C,0.05,0.1717647527112959,1
+A,C,commits (linear) + zero rule,T05-S1-STU-012,C,0.45,0.37403383099386645,4
+A,C,commits (linear) + zero rule,T05-S3-STU-022,C,0.0,0.0,0
+A,C,tasks (linear),T04-S2-STU-027,C,0.1,0.24655172413793117,1
+A,C,tasks (linear),T04-S3-STU-010,C,0.05,0.04267241379310363,1
+A,C,tasks (linear),T05-S1-STU-012,C,0.45,0.6543103448275862,4
+A,C,tasks (linear),T05-S3-STU-022,C,0.0,0.04267241379310363,0
+A,C,tasks (linear) + zero rule,T04-S2-STU-027,C,0.1,0.24655172413793117,1
+A,C,tasks (linear) + zero rule,T04-S3-STU-010,C,0.05,0.04267241379310363,1
+A,C,tasks (linear) + zero rule,T05-S1-STU-012,C,0.45,0.6543103448275862,4
+A,C,tasks (linear) + zero rule,T05-S3-STU-022,C,0.0,0.0,0
+A,C,ridge (5 features),T04-S2-STU-027,C,0.1,0.2722179880791525,1
+A,C,ridge (5 features),T04-S3-STU-010,C,0.05,0.11649926221084506,1
+A,C,ridge (5 features),T05-S1-STU-012,C,0.45,0.5343296458970289,4
+A,C,ridge (5 features),T05-S3-STU-022,C,0.0,0.014175107319131408,0
+A,D,mean,T08-S1-STU-008,D,0.45,0.3,12
+A,D,mean,T08-S2-STU-025,D,0.4,0.3,3
+A,D,mean,T14-S1-STU-016,D,0.6,0.3,13
+A,D,median,T08-S1-STU-008,D,0.45,0.25,12
+A,D,median,T08-S2-STU-025,D,0.4,0.25,3
+A,D,median,T14-S1-STU-016,D,0.6,0.25,13
+A,D,commits (normalised),T08-S1-STU-008,D,0.45,0.5672422126236264,12
+A,D,commits (normalised),T08-S2-STU-025,D,0.4,0.30658097730535616,3
+A,D,commits (normalised),T14-S1-STU-016,D,0.6,0.5836312964763891,13
+A,D,commits (normalised) + zero rule,T08-S1-STU-008,D,0.45,0.5672422126236264,12
+A,D,commits (normalised) + zero rule,T08-S2-STU-025,D,0.4,0.30658097730535616,3
+A,D,commits (normalised) + zero rule,T14-S1-STU-016,D,0.6,0.5836312964763891,13
+A,D,commits (linear),T08-S1-STU-008,D,0.45,0.6094662572597418,12
+A,D,commits (linear),T08-S2-STU-025,D,0.4,0.31924081340555277,3
+A,D,commits (linear),T14-S1-STU-016,D,0.6,0.6277141917089276,13
+A,D,commits (linear) + zero rule,T08-S1-STU-008,D,0.45,0.6094662572597418,12
+A,D,commits (linear) + zero rule,T08-S2-STU-025,D,0.4,0.31924081340555277,3
+A,D,commits (linear) + zero rule,T14-S1-STU-016,D,0.6,0.6277141917089276,13
+A,D,tasks (linear),T08-S1-STU-008,D,0.45,0.4190217391304348,12
+A,D,tasks (linear),T08-S2-STU-025,D,0.4,0.4190217391304348,3
+A,D,tasks (linear),T14-S1-STU-016,D,0.6,0.6173913043478261,13
+A,D,tasks (linear) + zero rule,T08-S1-STU-008,D,0.45,0.4190217391304348,12
+A,D,tasks (linear) + zero rule,T08-S2-STU-025,D,0.4,0.4190217391304348,3
+A,D,tasks (linear) + zero rule,T14-S1-STU-016,D,0.6,0.6173913043478261,13
+A,D,ridge (5 features),T08-S1-STU-008,D,0.45,0.569969538586657,12
+A,D,ridge (5 features),T08-S2-STU-025,D,0.4,0.35682240201076354,3
+A,D,ridge (5 features),T14-S1-STU-016,D,0.6,0.630028832531257,13
+A,E,mean,T06-S1-STU-004,E,0.0,0.40454545454545454,0
+A,E,mean,T06-S1-STU-029,E,0.0,0.40454545454545454,0
+A,E,median,T06-S1-STU-004,E,0.0,0.45,0
+A,E,median,T06-S1-STU-029,E,0.0,0.45,0
+A,E,commits (normalised),T06-S1-STU-004,E,0.0,0.0,0
+A,E,commits (normalised),T06-S1-STU-029,E,0.0,0.0,0
+A,E,commits (normalised) + zero rule,T06-S1-STU-004,E,0.0,0.0,0
+A,E,commits (normalised) + zero rule,T06-S1-STU-029,E,0.0,0.0,0
+A,E,commits (linear),T06-S1-STU-004,E,0.0,0.0,0
+A,E,commits (linear),T06-S1-STU-029,E,0.0,0.0,0
+A,E,commits (linear) + zero rule,T06-S1-STU-004,E,0.0,0.0,0
+A,E,commits (linear) + zero rule,T06-S1-STU-029,E,0.0,0.0,0
+A,E,tasks (linear),T06-S1-STU-004,E,0.0,0.03902439024390243,0
+A,E,tasks (linear),T06-S1-STU-029,E,0.0,0.03902439024390243,0
+A,E,tasks (linear) + zero rule,T06-S1-STU-004,E,0.0,0.0,0
+A,E,tasks (linear) + zero rule,T06-S1-STU-029,E,0.0,0.0,0
+A,E,ridge (5 features),T06-S1-STU-004,E,0.0,0.0,0
+A,E,ridge (5 features),T06-S1-STU-029,E,0.0,0.0,0
+B,A,mean,T01-S1-STU-009,A,0.45,0.2277777777777778,3
+B,A,mean,T01-S2-STU-021,A,0.35,0.2277777777777778,3
+B,A,mean,T03-S2-STU-011,A,0.15,0.2277777777777778,1
+B,A,mean,T03-S3-STU-019,A,0.45,0.2277777777777778,8
+B,A,mean,T11-S2-STU-017,A,0.7,0.2277777777777778,18
+B,A,mean,T13-S2-STU-003,A,0.5,0.2277777777777778,6
+B,A,mean,T13-S2-STU-006,A,0.75,0.2277777777777778,13
+B,A,median,T01-S1-STU-009,A,0.45,0.1,3
+B,A,median,T01-S2-STU-021,A,0.35,0.1,3
+B,A,median,T03-S2-STU-011,A,0.15,0.1,1
+B,A,median,T03-S3-STU-019,A,0.45,0.1,8
+B,A,median,T11-S2-STU-017,A,0.7,0.1,18
+B,A,median,T13-S2-STU-003,A,0.5,0.1,6
+B,A,median,T13-S2-STU-006,A,0.75,0.1,13
+B,A,commits (normalised),T01-S1-STU-009,A,0.45,0.3181976157385883,3
+B,A,commits (normalised),T01-S2-STU-021,A,0.35,0.3181976157385883,3
+B,A,commits (normalised),T03-S2-STU-011,A,0.15,0.15909880786929415,1
+B,A,commits (normalised),T03-S3-STU-019,A,0.45,0.5043312887645425,8
+B,A,commits (normalised),T11-S2-STU-017,A,0.7,0.6758402033040494,18
+B,A,commits (normalised),T13-S2-STU-003,A,0.5,0.44664682136536,6
+B,A,commits (normalised),T13-S2-STU-006,A,0.75,0.6057456292346541,13
+B,A,commits (normalised) + zero rule,T01-S1-STU-009,A,0.45,0.3181976157385883,3
+B,A,commits (normalised) + zero rule,T01-S2-STU-021,A,0.35,0.3181976157385883,3
+B,A,commits (normalised) + zero rule,T03-S2-STU-011,A,0.15,0.15909880786929415,1
+B,A,commits (normalised) + zero rule,T03-S3-STU-019,A,0.45,0.5043312887645425,8
+B,A,commits (normalised) + zero rule,T11-S2-STU-017,A,0.7,0.6758402033040494,18
+B,A,commits (normalised) + zero rule,T13-S2-STU-003,A,0.5,0.44664682136536,6
+B,A,commits (normalised) + zero rule,T13-S2-STU-006,A,0.75,0.6057456292346541,13
+B,A,commits (linear),T01-S1-STU-009,A,0.45,0.2984194607073707,3
+B,A,commits (linear),T01-S2-STU-021,A,0.35,0.2984194607073707,3
+B,A,commits (linear),T03-S2-STU-011,A,0.15,0.14596553355117373,1
+B,A,commits (linear),T03-S3-STU-019,A,0.45,0.4767791216554706,8
+B,A,commits (linear),T11-S2-STU-017,A,0.7,0.6411248380943099,18
+B,A,commits (linear),T13-S2-STU-003,A,0.5,0.4215038891839377,6
+B,A,commits (linear),T13-S2-STU-006,A,0.75,0.5739578163401345,13
+B,A,commits (linear) + zero rule,T01-S1-STU-009,A,0.45,0.2984194607073707,3
+B,A,commits (linear) + zero rule,T01-S2-STU-021,A,0.35,0.2984194607073707,3
+B,A,commits (linear) + zero rule,T03-S2-STU-011,A,0.15,0.14596553355117373,1
+B,A,commits (linear) + zero rule,T03-S3-STU-019,A,0.45,0.4767791216554706,8
+B,A,commits (linear) + zero rule,T11-S2-STU-017,A,0.7,0.6411248380943099,18
+B,A,commits (linear) + zero rule,T13-S2-STU-003,A,0.5,0.4215038891839377,6
+B,A,commits (linear) + zero rule,T13-S2-STU-006,A,0.75,0.5739578163401345,13
+B,A,tasks (linear),T01-S1-STU-009,A,0.45,0.5483606557377048,3
+B,A,tasks (linear),T01-S2-STU-021,A,0.35,0.007377049180327805,3
+B,A,tasks (linear),T03-S2-STU-011,A,0.15,0.007377049180327805,1
+B,A,tasks (linear),T03-S3-STU-019,A,0.45,0.1877049180327868,8
+B,A,tasks (linear),T11-S2-STU-017,A,0.7,0.36803278688524577,18
+B,A,tasks (linear),T13-S2-STU-003,A,0.5,0.36803278688524577,6
+B,A,tasks (linear),T13-S2-STU-006,A,0.75,0.7286885245901638,13
+B,A,tasks (linear) + zero rule,T01-S1-STU-009,A,0.45,0.5483606557377048,3
+B,A,tasks (linear) + zero rule,T01-S2-STU-021,A,0.35,0.007377049180327805,3
+B,A,tasks (linear) + zero rule,T03-S2-STU-011,A,0.15,0.007377049180327805,1
+B,A,tasks (linear) + zero rule,T03-S3-STU-019,A,0.45,0.1877049180327868,8
+B,A,tasks (linear) + zero rule,T11-S2-STU-017,A,0.7,0.36803278688524577,18
+B,A,tasks (linear) + zero rule,T13-S2-STU-003,A,0.5,0.36803278688524577,6
+B,A,tasks (linear) + zero rule,T13-S2-STU-006,A,0.75,0.7286885245901638,13
+B,A,ridge (5 features),T01-S1-STU-009,A,0.45,0.27031397094418874,3
+B,A,ridge (5 features),T01-S2-STU-021,A,0.35,0.0,3
+B,A,ridge (5 features),T03-S2-STU-011,A,0.15,0.0,1
+B,A,ridge (5 features),T03-S3-STU-019,A,0.45,0.4120351527626932,8
+B,A,ridge (5 features),T11-S2-STU-017,A,0.7,0.26861639416085303,18
+B,A,ridge (5 features),T13-S2-STU-003,A,0.5,0.48873150621226963,6
+B,A,ridge (5 features),T13-S2-STU-006,A,0.75,0.8137322965918007,13
+B,C,mean,T04-S2-STU-027,C,0.1,0.39999999999999997,1
+B,C,mean,T04-S3-STU-010,C,0.05,0.39999999999999997,1
+B,C,mean,T05-S1-STU-012,C,0.45,0.39999999999999997,4
+B,C,mean,T05-S3-STU-022,C,0.0,0.39999999999999997,0
+B,C,median,T04-S2-STU-027,C,0.1,0.45,1
+B,C,median,T04-S3-STU-010,C,0.05,0.45,1
+B,C,median,T05-S1-STU-012,C,0.45,0.45,4
+B,C,median,T05-S3-STU-022,C,0.0,0.45,0
+B,C,commits (normalised),T04-S2-STU-027,C,0.1,0.15909880786929415,1
+B,C,commits (normalised),T04-S3-STU-010,C,0.05,0.15909880786929415,1
+B,C,commits (normalised),T05-S1-STU-012,C,0.45,0.3694159918548006,4
+B,C,commits (normalised),T05-S3-STU-022,C,0.0,0.0,0
+B,C,commits (normalised) + zero rule,T04-S2-STU-027,C,0.1,0.15909880786929415,1
+B,C,commits (normalised) + zero rule,T04-S3-STU-010,C,0.05,0.15909880786929415,1
+B,C,commits (normalised) + zero rule,T05-S1-STU-012,C,0.45,0.3694159918548006,4
+B,C,commits (normalised) + zero rule,T05-S3-STU-022,C,0.0,0.0,0
+B,C,commits (linear),T04-S2-STU-027,C,0.1,0.18306620517499417,1
+B,C,commits (linear),T04-S3-STU-010,C,0.05,0.18306620517499417,1
+B,C,commits (linear),T05-S1-STU-012,C,0.45,0.39111797440119395,4
+B,C,commits (linear),T05-S3-STU-022,C,0.0,0.02568111741503755,0
+B,C,commits (linear) + zero rule,T04-S2-STU-027,C,0.1,0.18306620517499417,1
+B,C,commits (linear) + zero rule,T04-S3-STU-010,C,0.05,0.18306620517499417,1
+B,C,commits (linear) + zero rule,T05-S1-STU-012,C,0.45,0.39111797440119395,4
+B,C,commits (linear) + zero rule,T05-S3-STU-022,C,0.0,0.0,0
+B,C,tasks (linear),T04-S2-STU-027,C,0.1,0.3135458167330678,1
+B,C,tasks (linear),T04-S3-STU-010,C,0.05,0.1653386454183268,1
+B,C,tasks (linear),T05-S1-STU-012,C,0.45,0.6099601593625499,4
+B,C,tasks (linear),T05-S3-STU-022,C,0.0,0.1653386454183268,0
+B,C,tasks (linear) + zero rule,T04-S2-STU-027,C,0.1,0.3135458167330678,1
+B,C,tasks (linear) + zero rule,T04-S3-STU-010,C,0.05,0.1653386454183268,1
+B,C,tasks (linear) + zero rule,T05-S1-STU-012,C,0.45,0.6099601593625499,4
+B,C,tasks (linear) + zero rule,T05-S3-STU-022,C,0.0,0.0,0
+B,C,ridge (5 features),T04-S2-STU-027,C,0.1,0.23319517778550378,1
+B,C,ridge (5 features),T04-S3-STU-010,C,0.05,0.12286985574327536,1
+B,C,ridge (5 features),T05-S1-STU-012,C,0.45,0.4830910221263701,4
+B,C,ridge (5 features),T05-S3-STU-022,C,0.0,0.0,0
+B,D,mean,T08-S1-STU-008,D,0.45,0.3038461538461539,12
+B,D,mean,T08-S2-STU-025,D,0.4,0.3038461538461539,3
+B,D,mean,T14-S1-STU-016,D,0.6,0.3038461538461539,13
+B,D,median,T08-S1-STU-008,D,0.45,0.35,12
+B,D,median,T08-S2-STU-025,D,0.4,0.35,3
+B,D,median,T14-S1-STU-016,D,0.6,0.35,13
+B,D,commits (normalised),T08-S1-STU-008,D,0.45,0.5997544082425733,12
+B,D,commits (normalised),T08-S2-STU-025,D,0.4,0.32415304878624457,3
+B,D,commits (normalised),T14-S1-STU-016,D,0.6,0.6170828528981435,13
+B,D,commits (normalised) + zero rule,T08-S1-STU-008,D,0.45,0.5997544082425733,12
+B,D,commits (normalised) + zero rule,T08-S2-STU-025,D,0.4,0.32415304878624457,3
+B,D,commits (normalised) + zero rule,T14-S1-STU-016,D,0.6,0.6170828528981435,13
+B,D,commits (linear),T08-S1-STU-008,D,0.45,0.6484596510805449,12
+B,D,commits (linear),T08-S2-STU-025,D,0.4,0.34067981618679216,3
+B,D,commits (linear),T14-S1-STU-016,D,0.6,0.6678113184510465,13
+B,D,commits (linear) + zero rule,T08-S1-STU-008,D,0.45,0.6484596510805449,12
+B,D,commits (linear) + zero rule,T08-S2-STU-025,D,0.4,0.34067981618679216,3
+B,D,commits (linear) + zero rule,T14-S1-STU-016,D,0.6,0.6678113184510465,13
+B,D,tasks (linear),T08-S1-STU-008,D,0.45,0.4237341772151899,12
+B,D,tasks (linear),T08-S2-STU-025,D,0.4,0.4237341772151899,3
+B,D,tasks (linear),T14-S1-STU-016,D,0.6,0.5795886075949368,13
+B,D,tasks (linear) + zero rule,T08-S1-STU-008,D,0.45,0.4237341772151899,12
+B,D,tasks (linear) + zero rule,T08-S2-STU-025,D,0.4,0.4237341772151899,3
+B,D,tasks (linear) + zero rule,T14-S1-STU-016,D,0.6,0.5795886075949368,13
+B,D,ridge (5 features),T08-S1-STU-008,D,0.45,0.6882728321341685,12
+B,D,ridge (5 features),T08-S2-STU-025,D,0.4,0.5618621821816184,3
+B,D,ridge (5 features),T14-S1-STU-016,D,0.6,0.6273074762422417,13
+B,E,mean,T06-S1-STU-004,E,0.0,0.3857142857142857,0
+B,E,mean,T06-S1-STU-029,E,0.0,0.3857142857142857,0
+B,E,median,T06-S1-STU-004,E,0.0,0.45,0
+B,E,median,T06-S1-STU-029,E,0.0,0.45,0
+B,E,commits (normalised),T06-S1-STU-004,E,0.0,0.0,0
+B,E,commits (normalised),T06-S1-STU-029,E,0.0,0.0,0
+B,E,commits (normalised) + zero rule,T06-S1-STU-004,E,0.0,0.0,0
+B,E,commits (normalised) + zero rule,T06-S1-STU-029,E,0.0,0.0,0
+B,E,commits (linear),T06-S1-STU-004,E,0.0,0.0,0
+B,E,commits (linear),T06-S1-STU-029,E,0.0,0.0,0
+B,E,commits (linear) + zero rule,T06-S1-STU-004,E,0.0,0.0,0
+B,E,commits (linear) + zero rule,T06-S1-STU-029,E,0.0,0.0,0
+B,E,tasks (linear),T06-S1-STU-004,E,0.0,0.15369230769230763,0
+B,E,tasks (linear),T06-S1-STU-029,E,0.0,0.15369230769230763,0
+B,E,tasks (linear) + zero rule,T06-S1-STU-004,E,0.0,0.0,0
+B,E,tasks (linear) + zero rule,T06-S1-STU-029,E,0.0,0.0,0
+B,E,ridge (5 features),T06-S1-STU-004,E,0.0,0.0,0
+B,E,ridge (5 features),T06-S1-STU-029,E,0.0,0.0,0
+C,A,mean,T01-S1-STU-009,A,0.45,0.4277777777777778,3
+C,A,mean,T01-S2-STU-021,A,0.35,0.4277777777777778,3
+C,A,mean,T03-S2-STU-011,A,0.15,0.4277777777777778,1
+C,A,mean,T03-S3-STU-019,A,0.45,0.4277777777777778,8
+C,A,mean,T11-S2-STU-017,A,0.7,0.4277777777777778,18
+C,A,mean,T13-S2-STU-003,A,0.5,0.4277777777777778,6
+C,A,mean,T13-S2-STU-006,A,0.75,0.4277777777777778,13
+C,A,median,T01-S1-STU-009,A,0.45,0.45,3
+C,A,median,T01-S2-STU-021,A,0.35,0.45,3
+C,A,median,T03-S2-STU-011,A,0.15,0.45,1
+C,A,median,T03-S3-STU-019,A,0.45,0.45,8
+C,A,median,T11-S2-STU-017,A,0.7,0.45,18
+C,A,median,T13-S2-STU-003,A,0.5,0.45,6
+C,A,median,T13-S2-STU-006,A,0.75,0.45,13
+C,A,commits (normalised),T01-S1-STU-009,A,0.45,0.30658097730535616,3
+C,A,commits (normalised),T01-S2-STU-021,A,0.35,0.30658097730535616,3
+C,A,commits (normalised),T03-S2-STU-011,A,0.15,0.15329048865267808,1
+C,A,commits (normalised),T03-S3-STU-019,A,0.45,0.4859193524634334,8
+C,A,commits (normalised),T11-S2-STU-017,A,0.7,0.6511668842969229,18
+C,A,commits (normalised),T13-S2-STU-003,A,0.5,0.4303408078237111,6
+C,A,commits (normalised),T13-S2-STU-006,A,0.75,0.5836312964763891,13
+C,A,commits (normalised) + zero rule,T01-S1-STU-009,A,0.45,0.30658097730535616,3
+C,A,commits (normalised) + zero rule,T01-S2-STU-021,A,0.35,0.30658097730535616,3
+C,A,commits (normalised) + zero rule,T03-S2-STU-011,A,0.15,0.15329048865267808,1
+C,A,commits (normalised) + zero rule,T03-S3-STU-019,A,0.45,0.4859193524634334,8
+C,A,commits (normalised) + zero rule,T11-S2-STU-017,A,0.7,0.6511668842969229,18
+C,A,commits (normalised) + zero rule,T13-S2-STU-003,A,0.5,0.4303408078237111,6
+C,A,commits (normalised) + zero rule,T13-S2-STU-006,A,0.75,0.5836312964763891,13
+C,A,commits (linear),T01-S1-STU-009,A,0.45,0.324775403642204,3
+C,A,commits (linear),T01-S2-STU-021,A,0.35,0.324775403642204,3
+C,A,commits (linear),T03-S2-STU-011,A,0.15,0.1717647527112959,1
+C,A,commits (linear),T03-S3-STU-019,A,0.45,0.5037863896532359,8
+C,A,commits (linear),T11-S2-STU-017,A,0.7,0.6687322557197047,18
+C,A,commits (linear),T13-S2-STU-003,A,0.5,0.4483093057985105,6
+C,A,commits (linear),T13-S2-STU-006,A,0.75,0.6013199567294187,13
+C,A,commits (linear) + zero rule,T01-S1-STU-009,A,0.45,0.324775403642204,3
+C,A,commits (linear) + zero rule,T01-S2-STU-021,A,0.35,0.324775403642204,3
+C,A,commits (linear) + zero rule,T03-S2-STU-011,A,0.15,0.1717647527112959,1
+C,A,commits (linear) + zero rule,T03-S3-STU-019,A,0.45,0.5037863896532359,8
+C,A,commits (linear) + zero rule,T11-S2-STU-017,A,0.7,0.6687322557197047,18
+C,A,commits (linear) + zero rule,T13-S2-STU-003,A,0.5,0.4483093057985105,6
+C,A,commits (linear) + zero rule,T13-S2-STU-006,A,0.75,0.6013199567294187,13
+C,A,tasks (linear),T01-S1-STU-009,A,0.45,0.6543103448275862,3
+C,A,tasks (linear),T01-S2-STU-021,A,0.35,0.04267241379310363,3
+C,A,tasks (linear),T03-S2-STU-011,A,0.15,0.04267241379310363,1
+C,A,tasks (linear),T03-S3-STU-019,A,0.45,0.24655172413793117,8
+C,A,tasks (linear),T11-S2-STU-017,A,0.7,0.4504310344827587,18
+C,A,tasks (linear),T13-S2-STU-003,A,0.5,0.4504310344827587,6
+C,A,tasks (linear),T13-S2-STU-006,A,0.75,0.8581896551724137,13
+C,A,tasks (linear) + zero rule,T01-S1-STU-009,A,0.45,0.6543103448275862,3
+C,A,tasks (linear) + zero rule,T01-S2-STU-021,A,0.35,0.04267241379310363,3
+C,A,tasks (linear) + zero rule,T03-S2-STU-011,A,0.15,0.04267241379310363,1
+C,A,tasks (linear) + zero rule,T03-S3-STU-019,A,0.45,0.24655172413793117,8
+C,A,tasks (linear) + zero rule,T11-S2-STU-017,A,0.7,0.4504310344827587,18
+C,A,tasks (linear) + zero rule,T13-S2-STU-003,A,0.5,0.4504310344827587,6
+C,A,tasks (linear) + zero rule,T13-S2-STU-006,A,0.75,0.8581896551724137,13
+C,A,ridge (5 features),T01-S1-STU-009,A,0.45,0.5333066994523722,3
+C,A,ridge (5 features),T01-S2-STU-021,A,0.35,0.2672119790047266,3
+C,A,ridge (5 features),T03-S2-STU-011,A,0.15,0.2137802971246931,1
+C,A,ridge (5 features),T03-S3-STU-019,A,0.45,0.42857405832256035,8
+C,A,ridge (5 features),T11-S2-STU-017,A,0.7,0.6260355622576181,18
+C,A,ridge (5 features),T13-S2-STU-003,A,0.5,0.516230368302802,6
+C,A,ridge (5 features),T13-S2-STU-006,A,0.75,0.6104301231426665,13
+C,B,mean,T07-S2-STU-018,B,0.65,0.39999999999999997,15
+C,B,mean,T07-S2-STU-013,B,0.4,0.39999999999999997,4
+C,B,mean,T09-S1-STU-001,B,0.7,0.39999999999999997,19
+C,B,mean,T09-S1-STU-007,B,0.65,0.39999999999999997,14
+C,B,median,T07-S2-STU-018,B,0.65,0.45,15
+C,B,median,T07-S2-STU-013,B,0.4,0.45,4
+C,B,median,T09-S1-STU-001,B,0.7,0.45,19
+C,B,median,T09-S1-STU-007,B,0.65,0.45,14
+C,B,commits (normalised),T07-S2-STU-018,B,0.65,0.6363952314771766,15
+C,B,commits (normalised),T07-S2-STU-013,B,0.4,0.3694159918548006,4
+C,B,commits (normalised),T09-S1-STU-001,B,0.7,0.687613607593389,19
+C,B,commits (normalised),T09-S1-STU-007,B,0.65,0.6215816362370719,14
+C,B,commits (normalised) + zero rule,T07-S2-STU-018,B,0.65,0.6363952314771766,15
+C,B,commits (normalised) + zero rule,T07-S2-STU-013,B,0.4,0.3694159918548006,4
+C,B,commits (normalised) + zero rule,T09-S1-STU-001,B,0.7,0.687613607593389,19
+C,B,commits (normalised) + zero rule,T09-S1-STU-007,B,0.65,0.6215816362370719,14
+C,B,commits (linear),T07-S2-STU-018,B,0.65,0.655221468454864,15
+C,B,commits (linear),T07-S2-STU-013,B,0.4,0.39111797440119395,4
+C,B,commits (linear),T09-S1-STU-001,B,0.7,0.7058881499211072,19
+C,B,commits (linear),T09-S1-STU-007,B,0.65,0.6405674366734334,14
+C,B,commits (linear) + zero rule,T07-S2-STU-018,B,0.65,0.655221468454864,15
+C,B,commits (linear) + zero rule,T07-S2-STU-013,B,0.4,0.39111797440119395,4
+C,B,commits (linear) + zero rule,T09-S1-STU-001,B,0.7,0.7058881499211072,19
+C,B,commits (linear) + zero rule,T09-S1-STU-007,B,0.65,0.6405674366734334,14
+C,B,tasks (linear),T07-S2-STU-018,B,0.65,0.6099601593625499,15
+C,B,tasks (linear),T07-S2-STU-013,B,0.4,0.3135458167330678,4
+C,B,tasks (linear),T09-S1-STU-001,B,0.7,0.6099601593625499,19
+C,B,tasks (linear),T09-S1-STU-007,B,0.65,0.6099601593625499,14
+C,B,tasks (linear) + zero rule,T07-S2-STU-018,B,0.65,0.6099601593625499,15
+C,B,tasks (linear) + zero rule,T07-S2-STU-013,B,0.4,0.3135458167330678,4
+C,B,tasks (linear) + zero rule,T09-S1-STU-001,B,0.7,0.6099601593625499,19
+C,B,tasks (linear) + zero rule,T09-S1-STU-007,B,0.65,0.6099601593625499,14
+C,B,ridge (5 features),T07-S2-STU-018,B,0.65,0.6429169363410094,15
+C,B,ridge (5 features),T07-S2-STU-013,B,0.4,0.39855444540804397,4
+C,B,ridge (5 features),T09-S1-STU-001,B,0.7,0.6536336337431914,19
+C,B,ridge (5 features),T09-S1-STU-007,B,0.65,0.5912809139276103,14
+C,D,mean,T08-S1-STU-008,D,0.45,0.4423076923076923,12
+C,D,mean,T08-S2-STU-025,D,0.4,0.4423076923076923,3
+C,D,mean,T14-S1-STU-016,D,0.6,0.4423076923076923,13
+C,D,median,T08-S1-STU-008,D,0.45,0.45,12
+C,D,median,T08-S2-STU-025,D,0.4,0.45,3
+C,D,median,T14-S1-STU-016,D,0.6,0.45,13
+C,D,commits (normalised),T08-S1-STU-008,D,0.45,0.5672422126236264,12
+C,D,commits (normalised),T08-S2-STU-025,D,0.4,0.30658097730535616,3
+C,D,commits (normalised),T14-S1-STU-016,D,0.6,0.5836312964763891,13
+C,D,commits (normalised) + zero rule,T08-S1-STU-008,D,0.45,0.5672422126236264,12
+C,D,commits (normalised) + zero rule,T08-S2-STU-025,D,0.4,0.30658097730535616,3
+C,D,commits (normalised) + zero rule,T14-S1-STU-016,D,0.6,0.5836312964763891,13
+C,D,commits (linear),T08-S1-STU-008,D,0.45,0.6274570215779298,12
+C,D,commits (linear),T08-S2-STU-025,D,0.4,0.3456264339445292,3
+C,D,commits (linear),T14-S1-STU-016,D,0.6,0.645177129162617,13
+C,D,commits (linear) + zero rule,T08-S1-STU-008,D,0.45,0.6274570215779298,12
+C,D,commits (linear) + zero rule,T08-S2-STU-025,D,0.4,0.3456264339445292,3
+C,D,commits (linear) + zero rule,T14-S1-STU-016,D,0.6,0.645177129162617,13
+C,D,tasks (linear),T08-S1-STU-008,D,0.45,0.49037267080745356,12
+C,D,tasks (linear),T08-S2-STU-025,D,0.4,0.49037267080745356,3
+C,D,tasks (linear),T14-S1-STU-016,D,0.6,0.6465838509316773,13
+C,D,tasks (linear) + zero rule,T08-S1-STU-008,D,0.45,0.49037267080745356,12
+C,D,tasks (linear) + zero rule,T08-S2-STU-025,D,0.4,0.49037267080745356,3
+C,D,tasks (linear) + zero rule,T14-S1-STU-016,D,0.6,0.6465838509316773,13
+C,D,ridge (5 features),T08-S1-STU-008,D,0.45,0.6767516519151597,12
+C,D,ridge (5 features),T08-S2-STU-025,D,0.4,0.5476481484056411,3
+C,D,ridge (5 features),T14-S1-STU-016,D,0.6,0.6440370441521373,13
+C,E,mean,T06-S1-STU-004,E,0.0,0.5142857142857143,0
+C,E,mean,T06-S1-STU-029,E,0.0,0.5142857142857143,0
+C,E,median,T06-S1-STU-004,E,0.0,0.475,0
+C,E,median,T06-S1-STU-029,E,0.0,0.475,0
+C,E,commits (normalised),T06-S1-STU-004,E,0.0,0.0,0
+C,E,commits (normalised),T06-S1-STU-029,E,0.0,0.0,0
+C,E,commits (normalised) + zero rule,T06-S1-STU-004,E,0.0,0.0,0
+C,E,commits (normalised) + zero rule,T06-S1-STU-029,E,0.0,0.0,0
+C,E,commits (linear),T06-S1-STU-004,E,0.0,0.06610914080932989,0
+C,E,commits (linear),T06-S1-STU-029,E,0.0,0.06610914080932989,0
+C,E,commits (linear) + zero rule,T06-S1-STU-004,E,0.0,0.0,0
+C,E,commits (linear) + zero rule,T06-S1-STU-029,E,0.0,0.0,0
+C,E,tasks (linear),T06-S1-STU-004,E,0.0,0.2750943396226415,0
+C,E,tasks (linear),T06-S1-STU-029,E,0.0,0.2750943396226415,0
+C,E,tasks (linear) + zero rule,T06-S1-STU-004,E,0.0,0.0,0
+C,E,tasks (linear) + zero rule,T06-S1-STU-029,E,0.0,0.0,0
+C,E,ridge (5 features),T06-S1-STU-004,E,0.0,0.0,0
+C,E,ridge (5 features),T06-S1-STU-029,E,0.0,0.0,0
+D,A,mean,T01-S1-STU-009,A,0.45,0.3,3
+D,A,mean,T01-S2-STU-021,A,0.35,0.3,3
+D,A,mean,T03-S2-STU-011,A,0.15,0.3,1
+D,A,mean,T03-S3-STU-019,A,0.45,0.3,8
+D,A,mean,T11-S2-STU-017,A,0.7,0.3,18
+D,A,mean,T13-S2-STU-003,A,0.5,0.3,6
+D,A,mean,T13-S2-STU-006,A,0.75,0.3,13
+D,A,median,T01-S1-STU-009,A,0.45,0.25,3
+D,A,median,T01-S2-STU-021,A,0.35,0.25,3
+D,A,median,T03-S2-STU-011,A,0.15,0.25,1
+D,A,median,T03-S3-STU-019,A,0.45,0.25,8
+D,A,median,T11-S2-STU-017,A,0.7,0.25,18
+D,A,median,T13-S2-STU-003,A,0.5,0.25,6
+D,A,median,T13-S2-STU-006,A,0.75,0.25,13
+D,A,commits (normalised),T01-S1-STU-009,A,0.45,0.30658097730535616,3
+D,A,commits (normalised),T01-S2-STU-021,A,0.35,0.30658097730535616,3
+D,A,commits (normalised),T03-S2-STU-011,A,0.15,0.15329048865267808,1
+D,A,commits (normalised),T03-S3-STU-019,A,0.45,0.4859193524634334,8
+D,A,commits (normalised),T11-S2-STU-017,A,0.7,0.6511668842969229,18
+D,A,commits (normalised),T13-S2-STU-003,A,0.5,0.4303408078237111,6
+D,A,commits (normalised),T13-S2-STU-006,A,0.75,0.5836312964763891,13
+D,A,commits (normalised) + zero rule,T01-S1-STU-009,A,0.45,0.30658097730535616,3
+D,A,commits (normalised) + zero rule,T01-S2-STU-021,A,0.35,0.30658097730535616,3
+D,A,commits (normalised) + zero rule,T03-S2-STU-011,A,0.15,0.15329048865267808,1
+D,A,commits (normalised) + zero rule,T03-S3-STU-019,A,0.45,0.4859193524634334,8
+D,A,commits (normalised) + zero rule,T11-S2-STU-017,A,0.7,0.6511668842969229,18
+D,A,commits (normalised) + zero rule,T13-S2-STU-003,A,0.5,0.4303408078237111,6
+D,A,commits (normalised) + zero rule,T13-S2-STU-006,A,0.75,0.5836312964763891,13
+D,A,commits (linear),T01-S1-STU-009,A,0.45,0.31924081340555277,3
+D,A,commits (linear),T01-S2-STU-021,A,0.35,0.31924081340555277,3
+D,A,commits (linear),T03-S2-STU-011,A,0.15,0.14856411092799532,1
+D,A,commits (linear),T03-S3-STU-019,A,0.45,0.5189197547977784,8
+D,A,commits (linear),T11-S2-STU-017,A,0.7,0.7029096688086792,18
+D,A,commits (linear),T13-S2-STU-003,A,0.5,0.4570374892313701,6
+D,A,commits (linear),T13-S2-STU-006,A,0.75,0.6277141917089276,13
+D,A,commits (linear) + zero rule,T01-S1-STU-009,A,0.45,0.31924081340555277,3
+D,A,commits (linear) + zero rule,T01-S2-STU-021,A,0.35,0.31924081340555277,3
+D,A,commits (linear) + zero rule,T03-S2-STU-011,A,0.15,0.14856411092799532,1
+D,A,commits (linear) + zero rule,T03-S3-STU-019,A,0.45,0.5189197547977784,8
+D,A,commits (linear) + zero rule,T11-S2-STU-017,A,0.7,0.7029096688086792,18
+D,A,commits (linear) + zero rule,T13-S2-STU-003,A,0.5,0.4570374892313701,6
+D,A,commits (linear) + zero rule,T13-S2-STU-006,A,0.75,0.6277141917089276,13
+D,A,tasks (linear),T01-S1-STU-009,A,0.45,0.6173913043478261,3
+D,A,tasks (linear),T01-S2-STU-021,A,0.35,0.022282608695652243,3
+D,A,tasks (linear),T03-S2-STU-011,A,0.15,0.022282608695652243,1
+D,A,tasks (linear),T03-S3-STU-019,A,0.45,0.2206521739130435,8
+D,A,tasks (linear),T11-S2-STU-017,A,0.7,0.4190217391304348,18
+D,A,tasks (linear),T13-S2-STU-003,A,0.5,0.4190217391304348,6
+D,A,tasks (linear),T13-S2-STU-006,A,0.75,0.8157608695652173,13
+D,A,tasks (linear) + zero rule,T01-S1-STU-009,A,0.45,0.6173913043478261,3
+D,A,tasks (linear) + zero rule,T01-S2-STU-021,A,0.35,0.022282608695652243,3
+D,A,tasks (linear) + zero rule,T03-S2-STU-011,A,0.15,0.022282608695652243,1
+D,A,tasks (linear) + zero rule,T03-S3-STU-019,A,0.45,0.2206521739130435,8
+D,A,tasks (linear) + zero rule,T11-S2-STU-017,A,0.7,0.4190217391304348,18
+D,A,tasks (linear) + zero rule,T13-S2-STU-003,A,0.5,0.4190217391304348,6
+D,A,tasks (linear) + zero rule,T13-S2-STU-006,A,0.75,0.8157608695652173,13
+D,A,ridge (5 features),T01-S1-STU-009,A,0.45,0.3926558553768429,3
+D,A,ridge (5 features),T01-S2-STU-021,A,0.35,0.2274500521391058,3
+D,A,ridge (5 features),T03-S2-STU-011,A,0.15,0.10470419884952076,1
+D,A,ridge (5 features),T03-S3-STU-019,A,0.45,0.4677994581380007,8
+D,A,ridge (5 features),T11-S2-STU-017,A,0.7,0.6365283373582349,18
+D,A,ridge (5 features),T13-S2-STU-003,A,0.5,0.4752227508163653,6
+D,A,ridge (5 features),T13-S2-STU-006,A,0.75,0.6550434707670356,13
+D,B,mean,T07-S2-STU-018,B,0.65,0.3038461538461539,15
+D,B,mean,T07-S2-STU-013,B,0.4,0.3038461538461539,4
+D,B,mean,T09-S1-STU-001,B,0.7,0.3038461538461539,19
+D,B,mean,T09-S1-STU-007,B,0.65,0.3038461538461539,14
+D,B,median,T07-S2-STU-018,B,0.65,0.35,15
+D,B,median,T07-S2-STU-013,B,0.4,0.35,4
+D,B,median,T09-S1-STU-001,B,0.7,0.35,19
+D,B,median,T09-S1-STU-007,B,0.65,0.35,14
+D,B,commits (normalised),T07-S2-STU-018,B,0.65,0.6483060975724891,15
+D,B,commits (normalised),T07-S2-STU-013,B,0.4,0.37633003551008753,4
+D,B,commits (normalised),T09-S1-STU-001,B,0.7,0.7004830842963321,19
+D,B,commits (normalised),T09-S1-STU-007,B,0.65,0.6332152489204042,14
+D,B,commits (normalised) + zero rule,T07-S2-STU-018,B,0.65,0.6483060975724891,15
+D,B,commits (normalised) + zero rule,T07-S2-STU-013,B,0.4,0.37633003551008753,4
+D,B,commits (normalised) + zero rule,T09-S1-STU-001,B,0.7,0.7004830842963321,19
+D,B,commits (normalised) + zero rule,T09-S1-STU-007,B,0.65,0.6332152489204042,14
+D,B,commits (linear),T07-S2-STU-018,B,0.65,0.7026801054181157,15
+D,B,commits (linear),T07-S2-STU-013,B,0.4,0.39894884791724916,4
+D,B,commits (linear),T09-S1-STU-001,B,0.7,0.7609491371485726,19
+D,B,commits (linear),T09-S1-STU-007,B,0.65,0.6858272897581793,14
+D,B,commits (linear) + zero rule,T07-S2-STU-018,B,0.65,0.7026801054181157,15
+D,B,commits (linear) + zero rule,T07-S2-STU-013,B,0.4,0.39894884791724916,4
+D,B,commits (linear) + zero rule,T09-S1-STU-001,B,0.7,0.7609491371485726,19
+D,B,commits (linear) + zero rule,T09-S1-STU-007,B,0.65,0.6858272897581793,14
+D,B,tasks (linear),T07-S2-STU-018,B,0.65,0.5795886075949368,15
+D,B,tasks (linear),T07-S2-STU-013,B,0.4,0.267879746835443,4
+D,B,tasks (linear),T09-S1-STU-001,B,0.7,0.5795886075949368,19
+D,B,tasks (linear),T09-S1-STU-007,B,0.65,0.5795886075949368,14
+D,B,tasks (linear) + zero rule,T07-S2-STU-018,B,0.65,0.5795886075949368,15
+D,B,tasks (linear) + zero rule,T07-S2-STU-013,B,0.4,0.267879746835443,4
+D,B,tasks (linear) + zero rule,T09-S1-STU-001,B,0.7,0.5795886075949368,19
+D,B,tasks (linear) + zero rule,T09-S1-STU-007,B,0.65,0.5795886075949368,14
+D,B,ridge (5 features),T07-S2-STU-018,B,0.65,0.6626432224128671,15
+D,B,ridge (5 features),T07-S2-STU-013,B,0.4,0.3729826781786655,4
+D,B,ridge (5 features),T09-S1-STU-001,B,0.7,0.6950450758244875,19
+D,B,ridge (5 features),T09-S1-STU-007,B,0.65,0.5985956715051529,14
+D,C,mean,T04-S2-STU-027,C,0.1,0.4423076923076923,1
+D,C,mean,T04-S3-STU-010,C,0.05,0.4423076923076923,1
+D,C,mean,T05-S1-STU-012,C,0.45,0.4423076923076923,4
+D,C,mean,T05-S3-STU-022,C,0.0,0.4423076923076923,0
+D,C,median,T04-S2-STU-027,C,0.1,0.45,1
+D,C,median,T04-S3-STU-010,C,0.05,0.45,1
+D,C,median,T05-S1-STU-012,C,0.45,0.45,4
+D,C,median,T05-S3-STU-022,C,0.0,0.45,0
+D,C,commits (normalised),T04-S2-STU-027,C,0.1,0.15329048865267808,1
+D,C,commits (normalised),T04-S3-STU-010,C,0.05,0.15329048865267808,1
+D,C,commits (normalised),T05-S1-STU-012,C,0.45,0.35592949228166565,4
+D,C,commits (normalised),T05-S3-STU-022,C,0.0,0.0,0
+D,C,commits (normalised) + zero rule,T04-S2-STU-027,C,0.1,0.15329048865267808,1
+D,C,commits (normalised) + zero rule,T04-S3-STU-010,C,0.05,0.15329048865267808,1
+D,C,commits (normalised) + zero rule,T05-S1-STU-012,C,0.45,0.35592949228166565,4
+D,C,commits (normalised) + zero rule,T05-S3-STU-022,C,0.0,0.0,0
+D,C,commits (linear),T04-S2-STU-027,C,0.1,0.17988660522452277,1
+D,C,commits (linear),T04-S3-STU-010,C,0.05,0.17988660522452277,1
+D,C,commits (linear),T05-S1-STU-012,C,0.45,0.39898274125131855,4
+D,C,commits (linear),T05-S3-STU-022,C,0.0,0.014146776504516359,0
+D,C,commits (linear) + zero rule,T04-S2-STU-027,C,0.1,0.17988660522452277,1
+D,C,commits (linear) + zero rule,T04-S3-STU-010,C,0.05,0.17988660522452277,1
+D,C,commits (linear) + zero rule,T05-S1-STU-012,C,0.45,0.39898274125131855,4
+D,C,commits (linear) + zero rule,T05-S3-STU-022,C,0.0,0.0,0
+D,C,tasks (linear),T04-S2-STU-027,C,0.1,0.33416149068322987,1
+D,C,tasks (linear),T04-S3-STU-010,C,0.05,0.17795031055900623,1
+D,C,tasks (linear),T05-S1-STU-012,C,0.45,0.6465838509316773,4
+D,C,tasks (linear),T05-S3-STU-022,C,0.0,0.17795031055900623,0
+D,C,tasks (linear) + zero rule,T04-S2-STU-027,C,0.1,0.33416149068322987,1
+D,C,tasks (linear) + zero rule,T04-S3-STU-010,C,0.05,0.17795031055900623,1
+D,C,tasks (linear) + zero rule,T05-S1-STU-012,C,0.45,0.6465838509316773,4
+D,C,tasks (linear) + zero rule,T05-S3-STU-022,C,0.0,0.0,0
+D,C,ridge (5 features),T04-S2-STU-027,C,0.1,0.2224802406049823,1
+D,C,ridge (5 features),T04-S3-STU-010,C,0.05,0.13367606683438465,1
+D,C,ridge (5 features),T05-S1-STU-012,C,0.45,0.4692257065256642,4
+D,C,ridge (5 features),T05-S3-STU-022,C,0.0,0.0,0
+D,E,mean,T06-S1-STU-004,E,0.0,0.4233333333333334,0
+D,E,mean,T06-S1-STU-029,E,0.0,0.4233333333333334,0
+D,E,median,T06-S1-STU-004,E,0.0,0.45,0
+D,E,median,T06-S1-STU-029,E,0.0,0.45,0
+D,E,commits (normalised),T06-S1-STU-004,E,0.0,0.0,0
+D,E,commits (normalised),T06-S1-STU-029,E,0.0,0.0,0
+D,E,commits (normalised) + zero rule,T06-S1-STU-004,E,0.0,0.0,0
+D,E,commits (normalised) + zero rule,T06-S1-STU-029,E,0.0,0.0,0
+D,E,commits (linear),T06-S1-STU-004,E,0.0,0.0,0
+D,E,commits (linear),T06-S1-STU-029,E,0.0,0.0,0
+D,E,commits (linear) + zero rule,T06-S1-STU-004,E,0.0,0.0,0
+D,E,commits (linear) + zero rule,T06-S1-STU-029,E,0.0,0.0,0
+D,E,tasks (linear),T06-S1-STU-004,E,0.0,0.16311881188118815,0
+D,E,tasks (linear),T06-S1-STU-029,E,0.0,0.16311881188118815,0
+D,E,tasks (linear) + zero rule,T06-S1-STU-004,E,0.0,0.0,0
+D,E,tasks (linear) + zero rule,T06-S1-STU-029,E,0.0,0.0,0
+D,E,ridge (5 features),T06-S1-STU-004,E,0.0,0.0,0
+D,E,ridge (5 features),T06-S1-STU-029,E,0.0,0.0,0
+E,A,mean,T01-S1-STU-009,A,0.45,0.40454545454545454,3
+E,A,mean,T01-S2-STU-021,A,0.35,0.40454545454545454,3
+E,A,mean,T03-S2-STU-011,A,0.15,0.40454545454545454,1
+E,A,mean,T03-S3-STU-019,A,0.45,0.40454545454545454,8
+E,A,mean,T11-S2-STU-017,A,0.7,0.40454545454545454,18
+E,A,mean,T13-S2-STU-003,A,0.5,0.40454545454545454,6
+E,A,mean,T13-S2-STU-006,A,0.75,0.40454545454545454,13
+E,A,median,T01-S1-STU-009,A,0.45,0.45,3
+E,A,median,T01-S2-STU-021,A,0.35,0.45,3
+E,A,median,T03-S2-STU-011,A,0.15,0.45,1
+E,A,median,T03-S3-STU-019,A,0.45,0.45,8
+E,A,median,T11-S2-STU-017,A,0.7,0.45,18
+E,A,median,T13-S2-STU-003,A,0.5,0.45,6
+E,A,median,T13-S2-STU-006,A,0.75,0.45,13
+E,A,commits (normalised),T01-S1-STU-009,A,0.45,0.30658097730535616,3
+E,A,commits (normalised),T01-S2-STU-021,A,0.35,0.30658097730535616,3
+E,A,commits (normalised),T03-S2-STU-011,A,0.15,0.15329048865267808,1
+E,A,commits (normalised),T03-S3-STU-019,A,0.45,0.4859193524634334,8
+E,A,commits (normalised),T11-S2-STU-017,A,0.7,0.6511668842969229,18
+E,A,commits (normalised),T13-S2-STU-003,A,0.5,0.4303408078237111,6
+E,A,commits (normalised),T13-S2-STU-006,A,0.75,0.5836312964763891,13
+E,A,commits (normalised) + zero rule,T01-S1-STU-009,A,0.45,0.30658097730535616,3
+E,A,commits (normalised) + zero rule,T01-S2-STU-021,A,0.35,0.30658097730535616,3
+E,A,commits (normalised) + zero rule,T03-S2-STU-011,A,0.15,0.15329048865267808,1
+E,A,commits (normalised) + zero rule,T03-S3-STU-019,A,0.45,0.4859193524634334,8
+E,A,commits (normalised) + zero rule,T11-S2-STU-017,A,0.7,0.6511668842969229,18
+E,A,commits (normalised) + zero rule,T13-S2-STU-003,A,0.5,0.4303408078237111,6
+E,A,commits (normalised) + zero rule,T13-S2-STU-006,A,0.75,0.5836312964763891,13
+E,A,commits (linear),T01-S1-STU-009,A,0.45,0.3094342250578662,3
+E,A,commits (linear),T01-S2-STU-021,A,0.35,0.3094342250578662,3
+E,A,commits (linear),T03-S2-STU-011,A,0.15,0.1454614138083081,1
+E,A,commits (linear),T03-S3-STU-019,A,0.45,0.5012701164955057,8
+E,A,commits (linear),T11-S2-STU-017,A,0.7,0.6780332189224398,18
+E,A,commits (linear),T13-S2-STU-003,A,0.5,0.44181848130381945,6
+E,A,commits (linear),T13-S2-STU-006,A,0.75,0.6057912925533776,13
+E,A,commits (linear) + zero rule,T01-S1-STU-009,A,0.45,0.3094342250578662,3
+E,A,commits (linear) + zero rule,T01-S2-STU-021,A,0.35,0.3094342250578662,3
+E,A,commits (linear) + zero rule,T03-S2-STU-011,A,0.15,0.1454614138083081,1
+E,A,commits (linear) + zero rule,T03-S3-STU-019,A,0.45,0.5012701164955057,8
+E,A,commits (linear) + zero rule,T11-S2-STU-017,A,0.7,0.6780332189224398,18
+E,A,commits (linear) + zero rule,T13-S2-STU-003,A,0.5,0.44181848130381945,6
+E,A,commits (linear) + zero rule,T13-S2-STU-006,A,0.75,0.6057912925533776,13
+E,A,tasks (linear),T01-S1-STU-009,A,0.45,0.6134146341463412,3
+E,A,tasks (linear),T01-S2-STU-021,A,0.35,0.03902439024390243,3
+E,A,tasks (linear),T03-S2-STU-011,A,0.15,0.03902439024390243,1
+E,A,tasks (linear),T03-S3-STU-019,A,0.45,0.2304878048780487,8
+E,A,tasks (linear),T11-S2-STU-017,A,0.7,0.42195121951219494,18
+E,A,tasks (linear),T13-S2-STU-003,A,0.5,0.42195121951219494,6
+E,A,tasks (linear),T13-S2-STU-006,A,0.75,0.8048780487804875,13
+E,A,tasks (linear) + zero rule,T01-S1-STU-009,A,0.45,0.6134146341463412,3
+E,A,tasks (linear) + zero rule,T01-S2-STU-021,A,0.35,0.03902439024390243,3
+E,A,tasks (linear) + zero rule,T03-S2-STU-011,A,0.15,0.03902439024390243,1
+E,A,tasks (linear) + zero rule,T03-S3-STU-019,A,0.45,0.2304878048780487,8
+E,A,tasks (linear) + zero rule,T11-S2-STU-017,A,0.7,0.42195121951219494,18
+E,A,tasks (linear) + zero rule,T13-S2-STU-003,A,0.5,0.42195121951219494,6
+E,A,tasks (linear) + zero rule,T13-S2-STU-006,A,0.75,0.8048780487804875,13
+E,A,ridge (5 features),T01-S1-STU-009,A,0.45,0.47464955186585894,3
+E,A,ridge (5 features),T01-S2-STU-021,A,0.35,0.30135055243299075,3
+E,A,ridge (5 features),T03-S2-STU-011,A,0.15,0.22820750337861911,1
+E,A,ridge (5 features),T03-S3-STU-019,A,0.45,0.4220651130094006,8
+E,A,ridge (5 features),T11-S2-STU-017,A,0.7,0.6392298304840587,18
+E,A,ridge (5 features),T13-S2-STU-003,A,0.5,0.4835892581609408,6
+E,A,ridge (5 features),T13-S2-STU-006,A,0.75,0.5889129355070913,13
+E,B,mean,T07-S2-STU-018,B,0.65,0.3857142857142857,15
+E,B,mean,T07-S2-STU-013,B,0.4,0.3857142857142857,4
+E,B,mean,T09-S1-STU-001,B,0.7,0.3857142857142857,19
+E,B,mean,T09-S1-STU-007,B,0.65,0.3857142857142857,14
+E,B,median,T07-S2-STU-018,B,0.65,0.45,15
+E,B,median,T07-S2-STU-013,B,0.4,0.45,4
+E,B,median,T09-S1-STU-001,B,0.7,0.45,19
+E,B,median,T09-S1-STU-007,B,0.65,0.45,14
+E,B,commits (normalised),T07-S2-STU-018,B,0.65,0.6363952314771766,15
+E,B,commits (normalised),T07-S2-STU-013,B,0.4,0.3694159918548006,4
+E,B,commits (normalised),T09-S1-STU-001,B,0.7,0.687613607593389,19
+E,B,commits (normalised),T09-S1-STU-007,B,0.65,0.6215816362370719,14
+E,B,commits (normalised) + zero rule,T07-S2-STU-018,B,0.65,0.6363952314771766,15
+E,B,commits (normalised) + zero rule,T07-S2-STU-013,B,0.4,0.3694159918548006,4
+E,B,commits (normalised) + zero rule,T09-S1-STU-001,B,0.7,0.687613607593389,19
+E,B,commits (normalised) + zero rule,T09-S1-STU-007,B,0.65,0.6215816362370719,14
+E,B,commits (linear),T07-S2-STU-018,B,0.65,0.6631265655505282,15
+E,B,commits (linear),T07-S2-STU-013,B,0.4,0.3814544744442137,4
+E,B,commits (linear),T09-S1-STU-001,B,0.7,0.7171636776650467,19
+E,B,commits (linear),T09-S1-STU-007,B,0.65,0.6474977235702128,14
+E,B,commits (linear) + zero rule,T07-S2-STU-018,B,0.65,0.6631265655505282,15
+E,B,commits (linear) + zero rule,T07-S2-STU-013,B,0.4,0.3814544744442137,4
+E,B,commits (linear) + zero rule,T09-S1-STU-001,B,0.7,0.7171636776650467,19
+E,B,commits (linear) + zero rule,T09-S1-STU-007,B,0.65,0.6474977235702128,14
+E,B,tasks (linear),T07-S2-STU-018,B,0.65,0.5773846153846154,15
+E,B,tasks (linear),T07-S2-STU-013,B,0.4,0.29492307692307684,4
+E,B,tasks (linear),T09-S1-STU-001,B,0.7,0.5773846153846154,19
+E,B,tasks (linear),T09-S1-STU-007,B,0.65,0.5773846153846154,14
+E,B,tasks (linear) + zero rule,T07-S2-STU-018,B,0.65,0.5773846153846154,15
+E,B,tasks (linear) + zero rule,T07-S2-STU-013,B,0.4,0.29492307692307684,4
+E,B,tasks (linear) + zero rule,T09-S1-STU-001,B,0.7,0.5773846153846154,19
+E,B,tasks (linear) + zero rule,T09-S1-STU-007,B,0.65,0.5773846153846154,14
+E,B,ridge (5 features),T07-S2-STU-018,B,0.65,0.6223527473024415,15
+E,B,ridge (5 features),T07-S2-STU-013,B,0.4,0.38539722407130794,4
+E,B,ridge (5 features),T09-S1-STU-001,B,0.7,0.625703798021188,19
+E,B,ridge (5 features),T09-S1-STU-007,B,0.65,0.5480987345624041,14
+E,C,mean,T04-S2-STU-027,C,0.1,0.5142857142857143,1
+E,C,mean,T04-S3-STU-010,C,0.05,0.5142857142857143,1
+E,C,mean,T05-S1-STU-012,C,0.45,0.5142857142857143,4
+E,C,mean,T05-S3-STU-022,C,0.0,0.5142857142857143,0
+E,C,median,T04-S2-STU-027,C,0.1,0.475,1
+E,C,median,T04-S3-STU-010,C,0.05,0.475,1
+E,C,median,T05-S1-STU-012,C,0.45,0.475,4
+E,C,median,T05-S3-STU-022,C,0.0,0.475,0
+E,C,commits (normalised),T04-S2-STU-027,C,0.1,0.15329048865267808,1
+E,C,commits (normalised),T04-S3-STU-010,C,0.05,0.15329048865267808,1
+E,C,commits (normalised),T05-S1-STU-012,C,0.45,0.35592949228166565,4
+E,C,commits (normalised),T05-S3-STU-022,C,0.0,0.0,0
+E,C,commits (normalised) + zero rule,T04-S2-STU-027,C,0.1,0.15329048865267808,1
+E,C,commits (normalised) + zero rule,T04-S3-STU-010,C,0.05,0.15329048865267808,1
+E,C,commits (normalised) + zero rule,T05-S1-STU-012,C,0.45,0.35592949228166565,4
+E,C,commits (normalised) + zero rule,T05-S3-STU-022,C,0.0,0.0,0
+E,C,commits (linear),T04-S2-STU-027,C,0.1,0.21171859328555628,1
+E,C,commits (linear),T04-S3-STU-010,C,0.05,0.21171859328555628,1
+E,C,commits (linear),T05-S1-STU-012,C,0.45,0.4042038193950462,4
+E,C,commits (linear),T05-S3-STU-022,C,0.0,0.06610914080932989,0
+E,C,commits (linear) + zero rule,T04-S2-STU-027,C,0.1,0.21171859328555628,1
+E,C,commits (linear) + zero rule,T04-S3-STU-010,C,0.05,0.21171859328555628,1
+E,C,commits (linear) + zero rule,T05-S1-STU-012,C,0.45,0.4042038193950462,4
+E,C,commits (linear) + zero rule,T05-S3-STU-022,C,0.0,0.0,0
+E,C,tasks (linear),T04-S2-STU-027,C,0.1,0.39056603773584914,1
+E,C,tasks (linear),T04-S3-STU-010,C,0.05,0.2750943396226415,1
+E,C,tasks (linear),T05-S1-STU-012,C,0.45,0.6215094339622644,4
+E,C,tasks (linear),T05-S3-STU-022,C,0.0,0.2750943396226415,0
+E,C,tasks (linear) + zero rule,T04-S2-STU-027,C,0.1,0.39056603773584914,1
+E,C,tasks (linear) + zero rule,T04-S3-STU-010,C,0.05,0.2750943396226415,1
+E,C,tasks (linear) + zero rule,T05-S1-STU-012,C,0.45,0.6215094339622644,4
+E,C,tasks (linear) + zero rule,T05-S3-STU-022,C,0.0,0.0,0
+E,C,ridge (5 features),T04-S2-STU-027,C,0.1,0.17365075630745863,1
+E,C,ridge (5 features),T04-S3-STU-010,C,0.05,0.06412687973973263,1
+E,C,ridge (5 features),T05-S1-STU-012,C,0.45,0.47586096718401516,4
+E,C,ridge (5 features),T05-S3-STU-022,C,0.0,0.0,0
+E,D,mean,T08-S1-STU-008,D,0.45,0.4233333333333334,12
+E,D,mean,T08-S2-STU-025,D,0.4,0.4233333333333334,3
+E,D,mean,T14-S1-STU-016,D,0.6,0.4233333333333334,13
+E,D,median,T08-S1-STU-008,D,0.45,0.45,12
+E,D,median,T08-S2-STU-025,D,0.4,0.45,3
+E,D,median,T14-S1-STU-016,D,0.6,0.45,13
+E,D,commits (normalised),T08-S1-STU-008,D,0.45,0.5672422126236264,12
+E,D,commits (normalised),T08-S2-STU-025,D,0.4,0.30658097730535616,3
+E,D,commits (normalised),T14-S1-STU-016,D,0.6,0.5836312964763891,13
+E,D,commits (normalised) + zero rule,T08-S1-STU-008,D,0.45,0.5672422126236264,12
+E,D,commits (normalised) + zero rule,T08-S2-STU-025,D,0.4,0.30658097730535616,3
+E,D,commits (normalised) + zero rule,T14-S1-STU-016,D,0.6,0.5836312964763891,13
+E,D,commits (linear),T08-S1-STU-008,D,0.45,0.6299961141313225,12
+E,D,commits (linear),T08-S2-STU-025,D,0.4,0.3305155938567387,3
+E,D,commits (linear),T14-S1-STU-016,D,0.6,0.6488259618187096,13
+E,D,commits (linear) + zero rule,T08-S1-STU-008,D,0.45,0.6299961141313225,12
+E,D,commits (linear) + zero rule,T08-S2-STU-025,D,0.4,0.3305155938567387,3
+E,D,commits (linear) + zero rule,T14-S1-STU-016,D,0.6,0.6488259618187096,13
+E,D,tasks (linear),T08-S1-STU-008,D,0.45,0.46336633663366333,12
+E,D,tasks (linear),T08-S2-STU-025,D,0.4,0.46336633663366333,3
+E,D,tasks (linear),T14-S1-STU-016,D,0.6,0.6134900990099009,13
+E,D,tasks (linear) + zero rule,T08-S1-STU-008,D,0.45,0.46336633663366333,12
+E,D,tasks (linear) + zero rule,T08-S2-STU-025,D,0.4,0.46336633663366333,3
+E,D,tasks (linear) + zero rule,T14-S1-STU-016,D,0.6,0.6134900990099009,13
+E,D,ridge (5 features),T08-S1-STU-008,D,0.45,0.672319658635236,12
+E,D,ridge (5 features),T08-S2-STU-025,D,0.4,0.5365833347473373,3
+E,D,ridge (5 features),T14-S1-STU-016,D,0.6,0.6430567571596474,13

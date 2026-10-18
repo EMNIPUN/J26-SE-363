@@ -40,3 +40,6 @@ ENV/
 # Keycloak plugin build output (docker/keycloak/build_provider.py)
 docker/keycloak/providers/*.jar
 docker/keycloak/providers-src/**/target/
+
+# Assessment dataset: student identities and raw (identifiable) evidence never leave this machine
+**/factor_models/dataset/private/
