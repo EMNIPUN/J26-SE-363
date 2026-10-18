@@ -164,6 +164,16 @@ class Scoring(unittest.TestCase):
 
 
 class Pacing(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        from rf_bench import llm
+        self._saved = llm.USAGE_FILE
+        llm.USAGE_FILE = Path(tempfile.mkdtemp()) / "usage.json"  # the tests must not read or write the real daily counters
+
+    def tearDown(self):
+        from rf_bench import llm
+        llm.USAGE_FILE = self._saved
+
     def test_per_minute_limit_is_respected_across_keys(self):
         from rf_bench.llm import GroqPool
         pool = GroqPool(model="m", keys=["a", "b"], tpm=8000)
@@ -171,6 +181,13 @@ class Pacing(unittest.TestCase):
         self.assertEqual([w for _, w in picks[:2]], [0.0, 0.0])      # one request per key fits in the minute
         self.assertGreater(picks[2][1], 30)                           # the third must wait for a window
         self.assertEqual(pool._pick(9000)[1], 0.0)                    # too large for any window: sent, the service's refusal is the finding
+
+    def test_a_random_organisation_id_is_not_a_daily_quota(self):
+        import re
+        msg = "Rate limit reached for model x in organization org_01tpdrpdabc service tier on_demand on tokens per minute (TPM): Limit 8000"
+        low = re.sub(r"org_\w+", "org", msg).lower()
+        self.assertFalse(re.search(r"per day|\(tpd\)|\(rpd\)", low))
+        self.assertTrue(re.search(r"per day|\(tpd\)|\(rpd\)", "on tokens per day (TPD): Limit 200000".lower()))
 
     def test_keys_are_not_in_the_repr_or_state(self):
         from rf_bench.llm import GroqPool
