@@ -20,6 +20,7 @@ backend/agentic_framework/app/agents/performance_assessment/PROPOSAL.md
 
 # Requirement Fulfillment working plan (kept local)
 **/03_requirement_fulfillment/plan.md
+**/03_requirement_fulfillment/.runs/
 
 # Assessment Mock Context & Output Data
 backend/agentic_framework/app/agents/performance_assessment/com_agent/mock_context/
