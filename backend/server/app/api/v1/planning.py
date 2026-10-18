@@ -107,6 +107,7 @@ from app.modules.planning import (
     decomposition_service,
     estimation_service,
     feedback_service,
+    jira_service,
     pipeline_session_service,
     quality_service,
     requirement_service,
@@ -149,6 +150,8 @@ class QualityRequest(BaseModel):
 
 
 class StoryIn(BaseModel):
+    # Deprecated for input compatibility; the service always allocates the
+    # immutable SCRUM-<number> issue key.
     id: str | None = None
     requirement_ref: str
     title: str
@@ -257,6 +260,26 @@ class DartArbitrateRequest(BaseModel):
 class DartResolveRequest(BaseModel):
     status: str = "resolved"
     note: str = ""
+
+
+class JiraSyncIn(BaseModel):
+    base_url: str | None = None
+    email: str | None = None
+    api_token: str | None = None
+    project_key: str | None = None
+    project_id: str | None = None
+    force_resync: bool = False
+    story_refs: list[str] | None = None
+    story_points: dict[str, int | float] | None = None
+
+
+class JiraSprintSyncIn(BaseModel):
+    sprint_id: _uuid.UUID | None = None
+    base_url: str | None = None
+    email: str | None = None
+    api_token: str | None = None
+    project_key: str | None = None
+    project_id: str | None = None
 
 
 # ── helpers ──────────────────────────────────────────────────
@@ -1095,9 +1118,8 @@ async def create_story(
         _resolve_user_db_id, db, user
     )
     story_data = body.model_dump(exclude={"requirement_ref", "id"})
-    # A server-generated ref prevents browser refreshes or concurrent students
-    # from silently overwriting a story through a reused display identifier.
-    story_data["story_ref"] = body.id or f"US-{_uuid.uuid4().hex[:8].upper()}"
+    # Never use a client-supplied key. The persistence service allocates an
+    # atomic, immutable SCRUM-<number> key suitable for issue-tracker mapping.
     try:
         row = await run_in_threadpool(
             decomposition_service.create_story,
@@ -2174,3 +2196,89 @@ async def resolve_instructor_alert(
         )
     db.commit()
     return {"ok": True}
+
+
+# ── Jira Integration ─────────────────────────────────────────
+
+
+@router.get(
+    "/jira/status",
+    summary="Check Jira connection and configuration status",
+)
+async def get_jira_status(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    base_url: Annotated[str | None, Query()] = None,
+    email: Annotated[str | None, Query()] = None,
+    project_key: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    overrides: dict[str, Any] = {}
+    if base_url:
+        overrides["base_url"] = base_url
+    if email:
+        overrides["email"] = email
+    if project_key:
+        overrides["project_key"] = project_key
+    return await jira_service.check_jira_status(overrides)
+
+
+@router.post(
+    "/jira/sync/backlog",
+    summary="Push validated backlog (Epics, Stories, Story Points, Subtasks) to Jira",
+)
+async def sync_backlog_to_jira(
+    body: JiraSyncIn,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, body.project_id, user
+    )
+    overrides = body.model_dump(exclude_none=True)
+    client = jira_service.get_jira_client(overrides)
+    result = await jira_service.sync_backlog_to_jira(
+        db,
+        session.id,
+        client,
+        force_resync=body.force_resync,
+        story_refs=body.story_refs,
+        story_points=body.story_points,
+    )
+    return result
+
+
+@router.post(
+    "/jira/reset-links",
+    summary="Clear all Jira issue/epic/sprint links from the database to allow a fresh push",
+)
+async def reset_jira_links(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, project_id, user
+    )
+    result = await jira_service.clear_jira_keys(db, session.id)
+    return result
+
+
+@router.post(
+    "/jira/sync/sprint",
+    summary="Create active sprint on Jira Scrum board and assign estimated stories",
+)
+async def sync_sprint_to_jira(
+    body: JiraSprintSyncIn,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, body.project_id, user
+    )
+    overrides = body.model_dump(exclude_none=True)
+    client = jira_service.get_jira_client(overrides)
+    result = await jira_service.sync_sprint_to_jira(db, session.id, client, body.sprint_id)
+    return result
+

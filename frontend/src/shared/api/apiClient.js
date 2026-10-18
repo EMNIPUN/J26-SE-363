@@ -16,7 +16,7 @@ import { toast } from 'sonner'
  */
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
-  timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 15000,
+  timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 45000,
   withCredentials: true, // Forwards HttpOnly session/refresh cookies automatically
   headers: {
     'Content-Type': 'application/json',

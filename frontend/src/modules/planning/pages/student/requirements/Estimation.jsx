@@ -131,7 +131,7 @@ function StoryRow({ req, story }) {
       })
       setIsEditing(false)
       showToast.success(isEstimated ? 'Estimate updated' : 'Estimate saved', {
-        description: `${story.id} saved at ${selectedPoints} SP. Eligible for Sprint Creation Backlog.`,
+        description: `${story.id} saved at ${selectedPoints} SP. Eligible for Sprint Creation & Jira Backlog.`,
       })
     } catch (err) {
       showToast.error('Failed to save estimate', {
@@ -155,7 +155,7 @@ function StoryRow({ req, story }) {
       confirmEstimation(req.id, story.id, story.title, Number(finalPoints), reason)
       setIsEditing(false)
       showToast.success('Effort confirmed', {
-        description: `${story.id} is confirmed and sent to Sprint Board at ${finalPoints} SP.`,
+        description: `${story.id} confirmed at ${finalPoints} SP. Ready for Jira Backlog & Sprint Planning.`,
       })
     } catch (err) {
       showToast.error('Failed to confirm estimation', {

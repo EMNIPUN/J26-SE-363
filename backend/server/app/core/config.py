@@ -66,6 +66,14 @@ class Settings(BaseSettings):
     AI_BACKEND_URL: str = "http://localhost:8003"
     AI_BACKEND_TIMEOUT_SECONDS: float = 60.0
 
+    # Jira Cloud Integration Settings
+    JIRA_BASE_URL: Optional[str] = None
+    JIRA_EMAIL: Optional[str] = None
+    JIRA_API_TOKEN: Optional[str] = None
+    JIRA_PROJECT_KEY: Optional[str] = None
+    JIRA_BOARD_ID: Optional[int] = None
+    JIRA_STORY_POINTS_FIELD: Optional[str] = None
+
     model_config = SettingsConfigDict(
         env_file=SERVER_ENV_FILE,
         env_file_encoding="utf-8",

@@ -289,7 +289,7 @@ export function getArbitrationForRequirement(reqId) {
 export const USER_STORIES_SEED = {
   'REQ-101': [
     {
-      id: 'US-101-1',
+      id: 'SCRUM-101',
       title: "As a student, I want to type my requirement in plain English so I don't need special syntax",
       description:
         'As a student, I want to submit a requirement in plain English so that the system stores it for later parsing.',
@@ -299,7 +299,7 @@ export const USER_STORIES_SEED = {
       bugs: [],
     },
     {
-      id: 'US-101-2',
+      id: 'SCRUM-102',
       title:
         'As the system, I want to parse free text into a structured requirement object so that it can be scored immediately',
       description:
@@ -334,7 +334,7 @@ export const USER_STORIES_SEED = {
   'REQ-102': [],
   'REQ-105': [
     {
-      id: 'US-105-1',
+      id: 'SCRUM-103',
       title: 'As a student, I want an effort estimate for my requirement so that I can plan my sprint',
       description: 'As a student, I want to view a point estimate and confidence interval for my requirement so that I can plan a sprint.',
       investResult: null,

@@ -19,3 +19,4 @@ class Sprint(TimestampMixin, Base):
     start_date: Mapped[date | None] = mapped_column(Date)
     end_date: Mapped[date | None] = mapped_column(Date)
     status: Mapped[str] = mapped_column(String(32), default="planning")
+    jira_sprint_id: Mapped[int | None] = mapped_column(Integer, nullable=True)

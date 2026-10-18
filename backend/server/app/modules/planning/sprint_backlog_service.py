@@ -126,6 +126,7 @@ def item_to_dict(
         "pipeline_session_id": str(row.pipeline_session_id),
         "user_story_id": str(row.user_story_id),
         "story_ref": story_ref,
+        "jira_issue_key": getattr(row.user_story, "jira_issue_key", None) if row.user_story else None,
         "requirement_id": str(row.requirement_id),
         "requirement_ref": requirement_ref,
         "title": title,

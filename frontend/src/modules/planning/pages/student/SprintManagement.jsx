@@ -21,6 +21,9 @@ import {
   Sparkles,
   BookOpen,
   ArrowRight,
+  ExternalLink,
+  Send,
+  RotateCcw,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -72,6 +75,7 @@ import { usePlanningData } from "../../context/usePlanningData.js";
 import { useSprintTasks, useUpdateSprintTask } from "../../hooks/useSprint.js";
 import { useStories } from "../../hooks/useDecomposition.js";
 import { useEstimates } from "../../hooks/useEstimates.js";
+import { jiraService } from "../../services/jiraService.js";
 import { mapSprintTasks } from "../../adapters/sprint.js";
 import { mapStoryRows } from "../../adapters/decomposition.js";
 import {
@@ -294,6 +298,8 @@ function IssueRow({
   statusTone,
   member,
   isStory,
+  jiraKey,
+  jiraBaseUrl,
   onClick,
 }) {
   return (
@@ -308,6 +314,19 @@ function IssueRow({
       <span className="text-sm text-foreground truncate flex-1 min-w-0">
         {title}
       </span>
+      {jiraKey && (
+        <a
+          href={jiraBaseUrl ? `${jiraBaseUrl}/browse/${jiraKey}` : "#"}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-600 hover:underline dark:text-blue-400 shrink-0"
+          title={`Open ${jiraKey} in Jira`}
+        >
+          <ExternalLink className="h-2.5 w-2.5" />
+          {jiraKey}
+        </a>
+      )}
       {requirementId && (
         <span
           className={`hidden sm:inline-block text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 ${epicChipClass(requirementId, requirements)}`}
@@ -325,10 +344,12 @@ function IssueRow({
           {statusLabel}
         </Badge>
       )}
-      {member ? (
-        <AvatarComp name={member.name} size={24} />
-      ) : (
-        <span className="h-6 w-6 rounded-full border border-dashed border-border shrink-0" />
+      {member !== undefined && (
+        member ? (
+          <AvatarComp name={member.name} size={24} />
+        ) : (
+          <span className="h-6 w-6 rounded-full border border-dashed border-border shrink-0" />
+        )
       )}
     </div>
   );
@@ -720,37 +741,34 @@ function BacklogView({ onMove, onAssign }) {
     projectInfo,
   } = usePlanningData();
   const [openTask, setOpenTask] = useState(null);
+  const [syncingBacklog, setSyncingBacklog] = useState(false);
+  const [syncingSprint, setSyncingSprint] = useState(false);
+  const [resettingJira, setResettingJira] = useState(false);
+  const [jiraStatus, setJiraStatus] = useState(null);
 
-  const totalPoints = kanbanTasks.reduce((s, t) => s + t.points, 0);
-
-  const inSprintStoryIds = new Set(
-    kanbanTasks.map((t) => t.storyId).filter(Boolean),
-  );
+  useEffect(() => {
+    jiraService
+      .getStatus()
+      .then((res) => setJiraStatus(res?.data ?? res))
+      .catch(() => setJiraStatus({ configured: false }));
+  }, []);
 
   // A story is eligible for the Sprint Creation Backlog if it has a saved estimate
   // (persisted in DB on StudentEffortEstimate or UserStory.student_story_points)
   const eligibleBacklogStories = [];
-  const pendingEstimationStories = [];
-
   for (const req of requirements) {
     for (const s of userStories[req.id] || []) {
-      if (inSprintStoryIds.has(s.id)) continue;
       const pts =
         estimations[s.id]?.finalPoints ??
         estimations[s.id]?.studentPoints ??
         s.student_story_points ??
         null;
 
-      if (pts != null) {
+      if (req.status === "Passing" && pts != null) {
         eligibleBacklogStories.push({
           story: s,
           requirementId: req.id,
           points: pts,
-        });
-      } else {
-        pendingEstimationStories.push({
-          story: s,
-          requirementId: req.id,
         });
       }
     }
@@ -759,6 +777,95 @@ function BacklogView({ onMove, onAssign }) {
   const eligibleTotalSP = eligibleBacklogStories.reduce(
     (sum, item) => sum + (Number(item.points) || 0),
     0,
+  );
+
+  async function handleSyncBacklog(force = false) {
+    setSyncingBacklog(true);
+    try {
+      const storyRefs = eligibleBacklogStories.map(
+        (item) => item.story.id || item.story.story_ref
+      );
+      const storyPointsMap = {};
+      eligibleBacklogStories.forEach((item) => {
+        const ref = item.story.id || item.story.story_ref;
+        if (item.points != null) {
+          storyPointsMap[ref] = Number(item.points);
+        }
+      });
+
+      const res = await jiraService.syncBacklog({
+        force_resync: force,
+        story_refs: storyRefs,
+        story_points: storyPointsMap,
+      });
+      const data = res?.data ?? res;
+      showToast.success("Backlog pushed to Jira!", {
+        description: `Exported ${data?.stories_synced || 0} stories and ${data?.subtasks_created || 0} subtasks to Jira Backlog.`,
+      });
+      jiraService
+        .getStatus()
+        .then((r) => setJiraStatus(r?.data ?? r))
+        .catch(() => {});
+    } catch (err) {
+      showToast.error("Failed to push to Jira", {
+        description:
+          err?.response?.data?.detail ||
+          err?.message ||
+          "Please verify Jira credentials in backend/.env",
+      });
+    } finally {
+      setSyncingBacklog(false);
+    }
+  }
+
+  async function handleResetJiraLinks() {
+    setResettingJira(true);
+    try {
+      const res = await jiraService.resetLinks();
+      const data = res?.data ?? res;
+      showToast.success("Jira links reset", {
+        description: data?.message || "Database Jira keys cleared. You can now re-push cleanly.",
+      });
+      jiraService
+        .getStatus()
+        .then((r) => setJiraStatus(r?.data ?? r))
+        .catch(() => {});
+    } catch (err) {
+      showToast.error("Failed to reset Jira links", {
+        description:
+          err?.response?.data?.detail ||
+          err?.message ||
+          "Could not reset Jira links.",
+      });
+    } finally {
+      setResettingJira(false);
+    }
+  }
+
+  async function handleSyncSprint() {
+    setSyncingSprint(true);
+    try {
+      const res = await jiraService.syncSprint();
+      const data = res?.data ?? res;
+      showToast.success("Sprint created in Jira!", {
+        description: `${data?.sprint_name || "Sprint"} created on Scrum board (ID: ${data?.jira_sprint_id || "—"}) with ${data?.issues_assigned?.length || 0} stories assigned.`,
+      });
+    } catch (err) {
+      showToast.error("Failed to create Jira Sprint", {
+        description:
+          err?.response?.data?.detail ||
+          err?.message ||
+          "Please verify Jira credentials in backend/.env",
+      });
+    } finally {
+      setSyncingSprint(false);
+    }
+  }
+
+  const totalPoints = kanbanTasks.reduce((s, t) => s + t.points, 0);
+
+  const inSprintStoryIds = new Set(
+    kanbanTasks.map((t) => t.storyId).filter(Boolean),
   );
 
   const membersWithLoad = teamMembers.map((m) => ({
@@ -770,7 +877,7 @@ function BacklogView({ onMove, onAssign }) {
 
   return (
     <div className="space-y-4">
-      <Card className="p-0 overflow-hidden">
+      <Card className="hidden p-0 overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-muted/20 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-sm font-semibold text-foreground">
@@ -803,6 +910,8 @@ function BacklogView({ onMove, onAssign }) {
                 statusTone={STATUS_TONE[task.status]}
                 member={memberFor(teamMembers, task.assigneeId)}
                 isStory={Boolean(task.storyId)}
+                jiraKey={task.jira_issue_key || task.jiraKey}
+                jiraBaseUrl={jiraStatus?.base_url}
                 onClick={() => setOpenTask(task)}
               />
             ))}
@@ -814,83 +923,104 @@ function BacklogView({ onMove, onAssign }) {
       <Card className="p-0 overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-muted/20 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-sm font-semibold text-foreground">Sprint Creation Backlog</h3>
-            <Badge tone="primary" className="text-xs">{eligibleTotalSP} SP Available</Badge>
+            <h3 className="text-sm font-semibold text-foreground">Product Backlog</h3>
+            <Badge tone="primary" className="text-xs">{eligibleTotalSP} SP</Badge>
+            {jiraStatus?.connected && (
+              <Badge tone="neutral" className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                Jira: {jiraStatus.project_key || "Connected"}
+              </Badge>
+            )}
           </div>
-          <span className="text-xs text-muted-foreground">
-            {eligibleBacklogStories.length} eligible stor{eligibleBacklogStories.length === 1 ? "y" : "ies"}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground mr-1 hidden sm:inline">
+              {eligibleBacklogStories.length} estimated stor{eligibleBacklogStories.length === 1 ? "y" : "ies"}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={resettingJira || syncingBacklog}
+              onClick={handleResetJiraLinks}
+              title="Clear Jira keys in database to start over and re-push fresh"
+              className="text-xs gap-1.5 h-8 text-muted-foreground hover:text-foreground"
+            >
+              <RotateCcw className="h-3 w-3" />
+              {resettingJira ? "Resetting..." : "Reset Jira Links"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={syncingBacklog || eligibleBacklogStories.length === 0}
+              onClick={() => handleSyncBacklog(false)}
+              className="text-xs gap-1.5 h-8 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30"
+            >
+              <Send className="h-3 w-3" />
+              {syncingBacklog ? "Pushing to Jira..." : "Push Backlog to Jira"}
+            </Button>
+            <Button
+              size="sm"
+              disabled={syncingSprint || eligibleBacklogStories.length === 0}
+              onClick={handleSyncSprint}
+              className="text-xs gap-1.5 h-8"
+            >
+              <Layers className="h-3 w-3" />
+              {syncingSprint ? "Creating Sprint..." : "Create Jira Sprint"}
+            </Button>
+          </div>
         </div>
         {eligibleBacklogStories.length === 0 ? (
           <EmptyState
-            title="Sprint Backlog is empty"
-            description="No estimated user stories found. Assign story points in Effort Estimation to make stories eligible for the sprint backlog."
+            title="Product backlog is empty"
+            description="Stories appear here after they pass planning and receive effort estimates."
             actionLabel="Go to Effort Estimation"
             onAction={() => navigate(team("/planning/requirements/estimation"))}
           />
         ) : (
           <div className="divide-y divide-border">
             {eligibleBacklogStories.map(({ story, requirementId, points }) => (
-              <IssueRow
-                key={story.id}
-                id={story.id}
-                title={story.title}
-                requirementId={requirementId}
-                requirements={requirements}
-                points={points}
-                statusLabel="Estimated"
-                statusTone="success"
-                member={null}
-                isStory
-                onClick={() =>
-                  navigate(
-                    team(
-                      `/planning/requirements/estimation?req=${requirementId}`,
-                    ),
-                  )
-                }
-              />
+              <div key={story.id}>
+                <IssueRow
+                  id={story.id}
+                  title={story.title}
+                  requirementId={requirementId}
+                  requirements={requirements}
+                  points={points}
+                  statusLabel="Estimated"
+                  statusTone="success"
+                  isStory
+                  jiraKey={story.jira_issue_key || story.jiraKey}
+                  jiraBaseUrl={jiraStatus?.base_url}
+                  onClick={() => navigate(team(`/planning/requirements/estimation?req=${requirementId}`))}
+                />
+                <div className="ml-10 mr-4 mb-3 rounded-lg border border-border/60 bg-muted/20 divide-y divide-border/60">
+                  {(story.tasks || []).length === 0 ? (
+                    <p className="px-3 py-2 text-[11px] text-muted-foreground italic">No decomposition tasks added.</p>
+                  ) : (
+                    story.tasks.map((task) => (
+                      <div key={task.id} className="flex items-center gap-2 px-3 py-2 text-xs">
+                        <SquareCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="font-medium text-foreground flex-1">{task.title}</span>
+                        {task.jira_subtask_key && (
+                          <a
+                            href={jiraStatus?.base_url ? `${jiraStatus.base_url}/browse/${task.jira_subtask_key}` : "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[10px] text-blue-600 hover:underline dark:text-blue-400 font-medium shrink-0"
+                            title={`Open ${task.jira_subtask_key} in Jira`}
+                          >
+                            {task.jira_subtask_key}
+                          </a>
+                        )}
+                        <Badge tone="neutral" className="text-[10px]">{task.priority || "medium"}</Badge>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         )}
       </Card>
 
-      {/* Pending Estimation Informational Panel */}
-      {pendingEstimationStories.length > 0 && (
-        <Card className="p-4 border-dashed border-amber-500/40 bg-amber-500/5">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2.5">
-              <span className="p-1.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                <Clock className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-xs font-semibold text-foreground">
-                  {pendingEstimationStories.length} User Stor{pendingEstimationStories.length === 1 ? "y" : "ies"} Pending Effort Estimation
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  These stories cannot be scheduled into sprints until estimated using the Fibonacci scale (1, 2, 3, 5, 8, 13).
-                </p>
-              </div>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => navigate(team("/planning/requirements/estimation"))}
-              className="text-xs h-8 cursor-pointer gap-1"
-            >
-              Assign Story Points <ArrowRight className="h-3 w-3" />
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      <TaskDetailDialog
-        task={openTask}
-        onClose={() => setOpenTask(null)}
-        teamMembers={membersWithLoad}
-        onAssign={onAssign}
-        onMove={onMove}
-      />
     </div>
   );
 }
@@ -1442,29 +1572,9 @@ export default function SprintManagement() {
             <Layers className="h-3.5 w-3.5" />
             Backlog
           </TabsTrigger>
-          <TabsTrigger
-            value="board"
-            className="rounded-none border-b-2 border-transparent px-3 py-2.5 text-sm font-medium gap-1.5 text-muted-foreground hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            Board
-          </TabsTrigger>
-          <TabsTrigger
-            value="reports"
-            className="rounded-none border-b-2 border-transparent px-3 py-2.5 text-sm font-medium gap-1.5 text-muted-foreground hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
-          >
-            <BarChart3 className="h-3.5 w-3.5" />
-            Reports
-          </TabsTrigger>
         </TabsList>
         <TabsContent value="backlog" className="mt-4">
-          <BacklogView onMove={handleMove} onAssign={handleAssign} />
-        </TabsContent>
-        <TabsContent value="board" className="mt-4">
-          <BoardView onMove={handleMove} onAssign={handleAssign} />
-        </TabsContent>
-        <TabsContent value="reports" className="mt-4">
-          <ReportsView />
+          <BacklogView />
         </TabsContent>
       </Tabs>
 

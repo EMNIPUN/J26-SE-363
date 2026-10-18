@@ -36,6 +36,7 @@ class Requirement(TimestampMixin, Base):
     section_reference: Mapped[str | None] = mapped_column(String(100))
     extraction_confidence: Mapped[float | None] = mapped_column(Numeric(5, 2))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    jira_epic_key: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     pipeline_session: Mapped["PipelineSession"] = relationship(
         back_populates="requirements"

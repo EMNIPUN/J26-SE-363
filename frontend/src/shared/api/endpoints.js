@@ -52,6 +52,11 @@ export const ENDPOINTS = {
     FEEDBACK_VIEW: (id) => `/planning/feedback/${id}/view`,
     INSTRUCTOR_ALERTS: '/planning/instructor/alerts',
     INSTRUCTOR_ALERT: (id) => `/planning/instructor/alerts/${id}`,
+    // Jira Integration
+    JIRA_STATUS: '/planning/jira/status',
+    JIRA_SYNC_BACKLOG: '/planning/jira/sync/backlog',
+    JIRA_SYNC_SPRINT: '/planning/jira/sync/sprint',
+    JIRA_RESET_LINKS: '/planning/jira/reset-links',
   },
   TUTOR: {
     SESSIONS: '/tutor/sessions',

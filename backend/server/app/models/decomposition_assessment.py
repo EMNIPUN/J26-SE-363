@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 class UserStory(TimestampMixin, Base):
     __tablename__ = "rqa_user_stories"
     __table_args__ = (
-        UniqueConstraint("pipeline_session_id", "story_ref"),
+        UniqueConstraint("story_ref"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -59,6 +59,7 @@ class UserStory(TimestampMixin, Base):
         ForeignKey("users.id", ondelete="SET NULL")
     )
     story_ref: Mapped[str] = mapped_column(String(20))
+    legacy_story_ref: Mapped[str | None] = mapped_column(String(20))
     title: Mapped[str] = mapped_column(String(255))
     as_a: Mapped[str | None] = mapped_column(String(255))
     i_want: Mapped[str | None] = mapped_column(String(500))
@@ -76,6 +77,7 @@ class UserStory(TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     version: Mapped[int] = mapped_column(Integer, default=1)
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    jira_issue_key: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     invest_validations: Mapped[list["InvestValidation"]] = relationship(
         back_populates="user_story",
@@ -118,6 +120,7 @@ class UserStoryTask(TimestampMixin, Base):
     status: Mapped[TaskStatus] = mapped_column(
         string_enum(TaskStatus, "decomposition_task_status"), default=TaskStatus.TODO
     )
+    jira_subtask_key: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     user_story: Mapped["UserStory"] = relationship(back_populates="tasks")
 

@@ -15,7 +15,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import or_, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.decomposition_assessment import (
@@ -73,6 +73,14 @@ PRIORITY_MAP = {
     "medium": Priority.MEDIUM,
     "low": Priority.LOW,
 }
+
+STORY_KEY_PREFIX = "SCRUM"
+
+
+def _allocate_story_ref(db: Session) -> str:
+    """Allocate a collision-free, human-facing work-item key."""
+    number = db.execute(text("SELECT nextval('rqa_user_story_ref_seq')")).scalar_one()
+    return f"{STORY_KEY_PREFIX}-{number}"
 
 
 def _normalize_acceptance_criteria(value: Any) -> list[str]:
@@ -164,7 +172,7 @@ def create_story(
     story_data: dict[str, Any],
     authored_by: uuid.UUID | None = None,
 ) -> UserStory:
-    story_ref = story_data["story_ref"]
+    story_ref = _allocate_story_ref(db)
 
     row = UserStory(
         requirement_id=requirement_id,
@@ -201,7 +209,7 @@ def list_stories(db: Session, session_id: uuid.UUID) -> list[UserStory]:
                 ),
                 selectinload(UserStory.tasks),
             )
-            .order_by(UserStory.story_ref)
+            .order_by(UserStory.created_at, UserStory.id)
         ).all()
     )
 
@@ -213,7 +221,10 @@ def get_story_by_ref(
         select(UserStory)
         .where(
             UserStory.pipeline_session_id == session_id,
-            UserStory.story_ref == story_ref,
+            or_(
+                UserStory.story_ref == story_ref,
+                UserStory.legacy_story_ref == story_ref,
+            ),
             UserStory.is_active.is_(True),
         )
         .options(
@@ -642,6 +653,7 @@ def story_to_dict(
             "priority": task.priority.value,
             "task_type": task.task_type.value,
             "status": task.status.value,
+            "jira_subtask_key": getattr(task, "jira_subtask_key", None),
             "validation": validation,
             "subtasks": [task_to_dict(child) for child in children.get(task.id, [])],
         }
@@ -659,6 +671,7 @@ def story_to_dict(
         "student_story_points": row.student_story_points,
         "priority": row.priority.value,
         "status": row.status.value,
+        "jira_issue_key": getattr(row, "jira_issue_key", None),
         "tasks": [task_to_dict(task) for task in task_rows if task.parent_task_id is None],
         "investResult": invest_result,
         "db_id": str(row.id),
