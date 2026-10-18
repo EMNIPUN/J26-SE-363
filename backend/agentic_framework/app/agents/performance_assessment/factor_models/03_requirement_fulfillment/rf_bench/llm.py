@@ -81,8 +81,18 @@ class _Key:
         return sum(t for _, t in self.window)
 
 
+def load_env_file(path):
+    """Read only the GROQ_* settings from a dotenv-style file the owner pointed to (``RF_ENV_FILE``). Nothing else is read or kept."""
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^\s*(GROQ_[A-Z_]+)\s*=\s*(.*?)\s*$", line)
+        if m and m.group(1) not in os.environ:
+            os.environ[m.group(1)] = m.group(2).strip().strip("\"'")
+
+
 class GroqPool(LLM):
     def __init__(self, model=None, fallback=None, tpm=8000, rpd=1000, effort="low", keys=None, timeout=120):
+        if keys is None and not os.environ.get("GROQ_API_KEYS") and os.environ.get("RF_ENV_FILE"):
+            load_env_file(os.environ["RF_ENV_FILE"])
         raw = keys if keys is not None else [k.strip() for k in os.environ.get("GROQ_API_KEYS", "").split(",") if k.strip()]
         if not raw:
             raise RuntimeError("GROQ_API_KEYS is not set in the environment")
