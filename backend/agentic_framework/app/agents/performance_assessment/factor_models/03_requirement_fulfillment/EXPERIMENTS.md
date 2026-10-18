@@ -35,8 +35,10 @@ does better. A third experiment adds a second model that checks the agent's verd
   different model family (`qwen/qwen3.8-27b`).
 - **Output and arithmetic**: one verdict per criterion (`met`, `partly`, `not_met`, `cannot_tell`); the task value is the mean of the verdict values
   (1, 0.5, 0, 0), the sprint value the mean over the student's tasks. The model never does the arithmetic.
-- **Limits**: the Groq account allows 8,000 tokens per minute and 1,000 requests per day per key. A request above the per-minute limit is
-  refused by the service; that refusal is a failure of the experiment that made it and is counted, not hidden.
+- **Limits**: the Groq account allows 8,000 tokens per minute, 1,000 requests per day and **200,000 tokens per day per key** for `openai/gpt-oss-120b`
+  (five keys: about 1,000,000 tokens a day in all). A request above the per-minute limit is refused by the service; that refusal is a failure of the
+  experiment that made it and is counted, not hidden. Reaching the daily limit is not a result: the runner pauses, records nothing for the unfinished
+  items and is resumed with the same command after the limit resets.
 
 ## The experiments
 
@@ -85,3 +87,6 @@ also reported weighted by the real share of each bucket.
 
 | Date | Change | Reason | Post-hoc? |
 | --- | --- | --- | --- |
+| 2026-10-19 | After the first live smoke tests of the agent (10 development tasks): the agent's actions became native function calls (the model kept making its own built-in call and the service rejected it); action calls reserve 600 tokens instead of 1,200; the search tool falls back to the words of the query when nothing matches exactly; a repeated search is flagged; one retry on the last step. | The first live runs scored near zero because of these interface problems, not because of the model's judgment. | Yes, on the development set only. Every smoke run is kept in `runs/` (`*_v1`, `_v3`, `_v4` are the earlier versions). No held-out item had been run. |
+| 2026-10-19 | Sample sizes: development 4 tasks per size bucket (20 tasks; the 10-task smoke runs are a subset and are reused), held-out 8 per bucket (40 tasks), the same items in every experiment. Repeat runs on a subset. | The daily token limit (about 1,000,000 tokens a day for the model) is far below the cost of the planned 60 tasks per experiment (the agent costs about 18,000 tokens per task). The runs are spread over several days. | Yes, decided after seeing the limit and the costs, before any held-out run. |
+| 2026-10-19 | A client bug (an organisation id containing letters that matched the daily-quota check) marked the keys as exhausted too early; two development runs of Experiment 1 made under it were discarded and rerun. | The runs recorded quota failures that were not real. | Yes. |
