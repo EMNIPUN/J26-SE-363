@@ -221,10 +221,10 @@ class GroqPool(LLM):
             msg = re.sub(r"gsk_[A-Za-z0-9]+", "gsk_***", text)
             retry = re.search(r"try again in ([\d.]+)(ms|s|m)", msg)
             after = float(retry.group(1)) / (1000 if retry.group(2) == "ms" else 1) * (60 if retry.group(2) == "m" else 1) + 0.5 if retry else 8
-            low = msg.lower()
+            low = re.sub(r"org_\w+", "org", msg).lower()  # an organisation id is random text: it must not match the checks below
             if e.code == 413 or "request too large" in low or "request_too_large" in low:
                 return Reply(model=body["model"], error=f"HTTP {e.code}: {msg[:300]}", error_kind="too_large")
-            if e.code == 429 and ("per day" in low or "tpd" in low or "rpd" in low):
+            if e.code == 429 and re.search(r"per day|\(tpd\)|\(rpd\)", low):
                 return Reply(model=body["model"], error=f"HTTP 429: {msg[:200]}", error_kind="quota")
             if e.code == 429:
                 return Reply(model=body["model"], error=f"HTTP 429: {msg[:200]}", error_kind="rate_limited", meta={"retry_after": after})
