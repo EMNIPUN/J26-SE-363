@@ -694,7 +694,7 @@ an explicit opt-in flag, and each step only starts after the previous one succee
 ### Start the FastAPI Development Server
 ```bash
 # From backend/server/ directory:
-uv run uvicorn app.main:app --reload --port 8002
+uv run uvicorn app.main:app --reload --port 8020
 ```
 
 ### Quick Database Health Check

@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "SELVIA Server"
     APP_ENV: str = "development"
     DEBUG: bool = False
+    # HTTP listen port for uvicorn (local default 8020; avoids clashing with Kong/Keycloak on 8000).
+    PORT: int = 8020
 
     # Server Database Configuration
     # Accepts a full connection URL or discrete connection parameters from environment.

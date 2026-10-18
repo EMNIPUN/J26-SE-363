@@ -208,7 +208,7 @@ and `FRONTEND_URLS` from the root `.env` (see `.env.example`). Steps, and how to
 The Core API sends its own email (team invitations and notifications) with `EMAIL_BACKEND`, `SMTP_*` and
 `APP_BASE_URL` in `backend/server/.env`. For development, `docker compose --profile dev up -d mailpit` starts a
 local inbox on http://localhost:8025 (the `dev` profile keeps it off the VPS). The Vite dev server forwards `/api/*`
-to the Core API (`VITE_API_PROXY_TARGET`, default `http://localhost:8002`). See
+to the Core API (`VITE_API_PROXY_TARGET`, default `http://localhost:8020`). See
 [REGISTRATION_AND_TEAMS.md](./REGISTRATION_AND_TEAMS.md).
 
 ### How Kong Gateway Receives Environment Variables

@@ -12,16 +12,21 @@ import {
   ClipboardCheck,
   ChartColumn,
   FolderKanban,
+  GraduationCap,
 } from "lucide-react";
+import { SLAP_LOGIN_URL } from "../constants/slap.js";
 
 // One nav tree per role. `to` on a parent makes the whole group a link too
 // (used for single-page sections); `children` renders an expandable list.
+// External destinations use `href` (opened in a new tab).
 export function getNavForRole(role, teamCode = "J26-SE-363") {
   const t = (path) => `/teams/${teamCode}${path}`;
+  const slapNav = { label: "SLAP", icon: GraduationCap, href: SLAP_LOGIN_URL, external: true };
 
   if (role === "student") {
     return [
       { label: "Overview", icon: LayoutDashboard, to: t("/app") },
+      slapNav,
       { label: "Team", icon: Users, to: t("/members") },
       {
         label: "Project Planning",
@@ -71,6 +76,7 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
   if (role === "instructor") {
     return [
       { label: "Dashboard", icon: LayoutDashboard, to: t("/app") },
+      slapNav,
       { label: "Team", icon: Users, to: t("/members") },
       { label: "Projects", icon: FolderKanban, to: t("/planning/instructor/projects") },
       {

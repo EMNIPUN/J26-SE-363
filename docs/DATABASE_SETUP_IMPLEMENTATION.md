@@ -278,10 +278,10 @@ Teammates never run migrations or queue scripts against Supabase. Schema changes
 2. Start the Core API from `backend/server`:
 
    ```powershell
-   uv run uvicorn app.main:app --reload --port 8002
+   uv run uvicorn app.main:app --reload --port 8020
    ```
 
-   `GET http://localhost:8002/health` must return `"database_connected": true`.
+   `GET http://localhost:8020/health` must return `"database_connected": true`.
 
 3. Start the worker from `backend/agentic_framework`:
 

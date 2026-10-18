@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../auth/useAuth.js'
 import { useScope } from '../../context/useScope.js'
+import { SLAP_LINK_PROPS } from '../../constants/slap.js'
 import { getGreeting, getShortName, formatToday } from '../../utils/greeting.js'
 import { openAiPanel } from '../../utils/aiPanel.js'
 import { usePlanningData } from '../../../modules/planning/context/usePlanningData.js'
@@ -144,15 +145,23 @@ export default function InstructorHome() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <p className="text-xs font-medium text-muted-foreground">{formatToday()}</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground">
-          {getGreeting()}, {getShortName(user?.name)}
-        </h1>
-        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          {projects.count} projects · {visible.length} item{visible.length === 1 ? '' : 's'} need your attention ·{' '}
-          {requirements.groupsBelowGate} below the quality gate. {DATA_SOURCE_NOTE}
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">{formatToday()}</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground">
+            {getGreeting()}, {getShortName(user?.name)}
+          </h1>
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            {projects.count} projects · {visible.length} item{visible.length === 1 ? '' : 's'} need your attention ·{' '}
+            {requirements.groupsBelowGate} below the quality gate. {DATA_SOURCE_NOTE}
+          </p>
+        </div>
+        <Button asChild size="lg" className="shrink-0 self-start">
+          <a {...SLAP_LINK_PROPS}>
+            <GraduationCap className="h-4 w-4" />
+            Open SLAP
+          </a>
+        </Button>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">

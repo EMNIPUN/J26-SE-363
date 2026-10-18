@@ -114,7 +114,7 @@ Rules:
 
 ```bash
 # Core API (from backend/server/)
-uv run uvicorn app.main:app --reload --port 8002
+uv run uvicorn app.main:app --reload --port 8020
 
 # AI Backend (from backend/agentic_framework/)
 uv run uvicorn app.main:app --reload --port 8003
@@ -128,7 +128,7 @@ uv run uvicorn app.agents.performance_assessment.server:app --port 8004
 ```
 
 The Core API reaches the AI Backend at `AI_BACKEND_URL` (default `http://localhost:8003`). The
-performance agent's debug server defaults to port 8002 like the Core API, so always pass `--port`
+performance agent's debug server defaults to port 8002 (not the Core API's 8020), so always pass `--port`
 when running both locally.
 
 The performance assessment agent's `Dockerfile` and `docker-compose.yml` live in its protected
@@ -146,4 +146,4 @@ uv run ruff check .
 ```
 
 `agentic_framework/tests/test_e2e_server_flow.py` tests both services together. It is skipped unless
-the web server is running (default `http://localhost:8002`, override with `SELVIA_SERVER_URL`).
+the web server is running (default `http://localhost:8020`, override with `SELVIA_SERVER_URL`).

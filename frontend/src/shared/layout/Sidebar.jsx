@@ -26,23 +26,37 @@ function isSectionActive(section, pathname) {
 
 function CollapsedSimpleItem({ section, active, onNavigate }) {
   const Icon = section.icon
+  const className = `relative h-10 w-10 flex items-center justify-center mx-auto rounded-lg transition-all duration-150 ease-out active:scale-[0.98] outline-none ${
+    active
+      ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+  }`
+  const content = (
+    <>
+      <Icon className="h-5 w-5 shrink-0" strokeWidth={2} />
+      {active && (
+        <span className="absolute top-1 right-1 flex h-1.5 w-1.5 rounded-full bg-sidebar-primary" />
+      )}
+    </>
+  )
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <NavLink
-          to={section.to}
-          onClick={onNavigate}
-          className={`relative h-10 w-10 flex items-center justify-center mx-auto rounded-lg transition-all duration-150 ease-out active:scale-[0.98] outline-none ${
-            active
-              ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
-              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-          }`}
-        >
-          <Icon className="h-5 w-5 shrink-0" strokeWidth={2} />
-          {active && (
-            <span className="absolute top-1 right-1 flex h-1.5 w-1.5 rounded-full bg-sidebar-primary" />
-          )}
-        </NavLink>
+        {section.href ? (
+          <a
+            href={section.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={onNavigate}
+            className={className}
+          >
+            {content}
+          </a>
+        ) : (
+          <NavLink to={section.to} onClick={onNavigate} className={className}>
+            {content}
+          </NavLink>
+        )}
       </TooltipTrigger>
       <TooltipContent side="right" sideOffset={12}>
         {section.label}
@@ -230,20 +244,30 @@ export default function Sidebar({
             // 2. EXPANDED MODE: SIMPLE NAV LINK (NO CHILDREN)
             // ---------------------------------------------------------------
             if (!hasChildren) {
+              const itemClass = `flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 ease-out active:scale-[0.98] ${
+                active
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              }`
               return (
                 <div key={section.label}>
-                  <NavLink
-                    to={section.to}
-                    onClick={onNavigate}
-                    className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 ease-out active:scale-[0.98] ${
-                      active
-                        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
-                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
-                    <span className="truncate">{section.label}</span>
-                  </NavLink>
+                  {section.href ? (
+                    <a
+                      href={section.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={onNavigate}
+                      className={itemClass}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
+                      <span className="truncate">{section.label}</span>
+                    </a>
+                  ) : (
+                    <NavLink to={section.to} onClick={onNavigate} className={itemClass}>
+                      <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
+                      <span className="truncate">{section.label}</span>
+                    </NavLink>
+                  )}
                 </div>
               )
             }

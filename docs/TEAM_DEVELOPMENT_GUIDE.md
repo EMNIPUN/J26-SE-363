@@ -7,7 +7,7 @@ each other's work. Read this before you start on your agent.
 
 ```text
 Frontend (React)
-  -> Core API          backend/server             (port 8002)  auth, users, groups, projects, DB
+  -> Core API          backend/server             (port 8020)  auth, users, groups, projects, DB
   -> AI Backend        backend/agentic_framework  (port 8003)  POST /api/v1/orchestration
   -> Main Orchestrator app/orchestrator/                       route -> execute -> finalize
   -> one agent         app/agents/<agent>/                     returns an AgentResponse
@@ -189,7 +189,7 @@ are plain Python modules under `adaptive_tutor/` and are not registered as agent
 
 ```bash
 # Core API (from backend/server/)
-uv run uvicorn app.main:app --reload --port 8002
+uv run uvicorn app.main:app --reload --port 8020
 
 # AI Backend (from backend/agentic_framework/)
 uv run uvicorn app.main:app --reload --port 8003

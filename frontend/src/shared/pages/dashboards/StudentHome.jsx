@@ -5,6 +5,7 @@ import {
   BookOpen,
   CalendarClock,
   Circle,
+  GraduationCap,
   KanbanSquare,
   MessageCircle,
   Sparkles,
@@ -12,6 +13,7 @@ import {
 import { useAuth } from '../../auth/useAuth.js'
 import { useScope } from '../../context/useScope.js'
 import { getModule } from '../../constants/modules.js'
+import { SLAP_LINK_PROPS } from '../../constants/slap.js'
 import { getGreeting, getShortName, formatToday } from '../../utils/greeting.js'
 import { usePlanningData } from '../../../modules/planning/context/usePlanningData.js'
 import { computeStageStats, getNextAction, STAGE_ORDER } from '../../../modules/planning/stageStats.js'
@@ -63,22 +65,32 @@ export default function StudentHome() {
   const timeByText = Object.fromEntries(ACTIVITY_FEED.map((item) => [item.text, item.time]))
   const updates = activityLog.slice(0, 3)
 
-  const quickLinks = ['planning', 'tutor', 'performance', 'security'].map((key) => {
-    const mod = getModule(key)
-    const destinations = {
-      planning: '/planning/dashboard',
-      tutor: '/tutor/guidance',
-      performance: '/performance/my-progress',
-      security: '/security/dashboard',
-    }
-    return {
-      key: mod.key,
-      label: mod.label,
-      icon: mod.icon,
-      tagline: mod.tagline,
-      to: team(destinations[key]),
-    }
-  })
+  const quickLinks = [
+    ...['planning', 'tutor', 'performance', 'security'].map((key) => {
+      const mod = getModule(key)
+      const destinations = {
+        planning: '/planning/dashboard',
+        tutor: '/tutor/guidance',
+        performance: '/performance/my-progress',
+        security: '/security/dashboard',
+      }
+      return {
+        key: mod.key,
+        label: mod.label,
+        icon: mod.icon,
+        tagline: mod.tagline,
+        to: team(destinations[key]),
+      }
+    }),
+    {
+      key: 'slap',
+      label: 'SLAP',
+      icon: GraduationCap,
+      tagline: 'Learning & assessment platform — same SELVIA account',
+      href: SLAP_LINK_PROPS.href,
+      external: true,
+    },
+  ]
 
   const nextPrompt = `I'm stuck on this next step: ${nextAction.text}. Explain what I should do, and what I need to understand first.`
 
@@ -95,12 +107,20 @@ export default function StudentHome() {
             Start with one step. The rest of the sprint can wait.
           </p>
         </div>
-        <Button asChild variant="outline" size="lg" className="shrink-0 self-start">
-          <Link to={team('/planning/sprint-management')}>
-            <KanbanSquare className="h-4 w-4" />
-            Sprint board
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2 shrink-0 self-start">
+          <Button asChild size="lg">
+            <a {...SLAP_LINK_PROPS}>
+              <GraduationCap className="h-4 w-4" />
+              Open SLAP
+            </a>
+          </Button>
+          <Button asChild variant="outline" size="lg">
+            <Link to={team('/planning/sprint-management')}>
+              <KanbanSquare className="h-4 w-4" />
+              Sprint board
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <section
