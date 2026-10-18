@@ -30,7 +30,7 @@ from app.agents.adaptive_tutor.tests.fixtures.sprint_data import (
 from app.core.config import settings
 
 # Verified Course.id from the current Aura seed graph.
-DEFAULT_COURSE_ID = "b5a46382-0d6a-4035-a924-0f5efa654796"
+DEFAULT_COURSE_ID = "b55fea72-3a5b-4809-99f6-75f0505c501f"
 
 
 async def main() -> int:
