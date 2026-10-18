@@ -209,6 +209,10 @@ class Agent:
         task = bench.task_public(task_id)
         cfg = {"configurable": {"scope": scope, "llm": llm, "usage": usage, "run": run, "bench": bench}, "recursion_limit": 200}
         state = GRAPH.invoke({"task": task, "mapped": [], "verdicts": [], "notes": []}, cfg)
+        return self.result(bench, task_id, task, scope, state)
+
+    def result(self, bench, task_id, task, scope, state):
+        """The result row of a finished graph state (shared by the experiments that extend the agent)."""
         truth_map = {c["sha"] for c in bench.task_commits(task_id)}
         mapped = set(state.get("mapped", []))
         out = {"mapping": sorted(mapped), "mapping_truth": sorted(truth_map),
