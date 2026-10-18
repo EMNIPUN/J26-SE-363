@@ -798,6 +798,11 @@ function BacklogView({ onRefreshed }) {
       showToast.success("Backlog pushed to Jira!", {
         description: `Exported ${data?.stories_synced || 0} stories and ${data?.subtasks_created || 0} subtasks to Jira Backlog.`,
       });
+      if (data?.status_warnings?.length) {
+        showToast.error("Some new Jira items could not be moved to To Do", {
+          description: data.status_warnings[0],
+        });
+      }
       jiraService
         .getStatus()
         .then((r) => setJiraStatus(r?.data ?? r))
@@ -1461,13 +1466,19 @@ function SprintSyncView({ onRefreshed }) {
     }
   }
 
-  async function handleTransition(issueKey, targetStatus) {
+  async function handleTransition(issueKey, targetStatus, isParentStory = false) {
     if (!issueKey || !targetStatus) return;
+    const isDone = normalizeKanbanColumn(targetStatus) === "done";
+    const acceptanceCriteriaConfirmed = isParentStory && isDone
+      ? window.confirm("Confirm that all acceptance criteria and the Definition of Done have been verified. Unfinished Jira tasks will prevent completion.")
+      : false;
+    if (isParentStory && isDone && !acceptanceCriteriaConfirmed) return;
     setTransitioningKey(issueKey);
     try {
       const res = await jiraService.transitionIssue({
         issue_key: issueKey,
         target_status: targetStatus,
+        acceptance_criteria_confirmed: acceptanceCriteriaConfirmed,
       });
       const data = res?.data ?? res;
       showToast.success(`Transitioned ${issueKey}`, {
@@ -1822,6 +1833,27 @@ function SprintSyncView({ onRefreshed }) {
         )}
       </Card>
 
+      {snapshot?.completion_conflicts?.length > 0 && (
+        <Card className="border-destructive/40 bg-destructive/5 p-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div>
+              <h4 className="text-sm font-semibold text-destructive">Jira completion conflict</h4>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Jira has marked a parent story Done while linked tasks are still open. The system will not treat these stories as validly complete.
+              </p>
+              <ul className="mt-2 space-y-1 text-xs text-foreground">
+                {snapshot.completion_conflicts.map((conflict) => (
+                  <li key={conflict.story_ref}>
+                    <span className="font-medium">{conflict.story_ref}</span>: {conflict.open_tasks.join(", ") || "acceptance criteria require review"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* ── Search & Filter Bar ── */}
       <Card className="p-3 bg-card/60">
         <div className="flex flex-col sm:flex-row gap-2.5 items-center">
@@ -2093,7 +2125,7 @@ function SprintSyncView({ onRefreshed }) {
                                             : "Done"
                                     }
                                     onValueChange={(val) =>
-                                      handleTransition(issueKey, val)
+                                      handleTransition(issueKey, val, isStory)
                                     }
                                   >
                                     <SelectTrigger className="h-6 px-1.5 text-[10px] w-24 bg-muted/40 hover:bg-muted font-medium border-border/80">
@@ -2209,7 +2241,7 @@ function SprintSyncView({ onRefreshed }) {
                         <Select
                           value={story.jira_status || "To Do"}
                           onValueChange={(val) =>
-                            handleTransition(story.jira_issue_key, val)
+                            handleTransition(story.jira_issue_key, val, true)
                           }
                           disabled={transitioningKey === story.jira_issue_key}
                         >
@@ -2311,7 +2343,7 @@ function SprintSyncView({ onRefreshed }) {
                         <Select
                           value={task.jira_status || "To Do"}
                           onValueChange={(val) =>
-                            handleTransition(task.jira_subtask_key, val)
+                            handleTransition(task.jira_subtask_key, val, false)
                           }
                           disabled={transitioningKey === task.jira_subtask_key}
                         >
@@ -2404,7 +2436,7 @@ export default function SprintManagement() {
   const { data: storiesResp } = useStories();
   const { data: estimatesResp } = useEstimates();
   const updateTask = useUpdateSprintTask();
-  const [tab, setTab] = useState("sprint");
+  const [tab, setTab] = useState("backlog");
   const [today] = useState(() => Date.now());
   const [consultOpen, setConsultOpen] = useState(false);
   const [scrumGuideOpen, setScrumGuideOpen] = useState(false);
@@ -2518,18 +2550,6 @@ export default function SprintManagement() {
           >
             <UserCheck className="h-3.5 w-3.5 text-primary" /> Supervisor
             Advisory
-          </Button>
-          <Button
-            size="sm"
-            onClick={() =>
-              showToast(
-                "Sprint completion dossier submitted for Dr. Amara Silva review",
-                "success",
-              )
-            }
-            className="text-xs cursor-pointer gap-1.5"
-          >
-            <Sparkles className="h-3.5 w-3.5" /> Complete Sprint
           </Button>
         </div>
       </div>

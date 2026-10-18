@@ -262,6 +262,7 @@ async def sync_backlog_to_jira(
     stories_synced = 0
     subtasks_created = 0
     synced_issues: list[dict[str, Any]] = []
+    status_warnings: list[str] = []
 
     for story in stories:
         est = estimates_by_story_id.get(story.id)
@@ -320,8 +321,22 @@ async def sync_backlog_to_jira(
                 story_key = created.get("key")
                 if story_key:
                     story.jira_issue_key = story_key
-                    stories_synced += 1
+                    created_now = not bool(created.get("_selvia_reused"))
+                    if created_now:
+                        stories_synced += 1
                     db.commit()
+                    # Jira projects can be configured to create issues directly
+                    # in In Progress.  A backlog export must never start work;
+                    # change only brand-new issues, never linked/reused ones.
+                    if created_now:
+                        try:
+                            await client.ensure_issue_in_todo(story_key)
+                        except Exception as exc:
+                            warning = (
+                                f"{story_key} was created, but Jira could not move it to To Do: {exc}"
+                            )
+                            logger.warning(warning)
+                            status_warnings.append(warning)
             except Exception as e:
                 logger.error("Failed to sync story %s to Jira: %s", story.story_ref, e)
                 continue
@@ -351,8 +366,19 @@ async def sync_backlog_to_jira(
                             priority=task.priority.value if hasattr(task.priority, "value") else "Medium",
                         )
                         task.jira_subtask_key = sub_created.get("key")
-                        subtasks_created += 1
+                        created_now = not bool(sub_created.get("_selvia_reused"))
+                        if created_now:
+                            subtasks_created += 1
                         db.commit()
+                        if task.jira_subtask_key and created_now:
+                            try:
+                                await client.ensure_issue_in_todo(task.jira_subtask_key)
+                            except Exception as exc:
+                                warning = (
+                                    f"{task.jira_subtask_key} was created, but Jira could not move it to To Do: {exc}"
+                                )
+                                logger.warning(warning)
+                                status_warnings.append(warning)
                     except Exception as e:
                         logger.warning("Could not create subtask '%s': %s", task.title, e)
 
@@ -366,6 +392,7 @@ async def sync_backlog_to_jira(
         "total_stories": len(stories),
         "issues": synced_issues,
         "jira_base_url": client.base_url,
+        "status_warnings": status_warnings,
     }
 
 
@@ -602,6 +629,17 @@ async def fetch_linked_jira_execution(
 
     # A partial Jira failure must keep previously mirrored values intact. Only
     # rows whose individual fetch succeeded were mutated above.
+    completion_conflicts = [
+        {
+            "story_ref": story.story_ref,
+            "jira_issue_key": story.jira_issue_key,
+            "message": "Jira marks this story Done while one or more linked tasks are unfinished.",
+            "open_tasks": [task.title for task in (story.tasks or []) if task.status != TaskStatus.DONE],
+        }
+        for story in linked_stories
+        if _jira_task_status({"status": {"name": story.jira_status}}) == TaskStatus.DONE
+        and any(task.status != TaskStatus.DONE for task in (story.tasks or []))
+    ]
     db.commit()
     return {
         "ok": True,
@@ -616,6 +654,7 @@ async def fetch_linked_jira_execution(
         "unlinked_stories": len(stories) - len(linked_stories),
         "unlinked_tasks": sum(len(story.tasks or []) for story in stories) - len(linked_tasks),
         "errors": errors,
+        "completion_conflicts": completion_conflicts,
         "stories": [_sync_story_payload(story) for story in linked_stories],
         "tasks": [_sync_task_payload(task, story) for story in stories for task in (story.tasks or []) if task.jira_subtask_key],
     }
@@ -627,11 +666,9 @@ async def transition_jira_issue(
     client: JiraClient,
     issue_key: str,
     target_status: str,
+    acceptance_criteria_confirmed: bool = False,
 ) -> dict[str, Any]:
     """Execute status transition on Jira issue and immediately reflect in local DB."""
-    res = await client.transition_issue_by_status_name(issue_key, target_status)
-    now = datetime.now(UTC)
-
     # Find matching story or task
     story = db.query(UserStory).filter(
         UserStory.jira_issue_key == issue_key,
@@ -643,6 +680,45 @@ async def transition_jira_issue(
         task = db.query(UserStoryTask).filter(
             UserStoryTask.jira_subtask_key == issue_key,
         ).first()
+
+    requested_status = _jira_task_status({"status": {"name": target_status}})
+    if story and requested_status == TaskStatus.DONE:
+        tasks = db.query(UserStoryTask).filter(UserStoryTask.user_story_id == story.id).all()
+        incomplete: list[str] = []
+        # Re-read each linked subtask from Jira before allowing a story
+        # completion transition, so stale browser/local state cannot close a
+        # parent while Jira still has unfinished work.
+        for child in tasks:
+            if not child.jira_subtask_key:
+                incomplete.append(child.title)
+                continue
+            try:
+                remote = await client.get_issue(child.jira_subtask_key)
+            except Exception:
+                incomplete.append(child.title)
+                continue
+            _apply_jira_execution_fields(child, remote, datetime.now(UTC))
+            if child.status != TaskStatus.DONE:
+                incomplete.append(child.title)
+        if incomplete:
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": "The user story cannot be marked Done while tasks remain unfinished.",
+                    "open_tasks": incomplete,
+                },
+            )
+        if not story.acceptance_criteria or not acceptance_criteria_confirmed:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": "Confirm the acceptance criteria and Definition of Done before completing this user story.",
+                },
+            )
+
+    res = await client.transition_issue_by_status_name(issue_key, target_status)
+    now = datetime.now(UTC)
 
     to_name = res.get("to_status") or target_status
     if story:

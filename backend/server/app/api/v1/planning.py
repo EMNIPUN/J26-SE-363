@@ -294,6 +294,10 @@ class JiraFetchIn(BaseModel):
 class JiraTransitionIn(BaseModel):
     issue_key: str
     target_status: str
+    # Required only for a parent-story completion transition. This is an
+    # explicit student acknowledgement that its acceptance criteria and DoD
+    # were checked; Jira task completion alone is not sufficient.
+    acceptance_criteria_confirmed: bool = False
     project_id: str | None = None
     base_url: str | None = None
     email: str | None = None
@@ -2336,6 +2340,7 @@ async def transition_jira_issue(
     overrides = body.model_dump(exclude_none=True)
     client = jira_service.get_jira_client(overrides)
     return await jira_service.transition_jira_issue(
-        db, session.id, client, body.issue_key, body.target_status
+        db, session.id, client, body.issue_key, body.target_status,
+        body.acceptance_criteria_confirmed,
     )
 

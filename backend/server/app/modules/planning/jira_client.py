@@ -478,7 +478,9 @@ class JiraClient:
             existing = await self.find_issue_by_label(story_ref, key)
             if existing:
                 logger.info("Reusing existing Jira Story %s for story ref %s", existing.get("key"), story_ref)
-                return existing
+                # The caller must not reset an already-exported item's workflow
+                # state when the user pushes the backlog again.
+                return {**existing, "_selvia_reused": True}
 
         issue_types = await self.get_issue_types(key)
         story_type_name = issue_types.get("story", issue_types.get("userstory", "Story"))
@@ -529,7 +531,7 @@ class JiraClient:
         existing = await self.find_subtask(parent_issue_key, summary)
         if existing:
             logger.info("Reusing existing Jira Subtask %s for parent %s", existing.get("key"), parent_issue_key)
-            return existing
+            return {**existing, "_selvia_reused": True}
         key = project_key or self.project_key
         issue_types = await self.get_issue_types(key)
         subtask_type_name = (
@@ -655,3 +657,21 @@ class JiraClient:
             "transition_name": selected.get("name"),
             "to_status": selected.get("to", {}).get("name"),
         }
+
+    async def ensure_issue_in_todo(self, issue_key: str) -> bool:
+        """Place a newly-created backlog item in Jira's To Do category.
+
+        Jira projects may use In Progress as their workflow's creation status.
+        SELVIA's backlog export must not silently start implementation work, so
+        this is called only for issues created during the current export.
+        """
+        issue = await self.get_issue(issue_key)
+        status = (issue.get("fields") or {}).get("status") or {}
+        name = str(status.get("name") or "").lower().replace(" ", "")
+        category = str((status.get("statusCategory") or {}).get("key") or "").lower()
+        if category == "new" or name in {"todo", "backlog", "new"}:
+            return False
+        result = await self.transition_issue_by_status_name(issue_key, "To Do")
+        if not result.get("ok"):
+            raise ValueError(f"Jira did not transition {issue_key} to To Do.")
+        return True

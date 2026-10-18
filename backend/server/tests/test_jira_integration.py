@@ -163,7 +163,37 @@ async def test_jira_client_reuses_existing_subtask_without_creating_a_duplicate(
         find_subtask.return_value = {"key": "SEL-12", "fields": {"summary": "Build API"}}
         result = await client.create_subtask("SEL-10", "Build API")
         assert result["key"] == "SEL-12"
+        assert result["_selvia_reused"] is True
         post.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_jira_client_moves_new_issue_from_in_progress_to_todo():
+    client = JiraClient("https://test-team.atlassian.net", "student@example.com", "dummy_token")
+    with patch.object(client, "get_issue", new_callable=AsyncMock) as get_issue, \
+         patch.object(client, "transition_issue_by_status_name", new_callable=AsyncMock) as transition:
+        get_issue.return_value = {
+            "key": "SEL-10",
+            "fields": {"status": {"name": "In Progress", "statusCategory": {"key": "indeterminate"}}},
+        }
+        transition.return_value = {"ok": True, "to_status": "To Do"}
+
+        assert await client.ensure_issue_in_todo("SEL-10") is True
+        transition.assert_awaited_once_with("SEL-10", "To Do")
+
+
+@pytest.mark.asyncio
+async def test_jira_client_keeps_existing_todo_issue_untouched():
+    client = JiraClient("https://test-team.atlassian.net", "student@example.com", "dummy_token")
+    with patch.object(client, "get_issue", new_callable=AsyncMock) as get_issue, \
+         patch.object(client, "transition_issue_by_status_name", new_callable=AsyncMock) as transition:
+        get_issue.return_value = {
+            "key": "SEL-10",
+            "fields": {"status": {"name": "To Do", "statusCategory": {"key": "new"}}},
+        }
+
+        assert await client.ensure_issue_in_todo("SEL-10") is False
+        transition.assert_not_awaited()
 
 
 @pytest.mark.asyncio
