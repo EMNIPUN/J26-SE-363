@@ -140,7 +140,7 @@ class ExtractRequirementsResult(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Decomposition analysis — INVEST + coverage (Function 2)
+# Decomposition analysis — user-story INVEST quality (Function 2)
 # ---------------------------------------------------------------------------
 
 INVEST_CRITERIA: tuple[str, ...] = (
@@ -159,8 +159,8 @@ class StoryInput(BaseModel):
     id: str
     title: str
     description: str = ""
-    # Informational only: acceptance criteria are stored and receive feedback,
-    # but are not an INVEST or coverage-gate input.
+    # Informational only: acceptance criteria are stored but are not part of
+    # the user-story quality evaluation.
     acceptance_criteria: list[str] = Field(default_factory=list)
     # Populated by the Core API from the owning requirement's id (stories are
     # always scoped to one requirement per analyze_decomposition call). Used
@@ -252,6 +252,10 @@ class CoverageAnalysis(BaseModel):
     # ten checks being Fail in this state is a placeholder, not a finding.
     analysis_failed: bool = False
     failure_reason: str | None = None
+    # Story-quality-only analysis intentionally skips requirement coverage.
+    # This is distinct from a failed coverage call and must not be presented
+    # as an AI-service error.
+    analysis_skipped: bool = False
 
 
 # ----- result: INVEST readiness gate (4-state per criterion) ------------------
@@ -308,9 +312,7 @@ class DecompositionReadiness(str, Enum):
     strict pass/fail gate: ALL three outcomes allow the student to proceed to
     effort estimation — there is no hard block. The tier only changes how
     prominently the UI warns them and what it asks them to improve first.
-    Coverage/traceability (the C1-C10 checks) dominates the tier; INVEST
-    results are guidance and can at most downgrade Ready -> Ready with
-    Improvements, never force Needs Attention on their own."""
+    In story-quality-only mode, the tier is based on INVEST results alone."""
 
     READY = "Ready"
     READY_WITH_IMPROVEMENTS = "Ready with Improvements"

@@ -87,25 +87,6 @@ def _normalize_acceptance_criteria(value: Any) -> list[str]:
     return []
 
 
-def _acceptance_criteria_feedback(criteria: list[str]) -> list[str]:
-    """Non-blocking feedback shown on the story card.
-
-    Criteria are intentionally not passed into the decomposition coverage or
-    INVEST gates; this feedback helps students improve what they entered.
-    """
-    if not criteria:
-        return ["No acceptance criteria added yet. Add observable outcomes if you want implementation guidance."]
-
-    feedback = [
-        f"{len(criteria)} acceptance {'criterion' if len(criteria) == 1 else 'criteria'} recorded. They are informational and do not affect the decomposition gate."
-    ]
-    for index, criterion in enumerate(criteria, start=1):
-        if len(criterion) < 15:
-            feedback.append(f"Criterion {index} is brief; describe an observable outcome or condition.")
-        elif not any(word in criterion.lower() for word in ("given", "when", "then", "must", "can", "should", "displays", "returns", "creates", "shows")):
-            feedback.append(f"Criterion {index} could be clearer by stating the condition and observable result.")
-    return feedback
-
 _RECOMMENDED_ACTION = {
     "Ready": "Proceed to effort estimation",
     "Ready with Improvements": (
@@ -259,6 +240,7 @@ def create_task(
     title: str,
     parent_task_id: uuid.UUID | None = None,
     description: str = "",
+    priority: Priority = Priority.MEDIUM,
 ) -> UserStoryTask:
     if parent_task_id:
         parent = db.get(UserStoryTask, parent_task_id)
@@ -269,6 +251,7 @@ def create_task(
         parent_task_id=parent_task_id,
         title=title,
         description=description,
+        priority=priority,
         task_type=(
             DecompositionTaskType.SUBTASK
             if parent_task_id
@@ -293,12 +276,15 @@ def update_task(
     *,
     title: str | None = None,
     description: str | None = None,
+    priority: Priority | None = None,
     status: TaskStatus | None = None,
 ) -> UserStoryTask:
     if title is not None:
         task.title = title
     if description is not None:
         task.description = description
+    if priority is not None:
+        task.priority = priority
     if status is not None:
         task.status = status
     db.flush()
@@ -653,6 +639,7 @@ def story_to_dict(
             "id": str(task.id),
             "title": task.title,
             "description": task.description,
+            "priority": task.priority.value,
             "task_type": task.task_type.value,
             "status": task.status.value,
             "validation": validation,
@@ -669,9 +656,6 @@ def story_to_dict(
         "so_that": row.so_that,
         "description": row.description,
         "acceptance_criteria": _normalize_acceptance_criteria(row.acceptance_criteria),
-        "acceptance_criteria_feedback": _acceptance_criteria_feedback(
-            _normalize_acceptance_criteria(row.acceptance_criteria)
-        ),
         "student_story_points": row.student_story_points,
         "priority": row.priority.value,
         "status": row.status.value,
@@ -764,6 +748,9 @@ def assessment_to_dict(row: DecompositionAssessment) -> dict[str, Any]:
             ),
             "elements": elements,
             "checks": checks,
+            "analysis_skipped": (
+                not row.analysis_failed and not elements and not checks
+            ),
         },
         "stories": stories,
         "student_feedback": student_feedback,

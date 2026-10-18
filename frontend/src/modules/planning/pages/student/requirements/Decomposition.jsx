@@ -94,11 +94,57 @@ const INVEST_CRITERIA = [
   { key: 'testable', code: 'T', label: 'Testable', description: 'The story describes observable behavior that can be verified.' },
 ]
 
+const TASK_UNLOCK_PASS_COUNT = 4
+
 const BUG_SEVERITY_TONE = { Low: 'neutral', Medium: 'warning', High: 'danger' }
 
 function normalizeAcceptanceCriteria(value) {
   if (Array.isArray(value)) return value.filter((item) => String(item).trim())
   return typeof value === 'string' && value.trim() ? [value.trim()] : []
+}
+
+function AcceptanceCriteriaFields({ criteria, onChange }) {
+  const updateCriterion = (index, value) => {
+    onChange(criteria.map((criterion, currentIndex) => (currentIndex === index ? value : criterion)))
+  }
+
+  const removeCriterion = (index) => onChange(criteria.filter((_, currentIndex) => currentIndex !== index))
+
+  return (
+    <div className="space-y-2">
+      {criteria.map((criterion, index) => (
+        <div key={index} className="flex items-start gap-2">
+          <Textarea
+            value={criterion}
+            onChange={(event) => updateCriterion(index, event.target.value)}
+            placeholder="Given …, when …, then …"
+            rows={2}
+            className="text-xs leading-relaxed font-sans bg-background"
+            aria-label={`Acceptance criterion ${index + 1}`}
+          />
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+            onClick={() => removeCriterion(index)}
+            aria-label={`Remove acceptance criterion ${index + 1}`}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="h-8 text-xs gap-1"
+        onClick={() => onChange([...criteria, ''])}
+      >
+        <Plus className="h-3.5 w-3.5" /> Add acceptance criterion
+      </Button>
+    </div>
+  )
 }
 
 const TASK_STATUS_META = {
@@ -108,11 +154,22 @@ const TASK_STATUS_META = {
   done: { label: 'Done', tone: 'success' },
 }
 
+const TASK_PRIORITY_META = {
+  critical: { label: 'Critical', tone: 'danger' },
+  high: { label: 'High', tone: 'warning' },
+  medium: { label: 'Medium', tone: 'primary' },
+  low: { label: 'Low', tone: 'neutral' },
+}
+
 // Normalizes both the real backend's lowercase/underscore status values and
 // the legacy Title-Case seed-data values to one label/tone pair.
 function taskStatusMeta(status) {
   const key = (status || 'todo').toLowerCase().replace(/\s+/g, '_')
   return TASK_STATUS_META[key] || { label: status || 'To Do', tone: 'neutral' }
+}
+
+function taskPriorityMeta(priority) {
+  return TASK_PRIORITY_META[(priority || 'medium').toLowerCase()] || TASK_PRIORITY_META.medium
 }
 
 // Legacy mock-data subtasks use a `done` boolean; real backend subtasks are
@@ -168,6 +225,7 @@ function TaskRow({ reqId, storyId, task, readOnly = false }) {
   const [draftTitle, setDraftTitle] = useState(task.title)
   const [draftDescription, setDraftDescription] = useState(task.description || '')
   const statusMeta = taskStatusMeta(task.status)
+  const priorityMeta = taskPriorityMeta(task.priority)
 
   function saveEdits() {
     if (!draftTitle.trim()) return
@@ -204,6 +262,9 @@ function TaskRow({ reqId, storyId, task, readOnly = false }) {
         </button>
         <Badge tone={statusMeta.tone} className="text-[10px] px-1.5 py-0 shrink-0">
           {statusMeta.label}
+        </Badge>
+        <Badge tone={priorityMeta.tone} className="text-[10px] px-1.5 py-0 shrink-0">
+          {priorityMeta.label}
         </Badge>
         {!readOnly && (
           <div className="flex items-center gap-0.5 shrink-0">
@@ -484,14 +545,18 @@ function StoryCard({ reqId, story, readOnly = false }) {
   const validateTasksMutation = useValidateTasks()
   const [editing, setEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState(story.title)
-  const [draftDescription, setDraftDescription] = useState(story.description || '')
   const [draftAcceptanceCriteria, setDraftAcceptanceCriteria] = useState(
     normalizeAcceptanceCriteria(story.acceptanceCriteria).join('\n'),
   )
   const [newTask, setNewTask] = useState('')
+  const [newTaskPriority, setNewTaskPriority] = useState('medium')
 
   const accepted = story.status === 'accepted' || story.status === 'Accepted'
-  const unlocked = story.investResult?.overallPass === true || accepted
+  const investPassCount = INVEST_CRITERIA.filter((criterion) => story.investResult?.[criterion.key]?.pass).length
+  // Tasks may start once the story has a solid majority of INVEST signals.
+  // Full INVEST compliance remains required before the story is accepted.
+  const unlocked = investPassCount >= TASK_UNLOCK_PASS_COUNT || accepted
+  const canAccept = story.investResult?.overallPass === true && !accepted
   const taskEvaluation = getTaskValidationEvaluation(story.id)
 
   // Hydrate this story's task-validation evaluation once (not on every
@@ -548,7 +613,6 @@ function StoryCard({ reqId, story, readOnly = false }) {
         ref: story.id,
         patch: {
           title: draftTitle,
-          description: draftDescription,
           acceptance_criteria: draftAcceptanceCriteria.split('\n').map((item) => item.trim()).filter(Boolean),
         },
       },
@@ -556,7 +620,6 @@ function StoryCard({ reqId, story, readOnly = false }) {
         onSuccess: () => {
           updateStoryText(reqId, story.id, {
             title: draftTitle,
-            description: draftDescription,
             acceptanceCriteria: draftAcceptanceCriteria.split('\n').map((item) => item.trim()).filter(Boolean),
           })
           setEditing(false)
@@ -616,7 +679,6 @@ function StoryCard({ reqId, story, readOnly = false }) {
                 className="h-7 text-xs px-2 cursor-pointer gap-1 text-muted-foreground hover:text-foreground"
                 onClick={() => {
                   setDraftTitle(story.title)
-                  setDraftDescription(story.description || '')
                   setDraftAcceptanceCriteria(normalizeAcceptanceCriteria(story.acceptanceCriteria).join('\n'))
                   setEditing(true)
                 }}
@@ -662,18 +724,6 @@ function StoryCard({ reqId, story, readOnly = false }) {
               placeholder="Given …, when …, then …"
             />
           </div>
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-              User Story Description
-            </label>
-            <Textarea
-              value={draftDescription}
-              onChange={(e) => setDraftDescription(e.target.value)}
-              rows={3}
-              className="text-xs leading-relaxed font-sans"
-              placeholder="Given [precondition], when [action], then [outcome]…"
-            />
-          </div>
           <div className="flex gap-2 justify-end pt-1">
             <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditing(false)}>
               Cancel
@@ -686,12 +736,6 @@ function StoryCard({ reqId, story, readOnly = false }) {
       ) : (
         <div className="mb-3 space-y-1.5">
           <p className="text-xs font-semibold text-foreground leading-snug">{story.title}</p>
-          {story.description && (
-            <p className="text-[11px] text-muted-foreground leading-relaxed p-2.5 rounded-lg bg-muted/30 border border-border/60">
-              <span className="font-semibold text-foreground block mb-0.5">User Story Description:</span>
-              {story.description}
-            </p>
-          )}
           {normalizeAcceptanceCriteria(story.acceptanceCriteria).length > 0 && (
             <div className="text-[11px] text-muted-foreground leading-relaxed p-2.5 rounded-lg bg-muted/30 border border-border/60">
               <span className="font-semibold text-foreground block mb-1">Acceptance Criteria:</span>
@@ -699,11 +743,6 @@ function StoryCard({ reqId, story, readOnly = false }) {
                 {normalizeAcceptanceCriteria(story.acceptanceCriteria).map((criterion, index) => <li key={`${story.id}-ac-${index}`}>{criterion}</li>)}
               </ul>
             </div>
-          )}
-          {(story.acceptanceCriteriaFeedback || []).length > 0 && (
-            <p className="text-[11px] text-muted-foreground">
-              <span className="font-semibold text-foreground">Acceptance-criteria feedback:</span> {story.acceptanceCriteriaFeedback.join(' ')}
-            </p>
           )}
         </div>
       )}
@@ -780,6 +819,16 @@ function StoryCard({ reqId, story, readOnly = false }) {
                   placeholder="Add a sprint implementation task…"
                   className="h-8 text-xs"
                 />
+                <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
+                  <SelectTrigger className="h-8 w-28 text-xs shrink-0">
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(TASK_PRIORITY_META).map(([value, meta]) => (
+                      <SelectItem key={value} value={value}>{meta.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button
                   size="sm"
                   variant="outline"
@@ -787,8 +836,13 @@ function StoryCard({ reqId, story, readOnly = false }) {
                   disabled={!newTask.trim()}
                   onClick={() => {
                     createTaskMutation.mutate(
-                      { ref: story.id, task: { title: newTask.trim() } },
-                      { onSuccess: () => setNewTask('') },
+                      { ref: story.id, task: { title: newTask.trim(), priority: newTaskPriority } },
+                      {
+                        onSuccess: () => {
+                          setNewTask('')
+                          setNewTaskPriority('medium')
+                        },
+                      },
                     )
                   }}
                 >
@@ -800,7 +854,7 @@ function StoryCard({ reqId, story, readOnly = false }) {
 
             <BugSection reqId={reqId} storyId={story.id} bugs={story.bugs || []} readOnly={readOnly} />
 
-            {!readOnly && !accepted && (
+            {!readOnly && canAccept && (
               <div className="flex justify-end pt-1">
                 <Button
                   size="sm"
@@ -829,7 +883,7 @@ function StoryCard({ reqId, story, readOnly = false }) {
           !editing && (
             <p className="text-[11px] text-muted-foreground italic flex items-center gap-1.5">
               <Lock className="h-3 w-3" />
-              Tasks, sub-tasks and bug tracking unlock once this story passes all INVEST criteria.
+              Tasks, sub-tasks and bug tracking unlock after at least {TASK_UNLOCK_PASS_COUNT} of 6 INVEST criteria pass.
             </p>
           )
         )}
@@ -841,21 +895,18 @@ function StoryCard({ reqId, story, readOnly = false }) {
 function NewStoryForm({ reqId, initialTitle = '', onDone }) {
   const createMutation = useCreateStory()
   const [title, setTitle] = useState(initialTitle)
-  const [description, setDescription] = useState('')
-  const [acceptanceCriteria, setAcceptanceCriteria] = useState('')
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState([''])
 
   function submit() {
-    if (!title.trim() || !description.trim()) return
+    if (!title.trim()) return
     createMutation.mutate({
       requirement_ref: reqId,
       title: title.trim(),
-      description: description.trim(),
-      acceptance_criteria: acceptanceCriteria.split('\n').map((item) => item.trim()).filter(Boolean),
+      acceptance_criteria: acceptanceCriteria.map((item) => item.trim()).filter(Boolean),
     }, {
       onSuccess: () => {
         setTitle('')
-        setDescription('')
-        setAcceptanceCriteria('')
+        setAcceptanceCriteria([''])
         onDone?.()
         showToast.success('User story created', {
           description: 'Run decomposition analysis to evaluate INVEST criteria and parent coverage.',
@@ -872,8 +923,8 @@ function NewStoryForm({ reqId, initialTitle = '', onDone }) {
   }
 
   return (
-    <Card className="p-4 border-primary/30 bg-primary/5 space-y-3">
-      <div className="flex items-center justify-between">
+    <Card className="p-4 border-primary/30 bg-primary/5 space-y-4">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
             <Plus className="h-3.5 w-3.5" />
@@ -882,18 +933,6 @@ function NewStoryForm({ reqId, initialTitle = '', onDone }) {
           <p className="text-[11px] text-muted-foreground mt-0.5">
             Model concrete personas, observable behavior, and clear value to achieve high INVEST and coverage scores.
           </p>
-        </div>
-        <div>
-          <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-            Acceptance Criteria (one per line, optional)
-          </label>
-          <Textarea
-            value={acceptanceCriteria}
-            onChange={(e) => setAcceptanceCriteria(e.target.value)}
-            placeholder="Given …, when …, then …"
-            rows={3}
-            className="text-xs leading-relaxed font-sans bg-background"
-          />
         </div>
         <Button
           size="sm"
@@ -906,10 +945,10 @@ function NewStoryForm({ reqId, initialTitle = '', onDone }) {
         </Button>
       </div>
 
-      <div className="space-y-2.5">
+      <div className="space-y-4">
         <div>
           <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-            Story Title (As a … I want … So that …)
+            User Story (As a … I want … So that …)
           </label>
           <Input
             value={title}
@@ -920,15 +959,10 @@ function NewStoryForm({ reqId, initialTitle = '', onDone }) {
         </div>
         <div>
           <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-            User Story Description
+            Acceptance Criteria <span className="normal-case font-normal">(optional)</span>
           </label>
-          <Textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Given …, when …, then … (verifiable conditions)"
-            rows={3}
-            className="text-xs leading-relaxed font-sans bg-background"
-          />
+          <p className="text-[11px] text-muted-foreground mb-2">Add each verifiable condition separately.</p>
+          <AcceptanceCriteriaFields criteria={acceptanceCriteria} onChange={setAcceptanceCriteria} />
         </div>
       </div>
 
@@ -939,10 +973,10 @@ function NewStoryForm({ reqId, initialTitle = '', onDone }) {
         <Button
           size="sm"
           onClick={submit}
-          disabled={!title.trim() || !description.trim()}
+          disabled={!title.trim() || createMutation.isPending}
           className="text-xs h-8 cursor-pointer gap-1.5"
         >
-          <Plus className="h-3.5 w-3.5" /> Save User Story
+          <Plus className="h-3.5 w-3.5" /> {createMutation.isPending ? 'Saving…' : 'Save User Story'}
         </Button>
       </div>
     </Card>
@@ -978,6 +1012,7 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
   const investStories = Object.entries(evaluation.investResults || {})
   const passedChecks = checks.filter((c) => c.result === 'Pass').length
   const analysisFailed = Boolean(evaluation.analysisFailed)
+  const analysisSkipped = Boolean(evaluation.analysisSkipped)
 
   return (
     <div className="space-y-4">
@@ -992,6 +1027,7 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
       )}
 
       {/* Coverage Gate — C1 through C10 */}
+      {!analysisSkipped && (
       <Card className="p-5">
         <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
           <div>
@@ -1108,6 +1144,7 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
           </div>
         ) : null}
       </Card>
+      )}
 
       {/* INVEST Readiness Matrix */}
       <Card className="p-5">
@@ -1485,12 +1522,12 @@ export default function Decomposition() {
     { id: 'stories', label: 'Stories & Tasks', icon: FileEdit, count: stories.length },
     {
       id: 'coverage',
-      label: 'Coverage & INVEST Radar',
+      label: 'User Story Quality',
       icon: Sparkles,
       count: evaluation
         ? evaluation.analysisFailed
           ? 'Error'
-          : `${Math.round(evaluation.coverage?.percentage || 0)}%`
+          : `${Object.keys(evaluation.investResults || {}).length} stories`
         : undefined,
     },
     { id: 'evidence', label: 'Agent Evidence & Patterns', icon: Lightbulb },
@@ -1569,7 +1606,7 @@ export default function Decomposition() {
             </h2>
 
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Decompose quality-gated functional requirements into atomic user stories with a title, description, and parent-requirement trace. The agent validates INVEST compliance and detects unrepresented requirement scope.
+              Decompose quality-gated functional requirements into atomic user stories with acceptance criteria and parent-requirement traceability. The agent validates INVEST compliance and detects unrepresented requirement scope.
             </p>
 
             <div className="flex items-center gap-4 flex-wrap pt-1 text-xs text-muted-foreground">
@@ -1948,7 +1985,7 @@ export default function Decomposition() {
                           title={
                             !analyzing && evaluation && !canRunAnalysis
                               ? 'Your stories haven’t changed since the last analysis — running again will reuse that result.'
-                              : 'Evaluate current user stories against INVEST and coverage'
+                              : 'Evaluate current user stories against INVEST quality checks'
                           }
                         >
                           <Brain className={`h-3.5 w-3.5 ${analyzing ? 'animate-pulse' : ''}`} />
@@ -1969,7 +2006,7 @@ export default function Decomposition() {
                             }}
                             className="text-xs cursor-pointer gap-1.5"
                           >
-                            <Plus className="h-3.5 w-3.5" /> + Write Story
+                            <Plus className="h-3.5 w-3.5" /> Write Story
                           </Button>
                         )}
                       </div>
@@ -1991,7 +2028,7 @@ export default function Decomposition() {
                     {stories.length === 0 && !showNewStoryForm ? (
                       <EmptyState
                         title="No user stories created yet"
-                        description="Write your first user story for this requirement using the agile INVEST framework. The agent will verify testability, independence, and capability coverage."
+                        description="Write your first user story for this requirement using the agile INVEST framework. The agent will check its quality, including testability and independence."
                         actionLabel="Write a user story"
                         onAction={() => setShowNewStoryForm(true)}
                       />
@@ -2021,9 +2058,9 @@ export default function Decomposition() {
                   ) : (
                     <Card className="p-6 text-center space-y-2">
                       <Sparkles className="h-6 w-6 text-muted-foreground mx-auto" />
-                      <p className="text-xs font-semibold text-foreground">No Coverage Analysis Yet</p>
+                      <p className="text-xs font-semibold text-foreground">No User Story Quality Analysis Yet</p>
                       <p className="text-[11px] text-muted-foreground max-w-md mx-auto">
-                        Add user stories and click "Run Decomposition Analysis" above to view capability coverage and INVEST validation.
+                        Add user stories and click "Run Decomposition Analysis" above to view the INVEST quality check.
                       </p>
                     </Card>
                   )

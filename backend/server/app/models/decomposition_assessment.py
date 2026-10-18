@@ -109,6 +109,9 @@ class UserStoryTask(TimestampMixin, Base):
     )
     title: Mapped[str] = mapped_column(String(500))
     description: Mapped[str] = mapped_column(Text, default="")
+    priority: Mapped[Priority] = mapped_column(
+        string_enum(Priority, "task_priority"), default=Priority.MEDIUM
+    )
     task_type: Mapped[DecompositionTaskType] = mapped_column(
         string_enum(DecompositionTaskType, "decomposition_task_type"), default=DecompositionTaskType.TASK
     )

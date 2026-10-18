@@ -1191,7 +1191,7 @@ export default function SprintManagement() {
   const { data: storiesResp } = useStories();
   const { data: estimatesResp } = useEstimates();
   const updateTask = useUpdateSprintTask();
-  const [tab, setTab] = useState("board");
+  const [tab, setTab] = useState("backlog");
   const [today] = useState(() => Date.now());
   const [consultOpen, setConsultOpen] = useState(false);
   const [scrumGuideOpen, setScrumGuideOpen] = useState(false);

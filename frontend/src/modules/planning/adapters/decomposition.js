@@ -98,6 +98,7 @@ export function mapDecompositionResult(result) {
     // The checklist/score below are a mechanical placeholder in this state,
     // not a real finding — the UI must show this as a system error.
     analysisFailed: Boolean(r.analysis_failed),
+    analysisSkipped: Boolean(cov.analysis_skipped),
     failureReason: r.failure_reason || null,
     // Authoritative, non-blocking status — see module header.
     readiness: r.readiness || 'Needs Attention',
@@ -152,7 +153,6 @@ export function mapStoryRows(rows) {
       so_that: row.so_that ?? base.so_that,
       description: row.description ?? base.description,
       acceptanceCriteria: row.acceptance_criteria || base.acceptanceCriteria || [],
-      acceptanceCriteriaFeedback: row.acceptance_criteria_feedback || base.acceptanceCriteriaFeedback || [],
       student_story_points: row.student_story_points ?? base.student_story_points ?? null,
       priority: row.priority ?? base.priority,
       status: row.status ?? base.status,

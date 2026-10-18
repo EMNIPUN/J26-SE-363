@@ -49,6 +49,9 @@ def compute_quality_score(coverage: CoverageAnalysis, stories: list[StoryInvest]
     not just one) — keeps the score roughly consistent with the readiness
     tier from gate.py even though they're computed independently."""
     score = 4.0
+    if coverage.analysis_skipped:
+        not_ready = sum(1 for story in stories if not story.story_ready)
+        return max(0.0, round(score - min(4.0, not_ready * (4.0 / max(len(stories), 1))), 2))
     failed_checks = sum(1 for c in coverage.gate.checks.values() if c.result == CheckResult.FAIL)
     coverage_gap = max(0.0, (100.0 - coverage.coverage_percentage) / 100.0)  # 0..1
     score -= min(3.0, failed_checks * 0.25 + coverage_gap * 2.0)
@@ -101,6 +104,27 @@ def build_feedback(
                 "analysis once the issue is resolved."
             ),
         ]
+
+    if coverage.analysis_skipped:
+        feedback = []
+        for story in stories:
+            failing = [
+                criterion for criterion in _INVEST_CRITERIA
+                if getattr(story, criterion).result == InvestResult.FAIL
+            ]
+            notes = [
+                criterion for criterion in _INVEST_CRITERIA
+                if getattr(story, criterion).result == InvestResult.PASS_WITH_NOTE
+            ]
+            if failing:
+                detail = "; ".join(
+                    f"{_CRITERION_LABEL[criterion]} — {getattr(story, criterion).note.strip().rstrip('.')}"
+                    for criterion in failing if getattr(story, criterion).note
+                ) or ", ".join(_CRITERION_LABEL[criterion] for criterion in failing)
+                feedback.append(f"{story.story_id}: could be improved on {detail}.")
+            elif notes:
+                feedback.append(f"{story.story_id}: minor polish suggested on {', '.join(_CRITERION_LABEL[criterion] for criterion in notes)}.")
+        return feedback or ["All user stories meet the INVEST quality checks."]
 
     feedback: list[str] = []
 

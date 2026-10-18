@@ -95,7 +95,7 @@ from app.clients.ai_backend import (
 )
 from app.core.security import CurrentUser, get_current_user
 from app.database.session import get_db
-from app.models.enums import ParseStatus, PipelineStage, StoryStatus, TaskStatus
+from app.models.enums import ParseStatus, PipelineStage, Priority, StoryStatus, TaskStatus
 from app.models.group import Group, GroupMember
 from app.models.pipeline_session import PipelineSession
 from app.models.project import Project
@@ -155,7 +155,9 @@ class StoryIn(BaseModel):
     as_a: str | None = None
     i_want: str | None = None
     so_that: str | None = None
-    description: str = Field(min_length=1)
+    # A user story is fully represented by its agile statement and acceptance
+    # criteria.  Keep this optional for older clients/data that still send it.
+    description: str = ""
     acceptance_criteria: list[str] = Field(default_factory=list)
     priority: str = "medium"
 
@@ -174,12 +176,14 @@ class StoryPatch(BaseModel):
 class StoryTaskIn(BaseModel):
     title: str = Field(min_length=1, max_length=500)
     description: str = ""
+    priority: Priority = Priority.MEDIUM
     parent_task_id: _uuid.UUID | None = None
 
 
 class StoryTaskUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=500)
     description: str | None = None
+    priority: Priority | None = None
     status: str | None = None
 
 
@@ -1202,7 +1206,7 @@ async def create_story_task(
     try:
         await run_in_threadpool(
             decomposition_service.create_task,
-            db, story, body.title, body.parent_task_id, body.description,
+            db, story, body.title, body.parent_task_id, body.description, body.priority,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
@@ -1239,7 +1243,7 @@ async def update_story_task(
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid task status.")
     await run_in_threadpool(
         decomposition_service.update_task,
-        db, task, title=body.title, description=body.description, status=status_val,
+        db, task, title=body.title, description=body.description, priority=body.priority, status=status_val,
     )
     db.commit()
     story = await run_in_threadpool(decomposition_service.get_story_by_ref, db, session.id, story_ref)

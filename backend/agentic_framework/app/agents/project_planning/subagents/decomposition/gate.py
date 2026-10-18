@@ -48,6 +48,23 @@ def classify_readiness(
             "Coverage analysis could not be completed — see the system error below.",
         )
 
+    if coverage.analysis_skipped:
+        if not stories:
+            return (
+                DecompositionReadiness.NEEDS_ATTENTION,
+                "No user stories have been written yet for this requirement.",
+            )
+        not_ready_count = sum(1 for story in stories if not story.story_ready)
+        if not_ready_count:
+            return (
+                DecompositionReadiness.READY_WITH_IMPROVEMENTS,
+                f"{not_ready_count} of {len(stories)} user stories could be improved for estimation.",
+            )
+        return (
+            DecompositionReadiness.READY,
+            "Every user story meets the INVEST quality checks.",
+        )
+
     if not stories:
         return (
             DecompositionReadiness.NEEDS_ATTENTION,

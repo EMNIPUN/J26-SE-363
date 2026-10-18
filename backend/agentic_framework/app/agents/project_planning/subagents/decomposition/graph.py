@@ -1,16 +1,12 @@
 """Decomposition Analysis sub-agent as a small LangGraph.
 
-reason -> execute_tool (coverage_analyzer, invest_validator, pattern_retriever)
--> finalize. Evaluates the student's user stories against the parent
-requirement using a student-friendly, three-tier readiness classification
-(Ready / Ready with Improvements / Needs Attention — see gate.py). Coverage/
-traceability (C1-C10) dominates the tier; INVEST is improvement guidance.
-Nothing hard-blocks progression to effort estimation. The readiness/score/
-feedback pipeline makes exactly TWO LLM calls total per run (one
-coverage_analyzer call, one batched invest_validator call covering all
-stories) — see scorer.py's module docstring for why the scorer and reflect
-LLM calls that used to run here were removed (they were the dominant source
-of Gemini free-tier quota exhaustion).
+reason -> execute_tool (invest_validator, pattern_retriever) -> finalize.
+Evaluates the student's user stories with a student-friendly, three-tier
+readiness classification (Ready / Ready with Improvements / Needs Attention —
+see gate.py). Nothing hard-blocks progression to effort estimation. The
+readiness/score/feedback pipeline makes one batched INVEST request covering all stories.
+Requirement-coverage analysis is deliberately omitted: this workflow checks
+user-story quality only, which keeps demand on the configured LLM low.
 """
 
 from __future__ import annotations
@@ -30,7 +26,6 @@ from app.agents.project_planning.schemas import (
 )
 from app.agents.project_planning.subagents.decomposition.coverage import (
     _unavailable_analysis,
-    analyze_coverage,
 )
 from app.agents.project_planning.subagents.decomposition.gate import classify_readiness
 from app.agents.project_planning.subagents.decomposition.invest import validate_invest
@@ -46,11 +41,9 @@ MAX_ITERATIONS = 10
 AGENT_TIMEOUT_SECONDS = 180.0
 
 TOOL_INVEST_VALIDATOR = "invest_validator"
-TOOL_COVERAGE_ANALYZER = "coverage_analyzer"
 TOOL_PATTERN_RETRIEVER = "pattern_retriever"
 
 _GATHER_TOOLS = (
-    TOOL_COVERAGE_ANALYZER,
     TOOL_INVEST_VALIDATOR,
     TOOL_PATTERN_RETRIEVER,
 )
@@ -79,13 +72,6 @@ async def execute_tool(state: DecompositionState) -> DecompositionState:
         if name not in tools_run:
             tools_run.append(name)
 
-    if tool == TOOL_COVERAGE_ANALYZER:
-        mark(TOOL_COVERAGE_ANALYZER)
-        coverage = await analyze_coverage(
-            state["requirement_id"], state["requirement_text"], state.get("stories", [])
-        )
-        return {"coverage": coverage, "tools_run": tools_run}
-
     if tool == TOOL_INVEST_VALIDATOR:
         mark(TOOL_INVEST_VALIDATOR)
         try:
@@ -112,8 +98,9 @@ async def execute_tool(state: DecompositionState) -> DecompositionState:
 
 
 def finalize(state: DecompositionState) -> DecompositionState:
-    coverage: CoverageAnalysis = state.get("coverage") or _unavailable_analysis(
-        "Coverage was not assessed."
+    coverage: CoverageAnalysis = state.get("coverage") or CoverageAnalysis(
+        analysis_skipped=True,
+        failure_reason="Requirement coverage is not part of story-quality analysis.",
     )
     invest_results = state.get("invest_results", [])
     invest_gate = state.get("invest_gate") or _invest_gate(invest_results)
@@ -121,9 +108,9 @@ def finalize(state: DecompositionState) -> DecompositionState:
 
     readiness, readiness_reason = classify_readiness(coverage, invest_results)
     feedback = build_feedback(readiness, coverage, invest_results)
-    # Transparency signal only (not a gate input): low when coverage could not
-    # actually be assessed (LLM unavailable/failed).
-    confidence = 1.0 if coverage.elements else 0.3
+    # Story quality is evaluated, but requirement coverage is intentionally
+    # omitted, so report a bounded rather than full-analysis confidence.
+    confidence = 0.7 if coverage.analysis_skipped else (1.0 if coverage.elements else 0.3)
 
     return {
         "result": build_result(

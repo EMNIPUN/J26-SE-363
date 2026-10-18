@@ -167,7 +167,9 @@ async def validate_invest(
                 f"Stories to evaluate:\n\n{story_block}\n\n"
                 "Return the JSON object exactly as specified, with one entry per story_id."
             )
-            max_tokens = min(3000, max(800, 350 * len(stories)))
+            # A compact per-criterion verdict is sufficient for the UI. Keep
+            # one batched request small to reduce provider load and latency.
+            max_tokens = min(1800, max(600, 260 * len(stories)))
             llm_results = await client.complete_json(_INVEST_SYSTEM, user_prompt, max_tokens=max_tokens)
         except Exception:
             logger.exception(
