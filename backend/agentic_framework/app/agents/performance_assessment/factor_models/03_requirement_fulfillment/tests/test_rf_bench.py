@@ -88,6 +88,12 @@ class StudentOnlyAccess(unittest.TestCase):
         result = self.me.search_changes(needle)
         self.assertNotIn(sha, result)
 
+    def test_search_falls_back_to_the_words_of_the_query(self):
+        out = self.me.search_changes("seats left capacity")
+        self.assertTrue("seatsLeft" in out or "capacity" in out.lower())
+        self.assertIn("no exact match", out)
+        self.assertIn("no match", self.me.search_changes("zzzqqq"))
+
     def test_my_tasks_has_only_my_tasks(self):
         text = self.me.my_tasks()
         self.assertIn("S01-S1-SYN-001-T1", text)

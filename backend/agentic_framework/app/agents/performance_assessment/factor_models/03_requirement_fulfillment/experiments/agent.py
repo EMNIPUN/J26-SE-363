@@ -24,17 +24,31 @@ from rf_bench.llm import parse_json
 from rf_bench.schema import est_tokens
 
 MAX_STEPS = 4
-MAX_TOKENS = 700
+MAX_TOKENS = 1200          # the mapping call
+ACT_TOKENS = 600           # an action call: a function call is short, and the reserve counts against the per-minute limit
 OBS_CHARS = 3200          # one observation shown to the model, at most
 KEEP_OBS = 3              # observations kept in the prompt for the current criterion
 COMMITS_CHARS = 9000      # the commit list shown in the mapping call, at most
 
-TOOLS = """Tools. Reply with exactly one JSON object, no other text:
-{"action": "search", "query": "<case-insensitive regular expression>"}  -> lines you added that match, with commit id, file and line index
-{"action": "read", "sha": "<commit id>", "path": "<file>", "start": <line index>}  -> up to 80 changed lines of that file from that index
-{"action": "verdict", "verdict": "met" | "partly" | "not_met" | "cannot_tell", "evidence": [{"sha": "...", "path": "...", "lines": "first-last"}], "reason": "<one sentence>"}
-Only changed lines of this student are available; you cannot see anyone else's code. Evidence must be lines a tool returned to you. A "met" or "partly" without evidence is discarded.
-Use at most {steps} actions for this criterion; your last action must be a verdict. If you searched sensibly and found no implementation, the verdict is "not_met"."""
+TOOLS = """You work by calling one of these functions each turn (call exactly one):
+- search_my_changes(query): case-insensitive regular expression over the lines this student added; returns commit id, file, line index and the line.
+- read_my_changes(sha, path, start): up to 80 changed lines of that file in that commit from the line index `start`.
+- give_verdict(verdict, evidence, reason): your final answer for the current criterion. `evidence` lists {sha, path, lines: "first-last"} of lines a function returned to you.
+Only this student's changed lines are available; you cannot see anyone else's code. A "met" or "partly" verdict without evidence you were shown is discarded.
+You may use at most {steps} function calls for a criterion; the last one must be give_verdict. If you searched sensibly and found no implementation, the verdict is "not_met"."""
+
+TOOL_DEFS = [
+    {"type": "function", "function": {"name": "search_my_changes", "description": "Search the student's added lines with a case-insensitive regular expression.",
+                                      "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
+    {"type": "function", "function": {"name": "read_my_changes", "description": "Read up to 80 changed lines of one file in one of the student's commits.",
+                                      "parameters": {"type": "object", "properties": {"sha": {"type": "string"}, "path": {"type": "string"}, "start": {"type": "integer"}}, "required": ["sha", "path"]}}},
+    {"type": "function", "function": {"name": "give_verdict", "description": "Give the final verdict for the current criterion.",
+                                      "parameters": {"type": "object", "properties": {
+                                          "verdict": {"type": "string", "enum": ["met", "partly", "not_met", "cannot_tell"]},
+                                          "evidence": {"type": "array", "items": {"type": "object", "properties": {"sha": {"type": "string"}, "path": {"type": "string"}, "lines": {"type": "string"}}, "required": ["sha", "path", "lines"]}},
+                                          "reason": {"type": "string"}}, "required": ["verdict", "evidence", "reason"]}}},
+]
+ACTION_OF = {"search_my_changes": "search", "read_my_changes": "read", "give_verdict": "verdict"}
 
 MAP_PROMPT = """{task}
 
@@ -110,20 +124,43 @@ def decide(state, config):
     if last:
         user += "\nThis is your last action for this criterion: it must be a verdict."
     messages = [{"role": "system", "content": rubric.RUBRIC + "\n" + TOOLS.replace("{steps}", str(MAX_STEPS))}, {"role": "user", "content": user}]
-    reply, data = _llm_json(cfg, messages, f"agent:decide:{task['id']}:C{ci + 1}:{step}")
+    verdict_only = [t for t in TOOL_DEFS if t["function"]["name"] == "give_verdict"]
+    action = _call_action(cfg, messages, TOOL_DEFS, f"agent:decide:{task['id']}:C{ci + 1}:{step}")
+    if "error" in action:
+        return action
+    if last and action.get("action") != "verdict":  # out of steps: ask once more, now only the verdict is possible
+        nudge = messages + [{"role": "user", "content": "You have no actions left. Call give_verdict now with what you have seen."}]
+        action = _call_action(cfg, nudge, verdict_only, f"agent:decide:{task['id']}:C{ci + 1}:final")
+        if "error" in action:
+            return action
+        if action.get("action") != "verdict":
+            action = {"action": "verdict", "verdict": "cannot_tell", "evidence": [], "reason": "out of steps"}
+    return {"action": action}
+
+
+def _call_action(cfg, messages, tools, tag):
+    """One model call that must end in a function call. Returns the action dict, or {"error", "error_kind"} when the call itself failed."""
+    reply = cfg["usage"].add(cfg["llm"].chat(messages, max_tokens=ACT_TOKENS, temperature=0.0, tag=tag, seed=cfg["run"], tools=tools))
+    if not reply.ok and reply.error_kind == "bad_request" and ("tool_use_failed" in reply.error or "json_validate_failed" in reply.error):
+        return {"action": "invalid", "raw": "malformed call"}  # a wasted step, not a failure of the task
     if not reply.ok:
         return {"error": reply.error, "error_kind": reply.error_kind}
-    action = data if isinstance(data, dict) and data.get("action") in ("search", "read", "verdict") else {"action": "invalid", "raw": (reply.text or "")[:120]}
-    if last and action.get("action") != "verdict":
-        action = {"action": "verdict", "verdict": "cannot_tell", "evidence": [], "reason": "out of steps"}
-    return {"action": action}
+    if reply.tool_calls and reply.tool_calls[0]["name"] in ACTION_OF:
+        args = reply.tool_calls[0]["arguments"]
+        return {"action": ACTION_OF[reply.tool_calls[0]["name"]], **(args if isinstance(args, dict) else {})}
+    data = parse_json(reply.text)  # a model that answers in text (and the scripted model of the tests)
+    return data if isinstance(data, dict) and data.get("action") in ("search", "read", "verdict") else {"action": "invalid", "raw": (reply.text or "")[:120]}
 
 
 def act(state, config):
     scope = config["configurable"]["scope"]
     a = state["action"]
     if a["action"] == "search":
-        text = scope.search_changes(str(a.get("query", ""))[:200])
+        q = str(a.get("query", ""))[:200]
+        again = sum(1 for tool, args in scope.calls if tool == "search_changes" and args.get("query") == q)
+        text = scope.search_changes(q)
+        if again:
+            text = f"You already ran this exact search for this task. Try different words, or read a file.\n{text}"
     elif a["action"] == "read":
         try:
             text = scope.read_hunk(str(a.get("sha", "")), str(a.get("path", "")), int(a.get("start", 0) or 0), 80)
@@ -202,7 +239,7 @@ class Agent:
     name = "agent"
 
     def config(self):
-        return {"rubric_hash": rubric.RUBRIC_HASH, "prompt_hash": rubric.fingerprint(TOOLS, MAP_PROMPT, DECIDE), "max_steps_per_criterion": MAX_STEPS, "max_tokens": MAX_TOKENS,
+        return {"rubric_hash": rubric.RUBRIC_HASH, "prompt_hash": rubric.fingerprint(TOOLS, MAP_PROMPT, DECIDE, json.dumps(TOOL_DEFS)), "max_steps_per_criterion": MAX_STEPS, "max_tokens": MAX_TOKENS,
                 "observation_chars": OBS_CHARS, "mapping": "found by the agent", "examples": 0, "graph": "map_commits -> decide <-> act -> record -> check"}
 
     def assess(self, bench, task_id, scope, llm, usage, run=0):

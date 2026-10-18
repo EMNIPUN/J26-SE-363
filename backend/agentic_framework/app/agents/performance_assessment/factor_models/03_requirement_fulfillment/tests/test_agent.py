@@ -43,7 +43,7 @@ class AgentFlow(unittest.TestCase):
         out, scope, llm, usage = run(tid, search)
         n = len(BENCH.tasks[tid]["criteria"])
         self.assertEqual(out["verdicts"], ["cannot_tell"] * n)
-        self.assertLessEqual(llm.n, 1 + n * MAX_STEPS)
+        self.assertLessEqual(llm.n, 1 + n * (MAX_STEPS + 1))
 
     def test_invented_evidence_is_discarded(self):
         def liar(messages, tag):
@@ -69,6 +69,23 @@ class AgentFlow(unittest.TestCase):
         out, *_ = run("S01-S1-SYN-001-T1", Agent.dry_responder, limit=10)
         self.assertEqual(out["error_kind"], "too_large")
         self.assertNotIn("verdicts", out)
+
+
+class NativeToolCalls(unittest.TestCase):
+    def test_a_native_function_call_is_a_wasted_step_not_a_failure(self):
+        from rf_bench.llm import LLM, Reply
+
+        class Stubborn(LLM):
+            model = "stub"
+
+            def chat(self, messages, **kw):
+                if kw.get("tag", "").startswith("agent:map"):
+                    return Reply(text='{"commits": []}', model="stub")
+                return Reply(error='HTTP 400: {"code":"tool_use_failed"}', error_kind="bad_request", model="stub")
+        t = BENCH.tasks["S01-S1-SYN-001-T1"]
+        out = Agent().assess(BENCH, t["id"], Scope(BENCH, t["sprint"], t["student"]), Stubborn(), Usage())
+        self.assertNotIn("error", out)
+        self.assertEqual(set(out["verdicts"]), {"cannot_tell"})
 
 
 class ContextDoesNotGrowWithTaskSize(unittest.TestCase):
