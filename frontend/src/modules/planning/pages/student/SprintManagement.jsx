@@ -24,7 +24,13 @@ import {
   ExternalLink,
   Send,
   RotateCcw,
+  RefreshCw,
+  ChevronRight,
+  Calendar,
+  ArrowUpRight,
+  Check,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ResponsiveContainer,
   LineChart,
@@ -344,13 +350,12 @@ function IssueRow({
           {statusLabel}
         </Badge>
       )}
-      {member !== undefined && (
-        member ? (
+      {member !== undefined &&
+        (member ? (
           <AvatarComp name={member.name} size={24} />
         ) : (
           <span className="h-6 w-6 rounded-full border border-dashed border-border shrink-0" />
-        )
-      )}
+        ))}
     </div>
   );
 }
@@ -458,12 +463,7 @@ function TaskDetailDialog({ task, onClose, teamMembers, onAssign, onMove }) {
           </div>
 
           {task.status !== "Done" && (
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="text-xs"
-            >
+            <Button asChild variant="outline" size="sm" className="text-xs">
               <Link
                 to={team(
                   `/tutor/chat?prompt=${encodeURIComponent(tutorPromptForTask(task))}`,
@@ -567,12 +567,8 @@ function BoardToolbar({
 }
 
 function BoardView({ onMove, onAssign }) {
-  const {
-    requirements,
-    kanbanTasks,
-    teamMembers,
-    projectInfo,
-  } = usePlanningData();
+  const { requirements, kanbanTasks, teamMembers, projectInfo } =
+    usePlanningData();
   const [search, setSearch] = useState("");
   const [groupBy, setGroupBy] = useState("none");
   const [filterAssignees, setFilterAssignees] = useState(() => new Set());
@@ -729,7 +725,7 @@ function BoardView({ onMove, onAssign }) {
   );
 }
 
-function BacklogView({ onMove, onAssign }) {
+function BacklogView({ onRefreshed }) {
   const navigate = useNavigate();
   const team = useTeamPath();
   const {
@@ -742,7 +738,7 @@ function BacklogView({ onMove, onAssign }) {
   } = usePlanningData();
   const [openTask, setOpenTask] = useState(null);
   const [syncingBacklog, setSyncingBacklog] = useState(false);
-  const [syncingSprint, setSyncingSprint] = useState(false);
+  const [fetchingJira, setFetchingJira] = useState(false);
   const [resettingJira, setResettingJira] = useState(false);
   const [jiraStatus, setJiraStatus] = useState(null);
 
@@ -783,7 +779,7 @@ function BacklogView({ onMove, onAssign }) {
     setSyncingBacklog(true);
     try {
       const storyRefs = eligibleBacklogStories.map(
-        (item) => item.story.id || item.story.story_ref
+        (item) => item.story.id || item.story.story_ref,
       );
       const storyPointsMap = {};
       eligibleBacklogStories.forEach((item) => {
@@ -824,7 +820,9 @@ function BacklogView({ onMove, onAssign }) {
       const res = await jiraService.resetLinks();
       const data = res?.data ?? res;
       showToast.success("Jira links reset", {
-        description: data?.message || "Database Jira keys cleared. You can now re-push cleanly.",
+        description:
+          data?.message ||
+          "Database Jira keys cleared. You can now re-push cleanly.",
       });
       jiraService
         .getStatus()
@@ -842,23 +840,29 @@ function BacklogView({ onMove, onAssign }) {
     }
   }
 
-  async function handleSyncSprint() {
-    setSyncingSprint(true);
+  async function handleFetchJira() {
+    setFetchingJira(true);
     try {
-      const res = await jiraService.syncSprint();
+      const res = await jiraService.fetchLatest();
       const data = res?.data ?? res;
-      showToast.success("Sprint created in Jira!", {
-        description: `${data?.sprint_name || "Sprint"} created on Scrum board (ID: ${data?.jira_sprint_id || "—"}) with ${data?.issues_assigned?.length || 0} stories assigned.`,
-      });
+      await onRefreshed?.();
+      showToast.success(
+        data?.errors?.length
+          ? "Jira refreshed with warnings"
+          : "Jira data refreshed",
+        {
+          description: `${data?.stories_updated || 0} stories and ${data?.tasks_updated || 0} tasks updated locally.`,
+        },
+      );
     } catch (err) {
-      showToast.error("Failed to create Jira Sprint", {
+      showToast.error("Failed to refresh Jira data", {
         description:
           err?.response?.data?.detail ||
           err?.message ||
           "Please verify Jira credentials in backend/.env",
       });
     } finally {
-      setSyncingSprint(false);
+      setFetchingJira(false);
     }
   }
 
@@ -923,17 +927,25 @@ function BacklogView({ onMove, onAssign }) {
       <Card className="p-0 overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-muted/20 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-sm font-semibold text-foreground">Product Backlog</h3>
-            <Badge tone="primary" className="text-xs">{eligibleTotalSP} SP</Badge>
+            <h3 className="text-sm font-semibold text-foreground">
+              Product Backlog
+            </h3>
+            <Badge tone="primary" className="text-xs">
+              {eligibleTotalSP} SP
+            </Badge>
             {jiraStatus?.connected && (
-              <Badge tone="neutral" className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+              <Badge
+                tone="neutral"
+                className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+              >
                 Jira: {jiraStatus.project_key || "Connected"}
               </Badge>
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-muted-foreground mr-1 hidden sm:inline">
-              {eligibleBacklogStories.length} estimated stor{eligibleBacklogStories.length === 1 ? "y" : "ies"}
+              {eligibleBacklogStories.length} estimated stor
+              {eligibleBacklogStories.length === 1 ? "y" : "ies"}
             </span>
             <Button
               size="sm"
@@ -958,12 +970,14 @@ function BacklogView({ onMove, onAssign }) {
             </Button>
             <Button
               size="sm"
-              disabled={syncingSprint || eligibleBacklogStories.length === 0}
-              onClick={handleSyncSprint}
+              disabled={fetchingJira}
+              onClick={handleFetchJira}
               className="text-xs gap-1.5 h-8"
             >
-              <Layers className="h-3 w-3" />
-              {syncingSprint ? "Creating Sprint..." : "Create Jira Sprint"}
+              <RefreshCw
+                className={`h-3 w-3 ${fetchingJira ? "animate-spin" : ""}`}
+              />
+              {fetchingJira ? "Fetching Jira..." : "Fetch latest Jira data"}
             </Button>
           </div>
         </div>
@@ -989,19 +1003,46 @@ function BacklogView({ onMove, onAssign }) {
                   isStory
                   jiraKey={story.jira_issue_key || story.jiraKey}
                   jiraBaseUrl={jiraStatus?.base_url}
-                  onClick={() => navigate(team(`/planning/requirements/estimation?req=${requirementId}`))}
+                  onClick={() =>
+                    navigate(
+                      team(
+                        `/planning/requirements/estimation?req=${requirementId}`,
+                      ),
+                    )
+                  }
                 />
+                {story.jira_issue_key && (
+                  <div className="ml-10 mr-4 -mt-1 mb-2 text-[11px] text-muted-foreground">
+                    Jira location:{" "}
+                    <span className="font-medium text-foreground">
+                      {story.jira_sprint_id
+                        ? `Sprint ${story.jira_sprint_id}`
+                        : "Backlog"}
+                    </span>
+                  </div>
+                )}
                 <div className="ml-10 mr-4 mb-3 rounded-lg border border-border/60 bg-muted/20 divide-y divide-border/60">
                   {(story.tasks || []).length === 0 ? (
-                    <p className="px-3 py-2 text-[11px] text-muted-foreground italic">No decomposition tasks added.</p>
+                    <p className="px-3 py-2 text-[11px] text-muted-foreground italic">
+                      No decomposition tasks added.
+                    </p>
                   ) : (
                     story.tasks.map((task) => (
-                      <div key={task.id} className="flex items-center gap-2 px-3 py-2 text-xs">
+                      <div
+                        key={task.id}
+                        className="flex items-center gap-2 px-3 py-2 text-xs"
+                      >
                         <SquareCheck className="h-3.5 w-3.5 text-primary shrink-0" />
-                        <span className="font-medium text-foreground flex-1">{task.title}</span>
+                        <span className="font-medium text-foreground flex-1">
+                          {task.title}
+                        </span>
                         {task.jira_subtask_key && (
                           <a
-                            href={jiraStatus?.base_url ? `${jiraStatus.base_url}/browse/${task.jira_subtask_key}` : "#"}
+                            href={
+                              jiraStatus?.base_url
+                                ? `${jiraStatus.base_url}/browse/${task.jira_subtask_key}`
+                                : "#"
+                            }
                             target="_blank"
                             rel="noreferrer"
                             className="text-[10px] text-blue-600 hover:underline dark:text-blue-400 font-medium shrink-0"
@@ -1010,7 +1051,19 @@ function BacklogView({ onMove, onAssign }) {
                             {task.jira_subtask_key}
                           </a>
                         )}
-                        <Badge tone="neutral" className="text-[10px]">{task.priority || "medium"}</Badge>
+                        <Badge tone="neutral" className="text-[10px]">
+                          {task.priority || "medium"}
+                        </Badge>
+                        <Badge
+                          tone={task.jira_sprint_id ? "primary" : "neutral"}
+                          className="text-[10px]"
+                        >
+                          {task.jira_subtask_key
+                            ? task.jira_sprint_id
+                              ? `Sprint ${task.jira_sprint_id}`
+                              : "Jira backlog"
+                            : "Not synced"}
+                        </Badge>
                       </div>
                     ))
                   )}
@@ -1020,7 +1073,6 @@ function BacklogView({ onMove, onAssign }) {
           </div>
         )}
       </Card>
-
     </div>
   );
 }
@@ -1268,6 +1320,1036 @@ function StatusPanel() {
   );
 }
 
+function flattenTasks(tasks, story) {
+  return (tasks || []).flatMap((task) => [
+    { ...task, story },
+    ...flattenTasks(task.subtasks, story),
+  ]);
+}
+
+const KANBAN_COLUMNS_CONFIG = [
+  {
+    key: "todo",
+    label: "To Do",
+    icon: Circle,
+    iconClass: "text-slate-400",
+    headerBorder: "border-slate-400 dark:border-slate-600",
+    bgClass: "bg-slate-500/5 dark:bg-slate-900/20",
+    emptyText: "No issues in To Do",
+  },
+  {
+    key: "in_progress",
+    label: "In Progress",
+    icon: Clock,
+    iconClass: "text-blue-500",
+    headerBorder: "border-blue-500",
+    bgClass: "bg-blue-500/5 dark:bg-blue-950/20",
+    emptyText: "No issues in progress",
+  },
+  {
+    key: "in_review",
+    label: "In Review",
+    icon: AlertTriangle,
+    iconClass: "text-amber-500",
+    headerBorder: "border-amber-500",
+    bgClass: "bg-amber-500/5 dark:bg-amber-950/20",
+    emptyText: "No issues awaiting review",
+  },
+  {
+    key: "done",
+    label: "Done",
+    icon: CheckCircle2,
+    iconClass: "text-emerald-500",
+    headerBorder: "border-emerald-500",
+    bgClass: "bg-emerald-500/5 dark:bg-emerald-950/20",
+    emptyText: "No issues completed yet",
+  },
+];
+
+function normalizeKanbanColumn(rawStatus) {
+  const s = String(rawStatus || "")
+    .toLowerCase()
+    .trim();
+  if (s === "done" || s === "complete" || s === "closed" || s === "resolved")
+    return "done";
+  if (
+    s.includes("review") ||
+    s.includes("qa") ||
+    s.includes("testing") ||
+    s.includes("verify")
+  )
+    return "in_review";
+  if (
+    s.includes("progress") ||
+    s === "doing" ||
+    s === "in dev" ||
+    s === "started"
+  )
+    return "in_progress";
+  return "todo";
+}
+
+function SprintSyncView({ onRefreshed }) {
+  const { requirements, userStories, estimations, teamMembers } =
+    usePlanningData();
+  const [snapshot, setSnapshot] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [transitioningKey, setTransitioningKey] = useState(null);
+  const [viewMode, setViewMode] = useState("kanban"); // "kanban" | "table"
+  const [entityType, setEntityType] = useState("stories"); // "stories" | "tasks"
+  const [selectedSprintId, setSelectedSprintId] = useState("auto"); // "auto" | "all" | "backlog" | sprintId
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [expandedStories, setExpandedStories] = useState({});
+
+  const requirementById = Object.fromEntries(
+    requirements.map((req) => [req.id, req]),
+  );
+  const eligibleStories = Object.entries(userStories).flatMap(
+    ([requirementId, stories]) =>
+      (stories || []).filter((story) => {
+        const points =
+          estimations[story.id]?.finalPoints ??
+          estimations[story.id]?.studentPoints ??
+          story.student_story_points;
+        return (
+          requirementById[requirementId]?.status === "Passing" && points != null
+        );
+      }),
+  );
+
+  const linkedStories = eligibleStories.filter((story) => story.jira_issue_key);
+  const allTasks = linkedStories.flatMap((story) =>
+    flattenTasks(story.tasks, story),
+  );
+
+  // Auto-refresh once on mount
+  useEffect(() => {
+    fetchLatest(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function fetchLatest(silent = false) {
+    setLoading(true);
+    try {
+      const response = await jiraService.fetchLatest();
+      const data = response?.data ?? response;
+      setSnapshot(data);
+      await onRefreshed?.();
+      if (!silent) {
+        if (data?.errors?.length) {
+          showToast.success("Jira refreshed with warnings", {
+            description: `${data.stories_updated || 0} stories and ${data.tasks_updated || 0} tasks updated; ${data.errors.length} item(s) could not be read.`,
+          });
+        } else {
+          showToast.success("Jira board refreshed", {
+            description: `${data?.stories_updated || 0} stories and ${data?.tasks_updated || 0} tasks updated locally.`,
+          });
+        }
+      }
+    } catch (error) {
+      if (!silent) {
+        showToast.error("Could not fetch Jira data", {
+          description:
+            error?.response?.data?.detail ||
+            error?.message ||
+            "Verify the Jira connection in backend/.env and try again.",
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleTransition(issueKey, targetStatus) {
+    if (!issueKey || !targetStatus) return;
+    setTransitioningKey(issueKey);
+    try {
+      const res = await jiraService.transitionIssue({
+        issue_key: issueKey,
+        target_status: targetStatus,
+      });
+      const data = res?.data ?? res;
+      showToast.success(`Transitioned ${issueKey}`, {
+        description: `Status changed to "${data?.jira_status || targetStatus}" on Jira and saved to database.`,
+      });
+      await fetchLatest(true);
+    } catch (err) {
+      showToast.error(`Could not move ${issueKey}`, {
+        description:
+          err?.response?.data?.detail ||
+          err?.message ||
+          `Failed to transition issue to "${targetStatus}". Check Jira workflow permissions.`,
+      });
+    } finally {
+      setTransitioningKey(null);
+    }
+  }
+
+  // Sprints discovered
+  const sprints =
+    snapshot?.sprints || (snapshot?.sprint ? [snapshot.sprint] : []);
+  const activeSprint =
+    sprints.find((s) => s.state === "active") || sprints[0] || null;
+
+  // Resolve active sprint filter
+  const resolvedSprintId =
+    selectedSprintId === "auto"
+      ? activeSprint?.jira_sprint_id
+        ? String(activeSprint.jira_sprint_id)
+        : "all"
+      : selectedSprintId;
+
+  const currentSprintObj =
+    resolvedSprintId === "all" || resolvedSprintId === "backlog"
+      ? null
+      : sprints.find(
+          (s) => String(s.jira_sprint_id) === String(resolvedSprintId),
+        );
+
+  // Filter items by sprint selection
+  const sprintFilteredStories = linkedStories.filter((s) => {
+    if (resolvedSprintId === "all") return true;
+    if (resolvedSprintId === "backlog") return !s.jira_sprint_id;
+    return String(s.jira_sprint_id) === String(resolvedSprintId);
+  });
+
+  const sprintFilteredTasks = allTasks.filter((t) => {
+    if (resolvedSprintId === "all") return true;
+    if (resolvedSprintId === "backlog")
+      return !t.jira_sprint_id && !t.story?.jira_sprint_id;
+    return (
+      String(t.jira_sprint_id) === String(resolvedSprintId) ||
+      String(t.story?.jira_sprint_id) === String(resolvedSprintId)
+    );
+  });
+
+  // Calculate metrics
+  const sprintTotalPoints = sprintFilteredStories.reduce(
+    (sum, s) => sum + (Number(s.student_story_points) || 0),
+    0,
+  );
+  const sprintDoneStories = sprintFilteredStories.filter(
+    (s) => normalizeKanbanColumn(s.jira_status) === "done",
+  );
+  const sprintDonePoints = sprintDoneStories.reduce(
+    (sum, s) => sum + (Number(s.student_story_points) || 0),
+    0,
+  );
+  const sprintProgressPercent = sprintTotalPoints
+    ? Math.round((sprintDonePoints / sprintTotalPoints) * 100)
+    : 0;
+
+  // Text/filter matches
+  const term = search.trim().toLowerCase();
+  const matches = (row) => {
+    const status = (row.jira_status || row.status || "").toLowerCase();
+    const priority = (row.priority || "").toLowerCase();
+    const text = [
+      row.story_ref,
+      row.title,
+      row.jira_issue_key,
+      row.jira_subtask_key,
+      row.story?.title,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return (
+      (!term || text.includes(term)) &&
+      (statusFilter === "all" || status === statusFilter.toLowerCase()) &&
+      (priorityFilter === "all" || priority === priorityFilter.toLowerCase())
+    );
+  };
+
+  const displayedStories = sprintFilteredStories.filter(matches);
+  const displayedTasks = sprintFilteredTasks.filter(matches);
+  const jiraUrl = snapshot?.jira_base_url;
+
+  // Group into 4 columns
+  const kanbanData = {
+    todo: [],
+    in_progress: [],
+    in_review: [],
+    done: [],
+  };
+
+  const itemsToGroup =
+    entityType === "stories" ? displayedStories : displayedTasks;
+  itemsToGroup.forEach((item) => {
+    const colKey = normalizeKanbanColumn(item.jira_status || item.status);
+    if (kanbanData[colKey]) {
+      kanbanData[colKey].push(item);
+    } else {
+      kanbanData.todo.push(item);
+    }
+  });
+
+  const toggleExpand = (id) => {
+    setExpandedStories((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // The Sprint tab is intentionally empty when Jira has no linked sprint.
+  // Backlog work stays visible only on the Backlog tab until a student places
+  // it in a Jira sprint and starts/manages that sprint there.
+  if (snapshot && sprints.length === 0) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-5 text-center">
+          <Layers className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+          <h3 className="text-sm font-semibold text-foreground">
+            No linked Jira sprint yet
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground max-w-lg mx-auto">
+            Create and start a sprint in Jira, move the pushed user stories into
+            it, then fetch Jira data here. Backlog work remains in the Backlog
+            tab.
+          </p>
+          <div>
+            <Button
+              size="sm"
+              onClick={() => fetchLatest(false)}
+              disabled={loading}
+              className="mt-4 gap-1.5"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+              />
+              {loading ? "Syncing Jira..." : "Fetch latest Jira data"}
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ── Top Control & Multi-Sprint Selector Toolbar ── */}
+      <Card className="p-4 bg-card/95 border-border">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="space-y-1 max-w-full">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                Jira Sprint Tabs
+              </label>
+              <div className="flex max-w-[620px] gap-1 overflow-x-auto pb-1">
+                {sprints.map((sp) => {
+                  const selected =
+                    String(resolvedSprintId) === String(sp.jira_sprint_id);
+                  return (
+                    <button
+                      key={sp.jira_sprint_id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedSprintId(String(sp.jira_sprint_id))
+                      }
+                      className={`shrink-0 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${selected ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {sp.name}{" "}
+                      <span className="capitalize">
+                        ({sp.state || "unknown"})
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Toggle between viewing Stories or Sub-tasks */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                Board Items
+              </label>
+              <div className="inline-flex rounded-lg border border-border p-0.5 bg-muted/40">
+                <button
+                  type="button"
+                  onClick={() => setEntityType("stories")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                    entityType === "stories"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Stories ({displayedStories.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEntityType("tasks")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                    entityType === "tasks"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Sub-tasks ({displayedTasks.length})
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right side: View Toggle & Sync Button */}
+          <div className="flex items-center gap-2 flex-wrap self-end lg:self-center">
+            <div className="inline-flex rounded-lg border border-border p-0.5 bg-muted/40 mr-1">
+              <button
+                type="button"
+                onClick={() => setViewMode("kanban")}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                  viewMode === "kanban"
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Kanban Board view"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                Kanban
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                  viewMode === "table"
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Table List view"
+              >
+                <ListTodo className="h-3.5 w-3.5" />
+                Table
+              </button>
+            </div>
+
+            <Button
+              size="sm"
+              onClick={() => fetchLatest(false)}
+              disabled={loading}
+              className="gap-1.5 text-xs h-9 cursor-pointer"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+              />
+              {loading ? "Syncing Jira..." : "Sync from Jira"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Sprint Header / Health Bar */}
+        {currentSprintObj ? (
+          <div className="mt-4 pt-4 border-t border-border grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-bold text-foreground">
+                  {currentSprintObj.name}
+                </h4>
+                <Badge
+                  tone={
+                    currentSprintObj.state === "active"
+                      ? "success"
+                      : currentSprintObj.state === "future"
+                        ? "primary"
+                        : "neutral"
+                  }
+                  className="text-[10px] capitalize"
+                >
+                  {currentSprintObj.state || "Sprint"}
+                </Badge>
+                {jiraUrl && (
+                  <a
+                    href={`${jiraUrl}/jira/software/projects`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-blue-600 hover:underline dark:text-blue-400 inline-flex items-center gap-0.5 ml-1"
+                    title="View board on Jira Cloud"
+                  >
+                    Open in Jira <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {currentSprintObj.start_date && currentSprintObj.end_date
+                  ? `${formatShortDate(currentSprintObj.start_date)} – ${formatShortDate(currentSprintObj.end_date)}`
+                  : "Sprint dates not set in Jira"}
+              </p>
+              {currentSprintObj.goal && (
+                <p className="text-xs text-muted-foreground italic line-clamp-1">
+                  Goal: {currentSprintObj.goal}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5 md:col-span-2">
+              <div className="flex items-center justify-between text-xs font-medium">
+                <span className="text-muted-foreground">
+                  Sprint Story Points Progress
+                </span>
+                <span className="font-bold text-foreground">
+                  {sprintDonePoints} / {sprintTotalPoints} SP (
+                  {sprintProgressPercent}%)
+                </span>
+              </div>
+              <Progress value={sprintProgressPercent} className="h-2" />
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                <span>{sprintFilteredStories.length} linked user stories</span>
+                <span>{sprintFilteredTasks.length} decomposition tasks</span>
+                <span>
+                  {snapshot?.fetched_at
+                    ? `Last synced: ${new Date(snapshot.fetched_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                    : "Live mirrored"}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
+            <span>
+              Showing{" "}
+              {resolvedSprintId === "backlog"
+                ? "Jira Backlog stories"
+                : "All sprints combined"}{" "}
+              ({sprintFilteredStories.length} stories,{" "}
+              {sprintFilteredTasks.length} tasks)
+            </span>
+            {snapshot?.fetched_at && (
+              <span>
+                Last synced:{" "}
+                {new Date(snapshot.fetched_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            )}
+          </div>
+        )}
+      </Card>
+
+      {/* ── Search & Filter Bar ── */}
+      <Card className="p-3 bg-card/60">
+        <div className="flex flex-col sm:flex-row gap-2.5 items-center">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by title, ref (STORY-001), or Jira key (SCRUM-26)..."
+              className="h-8 pl-8 text-xs bg-background"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-8 w-full sm:w-36 text-xs bg-background">
+              <SelectValue placeholder="Status filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="to do">To Do</SelectItem>
+              <SelectItem value="in progress">In Progress</SelectItem>
+              <SelectItem value="in review">In Review</SelectItem>
+              <SelectItem value="done">Done</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="h-8 w-full sm:w-32 text-xs bg-background">
+              <SelectValue placeholder="Priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All priorities</SelectItem>
+              <SelectItem value="critical">Critical</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </Card>
+
+      {/* ── VIEW MODE 1: KANBAN BOARD ── */}
+      {viewMode === "kanban" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {KANBAN_COLUMNS_CONFIG.map((col) => {
+            const ColumnIcon = col.icon;
+            const items = kanbanData[col.key] || [];
+            const colTotalPoints =
+              entityType === "stories"
+                ? items.reduce(
+                    (s, it) => s + (Number(it.student_story_points) || 0),
+                    0,
+                  )
+                : null;
+
+            return (
+              <div
+                key={col.key}
+                className={`flex flex-col rounded-xl border border-border bg-card/50 overflow-hidden ${col.bgClass}`}
+              >
+                {/* Column Header */}
+                <div
+                  className={`p-3 border-b border-border border-t-2 ${col.headerBorder} bg-card flex items-center justify-between`}
+                >
+                  <div className="flex items-center gap-2">
+                    <ColumnIcon className={`h-4 w-4 ${col.iconClass}`} />
+                    <span className="font-semibold text-xs text-foreground">
+                      {col.label}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground">
+                      {items.length}
+                    </span>
+                  </div>
+                  {colTotalPoints != null && colTotalPoints > 0 && (
+                    <Badge
+                      tone="primary"
+                      className="text-[10px] px-1.5 py-0 font-medium"
+                    >
+                      {colTotalPoints} SP
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Column Cards */}
+                <div className="p-2.5 space-y-3 flex-1 min-h-[380px]">
+                  {items.length === 0 ? (
+                    <div className="h-full min-h-[140px] flex items-center justify-center p-4 border border-dashed border-border/80 rounded-lg text-center">
+                      <p className="text-xs text-muted-foreground/70 italic">
+                        {col.emptyText}
+                      </p>
+                    </div>
+                  ) : (
+                    items.map((item) => {
+                      const isStory = entityType === "stories";
+                      const issueKey = isStory
+                        ? item.jira_issue_key
+                        : item.jira_subtask_key;
+                      const isTransitioning = transitioningKey === issueKey;
+                      const reqId =
+                        item.requirementId ||
+                        item.parentRequirementRef ||
+                        item.story?.parentRequirementRef;
+                      const tasks = item.tasks || [];
+                      const doneTasks = tasks.filter(
+                        (t) =>
+                          normalizeKanbanColumn(t.jira_status || t.status) ===
+                          "done",
+                      ).length;
+                      const isExpanded = Boolean(expandedStories[item.id]);
+                      const assigneeName =
+                        item.jira_assignee_display_name || "Unassigned";
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="group relative rounded-xl border border-border/80 bg-card p-3 shadow-xs hover:border-primary/40 hover:shadow-md transition-all space-y-2.5"
+                        >
+                          {/* Card Header: Req pill, Jira key, Story points */}
+                          <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              {reqId && (
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${epicChipClass(
+                                    reqId,
+                                    requirements,
+                                  )}`}
+                                >
+                                  {reqId}
+                                </span>
+                              )}
+                              {issueKey ? (
+                                <a
+                                  href={
+                                    jiraUrl
+                                      ? `${jiraUrl}/browse/${issueKey}`
+                                      : "#"
+                                  }
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-blue-500/10 text-blue-600 hover:text-blue-700 dark:text-blue-400 border border-blue-500/20"
+                                  title={`Open ${issueKey} in Jira Cloud`}
+                                >
+                                  {issueKey}
+                                  <ExternalLink className="h-2.5 w-2.5 opacity-70" />
+                                </a>
+                              ) : (
+                                <span className="text-[10px] font-mono text-muted-foreground">
+                                  {item.story_ref || "Local"}
+                                </span>
+                              )}
+                            </div>
+
+                            {isStory && item.student_story_points != null && (
+                              <Badge
+                                tone="primary"
+                                className="text-[10px] px-1.5 py-0 font-medium"
+                              >
+                                {item.student_story_points} SP
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Card Title */}
+                          <h5 className="text-xs font-medium text-foreground leading-snug line-clamp-2">
+                            {item.title}
+                          </h5>
+
+                          {/* Subtasks Progress (for Stories) */}
+                          {isStory && tasks.length > 0 && (
+                            <div className="pt-1 space-y-1">
+                              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <SquareCheck className="h-3 w-3 text-primary" />
+                                  Tasks: {doneTasks}/{tasks.length} done
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpand(item.id)}
+                                  className="text-primary hover:underline font-medium cursor-pointer"
+                                >
+                                  {isExpanded ? "Hide" : "Show"}
+                                </button>
+                              </div>
+                              <Progress
+                                value={Math.round(
+                                  (doneTasks / tasks.length) * 100,
+                                )}
+                                className="h-1"
+                              />
+
+                              {/* Collapsible Subtasks preview */}
+                              {isExpanded && (
+                                <div className="mt-2 space-y-1.5 pt-1 border-t border-border/60">
+                                  {tasks.map((task) => (
+                                    <div
+                                      key={task.id}
+                                      className="flex items-center justify-between gap-1 p-1.5 rounded bg-muted/40 text-[11px]"
+                                    >
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <SquareCheck className="h-3 w-3 text-muted-foreground shrink-0" />
+                                        <span className="truncate">
+                                          {task.title}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        {task.jira_subtask_key && (
+                                          <a
+                                            href={
+                                              jiraUrl
+                                                ? `${jiraUrl}/browse/${task.jira_subtask_key}`
+                                                : "#"
+                                            }
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="font-mono text-[9px] text-blue-600 dark:text-blue-400 hover:underline"
+                                          >
+                                            {task.jira_subtask_key}
+                                          </a>
+                                        )}
+                                        <Badge
+                                          tone={
+                                            normalizeKanbanColumn(
+                                              task.jira_status || task.status,
+                                            ) === "done"
+                                              ? "success"
+                                              : "neutral"
+                                          }
+                                          className="text-[9px] px-1 py-0 capitalize"
+                                        >
+                                          {task.jira_status ||
+                                            task.status ||
+                                            "todo"}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Card Footer: Assignee & Move Selector */}
+                          <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <AvatarComp name={assigneeName} size={18} />
+                              <span
+                                className="text-[11px] text-muted-foreground truncate max-w-[80px]"
+                                title={assigneeName}
+                              >
+                                {assigneeName}
+                              </span>
+                            </div>
+
+                            {/* Status Transition Control */}
+                            {issueKey ? (
+                              <div className="flex items-center gap-1">
+                                {isTransitioning ? (
+                                  <span className="flex items-center gap-1 text-[10px] text-primary font-medium">
+                                    <RefreshCw className="h-3 w-3 animate-spin" />
+                                    Moving...
+                                  </span>
+                                ) : (
+                                  <Select
+                                    value={
+                                      col.key === "todo"
+                                        ? "To Do"
+                                        : col.key === "in_progress"
+                                          ? "In Progress"
+                                          : col.key === "in_review"
+                                            ? "In Review"
+                                            : "Done"
+                                    }
+                                    onValueChange={(val) =>
+                                      handleTransition(issueKey, val)
+                                    }
+                                  >
+                                    <SelectTrigger className="h-6 px-1.5 text-[10px] w-24 bg-muted/40 hover:bg-muted font-medium border-border/80">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="To Do">
+                                        To Do
+                                      </SelectItem>
+                                      <SelectItem value="In Progress">
+                                        In Progress
+                                      </SelectItem>
+                                      <SelectItem value="In Review">
+                                        In Review
+                                      </SelectItem>
+                                      <SelectItem value="Done">Done</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              </div>
+                            ) : (
+                              <Badge tone="neutral" className="text-[9px]">
+                                Not on Jira
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* ── VIEW MODE 2: DETAILED TABLES ── */
+        <div className="space-y-4">
+          <Card className="p-0 overflow-x-auto">
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+              <h3 className="text-sm font-semibold">
+                User Stories ({displayedStories.length})
+              </h3>
+            </div>
+            <table className="w-full min-w-[820px] text-xs">
+              <thead className="bg-muted/30 text-muted-foreground">
+                <tr>
+                  <th className="text-left p-3">Ref</th>
+                  <th className="text-left p-3">Story</th>
+                  <th className="text-left p-3">Jira Key</th>
+                  <th className="text-left p-3">Status</th>
+                  <th className="text-left p-3">Sprint</th>
+                  <th className="text-left p-3">Points</th>
+                  <th className="text-left p-3">Priority</th>
+                  <th className="text-left p-3">Assignee</th>
+                  <th className="text-left p-3">Move Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {displayedStories.map((story) => (
+                  <tr key={story.id}>
+                    <td className="p-3 font-medium">{story.story_ref}</td>
+                    <td className="p-3 max-w-[280px]">
+                      <div className="truncate font-medium text-foreground">
+                        {story.title}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      {story.jira_issue_key ? (
+                        <a
+                          href={
+                            jiraUrl
+                              ? `${jiraUrl}/browse/${story.jira_issue_key}`
+                              : "#"
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 font-mono text-primary hover:underline font-medium"
+                        >
+                          {story.jira_issue_key}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <Badge
+                        tone={
+                          normalizeKanbanColumn(story.jira_status) === "done"
+                            ? "success"
+                            : normalizeKanbanColumn(story.jira_status) ===
+                                "in_progress"
+                              ? "primary"
+                              : "neutral"
+                        }
+                      >
+                        {story.jira_status || "To Do"}
+                      </Badge>
+                    </td>
+                    <td className="p-3">
+                      {story.jira_sprint_id
+                        ? `Sprint ${story.jira_sprint_id}`
+                        : "Jira backlog"}
+                    </td>
+                    <td className="p-3">{story.student_story_points ?? "—"}</td>
+                    <td className="p-3 capitalize">{story.priority}</td>
+                    <td className="p-3">
+                      {story.jira_assignee_display_name || "Unassigned"}
+                    </td>
+                    <td className="p-3">
+                      {story.jira_issue_key && (
+                        <Select
+                          value={story.jira_status || "To Do"}
+                          onValueChange={(val) =>
+                            handleTransition(story.jira_issue_key, val)
+                          }
+                          disabled={transitioningKey === story.jira_issue_key}
+                        >
+                          <SelectTrigger className="h-7 text-[11px] w-28">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="To Do">To Do</SelectItem>
+                            <SelectItem value="In Progress">
+                              In Progress
+                            </SelectItem>
+                            <SelectItem value="In Review">In Review</SelectItem>
+                            <SelectItem value="Done">Done</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {displayedStories.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan="9"
+                      className="p-6 text-center text-muted-foreground"
+                    >
+                      No user stories match current filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </Card>
+
+          <Card className="p-0 overflow-x-auto">
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+              <h3 className="text-sm font-semibold">
+                Tasks ({displayedTasks.length})
+              </h3>
+            </div>
+            <table className="w-full min-w-[820px] text-xs">
+              <thead className="bg-muted/30 text-muted-foreground">
+                <tr>
+                  <th className="text-left p-3">Parent</th>
+                  <th className="text-left p-3">Task</th>
+                  <th className="text-left p-3">Jira Key</th>
+                  <th className="text-left p-3">Jira Status</th>
+                  <th className="text-left p-3">Priority</th>
+                  <th className="text-left p-3">Assignee</th>
+                  <th className="text-left p-3">Move Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {displayedTasks.map((task) => (
+                  <tr key={task.id}>
+                    <td className="p-3 font-medium">{task.story?.story_ref}</td>
+                    <td className="p-3 max-w-[280px]">
+                      <div className="truncate font-medium text-foreground">
+                        {task.title}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      {task.jira_subtask_key ? (
+                        <a
+                          href={
+                            jiraUrl
+                              ? `${jiraUrl}/browse/${task.jira_subtask_key}`
+                              : "#"
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 font-mono text-primary hover:underline font-medium"
+                        >
+                          {task.jira_subtask_key}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <Badge
+                        tone={
+                          normalizeKanbanColumn(
+                            task.jira_status || task.status,
+                          ) === "done"
+                            ? "success"
+                            : "neutral"
+                        }
+                      >
+                        {task.jira_status || task.status || "To Do"}
+                      </Badge>
+                    </td>
+                    <td className="p-3 capitalize">{task.priority}</td>
+                    <td className="p-3">
+                      {task.jira_assignee_display_name || "Unassigned"}
+                    </td>
+                    <td className="p-3">
+                      {task.jira_subtask_key && (
+                        <Select
+                          value={task.jira_status || "To Do"}
+                          onValueChange={(val) =>
+                            handleTransition(task.jira_subtask_key, val)
+                          }
+                          disabled={transitioningKey === task.jira_subtask_key}
+                        >
+                          <SelectTrigger className="h-7 text-[11px] w-28">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="To Do">To Do</SelectItem>
+                            <SelectItem value="In Progress">
+                              In Progress
+                            </SelectItem>
+                            <SelectItem value="In Review">In Review</SelectItem>
+                            <SelectItem value="Done">Done</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {displayedTasks.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan="7"
+                      className="p-6 text-center text-muted-foreground"
+                    >
+                      No tasks match current filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReportsView() {
   const [reportKey, setReportKey] = useState("sprint");
 
@@ -1304,6 +2386,7 @@ function ReportsView() {
 }
 
 export default function SprintManagement() {
+  const queryClient = useQueryClient();
   const {
     projectInfo,
     teamMembers,
@@ -1321,13 +2404,17 @@ export default function SprintManagement() {
   const { data: storiesResp } = useStories();
   const { data: estimatesResp } = useEstimates();
   const updateTask = useUpdateSprintTask();
-  const [tab, setTab] = useState("backlog");
+  const [tab, setTab] = useState("sprint");
   const [today] = useState(() => Date.now());
   const [consultOpen, setConsultOpen] = useState(false);
   const [scrumGuideOpen, setScrumGuideOpen] = useState(false);
 
   useEffect(() => {
-    const items = tasksResp?.data?.items || tasksResp?.data?.tasks || tasksResp?.items || tasksResp?.tasks;
+    const items =
+      tasksResp?.data?.items ||
+      tasksResp?.data?.tasks ||
+      tasksResp?.items ||
+      tasksResp?.tasks;
     if (!items) return;
     const mapped = mapSprintTasks(items);
     loadKanbanTasks(mapped);
@@ -1349,8 +2436,12 @@ export default function SprintManagement() {
       if (!storyRef) continue;
       estMap[storyRef] = {
         studentPoints: row.estimated_story_points ?? row.story_points ?? null,
-        finalPoints: row.final_story_points ?? row.story_points ?? row.estimated_story_points ?? null,
-        reason: row.estimation_basis ?? row.reason ?? '',
+        finalPoints:
+          row.final_story_points ??
+          row.story_points ??
+          row.estimated_story_points ??
+          null,
+        reason: row.estimation_basis ?? row.reason ?? "",
         confirmed: row.confirmed ?? false,
       };
     }
@@ -1365,6 +2456,13 @@ export default function SprintManagement() {
   function handleAssign(taskId, assigneeId) {
     assignKanbanTask(taskId, assigneeId);
     updateTask.mutate({ id: taskId, patch: { assigned_to: assigneeId } });
+  }
+
+  async function refreshPlanningData() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["planning-stories"] }),
+      queryClient.invalidateQueries({ queryKey: ["backlog-items"] }),
+    ]);
   }
 
   const totalPoints = kanbanTasks.reduce((s, t) => s + t.points, 0);
@@ -1566,15 +2664,35 @@ export default function SprintManagement() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="w-full h-auto justify-start flex-wrap gap-1 rounded-none bg-transparent p-0 border-b border-border">
           <TabsTrigger
+            value="sprint"
+            className="rounded-none border-b-2 border-transparent px-3 py-2.5 text-sm font-medium gap-1.5 text-muted-foreground hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none cursor-pointer"
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            Active Sprint Kanban
+          </TabsTrigger>
+          <TabsTrigger
             value="backlog"
-            className="rounded-none border-b-2 border-transparent px-3 py-2.5 text-sm font-medium gap-1.5 text-muted-foreground hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+            className="rounded-none border-b-2 border-transparent px-3 py-2.5 text-sm font-medium gap-1.5 text-muted-foreground hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none cursor-pointer"
           >
             <Layers className="h-3.5 w-3.5" />
-            Backlog
+            Product Backlog &amp; Export
+          </TabsTrigger>
+          <TabsTrigger
+            value="reports"
+            className="rounded-none border-b-2 border-transparent px-3 py-2.5 text-sm font-medium gap-1.5 text-muted-foreground hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none cursor-pointer"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            Agile Reports &amp; Burndown
           </TabsTrigger>
         </TabsList>
+        <TabsContent value="sprint" className="mt-4">
+          <SprintSyncView onRefreshed={refreshPlanningData} />
+        </TabsContent>
         <TabsContent value="backlog" className="mt-4">
-          <BacklogView />
+          <BacklogView onRefreshed={refreshPlanningData} />
+        </TabsContent>
+        <TabsContent value="reports" className="mt-4">
+          <ReportsView />
         </TabsContent>
       </Tabs>
 

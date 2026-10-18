@@ -243,6 +243,90 @@ class JiraClient:
             logger.warning("Error checking issue existence for %s: %s", issue_key, e)
             return False
 
+    async def get_issue(self, issue_key: str, fields: list[str] | None = None) -> dict[str, Any]:
+        """Return the current Jira representation of one linked issue.
+
+        Linked-key reads intentionally avoid project-wide imports: SELVIA only
+        mirrors work items it created or was explicitly linked to.
+        """
+        requested = fields or [
+            "summary", "status", "priority", "assignee", "updated", "sprint",
+            "parent", "issuetype",
+        ]
+        async with self._client() as client:
+            resp = await client.get(
+                f"/rest/api/3/issue/{issue_key}",
+                params={"fields": ",".join(requested)},
+            )
+            if resp.status_code != 200:
+                raise ValueError(f"Could not fetch Jira issue {issue_key}: {resp.status_code} {resp.text}")
+            return resp.json()
+
+    async def get_sprint(self, sprint_id: int) -> dict[str, Any]:
+        """Return the current Agile sprint details for a linked local sprint."""
+        async with self._client() as client:
+            resp = await client.get(f"/rest/agile/1.0/sprint/{sprint_id}")
+            if resp.status_code != 200:
+                raise ValueError(f"Could not fetch Jira sprint {sprint_id}: {resp.status_code} {resp.text}")
+            return resp.json()
+
+    async def list_sprint_issues(self, sprint_id: int) -> list[dict[str, Any]]:
+        """Fetch all issue pages for a Jira sprint.
+
+        This is used to discover sprint membership for already-linked work;
+        callers still match only local Jira keys and never import unrelated
+        Jira issues.
+        """
+        issues: list[dict[str, Any]] = []
+        start_at = 0
+        page_size = 50
+        fields = "summary,status,priority,assignee,updated,sprint,parent,issuetype"
+        async with self._client() as client:
+            while True:
+                resp = await client.get(
+                    f"/rest/agile/1.0/sprint/{sprint_id}/issue",
+                    params={"startAt": start_at, "maxResults": page_size, "fields": fields},
+                )
+                if resp.status_code != 200:
+                    raise ValueError(
+                        f"Could not fetch Jira sprint issues {sprint_id}: {resp.status_code} {resp.text}"
+                    )
+                data = resp.json()
+                page = data.get("issues", [])
+                issues.extend(page)
+                total = data.get("total")
+                if not page or (total is not None and start_at + len(page) >= total):
+                    break
+                start_at += len(page)
+        return issues
+
+    async def list_board_sprints(self, board_id: int | None = None) -> list[dict[str, Any]]:
+        """List the board's Jira-managed sprints, following all pages."""
+        resolved_board_id = board_id or await self.discover_board_id()
+        if not resolved_board_id:
+            raise ValueError("No Scrum Board found for this Jira project.")
+        sprints: list[dict[str, Any]] = []
+        start_at = 0
+        page_size = 50
+        async with self._client() as client:
+            while True:
+                resp = await client.get(
+                    f"/rest/agile/1.0/board/{resolved_board_id}/sprint",
+                    params={"state": "active,future,closed", "startAt": start_at, "maxResults": page_size},
+                )
+                if resp.status_code != 200:
+                    raise ValueError(
+                        f"Could not fetch Jira board sprints {resolved_board_id}: {resp.status_code} {resp.text}"
+                    )
+                data = resp.json()
+                page = data.get("values", [])
+                sprints.extend(page)
+                total = data.get("total")
+                if not page or (total is not None and start_at + len(page) >= total):
+                    break
+                start_at += len(page)
+        return sprints
+
     async def get_project(self, project_key: str | None = None) -> dict[str, Any]:
         """Fetch project details by key."""
         key = project_key or self.project_key
@@ -445,6 +529,7 @@ class JiraClient:
         existing = await self.find_subtask(parent_issue_key, summary)
         if existing:
             logger.info("Reusing existing Jira Subtask %s for parent %s", existing.get("key"), parent_issue_key)
+            return existing
         key = project_key or self.project_key
         issue_types = await self.get_issue_types(key)
         subtask_type_name = (
@@ -511,3 +596,62 @@ class JiraClient:
                 json={"issues": issue_keys},
             )
             return resp.status_code in (200, 204)
+
+    async def get_issue_transitions(self, issue_key: str) -> list[dict[str, Any]]:
+        """Fetch available workflow transitions for a Jira issue."""
+        async with self._client() as client:
+            resp = await client.get(f"/rest/api/3/issue/{issue_key}/transitions")
+            if resp.status_code != 200:
+                raise ValueError(f"Could not fetch transitions for {issue_key}: {resp.status_code} {resp.text}")
+            return resp.json().get("transitions", [])
+
+    async def transition_issue(self, issue_key: str, transition_id: str) -> bool:
+        """Apply a transition to move an issue to a new status in Jira."""
+        async with self._client() as client:
+            resp = await client.post(
+                f"/rest/api/3/issue/{issue_key}/transitions",
+                json={"transition": {"id": transition_id}},
+            )
+            return resp.status_code in (200, 204)
+
+    async def transition_issue_by_status_name(self, issue_key: str, target_status: str) -> dict[str, Any]:
+        """Find matching transition for target status (e.g. 'In Progress', 'Done', 'To Do') and execute it."""
+        transitions = await self.get_issue_transitions(issue_key)
+        target_norm = target_status.strip().lower().replace(" ", "").replace("_", "")
+
+        selected = None
+        for t in transitions:
+            t_name = str(t.get("name", "")).strip().lower().replace(" ", "").replace("_", "")
+            to_status = str(t.get("to", {}).get("name", "")).strip().lower().replace(" ", "").replace("_", "")
+            cat = str(t.get("to", {}).get("statusCategory", {}).get("key", "")).strip().lower()
+            if target_norm in (t_name, to_status):
+                selected = t
+                break
+            if target_norm == "done" and cat == "done":
+                selected = t
+                break
+            if target_norm in ("inprogress", "doing", "inreview") and cat == "indeterminate":
+                selected = t
+                break
+            if target_norm in ("todo", "backlog", "new") and cat == "new":
+                selected = t
+                break
+
+        if not selected and transitions:
+            for t in transitions:
+                cat = str(t.get("to", {}).get("statusCategory", {}).get("key", "")).strip().lower()
+                if (target_norm == "done" and cat == "done") or (target_norm in ("inprogress", "in_progress") and cat == "indeterminate") or (target_norm in ("todo", "to_do") and cat == "new"):
+                    selected = t
+                    break
+
+        if not selected:
+            valid_names = [f"{t.get('name')} (to {t.get('to', {}).get('name')})" for t in transitions]
+            raise ValueError(f"No valid Jira transition to '{target_status}' found for {issue_key}. Available: {valid_names}")
+
+        success = await self.transition_issue(issue_key, selected["id"])
+        return {
+            "ok": success,
+            "transition_id": selected["id"],
+            "transition_name": selected.get("name"),
+            "to_status": selected.get("to", {}).get("name"),
+        }

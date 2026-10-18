@@ -78,6 +78,15 @@ class UserStory(TimestampMixin, Base):
     version: Mapped[int] = mapped_column(Integer, default=1)
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     jira_issue_key: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Jira execution data is deliberately separate from the local planning
+    # lifecycle/status fields above. Jira may drive delivery execution without
+    # changing whether a story has passed the SELVIA planning workflow.
+    jira_status: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    jira_assignee_display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    jira_assignee_account_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    jira_sprint_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    jira_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    jira_last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     invest_validations: Mapped[list["InvestValidation"]] = relationship(
         back_populates="user_story",
@@ -121,6 +130,12 @@ class UserStoryTask(TimestampMixin, Base):
         string_enum(TaskStatus, "decomposition_task_status"), default=TaskStatus.TODO
     )
     jira_subtask_key: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    jira_status: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    jira_assignee_display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    jira_assignee_account_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    jira_sprint_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    jira_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    jira_last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user_story: Mapped["UserStory"] = relationship(back_populates="tasks")
 

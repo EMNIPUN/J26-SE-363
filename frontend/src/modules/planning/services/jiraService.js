@@ -22,11 +22,22 @@ export const jiraService = {
   syncSprint: (body = {}) =>
     apiClient.post(ENDPOINTS.PLANNING.JIRA_SYNC_SPRINT, body, { timeout: 60000 }),
 
+  /** Pull execution state for locally linked Jira stories and subtasks. */
+  fetchLatest: (body = {}) =>
+    apiClient.post(ENDPOINTS.PLANNING.JIRA_FETCH, body, { timeout: 60000 }),
+
   /**
    * Reset local database Jira keys to allow starting over / re-pushing fresh.
    */
   resetLinks: (body = {}) =>
     apiClient.post(ENDPOINTS.PLANNING.JIRA_RESET_LINKS, body, { timeout: 30000 }),
+
+  /**
+   * Transition Jira issue status and update local DB row immediately.
+   * @param {Object} body - { issue_key, target_status, ...optional overrides }
+   */
+  transitionIssue: (body = {}) =>
+    apiClient.post(ENDPOINTS.PLANNING.JIRA_TRANSITION, body, { timeout: 30000 }),
 }
 
 export default jiraService

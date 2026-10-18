@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -11,8 +12,11 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.decomposition_assessment import UserStory, UserStoryTask
+from app.models.enums import Priority, TaskStatus
+from app.models.pipeline_session import PipelineSession
 from app.models.requirement import Requirement
 from app.models.sprint import Sprint
+from app.models.sprint_backlog import SprintBacklogItem
 from app.modules.planning import (
     decomposition_service,
     estimation_service,
@@ -22,6 +26,70 @@ from app.modules.planning import (
 from app.modules.planning.jira_client import JiraClient, build_story_adf, text_to_adf
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_jira_datetime(value: Any) -> datetime | None:
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _jira_sprint_id(fields: dict[str, Any]) -> int | None:
+    raw = fields.get("sprint")
+    sprints = raw if isinstance(raw, list) else [raw]
+    for sprint in reversed(sprints):
+        if isinstance(sprint, dict) and sprint.get("id") is not None:
+            try:
+                return int(sprint["id"])
+            except (TypeError, ValueError):
+                pass
+    return None
+
+
+def _jira_task_status(fields: dict[str, Any]) -> TaskStatus:
+    status = fields.get("status") or {}
+    name = str(status.get("name") or "").lower()
+    category = str((status.get("statusCategory") or {}).get("key") or "").lower()
+    if "block" in name or "imped" in name:
+        return TaskStatus.BLOCKED
+    if category == "done" or name in {"done", "closed", "resolved", "complete", "completed"}:
+        return TaskStatus.DONE
+    if category == "indeterminate" or "progress" in name or "review" in name:
+        return TaskStatus.IN_PROGRESS
+    return TaskStatus.TODO
+
+
+def _jira_priority(fields: dict[str, Any], fallback: Priority) -> Priority:
+    value = str((fields.get("priority") or {}).get("name") or "").lower()
+    if value in {p.value for p in Priority}:
+        return Priority(value)
+    if "highest" in value or "critical" in value:
+        return Priority.CRITICAL
+    if "high" in value:
+        return Priority.HIGH
+    if "low" in value:
+        return Priority.LOW
+    if "medium" in value or "normal" in value:
+        return Priority.MEDIUM
+    return fallback
+
+
+def _apply_jira_execution_fields(row: UserStory | UserStoryTask, issue: dict[str, Any], synced_at: datetime) -> None:
+    fields = issue.get("fields") or {}
+    status = fields.get("status") or {}
+    assignee = fields.get("assignee") or {}
+    row.jira_status = status.get("name") or None
+    row.jira_assignee_display_name = assignee.get("displayName") or None
+    row.jira_assignee_account_id = assignee.get("accountId") or None
+    row.jira_sprint_id = _jira_sprint_id(fields)
+    row.jira_updated_at = _parse_jira_datetime(fields.get("updated"))
+    row.jira_last_synced_at = synced_at
+    row.priority = _jira_priority(fields, row.priority)
+    if isinstance(row, UserStoryTask):
+        row.status = _jira_task_status(fields)
 
 
 def get_jira_client(overrides: dict[str, Any] | None = None) -> JiraClient:
@@ -357,4 +425,245 @@ async def sync_sprint_to_jira(
         "moved": moved,
         "board_id": board_id,
         "jira_board_url": f"{client.base_url}/jira/software/projects/{client.project_key}/boards/{board_id}",
+    }
+
+
+def _sync_story_payload(story: UserStory) -> dict[str, Any]:
+    return {
+        "id": str(story.id),
+        "story_ref": story.story_ref,
+        "title": story.title,
+        "jira_issue_key": story.jira_issue_key,
+        "jira_status": story.jira_status,
+        "priority": story.priority.value,
+        "jira_assignee_display_name": story.jira_assignee_display_name,
+        "jira_sprint_id": story.jira_sprint_id,
+        "jira_updated_at": story.jira_updated_at.isoformat() if story.jira_updated_at else None,
+        "jira_last_synced_at": story.jira_last_synced_at.isoformat() if story.jira_last_synced_at else None,
+        "student_story_points": story.student_story_points,
+    }
+
+
+def _sync_task_payload(task: UserStoryTask, story: UserStory) -> dict[str, Any]:
+    return {
+        "id": str(task.id),
+        "story_ref": story.story_ref,
+        "story_title": story.title,
+        "title": task.title,
+        "jira_subtask_key": task.jira_subtask_key,
+        "jira_status": task.jira_status,
+        "status": task.status.value,
+        "priority": task.priority.value,
+        "jira_assignee_display_name": task.jira_assignee_display_name,
+        "jira_sprint_id": task.jira_sprint_id,
+        "jira_updated_at": task.jira_updated_at.isoformat() if task.jira_updated_at else None,
+        "jira_last_synced_at": task.jira_last_synced_at.isoformat() if task.jira_last_synced_at else None,
+    }
+
+
+async def fetch_linked_jira_execution(
+    db: Session,
+    session_id: uuid.UUID,
+    client: JiraClient,
+) -> dict[str, Any]:
+    """Pull current Jira execution fields for linked backlog work only.
+
+    The import is deliberately one-way and field-scoped: Jira controls delivery
+    state/assignee/priority mirrors, while local planning lifecycle and content
+    remain untouched. Each issue is handled independently so one deleted or
+    inaccessible Jira item cannot discard successful updates from others.
+    """
+    now = datetime.now(UTC)
+    stories = decomposition_service.list_stories(db, session_id)
+    linked_stories = [story for story in stories if story.jira_issue_key]
+    linked_tasks = [task for story in stories for task in (story.tasks or []) if task.jira_subtask_key]
+    errors: list[dict[str, str]] = []
+    issue_cache: dict[str, dict[str, Any]] = {}
+
+    session = db.get(PipelineSession, session_id)
+    linked_keys = {story.jira_issue_key for story in linked_stories} | {
+        task.jira_subtask_key for task in linked_tasks
+    }
+    sprint_membership: dict[str, int] = {}
+    sprint_payloads: list[dict[str, Any]] = []
+    membership_loaded = False
+    try:
+        # Student-created Jira sprints are discovered from the Scrum board, not
+        # from a local "create sprint" action. Jira is therefore authoritative
+        # when a linked story is moved from a sprint back to the backlog.
+        remote_sprints = await client.list_board_sprints()
+        membership_loaded = True
+        for remote_sprint in remote_sprints:
+            remote_id = remote_sprint.get("id")
+            if remote_id is None:
+                continue
+            try:
+                remote_id = int(remote_id)
+                remote_issues = await client.list_sprint_issues(remote_id)
+            except Exception as exc:
+                errors.append({"key": str(remote_id), "message": str(exc)})
+                membership_loaded = False
+                continue
+            linked_count = 0
+            for issue in remote_issues:
+                key = issue.get("key")
+                if key:
+                    issue_cache[key] = issue
+                if key in linked_keys:
+                    sprint_membership[key] = remote_id
+                    linked_count += 1
+            if linked_count:
+                sprint_payloads.append({
+                    "jira_sprint_id": remote_id,
+                    "name": remote_sprint.get("name") or f"Sprint {remote_id}",
+                    "state": remote_sprint.get("state") or None,
+                    "goal": remote_sprint.get("goal") or None,
+                    "start_date": remote_sprint.get("startDate"),
+                    "end_date": remote_sprint.get("endDate"),
+                    "linked_items": linked_count,
+                    "last_synced_at": now.isoformat(),
+                })
+
+        local_sprint_by_jira_id: dict[int, Sprint] = {}
+        if session:
+            local_sprints = db.query(Sprint).filter(Sprint.project_id == session.project_id).all()
+            remote_by_id = {item["jira_sprint_id"]: item for item in sprint_payloads}
+            for local_sprint in local_sprints:
+                if local_sprint.jira_sprint_id:
+                    local_sprint_by_jira_id[local_sprint.jira_sprint_id] = local_sprint
+                    remote = remote_by_id.get(local_sprint.jira_sprint_id)
+                    if remote:
+                        local_sprint.jira_state = remote["state"]
+                        local_sprint.jira_goal = remote["goal"]
+                        local_sprint.jira_last_synced_at = now
+
+            max_num = max([s.sprint_number for s in local_sprints], default=0)
+            for item in sprint_payloads:
+                jid = item["jira_sprint_id"]
+                if jid not in local_sprint_by_jira_id:
+                    max_num += 1
+                    new_sp = Sprint(
+                        project_id=session.project_id,
+                        sprint_number=max_num,
+                        jira_sprint_id=jid,
+                        jira_state=item.get("state"),
+                        jira_goal=item.get("goal"),
+                        jira_last_synced_at=now,
+                        status="active" if item.get("state") == "active" else "planning",
+                    )
+                    db.add(new_sp)
+                    db.flush()
+                    local_sprint_by_jira_id[jid] = new_sp
+    except Exception as exc:
+        errors.append({"key": "board-sprints", "message": str(exc)})
+
+    async def resolve_issue(key: str) -> dict[str, Any] | None:
+        if key in issue_cache:
+            return issue_cache[key]
+        try:
+            issue_cache[key] = await client.get_issue(key)
+            return issue_cache[key]
+        except Exception as exc:
+            errors.append({"key": key, "message": str(exc)})
+            return None
+
+    stories_updated = 0
+    tasks_updated = 0
+    for story in linked_stories:
+        issue = await resolve_issue(story.jira_issue_key)
+        if issue:
+            _apply_jira_execution_fields(story, issue, now)
+            if membership_loaded:
+                story.jira_sprint_id = sprint_membership.get(story.jira_issue_key)
+
+            # Sync with SprintBacklogItem so Kanban board and local queries reflect Jira
+            backlog_item = db.query(SprintBacklogItem).filter(
+                SprintBacklogItem.user_story_id == story.id,
+                SprintBacklogItem.pipeline_session_id == session_id,
+            ).first()
+            if backlog_item:
+                fields = issue.get("fields") or {}
+                backlog_item.status = _jira_task_status(fields)
+                if story.jira_sprint_id and story.jira_sprint_id in local_sprint_by_jira_id:
+                    backlog_item.sprint_id = local_sprint_by_jira_id[story.jira_sprint_id].id
+
+            stories_updated += 1
+
+    for task in linked_tasks:
+        issue = await resolve_issue(task.jira_subtask_key)
+        if issue:
+            _apply_jira_execution_fields(task, issue, now)
+            if membership_loaded:
+                task.jira_sprint_id = sprint_membership.get(
+                    task.jira_subtask_key,
+                    task.user_story.jira_sprint_id,
+                )
+            tasks_updated += 1
+
+    # A partial Jira failure must keep previously mirrored values intact. Only
+    # rows whose individual fetch succeeded were mutated above.
+    db.commit()
+    return {
+        "ok": True,
+        "fetched_at": now.isoformat(),
+        "jira_base_url": client.base_url,
+        "sprint": sprint_payloads[0] if sprint_payloads else None,
+        "sprints": sprint_payloads,
+        "stories_updated": stories_updated,
+        "tasks_updated": tasks_updated,
+        "linked_stories": len(linked_stories),
+        "linked_tasks": len(linked_tasks),
+        "unlinked_stories": len(stories) - len(linked_stories),
+        "unlinked_tasks": sum(len(story.tasks or []) for story in stories) - len(linked_tasks),
+        "errors": errors,
+        "stories": [_sync_story_payload(story) for story in linked_stories],
+        "tasks": [_sync_task_payload(task, story) for story in stories for task in (story.tasks or []) if task.jira_subtask_key],
+    }
+
+
+async def transition_jira_issue(
+    db: Session,
+    session_id: uuid.UUID,
+    client: JiraClient,
+    issue_key: str,
+    target_status: str,
+) -> dict[str, Any]:
+    """Execute status transition on Jira issue and immediately reflect in local DB."""
+    res = await client.transition_issue_by_status_name(issue_key, target_status)
+    now = datetime.now(UTC)
+
+    # Find matching story or task
+    story = db.query(UserStory).filter(
+        UserStory.jira_issue_key == issue_key,
+        UserStory.pipeline_session_id == session_id,
+    ).first()
+
+    task = None
+    if not story:
+        task = db.query(UserStoryTask).filter(
+            UserStoryTask.jira_subtask_key == issue_key,
+        ).first()
+
+    to_name = res.get("to_status") or target_status
+    if story:
+        story.jira_status = to_name
+        story.jira_last_synced_at = now
+        backlog_item = db.query(SprintBacklogItem).filter(
+            SprintBacklogItem.user_story_id == story.id,
+            SprintBacklogItem.pipeline_session_id == session_id,
+        ).first()
+        if backlog_item:
+            backlog_item.status = _jira_task_status({"status": {"name": to_name}})
+    elif task:
+        task.jira_status = to_name
+        task.status = _jira_task_status({"status": {"name": to_name}})
+        task.jira_last_synced_at = now
+
+    db.commit()
+    return {
+        "ok": True,
+        "issue_key": issue_key,
+        "target_status": target_status,
+        "jira_status": to_name,
+        "transition": res,
     }

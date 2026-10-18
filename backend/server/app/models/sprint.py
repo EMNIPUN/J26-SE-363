@@ -1,7 +1,7 @@
 import uuid
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Date, ForeignKey, Integer, String, UniqueConstraint, Uuid
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base, TimestampMixin
@@ -20,3 +20,7 @@ class Sprint(TimestampMixin, Base):
     end_date: Mapped[date | None] = mapped_column(Date)
     status: Mapped[str] = mapped_column(String(32), default="planning")
     jira_sprint_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    jira_state: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    jira_goal: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    jira_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    jira_last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

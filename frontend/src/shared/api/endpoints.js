@@ -57,6 +57,8 @@ export const ENDPOINTS = {
     JIRA_SYNC_BACKLOG: '/planning/jira/sync/backlog',
     JIRA_SYNC_SPRINT: '/planning/jira/sync/sprint',
     JIRA_RESET_LINKS: '/planning/jira/reset-links',
+    JIRA_FETCH: '/planning/jira/fetch',
+    JIRA_TRANSITION: '/planning/jira/transition',
   },
   TUTOR: {
     SESSIONS: '/tutor/sessions',

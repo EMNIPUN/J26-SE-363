@@ -282,6 +282,25 @@ class JiraSprintSyncIn(BaseModel):
     project_id: str | None = None
 
 
+class JiraFetchIn(BaseModel):
+    """Optional connection overrides for a manual Jira execution refresh."""
+    base_url: str | None = None
+    email: str | None = None
+    api_token: str | None = None
+    project_key: str | None = None
+    project_id: str | None = None
+
+
+class JiraTransitionIn(BaseModel):
+    issue_key: str
+    target_status: str
+    project_id: str | None = None
+    base_url: str | None = None
+    email: str | None = None
+    api_token: str | None = None
+
+
+
 # ── helpers ──────────────────────────────────────────────────
 
 
@@ -2281,4 +2300,42 @@ async def sync_sprint_to_jira(
     client = jira_service.get_jira_client(overrides)
     result = await jira_service.sync_sprint_to_jira(db, session.id, client, body.sprint_id)
     return result
+
+
+@router.post(
+    "/jira/fetch",
+    summary="Fetch current execution data from linked Jira sprint, stories, and subtasks",
+)
+async def fetch_jira_execution(
+    body: JiraFetchIn,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, body.project_id, user
+    )
+    overrides = body.model_dump(exclude_none=True)
+    client = jira_service.get_jira_client(overrides)
+    return await jira_service.fetch_linked_jira_execution(db, session.id, client)
+
+
+@router.post(
+    "/jira/transition",
+    summary="Transition Jira issue status and update local DB row",
+)
+async def transition_jira_issue(
+    body: JiraTransitionIn,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, body.project_id, user
+    )
+    overrides = body.model_dump(exclude_none=True)
+    client = jira_service.get_jira_client(overrides)
+    return await jira_service.transition_jira_issue(
+        db, session.id, client, body.issue_key, body.target_status
+    )
 
