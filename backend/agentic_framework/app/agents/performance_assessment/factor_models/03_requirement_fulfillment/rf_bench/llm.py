@@ -108,7 +108,8 @@ class GroqPool(LLM):
     def _load_daily(self):
         try:
             d = json.loads(USAGE_FILE.read_text(encoding="utf-8"))
-            return d if d.get("date") == str(date.today()) else {"date": str(date.today()), "requests": {}, "exhausted": []}
+            # the request counts are kept for the day; "exhausted" is not: a key is tried again in every new process, and a real limit is found again at once
+            return {**d, "exhausted": []} if d.get("date") == str(date.today()) else {"date": str(date.today()), "requests": {}, "exhausted": []}
         except Exception:
             return {"date": str(date.today()), "requests": {}, "exhausted": []}
 
