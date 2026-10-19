@@ -21,6 +21,7 @@ from pathlib import Path
 from .schema import est_tokens
 
 URL = "https://api.groq.com/openai/v1/chat/completions"
+PRECHECK_FACTOR = 1.3  # estimated prompt tokens above this many times the per-minute limit are certain to be refused (the estimate is within about +-20%)
 USAGE_FILE = Path(__file__).resolve().parents[1] / ".runs" / "groq_usage.json"
 
 
@@ -154,7 +155,13 @@ class GroqPool(LLM):
 
     def chat(self, messages, *, max_tokens=1200, temperature=0.0, json_mode=True, tag="", seed=None, model=None, tools=None):
         """``tools``: OpenAI-style function definitions; the model must call one of them (``Reply.tool_calls``). ``model`` overrides the pool's model for this call (the critic uses another family); limits are shared across models."""
-        need = sum(est_tokens(m["content"]) for m in messages) + max_tokens
+        prompt_est = sum(est_tokens(m["content"]) for m in messages)
+        need = prompt_est + max_tokens
+        if prompt_est > PRECHECK_FACTOR * self.tpm:
+            # The service refuses a request above the per-minute limit (HTTP 413), but when the daily bucket is low it answers such a request with a
+            # daily-limit 429 first, and waiting hours to be told "too large" helps nobody. A request this far above the limit is not sent.
+            return Reply(error=f"not sent: about {prompt_est} tokens against the account's {self.tpm} tokens per minute; the service refuses such requests",
+                         error_kind="too_large", model=self.model, attempts=0, meta={"client_precheck": True})
         use = model or self.model
         body = {"model": use, "messages": messages, "max_tokens": max_tokens, "temperature": temperature}
         if tools:

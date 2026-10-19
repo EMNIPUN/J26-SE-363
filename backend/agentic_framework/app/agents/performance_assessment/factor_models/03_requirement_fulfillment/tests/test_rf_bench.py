@@ -189,6 +189,14 @@ class Pacing(unittest.TestCase):
         self.assertFalse(re.search(r"per day|\(tpd\)|\(rpd\)", low))
         self.assertTrue(re.search(r"per day|\(tpd\)|\(rpd\)", "on tokens per day (TPD): Limit 200000".lower()))
 
+    def test_a_request_far_above_the_per_minute_limit_is_not_sent(self):
+        from rf_bench.llm import GroqPool
+        pool = GroqPool(model="m", keys=["a"], tpm=8000)
+        r = pool.chat([{"role": "user", "content": "x" * 60000}], max_tokens=10)  # about 18,000 tokens
+        self.assertEqual(r.error_kind, "too_large")
+        self.assertEqual(r.attempts, 0)
+        self.assertTrue(r.meta.get("client_precheck"))
+
     def test_wait_hint_is_parsed(self):
         from rf_bench.llm import parse_wait
         self.assertAlmostEqual(parse_wait("Please try again in 10m46.27s. Need"), 646.77, places=1)
