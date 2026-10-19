@@ -20,7 +20,7 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 BROWSER_ROLES = ("anon", "authenticated", "service_role")
-TABLES = ("perf_tracked_teams", "perf_runs", "perf_run_events", "perf_factor_results", "perf_assessment_results", "perf_snapshots", "perf_reviews")
+TABLES = ("perf_tracked_teams", "perf_runs", "perf_run_events", "perf_factor_results", "perf_assessment_results", "perf_snapshots", "perf_reviews", "perf_quizzes")
 
 
 def upgrade() -> None:

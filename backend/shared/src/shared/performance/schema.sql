@@ -111,6 +111,29 @@ CREATE TABLE IF NOT EXISTS perf_reviews (
 );
 CREATE INDEX IF NOT EXISTS ix_perf_reviews_status ON perf_reviews (status, created_at);
 
+CREATE TABLE IF NOT EXISTS perf_quizzes (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    team_ref        text NOT NULL,
+    sprint_id       text NOT NULL,
+    student_id      text NOT NULL,
+    run_id          uuid REFERENCES perf_runs (id) ON DELETE SET NULL,
+    question        text NOT NULL,
+    snippet         text NOT NULL,
+    file_path       text,
+    line_range      jsonb,
+    meta            jsonb NOT NULL DEFAULT '{}'::jsonb,
+    status          text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'extended', 'answered', 'expired')),
+    deadline_at     timestamptz NOT NULL,
+    extended_until  timestamptz,
+    answer          text,
+    answered_at     timestamptz,
+    in_extension    boolean NOT NULL DEFAULT false,
+    result          jsonb,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (team_ref, sprint_id, student_id)
+);
+CREATE INDEX IF NOT EXISTS ix_perf_quizzes_student ON perf_quizzes (student_id, status);
+
 -- Same protection as the other Core API tables: the backend role owns them, browser roles get nothing.
 ALTER TABLE perf_tracked_teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE perf_runs ENABLE ROW LEVEL SECURITY;
@@ -119,3 +142,4 @@ ALTER TABLE perf_factor_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE perf_assessment_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE perf_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE perf_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE perf_quizzes ENABLE ROW LEVEL SECURITY;

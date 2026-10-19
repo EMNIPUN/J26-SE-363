@@ -184,3 +184,37 @@ class PerformanceStore:
 
     def decide_review(self, review_id: str, decision: dict, decided_by: str | None = None) -> dict | None:
         return self._one("UPDATE perf_reviews SET status = 'decided', decision = %s, decided_by = %s, decided_at = now() WHERE id = %s AND status = 'open' RETURNING *", (Jsonb(decision), decided_by, review_id))
+
+    # ---- quizzes (Code Ownership) ----------------------------------------------------------------------------------------------------
+    def get_quiz(self, team_ref: str, sprint_id: str, student_id: str) -> dict | None:
+        return self._one("SELECT * FROM perf_quizzes WHERE team_ref = %s AND sprint_id = %s AND student_id = %s", (team_ref, sprint_id, student_id))
+
+    def create_quiz(self, team_ref: str, sprint_id: str, student_id: str, *, question: str, snippet: str, file_path: str | None, line_range: list | None, meta: dict, deadline_at, run_id: str | None = None) -> dict:
+        """The quiz of a student for a sprint; created once (a second call returns the existing one unchanged)."""
+        return self._one(
+            """INSERT INTO perf_quizzes (team_ref, sprint_id, student_id, run_id, question, snippet, file_path, line_range, meta, deadline_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+               ON CONFLICT (team_ref, sprint_id, student_id) DO UPDATE SET team_ref = EXCLUDED.team_ref RETURNING *""",
+            (team_ref, sprint_id, student_id, run_id, question, snippet, file_path, _j(line_range), Jsonb(meta), deadline_at))
+
+    def list_student_quizzes(self, student_id: str, status: str | None = None) -> list[dict]:
+        return self._all("SELECT * FROM perf_quizzes WHERE student_id = %s AND (%s::text IS NULL OR status = %s) ORDER BY created_at DESC", (student_id, status, status))
+
+    def submit_quiz_answer(self, quiz_id: str, answer: str, now=None) -> dict | None:
+        """Record the answer if the quiz is open or extended and its window has not passed; ``in_extension`` is set when it comes in the second window."""
+        return self._one(
+            """UPDATE perf_quizzes SET answer = %s, answered_at = COALESCE(%s::timestamptz, now()), in_extension = (status = 'extended'), status = 'answered'
+               WHERE id = %s AND status IN ('open', 'extended') AND COALESCE(%s::timestamptz, now()) <= COALESCE(extended_until, deadline_at) RETURNING *""",
+            (answer, now, quiz_id, now))
+
+    def set_quiz_result(self, quiz_id: str, result: dict) -> dict | None:
+        return self._one("UPDATE perf_quizzes SET result = %s WHERE id = %s RETURNING *", (Jsonb(result), quiz_id))
+
+    def advance_quiz_windows(self, extra_hours: float, now=None) -> list[dict]:
+        """Quizzes whose first window passed unanswered become 'extended' (a second window of extra_hours); those whose second window passed become 'expired'. Returns the changed rows."""
+        with self.pool().connection() as c:
+            with c.transaction():
+                cur = c.cursor(row_factory=dict_row)
+                ext = cur.execute("UPDATE perf_quizzes SET status = 'extended', extended_until = deadline_at + make_interval(hours => %s) WHERE status = 'open' AND deadline_at < COALESCE(%s::timestamptz, now()) RETURNING *", (extra_hours, now)).fetchall()
+                exp = cur.execute("UPDATE perf_quizzes SET status = 'expired' WHERE status = 'extended' AND extended_until < COALESCE(%s::timestamptz, now()) RETURNING *", (now,)).fetchall()
+        return ext + exp
