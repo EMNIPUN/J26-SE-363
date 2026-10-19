@@ -92,6 +92,48 @@ uv run python -m app.agents.security_assistant.replay_webhook          # add --r
 
 Not part of this: an HTTP route, frontend, database tables, queues. Dedupe state is therefore per process.
 
+
+## Scan and read the findings (`scan.py`)
+
+```powershell
+python -m app.agents.security_assistant.scan <folder | https://github.com/owner/repo> [--out DIR] [--skip a,b] [--ref SHA]
+```
+
+Prints a per-tool status table, a **coverage** check per category V1-V5, and a findings table, and writes
+`findings.json` (all findings, secrets masked) and `report.md` (grouped by V1-V5 with tool, rule, CWE, file:line,
+severity, message and a masked code snippet) to `--out` (default `scan_output/<name>_<time>/`, git-ignored).
+
+- A tool that failed, timed out or is not installed is shown as such and the result line says INCOMPLETE (exit code 2).
+- `--skip codeql` (comma separated or repeated; names: codeql, config-scan, gitleaks, trufflehog, osv-scanner, npm-audit,
+  pip-audit, actionlint, zizmor) runs without them. The output lists the skipped tools and the categories they leave
+  uncovered: **NONE** = no tool that finds this category ran, so "0 findings" says nothing; **REDUCED** = some did.
+  Without CodeQL, V1 and V2 are uncovered and V3 is reduced (config-scan still runs).
+- A URL is cloned with `fetch_repo` (https://github.com only, deleted afterwards); `--ref` picks the commit.
+- `--from-json findings.json [folder]` re-renders a saved result without scanning (used by the tests).
+
+The scanners live in the Docker image, so run it there (build the image first, see "How to run it"). The seeded
+fixtures need a real git history for the planted secret; `demo_repos` creates scannable copies. Planted bugs per
+fixture, to tick off against `report.md`: `tools/tests/fixtures/PLANTED_BUGS.md`.
+
+```powershell
+cd backendgentic_framework
+# once: create the scannable copies in scan_output/demo_repos
+docker run --rm -v "${PWD}:/app" selvia-security-assistant-tools sh -c "pip install -q pydantic pyyaml && cd /app && python -m app.agents.security_assistant.tools.tests.demo_repos /app/scan_output/demo_repos"
+
+# fast tools only (no CodeQL), one fixture each; replace <name> with vuln_py_repo, vuln_js_repo, vuln_java_repo, vuln_java_gradle_repo
+docker run --rm -v "${PWD}:/app" selvia-security-assistant-tools sh -c "pip install -q pydantic pyyaml && git config --global --add safe.directory '*' && cd /app && python -m app.agents.security_assistant.scan scan_output/demo_repos/<name> --out scan_output/reports/<name>_fast --skip codeql"
+
+# everything including CodeQL (slow: minutes per language)
+docker run --rm -v "${PWD}:/app" selvia-security-assistant-tools sh -c "pip install -q pydantic pyyaml && git config --global --add safe.directory '*' && cd /app && python -m app.agents.security_assistant.scan scan_output/demo_repos/<name> --out scan_output/reports/<name>_full"
+
+# a public repository (clone, scan, delete the clone)
+docker run --rm -v "${PWD}:/app" selvia-security-assistant-tools sh -c "pip install -q pydantic pyyaml && git config --global --add safe.directory '*' && cd /app && python -m app.agents.security_assistant.scan https://github.com/octocat/Hello-World --out scan_output/reports/hello_world --skip codeql"
+```
+
+Open `scan_output/reports/<name>_fast/report.md` (or `_full`) afterwards. On the host (no Docker) `uv run python -m
+app.agents.security_assistant.scan <folder>` also works, but only config-scan is installed there, so the other tools are
+reported as unavailable and the result is INCOMPLETE.
+
 ## Local setup with uv (the project package manager)
 
 The Python side is managed with [uv](https://docs.astral.sh/uv/) from `backend/agentic_framework/`
