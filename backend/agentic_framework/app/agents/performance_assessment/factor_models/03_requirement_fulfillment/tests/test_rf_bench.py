@@ -189,6 +189,41 @@ class Pacing(unittest.TestCase):
         self.assertFalse(re.search(r"per day|\(tpd\)|\(rpd\)", low))
         self.assertTrue(re.search(r"per day|\(tpd\)|\(rpd\)", "on tokens per day (TPD): Limit 200000".lower()))
 
+    def test_wait_hint_is_parsed(self):
+        from rf_bench.llm import parse_wait
+        self.assertAlmostEqual(parse_wait("Please try again in 10m46.27s. Need"), 646.77, places=1)
+        self.assertAlmostEqual(parse_wait("try again in 1h2m3s"), 3723.5, places=1)
+        self.assertAlmostEqual(parse_wait("try again in 850ms"), 1.35, places=2)
+        self.assertEqual(parse_wait("no hint", default=8.0), 8.0)
+
+    def test_at_the_daily_limit_the_pool_waits_for_the_refill_when_asked(self):
+        import os
+        from rf_bench import llm
+        from rf_bench.llm import GroqPool, Reply
+        calls = {"n": 0}
+
+        def fake_call(self, key, body):
+            calls["n"] += 1
+            if calls["n"] <= 2:  # both keys are refused once
+                return Reply(error="HTTP 429: tokens per day (TPD)", error_kind="quota", meta={"retry_after": 0.1})
+            return Reply(text="ok", model="m")
+        saved = GroqPool._call
+        GroqPool._call = fake_call
+        os.environ["RF_WAIT"] = "1"
+        try:
+            pool = GroqPool(model="m", keys=["a", "b"], tpm=8000)
+            r = pool.chat([{"role": "user", "content": "hi"}], max_tokens=10)
+            self.assertTrue(r.ok)
+            self.assertEqual(calls["n"], 3)
+            os.environ["RF_WAIT"] = "0"
+            calls["n"] = 0
+            pool2 = GroqPool(model="m", keys=["a", "b"], tpm=8000)
+            r2 = pool2.chat([{"role": "user", "content": "hi"}], max_tokens=10)
+            self.assertEqual(r2.error_kind, "quota")  # without the wait mode it is returned, not hidden
+        finally:
+            GroqPool._call = saved
+            os.environ.pop("RF_WAIT", None)
+
     def test_keys_are_not_in_the_repr_or_state(self):
         from rf_bench.llm import GroqPool
         pool = GroqPool(model="m", keys=["gsk_secretvalue"], tpm=8000)

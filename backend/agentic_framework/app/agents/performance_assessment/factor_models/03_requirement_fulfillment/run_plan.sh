@@ -13,11 +13,15 @@ WT=${RF_WT:-${TMPDIR:-/tmp}/rf_wt}
 PY=${RF_PY:?set RF_PY to a python with langgraph}
 : "${RF_ENV_FILE:?set RF_ENV_FILE}"
 export RF_ENV_FILE
+export RF_WAIT=${RF_WAIT:-1}   # at the daily token limit, wait for the refill instead of stopping (the limit refills continuously)
 STAGES=${*:-exp1 exp2 exp3}
 PB=${RF_PER_BUCKET:-4}   # held-out tasks per size bucket; the items are nested, so raising it later only adds items (8 is the full plan)
-tree() {  # tree <name> <branch>  -> path of a worktree on that branch
+tree() {  # tree <name> <branch>  -> path (inside a worktree) of that branch; an existing checkout of the branch is used as it is
+  local have
+  have=$(git -C "$ROOT" worktree list --porcelain | awk -v b="refs/heads/$2" '/^worktree /{w=substr($0,10)} /^branch /{if ($2==b) print w}' | head -1)
+  if [ -n "$have" ]; then echo "$have/$SUB"; return 0; fi
   local dir="$WT/$1"
-  [ -d "$dir" ] || git -C "$ROOT" worktree add -q "$dir" "$2" || { echo "cannot make a worktree for $2 (is it checked out elsewhere?)" >&2; return 1; }
+  [ -d "$dir" ] || git -C "$ROOT" worktree add -q "$dir" "$2" || { echo "cannot make a worktree for $2" >&2; return 1; }
   echo "$dir/$SUB"
 }
 run() {  # run <dir> <experiment> <split> <per-bucket> <out> [runs]

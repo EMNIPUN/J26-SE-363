@@ -101,6 +101,7 @@ class GroqPool(LLM):
         self.model = model or os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
         self.fallback = fallback or os.environ.get("GROQ_FALLBACK_MODEL", "")
         self.tpm, self.rpd, self.effort, self.timeout = tpm, rpd, effort, timeout
+        self.wait_quota = os.environ.get("RF_WAIT") == "1"  # wait for the daily token limit to refill instead of returning a quota error
         self.lock = threading.Lock()
         self.daily = self._load_daily()
 
@@ -172,7 +173,12 @@ class GroqPool(LLM):
         while attempts < 6:
             key, wait = self._pick(need)
             if key is None:
-                last.error, last.error_kind = "every key is exhausted for today", "quota"
+                if self.wait_quota:  # every key is at its daily limit: the limit refills continuously, so wait for the soonest key
+                    with self.lock:
+                        soonest = min((k.dead_until for k in self.keys), default=0) - time.time()
+                    time.sleep(min(max(soonest, 1.0), 1800.0))
+                    continue
+                last.error, last.error_kind = "every key is at its daily token limit", "quota"
                 break
             if wait > 0:
                 time.sleep(wait)
@@ -189,8 +195,9 @@ class GroqPool(LLM):
                 return reply
             last = reply
             if reply.error_kind == "quota":
-                with self.lock:
-                    self.daily["exhausted"].append(key.index)
+                with self.lock:  # this key is skipped until the refill covers what it was refused (not remembered between processes)
+                    key.dead_until = time.time() + float(reply.meta.get("retry_after", 600)) + 2
+                attempts -= 1  # a refused call at the daily limit is not one of the retries
                 continue
             time.sleep(min(float(reply.meta.get("retry_after", 5)), 65))
         last.latency, last.attempts = time.time() - t0, attempts
@@ -220,13 +227,12 @@ class GroqPool(LLM):
             except Exception:
                 pass
             msg = re.sub(r"gsk_[A-Za-z0-9]+", "gsk_***", text)
-            retry = re.search(r"try again in ([\d.]+)(ms|s|m)", msg)
-            after = float(retry.group(1)) / (1000 if retry.group(2) == "ms" else 1) * (60 if retry.group(2) == "m" else 1) + 0.5 if retry else 8
+            after = parse_wait(msg, default=8.0)
             low = re.sub(r"org_\w+", "org", msg).lower()  # an organisation id is random text: it must not match the checks below
             if e.code == 413 or "request too large" in low or "request_too_large" in low:
                 return Reply(model=body["model"], error=f"HTTP {e.code}: {msg[:300]}", error_kind="too_large")
             if e.code == 429 and re.search(r"per day|\(tpd\)|\(rpd\)", low):
-                return Reply(model=body["model"], error=f"HTTP 429: {msg[:200]}", error_kind="quota")
+                return Reply(model=body["model"], error=f"HTTP 429: {msg[:200]}", error_kind="quota", meta={"retry_after": after})
             if e.code == 429:
                 return Reply(model=body["model"], error=f"HTTP 429: {msg[:200]}", error_kind="rate_limited", meta={"retry_after": after})
             if e.code == 400:
@@ -234,6 +240,17 @@ class GroqPool(LLM):
             return Reply(model=body["model"], error=f"HTTP {e.code}: {msg[:200]}", error_kind="server", meta={"retry_after": 5})
         except Exception as e:  # network, timeout, malformed body
             return Reply(model=body["model"], error=f"{type(e).__name__}: {str(e)[:160]}", error_kind="network", meta={"retry_after": 5})
+
+
+def parse_wait(msg, default=8.0):
+    """Seconds in a 'Please try again in 1h2m3.5s' (or '850ms') hint, plus a small margin."""
+    m = re.search(r"try again in\s+((?:\d+(?:\.\d+)?(?:ms|h|m|s))+)", msg)
+    if not m:
+        return default
+    total = 0.0
+    for val, unit in re.findall(r"(\d+(?:\.\d+)?)(ms|h|m|s)", m.group(1)):
+        total += float(val) * {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}[unit]
+    return total + 0.5
 
 
 def parse_json(text):
