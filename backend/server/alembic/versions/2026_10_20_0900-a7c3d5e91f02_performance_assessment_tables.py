@@ -8,10 +8,14 @@ Revises: f2a6c4b8d150
 Create Date: 2026-10-20 09:00:00.000000
 
 """
+import importlib.util
+from pathlib import Path
 from typing import Sequence, Union
 
 from alembic import op
-from shared.performance.store import SCHEMA_SQL
+
+# Found without importing shared.performance: that package opens the job queue module, which reads the service's .env file, and migrations must not.
+SCHEMA_SQL = Path(importlib.util.find_spec("shared").submodule_search_locations[0]) / "performance" / "schema.sql"
 
 # revision identifiers, used by Alembic.
 revision: str = 'a7c3d5e91f02'
@@ -25,7 +29,9 @@ TABLES = ("perf_tracked_teams", "perf_runs", "perf_run_events", "perf_factor_res
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.get_bind().exec_driver_sql(SCHEMA_SQL.read_text(encoding="utf-8"))
+    if op.get_context().dialect.name != "postgresql":
+        return  # these tables use PostgreSQL types (jsonb, uuid, timestamptz); the SQLite test database does not need them
+    op.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
     # Same lock-down as the other Core API tables (row level security is enabled by the DDL file): browser roles get nothing.
     table_list = ", ".join(TABLES)
     for role in BROWSER_ROLES:
@@ -43,5 +49,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
+    if op.get_context().dialect.name != "postgresql":
+        return
     for table in reversed(TABLES):
         op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")

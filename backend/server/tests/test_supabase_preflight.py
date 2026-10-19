@@ -48,7 +48,8 @@ SECURITY_REVISION = "4f6d2a9c8e1b"
 REGISTRATION_REVISION = "ec66f4d17052"
 TERMS_REVISION = "d8a41c7e5b90"
 AVATARS_REVISION = "e5b7a1c3d924"
-NOTIFICATIONS_REVISION = "f2a6c4b8d150"  # head
+NOTIFICATIONS_REVISION = "f2a6c4b8d150"
+PERFORMANCE_REVISION = "a7c3d5e91f02"  # head
 REF = "abcdefghijklmnopqrst"
 PASSWORD = "not-a-real-secret"
 # Nothing connects with it, but it must look like a PEM certificate. Its path must never be printed.
@@ -240,8 +241,9 @@ def test_revisions_come_from_the_repository():
         TERMS_REVISION,
         AVATARS_REVISION,
         NOTIFICATIONS_REVISION,
+        PERFORMANCE_REVISION,
     )
-    assert revisions.heads == (NOTIFICATIONS_REVISION,)
+    assert revisions.heads == (PERFORMANCE_REVISION,)
 
 
 def test_queue_expectations_come_from_the_installed_procrastinate():

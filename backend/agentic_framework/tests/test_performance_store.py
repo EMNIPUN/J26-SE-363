@@ -4,6 +4,7 @@
 """
 import os
 import threading
+from datetime import datetime, timedelta, timezone
 
 import psycopg
 import pytest
@@ -29,7 +30,7 @@ def store():
     s = PerformanceStore(DSN)
     s.ensure_schema()
     with psycopg.connect(DSN, autocommit=True) as c:
-        c.execute("TRUNCATE perf_runs, perf_tracked_teams, perf_snapshots CASCADE")
+        c.execute("TRUNCATE perf_runs, perf_tracked_teams, perf_snapshots, perf_quizzes CASCADE")
     yield s
     s.close()
 
@@ -115,3 +116,41 @@ def test_reviews_are_decided_once(store):
     assert store.decide_review(rv["id"], {"action": "accept"}, "lecturer-1")["status"] == "decided"
     assert store.decide_review(rv["id"], {"action": "override"}) is None  # already decided
     assert store.list_reviews("open") == [] and len(store.list_reviews("decided")) == 1
+
+
+def _quiz(store, hours=48):
+    t0 = datetime(2026, 3, 20, tzinfo=timezone.utc)
+    q = store.create_quiz("T9", "T9-S1", "STU-1", question="What does a2 do?", snippet="def a2(): ...", file_path="a.py", line_range=[1, 9], meta={"facts": {"x": 1}}, deadline_at=t0 + timedelta(hours=hours))
+    return q, t0
+
+
+def test_one_quiz_per_student_and_sprint(store):
+    q, _ = _quiz(store)
+    again = store.create_quiz("T9", "T9-S1", "STU-1", question="Another?", snippet="x", file_path=None, line_range=None, meta={}, deadline_at=q["deadline_at"])
+    assert again["id"] == q["id"] and again["question"] == "What does a2 do?"
+    assert store.get_quiz("T9", "T9-S1", "STU-1")["status"] == "open"
+    assert [x["id"] for x in store.list_student_quizzes("STU-1", "open")] == [q["id"]] and store.list_student_quizzes("STU-2") == []
+
+
+def test_answer_in_first_window_then_refused(store):
+    q, t0 = _quiz(store)
+    row = store.submit_quiz_answer(q["id"], "it adds", now=t0 + timedelta(hours=10))
+    assert row["status"] == "answered" and row["in_extension"] is False and row["answer"] == "it adds"
+    assert store.submit_quiz_answer(q["id"], "again", now=t0 + timedelta(hours=11)) is None
+    assert store.set_quiz_result(q["id"], {"score": 0.5})["result"] == {"score": 0.5}
+
+
+def test_windows_extend_then_expire_and_late_answers_are_refused(store):
+    q, t0 = _quiz(store, hours=48)
+    deadline = q["deadline_at"]
+    assert store.submit_quiz_answer(q["id"], "late", now=deadline + timedelta(hours=1)) is None  # first window over, not yet moved to the second
+    assert store.advance_quiz_windows(48, now=deadline - timedelta(hours=1)) == []
+    moved = store.advance_quiz_windows(48, now=deadline + timedelta(hours=1))
+    assert [m["status"] for m in moved] == ["extended"]
+    row = store.submit_quiz_answer(q["id"], "in the second window", now=deadline + timedelta(hours=5))
+    assert row["in_extension"] is True and row["status"] == "answered"
+    q2 = store.create_quiz("T9", "T9-S1", "STU-2", question="q", snippet="s", file_path=None, line_range=None, meta={}, deadline_at=deadline)
+    store.advance_quiz_windows(48, now=deadline + timedelta(hours=1))
+    gone = store.advance_quiz_windows(48, now=deadline + timedelta(hours=60))
+    assert [m["id"] for m in gone] == [q2["id"]] and gone[0]["status"] == "expired"
+    assert store.submit_quiz_answer(q2["id"], "too late", now=deadline + timedelta(hours=61)) is None

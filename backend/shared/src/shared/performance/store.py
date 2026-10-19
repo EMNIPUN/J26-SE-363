@@ -81,6 +81,10 @@ class PerformanceStore:
     def get_tracked_team(self, team_ref: str) -> dict | None:
         return self._one("SELECT * FROM perf_tracked_teams WHERE team_ref = %s", (team_ref,))
 
+    def update_tracked_config(self, team_ref: str, config: dict) -> dict | None:
+        """Replace the team's config (roster, sprints, sync state) without touching its tracking status."""
+        return self._one("UPDATE perf_tracked_teams SET config = %s, updated_at = now() WHERE team_ref = %s RETURNING *", (Jsonb(config), team_ref))
+
     def list_tracked_teams(self, status: str | None = None) -> list[dict]:
         return self._all("SELECT * FROM perf_tracked_teams WHERE (%s::text IS NULL OR status = %s) ORDER BY team_ref", (status, status))
 
