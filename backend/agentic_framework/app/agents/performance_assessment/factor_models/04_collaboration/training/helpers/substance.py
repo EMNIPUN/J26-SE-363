@@ -19,7 +19,7 @@ from sklearn.metrics import brier_score_loss, roc_auc_score
 from sklearn.model_selection import GroupKFold
 
 HERE = Path(__file__).resolve().parent
-CACHE = HERE.parent / "data" / "cache"
+CACHE = HERE.parent / "dataset" / "cache"
 SEED = 20261019
 ENCODERS = {"MiniLM": "sentence-transformers/all-MiniLM-L6-v2", "mpnet": "sentence-transformers/all-mpnet-base-v2", "roberta": "roberta-base"}
 CODE_FLAG = re.compile(r"`|\.(js|ts|py|java|css)\b|\b(def|function|class|return)\b")

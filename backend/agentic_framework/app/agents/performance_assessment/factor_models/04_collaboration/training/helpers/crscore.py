@@ -11,10 +11,10 @@ from pathlib import Path
 import pandas as pd
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE.parent))
+sys.path.insert(0, str(HERE.parents[1]))
 from cleaning import clean_text  # noqa: E402
 
-DATA = HERE.parent / "data" / "crscore"
+DATA = HERE.parent / "dataset" / "crscore"
 RATINGS = {"Con (P)": "con", "Comp (R)": "comp", "Rel (F)": "rel"}
 BASE = "https://raw.githubusercontent.com/atharva-naik/CRScore/main/human_study/phase2/"
 FILES = [f"{l}_{w}_review_qual_final" for l in ("java", "js", "py") for w in ("atharva", "marcus")] + \

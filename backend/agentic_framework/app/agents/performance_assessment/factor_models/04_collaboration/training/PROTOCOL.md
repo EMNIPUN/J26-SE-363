@@ -44,17 +44,17 @@ The scaling constants (3, 3, 5) and equal weights are **design assumptions**, st
 
 **Not claimed:** that Collaboration is accurate for real students; that equal weights are right; that the substance scorer (trained on professional OpenStack reviews) transfers to student comments. Validation against human collaboration ratings is future work and needs ratings of students from teams that review each other.
 
-## Notebooks (`training/`)
+## Notebooks (`training/experiments/`)
 
 | Notebook | Content |
 |---|---|
-| `00_DATASET_ANALYSIS.ipynb` | why the CRScore human-rated data was rejected for a text-only scorer (record of the analysis; its data is not kept) |
-| `01_DATA_AND_BASELINES.ipynb` | public data (OpenDev, RevHelper), cleaning, guard layer, baselines for the substance scorer |
-| `02_ENCODER_TUNING.ipynb` | encoders and heads, tuning without selection bias, external test |
-| `03_COLLABORATION_SCORE.ipynb` | the scorer on student texts; learned combiner as a pipeline test |
-| `04_FIXED_SCORE_AND_SENSITIVITY.ipynb` | the specified score (`score.py`), data audit, sensitivity to weights and caps, behaviour-class face check, invariants |
+| `exp01_dataset_analysis/00_DATASET_ANALYSIS.ipynb` | why the CRScore human-rated data was rejected for a text-only scorer (record of the analysis; its data is not kept) |
+| `exp02_substance_scorer/01_DATA_AND_BASELINES.ipynb` | public data (OpenDev, RevHelper), cleaning, guard layer, baselines for the substance scorer |
+| `exp02_substance_scorer/02_ENCODER_TUNING.ipynb` | encoders and heads, tuning without selection bias, external test |
+| `exp02_substance_scorer/03_COLLABORATION_SCORE.ipynb` | the scorer on student texts; learned combiner as a pipeline test |
+| `exp03_fixed_score/04_FIXED_SCORE_AND_SENSITIVITY.ipynb` | the specified score (`score.py`), data audit, sensitivity to weights and caps, behaviour-class face check, invariants |
 
-The public data is downloaded on demand by `download_data.py` into `data/raw/` (not committed). The trained scorer and the result tables are in `training/results/`.
+The public data is downloaded on demand by `helpers/download_data.py` into `dataset/raw/` (not committed). Each experiment folder keeps its own `results/` (the trained scorer is in `exp02_substance_scorer/results/`); shared code is in `helpers/`.
 
 ## Amendment log
 

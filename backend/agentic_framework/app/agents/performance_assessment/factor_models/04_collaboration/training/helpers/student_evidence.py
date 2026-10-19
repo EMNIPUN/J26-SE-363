@@ -10,7 +10,7 @@ from pathlib import Path
 import pandas as pd
 
 HERE = Path(__file__).resolve().parent
-FM = HERE.parents[1]
+FM = HERE.parents[2]
 sys.path.insert(0, str(FM))
 from evidence.testing import evidence  # noqa: E402
 

@@ -1,11 +1,11 @@
-"""Downloads the public review-comment datasets into data/raw/ (not committed: GPL-3.0 and MIT data stay with their owners).
+"""Downloads the public review-comment datasets into training/dataset/raw/ (not committed: GPL-3.0 and MIT data stay with their owners).
 
     python download_data.py
 """
 import urllib.request
 from pathlib import Path
 
-RAW = Path(__file__).resolve().parent / "data" / "raw"
+RAW = Path(__file__).resolve().parent.parent / "dataset" / "raw"
 OPENDEV = "https://raw.githubusercontent.com/WSU-SEAL/CR-usefulness-EMSE/main/Regression/usefulness_dataset.csv"
 REVHELPER = "https://raw.githubusercontent.com/masud-technope/RevHelper-Replication-Package-MSR2017/master/{part}/{name}.txt"
 FILES = {"opendev.csv": OPENDEV,

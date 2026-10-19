@@ -4,6 +4,8 @@
 """
 from pathlib import Path
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "exp02_substance_scorer"))
 from build_notebooks import code, md, write
 
 HERE = Path(__file__).resolve().parent
@@ -18,14 +20,14 @@ SETUP = """
 import sys, warnings, json, importlib.util
 from pathlib import Path
 warnings.filterwarnings("ignore")
-sys.path.insert(0, str(Path(".").resolve()))
+sys.path.insert(0, str(Path("../../helpers").resolve()))
 import numpy as np, pandas as pd
 import matplotlib.pyplot as plt, seaborn as sns
 from scipy.stats import spearmanr
 sns.set_theme(style="whitegrid")
 pd.set_option("display.width", 170); pd.set_option("display.max_columns", 30)
 import student_evidence as se
-spec = importlib.util.spec_from_file_location("collab_score_nb", Path("..") / "score.py")
+spec = importlib.util.spec_from_file_location("collab_score_nb", Path("../../..") / "score.py")
 S = importlib.util.module_from_spec(spec); spec.loader.exec_module(S)
 RESULTS = Path("results"); RESULTS.mkdir(exist_ok=True)
 """
@@ -108,7 +110,7 @@ face
 
 INV = """
 import subprocess
-r = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "04_collaboration/tests"], cwd=str(Path("..").resolve().parent), capture_output=True, text=True)
+r = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "04_collaboration/tests"], cwd=str(Path("../../../..").resolve()), capture_output=True, text=True)
 print((r.stdout + r.stderr).strip().splitlines()[-4:])
 """
 
@@ -124,7 +126,7 @@ def main():
         md("""
 # Collaboration step 2: the specified score, the data audit and the sensitivity analysis
 
-Protocol: [PROTOCOL.md](../PROTOCOL.md). The score is the equal-weight mean of six measures with an evidence gate (`score.py`); nothing here is fitted. This notebook
+Protocol: [PROTOCOL.md](../../PROTOCOL.md). The score is the equal-weight mean of six measures with an evidence gate (`score.py`); nothing here is fitted. This notebook
 (1) scores every real and simulated student-sprint, (2) reports how many can be scored at all (the audit), (3) measures how much the ranking depends on the two design
 assumptions, equal weights and the count caps, and (4) checks the invariants. The simulated students and their texts were written by the assistant: they exercise the
 pipeline, they do not measure accuracy.

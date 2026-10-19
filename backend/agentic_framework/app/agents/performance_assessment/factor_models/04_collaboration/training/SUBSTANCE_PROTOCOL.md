@@ -19,7 +19,7 @@ Fine-tuning the encoder is not in the proposal and is an optional last experimen
 | RevHelper (masud-technope/RevHelper-Replication-Package-MSR2017) | OpenStack Nova comments, useful / not useful | 1,480; 1,464 after removing 16 texts also in OpenDev | MIT | **external test**, never used to choose anything |
 | Student texts | reviews and comments in the real student repositories (13) and the simulated students' (140) | 153 | - | scored only; no labels |
 
-Raw data is downloaded by `download_data.py` into `data/raw/` and is **not committed**. Label meaning: a comment is "useful" when the code author acted on it. That is related
+Raw data is downloaded by `helpers/download_data.py` into `dataset/raw/` and is **not committed**. Label meaning: a comment is "useful" when the code author acted on it. That is related
 to, not the same as, "substantive", and it depends on the code the comment was about, which the text does not contain.
 
 ## Pipeline
@@ -71,7 +71,7 @@ written by the assistant and only exercise the pipeline.
 
 ## Run 2: is a context-aware relevance rating achievable? (written before the test)
 
-Datasets tried after the first run (see `training/reading_0.md`): CuRev (model-written comments and model-written scores, unusable), the CRScore human study (reliable human ratings, but 90% model-written
+Datasets tried after the first run (see `experiments/exp01_dataset_analysis/reading_0.md`): CuRev (model-written comments and model-written scores, unusable), the CRScore human study (reliable human ratings, but 90% model-written
 comments, and relevance is judged against the code), and `ronantakizawa/github-codereview` (real comments, but its `quality_score` is a length-driven rule, not a rating).
 
 **Question.** If the judge can see the code change, how well can relevance be predicted for **human-written** review comments? Test: a language model (`openai/gpt-oss-120b` via Groq, temperature 0, public data only)

@@ -1,4 +1,4 @@
-"""Builds 04_collaboration/training/00_DATASET_ANALYSIS.ipynb: is the CRScore human-rated data suitable for training the comment-substance scorer?
+"""Builds 00_DATASET_ANALYSIS.ipynb (next to this file): is the CRScore human-rated data suitable for training the comment-substance scorer?
 
     python build_analysis_notebook.py
 """
@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE.parent / "exp02_substance_scorer"))
 from build_notebooks import code, md, write  # noqa: E402
 
 reading = (HERE / "reading_0.md").read_text(encoding="utf-8") if (HERE / "reading_0.md").exists() else "_Reading of the results: written after the run._"
@@ -29,7 +29,7 @@ models and about 10% (`msg`) are the original human reviewer comments. Questions
 import sys, warnings
 from pathlib import Path
 warnings.filterwarnings("ignore")
-sys.path.insert(0, str(Path(".").resolve()))
+sys.path.insert(0, str(Path("../../helpers").resolve()))
 import numpy as np, pandas as pd
 import matplotlib.pyplot as plt, seaborn as sns
 from scipy.stats import spearmanr
@@ -57,7 +57,7 @@ agree with a person better than people agree with each other.
 """),
     code("""
 import sys
-sys.path.insert(0, str(Path("../../ml_lib").resolve()))
+sys.path.insert(0, str(Path("../../../../ml_lib").resolve()))
 from core import qwk, icc
 rows = {}
 for c, name in (("rel", "relevance"), ("comp", "comprehensiveness"), ("con", "conciseness")):

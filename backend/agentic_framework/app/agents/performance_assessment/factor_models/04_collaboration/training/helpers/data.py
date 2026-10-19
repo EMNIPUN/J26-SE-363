@@ -12,8 +12,8 @@ from pathlib import Path
 import pandas as pd
 
 HERE = Path(__file__).resolve().parent
-COLLAB = HERE.parent
-RAW = COLLAB / "data" / "raw"
+COLLAB = HERE.parents[1]
+RAW = HERE.parent / "dataset" / "raw"
 sys.path.insert(0, str(COLLAB))
 from cleaning import clean_text  # noqa: E402
 

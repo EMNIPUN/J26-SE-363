@@ -39,7 +39,7 @@ SETUP = """
 import sys, warnings, json
 from pathlib import Path
 warnings.filterwarnings("ignore")
-sys.path.insert(0, str(Path(".").resolve()))
+sys.path.insert(0, str(Path("../../helpers").resolve()))
 import numpy as np, pandas as pd
 import matplotlib.pyplot as plt, seaborn as sns
 from scipy.stats import spearmanr
@@ -65,7 +65,7 @@ def nb1():
         md("""
 # Collaboration step 1, notebook 1: the public data, cleaning, the guard layer and the baselines
 
-Protocol: [SUBSTANCE_PROTOCOL.md](../SUBSTANCE_PROTOCOL.md). The student dataset is far too small to train a comment scorer on (the real students wrote 12 reviews and 1 comment, none
+Protocol: [SUBSTANCE_PROTOCOL.md](../../SUBSTANCE_PROTOCOL.md). The student dataset is far too small to train a comment scorer on (the real students wrote 12 reviews and 1 comment, none
 over 10 words), so the scorer is trained on public labeled review comments and the student texts are only scored.
 
 **What the labels mean.** Both public sets label a comment *useful* when the code author acted on it (OpenStack Nova, Gerrit). That is related to, not the same as, "substantive", and it depends on the code the
@@ -156,7 +156,7 @@ def nb2():
         md("""
 # Collaboration step 1, notebook 2: frozen encoders, heads, tuning without selection bias, the external test
 
-Transfer learning by feature extraction: a pretrained encoder is kept **frozen**; only the head learns from the public labels. Everything follows [SUBSTANCE_PROTOCOL.md](../SUBSTANCE_PROTOCOL.md),
+Transfer learning by feature extraction: a pretrained encoder is kept **frozen**; only the head learns from the public labels. Everything follows [SUBSTANCE_PROTOCOL.md](../../SUBSTANCE_PROTOCOL.md),
 written before any model was trained: nested grouped folds, selection without bias, the rule for keeping a complex head, the external test scored once.
 """),
         code(SETUP),
