@@ -1,74 +1,68 @@
 [
   {
+    "id": "ex-pdf-pay-021",
+    "quality": "high",
+    "requirement": "REQ-PAY-021: When a customer completes a payment using a valid credit card, the system shall generate a payment receipt containing the order ID, payment amount, currency, transaction timestamp, and last four digits of the card. If payment authorization fails, the system shall display an error message and shall not create a payment record. Source: Business Rule BR-018. Test Cases: TC-PAY-052, TC-PAY-053.",
+    "note": "ISO/IEC/IEEE 29148 Score 4.0/4 (100%): Clarity 4, Completeness 4, Testability 4, Consistency 4, Traceability 4, Correctness 4. Explicit actors, trigger, behavior, data, exception behavior, source BR, and test cases."
+  },
+  {
+    "id": "ex-pdf-usr-007",
+    "quality": "medium",
+    "requirement": "REQ-USR-007: The system shall allow users to upload profile pictures.",
+    "note": "ISO/IEC/IEEE 29148 Score 2.0/4 (50%): Clarity 3, Completeness 1, Testability 2, Consistency 3, Traceability 1, Correctness C/A. File types, max size, validation, storage, and error behavior are missing."
+  },
+  {
+    "id": "ex-pdf-sec-009",
+    "quality": "high",
+    "requirement": "REQ-SEC-009: All user passwords shall be hashed using a salted password-hashing algorithm before storage. Parent Requirement: SYS-SEC-002.",
+    "note": "ISO/IEC/IEEE 29148 Score 3.67/4 (91.7%): Clarity 4, Completeness 3, Testability 4, Consistency 4, Traceability 3, Correctness 4. Derived security requirement; links to parent system requirement."
+  },
+  {
+    "id": "ex-pdf-prf-003",
+    "quality": "low",
+    "requirement": "REQ-PRF-003: The system shall respond quickly to user searches.",
+    "note": "ISO/IEC/IEEE 29148 Score 1.4/4 (35%): Clarity 2, Completeness 1, Testability 0, Consistency 3, Traceability 1, Correctness C/A. 'Quickly' is subjective and cannot be objectively verified; search scope and conditions missing."
+  },
+  {
+    "id": "ex-pdf-inv-012",
+    "quality": "medium",
+    "requirement": "REQ-INV-012: When inventory for a product falls below its reorder level, the system shall create a purchase requisition for the product's standard reorder quantity.",
+    "note": "ISO/IEC/IEEE 29148 Score 3.17/4 (79.2%): Clarity 4, Completeness 3, Testability 4, Consistency 4, Traceability 0, Correctness 4. Correct requirement but missing ID/traceability links reduces quality."
+  },
+  {
     "id": "ex-login-high",
     "quality": "high",
-    "requirement": "The system shall lock a user account for 15 minutes after 5 consecutive failed login attempts and display the remaining lockout time to the user.",
-    "note": "Specific actor/action/object, measurable thresholds (5 attempts, 15 minutes), testable, single obligation."
+    "requirement": "When a user submits credentials on the login screen, the system shall authenticate the user and lock the account for 15 minutes after 5 consecutive failed login attempts, displaying the remaining lockout time. If locked, the system shall reject login attempts. Source: BR-SEC-01. Test: TC-AUTH-005.",
+    "note": "ISO/IEC/IEEE 29148 Score 4: Specific actor, trigger, action, measurable thresholds (5 attempts, 15 minutes), exception behavior, source and test link."
   },
   {
     "id": "ex-login-low",
     "quality": "low",
     "requirement": "The system shall provide a user-friendly and secure login page that is fast.",
-    "note": "Vague subjective terms ('user-friendly', 'secure', 'fast') with no measurable criteria; not testable."
+    "note": "ISO/IEC/IEEE 29148 Score 1: Vague subjective terms ('user-friendly', 'secure', 'fast') with no measurable criteria; not verifiable."
   },
   {
     "id": "ex-search-high",
     "quality": "high",
-    "requirement": "The system shall return search results within 2 seconds for queries over a catalogue of up to 50,000 products, displaying 20 results per page.",
-    "note": "Quantified time limit, scale, and pagination; verifiable."
-  },
-  {
-    "id": "ex-search-medium",
-    "quality": "medium",
-    "requirement": "The system shall allow users to search for products by name and show the matching results.",
-    "note": "Clear actor/action but missing performance, ranking, and empty-result behaviour; incomplete."
+    "requirement": "When a registered customer submits a product-search query, the system shall display the first 20 matching products within 2 seconds for catalogues up to 50,000 items. If no products match, the system shall display 'No products found'. Source: STK-CAT-01. Test: TC-SRCH-002.",
+    "note": "ISO/IEC/IEEE 29148 Score 4: Quantified time limit, scale, pagination, and empty-result exception behavior."
   },
   {
     "id": "ex-upload-high",
     "quality": "high",
-    "requirement": "The system shall accept document uploads of type .pdf or .docx up to 10 MB, and reject other types or larger files with a descriptive error message.",
-    "note": "States valid ranges, accepted types, and error handling; complete and testable."
+    "requirement": "When an authenticated student uploads an SRS document, the system shall accept files of type .pdf or .docx up to 10 MB, and reject larger or unsupported files within 3 seconds with a descriptive error message. Source: STK-DOC-03. Test: TC-UPLD-001.",
+    "note": "ISO/IEC/IEEE 29148 Score 4: States valid ranges, accepted formats, and explicit exception handling."
   },
   {
     "id": "ex-compound-low",
     "quality": "low",
     "requirement": "The system shall let a student upload an SRS and automatically generate a sprint backlog while also notifying the instructor.",
-    "note": "Compound requirement bundling three obligations ('upload', 'generate backlog', 'notify'); violates atomicity — should be split."
-  },
-  {
-    "id": "ex-notify-medium",
-    "quality": "medium",
-    "requirement": "The system shall notify the relevant people when an error occurs.",
-    "note": "Ambiguous: 'relevant people' and 'an error' are undefined; not specific or testable."
-  },
-  {
-    "id": "ex-report-high",
-    "quality": "high",
-    "requirement": "The system shall generate a PDF report of all requirements and their quality scores within 5 seconds of the user requesting it.",
-    "note": "Single obligation, measurable time limit, clear output; verifiable."
-  },
-  {
-    "id": "ex-reliability-low",
-    "quality": "low",
-    "requirement": "The system shall be reliable.",
-    "note": "No actor, action, or measurable criterion; untestable non-functional aspiration."
+    "note": "ISO/IEC/IEEE 29148 Score 1 (Clarity/Consistency): Compound requirement bundling three separate obligations; violates atomicity."
   },
   {
     "id": "ex-availability-high",
     "quality": "high",
-    "requirement": "The system shall maintain 99.5% uptime measured monthly, excluding scheduled maintenance announced 24 hours in advance.",
-    "note": "Quantified non-functional requirement with a clear, measurable target and exclusion."
-  },
-  {
-    "id": "ex-override-high",
-    "quality": "high",
-    "requirement": "The system shall allow an instructor to override a blocked requirement, recording the instructor's identity and the timestamp of the override.",
-    "note": "Specific actor, action, and auditable outcome; traceable and testable."
-  },
-  {
-    "id": "ex-role-medium",
-    "quality": "medium",
-    "requirement": "The system shall support different user roles with appropriate permissions.",
-    "note": "'Appropriate' is vague and the roles/permissions are unspecified; needs enumeration to be complete and testable."
+    "requirement": "The system shall maintain 99.5% uptime measured monthly, excluding scheduled maintenance announced at least 24 hours in advance. Source: NFR-OPS-01. Test: TC-MON-001.",
+    "note": "ISO/IEC/IEEE 29148 Score 4: Quantified non-functional requirement with measurable target and explicit exclusion."
   }
 ]

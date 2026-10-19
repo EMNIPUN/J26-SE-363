@@ -23,16 +23,16 @@ from docx.shared import Pt
 _FR_HEADERS = ("ID", "Requirement", "Priority")
 _NFR_HEADERS = ("ID", "Requirement", "Category")
 
-# Sample SRS content — a deliberate mix for demos (good / vague / compound / ambiguous).
+# Sample SRS content — demonstrating ISO/IEC/IEEE 29148 Score 4 standards alongside contrastive examples.
 _SAMPLE_FR = [
     ("FR-01", "The system shall provide a user-friendly login page that is fast and secure.", "High"),
-    ("FR-02", "The system shall lock a user account for 15 minutes after 5 consecutive failed login attempts and display the remaining lockout time.", "High"),
-    ("FR-03", "The system shall allow a student to upload an SRS document and generate a sprint backlog from it.", "High"),
+    ("FR-02", "When a registered customer enters invalid credentials 5 consecutive times within 10 minutes, the system shall lock the account for 15 minutes, display the remaining lockout duration, and send a security alert email to the customer's registered email address. Source: Business Rule BR-SEC-01. Test: TC-AUTH-005.", "High"),
+    ("FR-03", "When an authenticated student uploads an SRS document in .docx format up to 10 MB, the system shall parse the requirement tables within 15 seconds and display the extracted requirement list. If the uploaded document format is invalid or corrupted, the system shall display a descriptive error message indicating the file formatting fault. Source: Stakeholder Need STK-DOC-02. Test: TC-PARSE-014.", "High"),
     ("FR-04", "The system should handle errors appropriately and notify the relevant people.", "Medium"),
-    ("FR-05", "The system shall let an instructor review and override a blocked requirement, recording who made the change and when.", "Medium"),
+    ("FR-05", "When an instructor reviews a blocked requirement in the quality dashboard, the system shall allow the instructor to apply an administrative override with mandatory justification notes, recording the instructor ID, justification text, and UTC timestamp in the audit log. Source: Governance Rule POL-GOV-03. Test: TC-OVR-021.", "Medium"),
 ]
 _SAMPLE_NFR = [
-    ("NFR-01", "The system shall return a quality analysis for a single requirement within 30 seconds under normal load.", "Performance"),
+    ("NFR-01", "Under normal production load up to 100 concurrent requests, the system shall complete and return a quality analysis for a single requirement within 5 seconds in 95% of requests. Source: Performance SLA SLA-PERF-01. Test: TC-PERF-001.", "Performance"),
     ("NFR-02", "The system shall be reliable.", "Reliability"),
 ]
 
@@ -71,7 +71,9 @@ def _base_document(title_suffix: str) -> Document:
     doc.add_heading("2. Functional Requirements", level=1)
     doc.add_paragraph(
         "List each functional requirement in the table below. Keep one requirement "
-        "per row. Use the form: “The system shall <actor/action/object> <condition>.”"
+        "per row. Follow ISO/IEC/IEEE 29148: specify actor, trigger/precondition, action, "
+        "measurable criteria, and exception behavior. Include backward source (Source: ...) "
+        "and forward verification (Test: ...) to achieve a Score 4 (Excellent)."
     )
     return doc
 
@@ -88,8 +90,10 @@ def _template_document():
 
     note = doc.add_paragraph()
     run = note.add_run(
-        "Tip: write what the system SHALL do, make it testable, and avoid vague words "
-        "like “user-friendly”, “fast”, or “secure” without a measurable target."
+        "ISO/IEC/IEEE 29148 Scoring Tip: To score 4/4 (100% - Excellent), ensure your requirement "
+        "specifies: (1) Actor, (2) Trigger or precondition, (3) Measurable action/constraint, "
+        "(4) Exception handling behavior, (5) Source link (e.g. Source: BR-xxx / STK-xxx), and "
+        "(6) Verification link (e.g. Test: TC-xxx). Avoid vague adjectives like 'fast', 'secure', or 'user-friendly'."
     )
     run.font.size = Pt(9)
     run.italic = True

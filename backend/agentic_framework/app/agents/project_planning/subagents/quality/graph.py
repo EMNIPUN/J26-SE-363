@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 
 from langgraph.graph import END, START, StateGraph
 
@@ -57,33 +58,80 @@ TOOL_EXEMPLAR_RETRIEVER = "exemplar_retriever"
 TOOL_CROSS_REQ_CHECKER = "cross_req_checker"
 TOOL_DIMENSION_SCORER = "dimension_scorer"
 
-# The agent gathers evidence (smells + RAG retrieval + cross-req similarity)
-# before it scores. Each gathering tool runs once; dimension_scorer may re-run.
-_GATHER_TOOLS = (
-    TOOL_SMELL_DETECTOR,
-    TOOL_STANDARD_RETRIEVER,
-    TOOL_EXEMPLAR_RETRIEVER,
-    TOOL_CROSS_REQ_CHECKER,
-)
+_TOKEN_RE = re.compile(r"[a-z0-9]{3,}")
+_COMMON_TOKENS = {
+    "shall", "must", "will", "system", "user", "users", "application",
+    "software", "data", "from", "with", "when", "then", "that", "this",
+}
+
+
+def _meaningful_tokens(text: str) -> set[str]:
+    return {
+        token for token in _TOKEN_RE.findall(text.lower())
+        if token not in _COMMON_TOKENS
+    }
+
+
+def _has_overlap_candidate(requirement_text: str, other_texts: list[str]) -> bool:
+    """Cheap pre-filter for the expensive semantic cross-requirement checker.
+
+    The checker is useful only when another requirement shares a substantial
+    domain/action vocabulary. Generic SRS words ("system", "shall") do not
+    count, so a batch of unrelated requirements does not invoke it N times.
+    """
+    source = _meaningful_tokens(requirement_text)
+    if len(source) < 2:
+        return False
+    for other in other_texts:
+        candidate = _meaningful_tokens(other)
+        overlap = source & candidate
+        if len(overlap) >= 2 and len(overlap) / min(len(source), len(candidate) or 1) >= 0.4:
+            return True
+    return False
+
+
+def _needs_standards(smell_types: set[str]) -> bool:
+    """Retrieve standards only when they are needed to explain a detected gap."""
+    return bool(smell_types)
+
+
+def _needs_exemplars(smell_types: set[str]) -> bool:
+    """Examples help students revise wording/measurement problems, not clean text."""
+    return bool(smell_types & {"vague_term", "weak_word", "unquantified", "no_obligation", "passive_voice"})
 
 
 # --- nodes ------------------------------------------------------------------
 
 
 def reason(state: QualityState) -> QualityState:
-    """Pick the next tool, or signal (pending_tool=None) to move on to reflection."""
+    """Select only the next evidence tool justified by the requirement's signals."""
     iterations = state.get("iterations", 0) + 1
     tools_run = state.get("tools_run", [])
 
     pending: str | None
     if iterations > MAX_ITERATIONS:
         pending = None  # safety: stop gathering, go reflect/finalize
-    elif next_gather := next((t for t in _GATHER_TOOLS if t not in tools_run), None):
-        pending = next_gather  # keep gathering evidence
-    elif TOOL_DIMENSION_SCORER not in tools_run or state.get("reflection_note"):
-        pending = TOOL_DIMENSION_SCORER  # score, or re-score after a reflection note
+    elif TOOL_SMELL_DETECTOR not in tools_run:
+        # Always cheap, deterministic, and provides the signals used to choose
+        # any optional RAG tools.
+        pending = TOOL_SMELL_DETECTOR
     else:
-        pending = None
+        smell_types = {smell.type for smell in state.get("smells", [])}
+        if _needs_standards(smell_types) and TOOL_STANDARD_RETRIEVER not in tools_run:
+            pending = TOOL_STANDARD_RETRIEVER
+        elif _needs_exemplars(smell_types) and TOOL_EXEMPLAR_RETRIEVER not in tools_run:
+            pending = TOOL_EXEMPLAR_RETRIEVER
+        elif (
+            TOOL_CROSS_REQ_CHECKER not in tools_run
+            and _has_overlap_candidate(state["requirement_text"], state.get("other_texts", []))
+        ):
+            pending = TOOL_CROSS_REQ_CHECKER
+        elif TOOL_DIMENSION_SCORER not in tools_run or state.get("reflection_note"):
+            # Every requirement is scored; retrieval augments this call only
+            # when the preceding signals made it useful.
+            pending = TOOL_DIMENSION_SCORER
+        else:
+            pending = None
 
     return {"pending_tool": pending, "iterations": iterations}
 
@@ -126,9 +174,11 @@ async def execute_tool(state: QualityState) -> QualityState:
             data = await request_dimension_scores(
                 text,
                 state.get("smell_spans", []),
+                requirement_id=state.get("requirement_id", ""),
                 standards=state.get("retrieved_standards"),
                 exemplars=state.get("retrieved_exemplars"),
                 cross_hits=state.get("cross_req_hits"),
+                other_requirements=state.get("other_texts"),
                 reflection_note=state.get("reflection_note"),
             )
             return {"dimensions_raw": data, "tools_run": tools_run, "reflection_note": None}
@@ -175,7 +225,7 @@ async def reflect(state: QualityState) -> QualityState:
             REFLECT_SYSTEM_PROMPT,
             build_reflect_prompt(
                 state["requirement_text"],
-                data.get("dimensions", {}),
+                data,
                 state.get("smell_spans", []),
             ),
             max_tokens=300,
@@ -206,7 +256,16 @@ def finalize(state: QualityState) -> QualityState:
     )
 
     if state.get("scoring_failed") or not state.get("dimensions_raw"):
-        return {"result": heuristic_result(req_id, smells, threshold, retrieval=retrieval)}
+        result = heuristic_result(
+            req_id,
+            smells,
+            threshold,
+            req_text=state.get("requirement_text", ""),
+            other_texts=state.get("other_texts"),
+            retrieval=retrieval,
+        )
+        result.tools_used = [*state.get("tools_run", []), "heuristic_scorer"]
+        return {"result": result}
 
     result = build_result(
         req_id,
@@ -216,6 +275,7 @@ def finalize(state: QualityState) -> QualityState:
         confidence_override=state.get("reflection_confidence"),
         retrieval=retrieval,
     )
+    result.tools_used = state.get("tools_run", [])
     return {"result": result}
 
 

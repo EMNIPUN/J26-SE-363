@@ -12,17 +12,19 @@ import {
   UserCheck,
   ShieldCheck,
   Check,
+  Wrench,
 } from 'lucide-react'
 import Card from '../../../shared/components/Card.jsx'
 import Badge from '../../../shared/components/Badge.jsx'
 import { Button } from '@/components/ui/button'
 import QualityRadarChart from './QualityRadarChart.jsx'
 import { QUALITY_DIMENSIONS } from '../data/mockData.js'
-import { DIMENSION_ISSUE, QUALITY_GATE_THRESHOLD } from '../utils.js'
+import { QUALITY_GATE_THRESHOLD, formatConfidence } from '../utils.js'
 
-function dimTier(score) {
-  if (score >= 80) return 'pass'
-  if (score >= 60) return 'warn'
+function dimTier(score, applicability) {
+  if (applicability === 'cannot_assess' || applicability === 'not_applicable') return 'neutral'
+  if (score >= QUALITY_GATE_THRESHOLD) return 'pass'
+  if (score >= 50) return 'warn'
   return 'fail'
 }
 
@@ -30,21 +32,31 @@ const DIM_ICON = {
   pass: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />,
   warn: <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />,
   fail: <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />,
+  neutral: <BookOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />,
 }
 
-const IEEE_STANDARD_CLAUSES = {
-  clarity: 'IEEE 830 § 4.3.2',
-  completeness: 'IEEE 830 § 4.3.3',
-  consistency: 'IEEE 830 § 4.3.4',
-  testability: 'IEEE 830 § 4.3.5',
-  correctness: 'IEEE 830 § 4.3.1',
-  traceability: 'IEEE 830 § 4.3.8',
+const ISO_STANDARD_CLAUSES = {
+  clarity: 'ISO/IEC/IEEE 29148 § 5.2.4',
+  completeness: 'ISO/IEC/IEEE 29148 § 5.2.5',
+  consistency: 'ISO/IEC/IEEE 29148 § 5.2.6',
+  testability: 'ISO/IEC/IEEE 29148 § 5.2.7',
+  correctness: 'ISO/IEC/IEEE 29148 § 5.2.2',
+  traceability: 'ISO/IEC/IEEE 29148 § 5.2.8',
 }
 
 const QUALITY_TONE = { high: 'success', medium: 'warning', low: 'danger' }
 
+const TOOL_LABELS = {
+  smell_detector: 'Linguistic smell detector',
+  standard_retriever: 'ISO 29148 / IEEE standards retriever',
+  exemplar_retriever: 'Requirement exemplar retriever',
+  cross_req_checker: 'Cross-requirement consistency checker',
+  dimension_scorer: 'LLM dimension scorer (0-4 rubric)',
+  heuristic_scorer: 'ISO 29148 deterministic fallback scorer',
+}
+
 /**
- * Unified "Why this score? — IEEE 830 Radar & Agent Evidence" studio.
+ * Unified "Why this score? — ISO/IEC/IEEE 29148 Radar & Agent Evidence" studio.
  * Combines the multi-dimension Radar Chart with deep diagnostic reasoning,
  * detected smells, suggested rewrite, retrieval evidence, and actionable remedies.
  */
@@ -64,17 +76,25 @@ export default function QualityEvidencePanel({
   const standards = retrieval.standards || []
   const exemplars = retrieval.exemplars || []
   const duplicates = retrieval.cross_req_hits || []
+  const toolsUsed = requirement.toolsUsed || []
 
   // Calculate passing dimension stats
   const passingDimsCount = QUALITY_DIMENSIONS.filter(
     (d) => (dimensionScores[d.key] ?? 0) >= QUALITY_GATE_THRESHOLD,
   ).length
 
-  const attentionDims = QUALITY_DIMENSIONS.filter(
-    (d) => (dimensionScores[d.key] ?? 0) < QUALITY_GATE_THRESHOLD,
-  )
+  const attentionDims = QUALITY_DIMENSIONS.filter((d) => {
+    const app = details[d.key]?.applicability
+    return app !== 'cannot_assess' && app !== 'not_applicable' && (dimensionScores[d.key] ?? 0) < QUALITY_GATE_THRESHOLD
+  })
+  const flaggedDims = attentionDims.filter((dim) => {
+    const detail = details[dim.key]
+    return (detail?.issues || []).length > 0 || Boolean(detail?.rationale)
+  })
 
-  const flaggedDims = Object.entries(details).filter(([, d]) => (d.issues || []).length > 0)
+  const overallScore4 = requirement.overallScore4 ?? +(requirement.overallScore / 25).toFixed(2)
+  const qualityBand = requirement.qualityBand
+    || (overallScore4 >= 3.5 ? 'Excellent' : overallScore4 >= 2.5 ? 'Good' : overallScore4 >= 1.5 ? 'Moderate' : overallScore4 >= 0.5 ? 'Poor' : 'Very poor')
 
   return (
     <Card className="p-0 overflow-hidden border-border bg-card">
@@ -90,10 +110,10 @@ export default function QualityEvidencePanel({
           </div>
           <div>
             <span className="flex items-center gap-2 text-sm font-bold text-foreground">
-              Why this score? — IEEE 830 Quality Radar &amp; Agent Evidence
+              Why this score? — ISO/IEC/IEEE 29148 Quality Radar &amp; Evidence
             </span>
             <p className="text-[11px] text-muted-foreground">
-              Diagnostic breakdown, 6-dimension reasoning profile, and retrieval evidence
+              ISO 29148 0–4 scale rubric breakdown, quality band, and retrieval evidence
             </p>
           </div>
         </div>
@@ -103,7 +123,7 @@ export default function QualityEvidencePanel({
             tone={requirement.status === 'Passing' ? 'success' : 'warning'}
             className="text-xs font-semibold px-2 py-0.5"
           >
-            {requirement.overallScore}% · {requirement.status}
+            {overallScore4}/4 ({requirement.overallScore}%) · {qualityBand}
           </Badge>
           <ChevronDown
             className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
@@ -121,7 +141,7 @@ export default function QualityEvidencePanel({
             <div className="flex flex-col items-center justify-center">
               <QualityRadarChart scores={dimensionScores} height={190} />
               <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1">
-                IEEE 830 Radar Polygon
+                ISO 29148 Radar Profile
               </span>
             </div>
 
@@ -130,20 +150,24 @@ export default function QualityEvidencePanel({
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-primary" />
-                  IEEE 830 Gate Verdict
+                  ISO 29148 Gate Verdict
                 </span>
                 <Badge
-                  tone={passingDimsCount === 6 ? 'success' : passingDimsCount >= 4 ? 'warning' : 'danger'}
+                  tone={qualityBand === 'Excellent' ? 'success' : qualityBand === 'Good' ? 'primary' : qualityBand === 'Moderate' ? 'warning' : 'danger'}
                   className="text-xs font-semibold"
                 >
-                  {passingDimsCount} of 6 Dimensions ≥ {QUALITY_GATE_THRESHOLD}%
+                  {qualityBand} Band · {overallScore4}/4 ({requirement.overallScore}%)
                 </Badge>
               </div>
 
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {passingDimsCount === 6 ? (
                   <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                    Excellent specification! All six IEEE 830 quality dimensions satisfy the {QUALITY_GATE_THRESHOLD}% gate threshold.
+                    Excellent specification! All six ISO/IEC/IEEE 29148 quality dimensions satisfy the {QUALITY_GATE_THRESHOLD}% (3.0/4) gate threshold.
+                  </span>
+                ) : attentionDims.length === 0 ? (
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                    Satisfies the quality gate threshold with applicable dimensions meeting standard requirements.
                   </span>
                 ) : (
                   <span>
@@ -151,7 +175,7 @@ export default function QualityEvidencePanel({
                     <span className="text-amber-600 dark:text-amber-400 font-medium">
                       {attentionDims.map((d) => d.label).join(', ')}
                     </span>
-                    . Review the actionable remedies below to elevate the score.
+                    . Review the evidence-based remedies below to achieve a Score 4 (Excellent).
                   </span>
                 )}
               </p>
@@ -159,7 +183,7 @@ export default function QualityEvidencePanel({
               <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground flex-wrap">
                 {requirement.confidence !== undefined && (
                   <span className="bg-muted/60 px-2 py-0.5 rounded-md font-mono text-[11px] text-foreground">
-                    Confidence: {Math.round(requirement.confidence * 100)}%
+                    Confidence: {formatConfidence(requirement.confidence)}
                   </span>
                 )}
                 {onConsult && (
@@ -175,24 +199,25 @@ export default function QualityEvidencePanel({
             </div>
           </div>
 
-          {/* Section: Six IEEE 830 Dimension Breakdown Cards */}
+          {/* Section: Six ISO 29148 Dimension Breakdown Cards */}
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-              <span>Dimension Breakdown &amp; Actionable Remedies</span>
+              <span>ISO 29148 Dimension Breakdown &amp; Actionable Remedies</span>
               <span className="text-[10px] font-normal lowercase text-muted-foreground">
-                (click remedies to guide edits)
+                (anchored on 0–4 rubric criteria)
               </span>
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {QUALITY_DIMENSIONS.map((dim) => {
                 const score = dimensionScores[dim.key] ?? 0
-                const tier = dimTier(score)
                 const real = details[dim.key]
-                const fallback = DIMENSION_ISSUE[dim.key]
-                const issueText = real?.issues?.[0] || real?.rationale || fallback?.issue
-                const remedyText = fallback?.suggestion
-                const standardClause = IEEE_STANDARD_CLAUSES[dim.key]
+                const app = real?.applicability || 'applicable'
+                const tier = dimTier(score, app)
+                const issueText = real?.issues?.[0] || ''
+                const rationaleText = real?.rationale || ''
+                const remedyText = real?.remedy || ''
+                const standardClause = real?.standardReference || ISO_STANDARD_CLAUSES[dim.key]
 
                 return (
                   <div
@@ -202,7 +227,9 @@ export default function QualityEvidencePanel({
                         ? 'border-border/70 bg-card hover:border-emerald-500/30'
                         : tier === 'warn'
                           ? 'border-amber-500/30 bg-amber-500/5'
-                          : 'border-destructive/30 bg-destructive/5'
+                          : tier === 'neutral'
+                            ? 'border-border/60 bg-muted/20'
+                            : 'border-destructive/30 bg-destructive/5'
                     }`}
                   >
                     {/* Dimension Title & Score */}
@@ -216,35 +243,50 @@ export default function QualityEvidencePanel({
                           </span>
                         )}
                       </div>
-                      <Badge
-                        tone={tier === 'pass' ? 'success' : tier === 'warn' ? 'warning' : 'danger'}
-                        className="text-[11px] font-bold px-1.5 py-0"
-                      >
-                        {score}%
-                      </Badge>
+                      {app === 'cannot_assess' ? (
+                        <Badge tone="neutral" className="text-[10px] font-bold px-1.5 py-0">
+                          C/A · Cannot Assess
+                        </Badge>
+                      ) : app === 'not_applicable' ? (
+                        <Badge tone="neutral" className="text-[10px] font-bold px-1.5 py-0">
+                          N/A · Not Applicable
+                        </Badge>
+                      ) : (
+                        <Badge
+                          tone={tier === 'pass' ? 'success' : tier === 'warn' ? 'warning' : 'danger'}
+                          className="text-[11px] font-bold px-1.5 py-0"
+                        >
+                          {real?.rawScore !== undefined && real.rawScore !== null ? `${real.rawScore}/4 · ` : ''}{score}%
+                        </Badge>
+                      )}
                     </div>
 
                     {/* Rationale & Issues */}
-                    {tier === 'pass' ? (
-                      <p className="text-[11px] text-muted-foreground leading-snug">
-                        {real?.rationale || 'Satisfies the IEEE standard criteria with verifiable precision.'}
-                      </p>
-                    ) : (
-                      <div className="space-y-1.5 pt-1 border-t border-border/40 text-[11px]">
-                        {issueText && (
-                          <p className="text-foreground leading-snug">
-                            <span className="text-destructive font-semibold">Issue: </span>
-                            {issueText}
-                          </p>
-                        )}
-                        {remedyText && (
-                          <p className="text-muted-foreground leading-snug bg-muted/40 p-1.5 rounded-md border border-border/40">
-                            <strong className="text-foreground">Remedy: </strong>
-                            {remedyText}
-                          </p>
-                        )}
-                      </div>
-                    )}
+                    <div className="space-y-1.5 pt-1 text-[11px]">
+                      {rationaleText && (
+                        <p className="text-muted-foreground leading-snug">
+                          <strong className="text-foreground">Evidence: </strong>
+                          {rationaleText}
+                        </p>
+                      )}
+                      {issueText && (
+                        <p className="text-foreground leading-snug">
+                          <span className="text-destructive font-semibold">Issue: </span>
+                          {issueText}
+                        </p>
+                      )}
+                      {remedyText && (
+                        <p className="text-muted-foreground leading-snug bg-muted/40 p-1.5 rounded-md border border-border/40">
+                          <strong className="text-foreground">Remedy: </strong>
+                          {remedyText}
+                        </p>
+                      )}
+                      {!issueText && !remedyText && !rationaleText && (
+                        <p className="text-muted-foreground leading-snug">
+                          This saved assessment has no dimension-specific feedback. Re-run the quality analysis to generate evidence-based guidance.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )
               })}
@@ -299,13 +341,28 @@ export default function QualityEvidencePanel({
           )}
 
           {/* Section: Retrieval Evidence (Glass-box RAG) */}
-          <div className="grid gap-3 sm:grid-cols-2 pt-2 border-t border-border/60">
+          <div className="grid gap-3 sm:grid-cols-3 pt-2 border-t border-border/60">
+            <div className="p-3 rounded-xl bg-muted/20 border border-border/60">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                <Wrench className="h-3.5 w-3.5 text-primary" /> Tools Executed
+              </h4>
+              {toolsUsed.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">Tool execution was not recorded for this prior assessment.</p>
+              ) : (
+                <ul className="space-y-1.5 text-[11px] text-muted-foreground">
+                  {toolsUsed.map((tool, i) => {
+                    const name = typeof tool === 'string' ? tool : tool?.tool_name
+                    return <li key={`${name}-${i}`} className="text-foreground/90">{TOOL_LABELS[name] || name}</li>
+                  })}
+                </ul>
+              )}
+            </div>
             <div className="p-3 rounded-xl bg-muted/20 border border-border/60">
               <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
                 <BookOpen className="h-3.5 w-3.5 text-primary" /> Standards Retrieved
               </h4>
               {standards.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">Standard IEEE 830 baseline references applied.</p>
+                <p className="text-[11px] text-muted-foreground">No standard passages were retrieved for this assessment.</p>
               ) : (
                 <ul className="space-y-1.5 text-[11px] text-muted-foreground">
                   {standards.map((s, i) => (
@@ -323,7 +380,7 @@ export default function QualityEvidencePanel({
                 <FlaskConical className="h-3.5 w-3.5 text-primary" /> Exemplar References
               </h4>
               {exemplars.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">IEEE 830 benchmark corpus exemplars loaded.</p>
+                <p className="text-[11px] text-muted-foreground">No exemplar requirements were retrieved for this assessment.</p>
               ) : (
                 <ul className="space-y-1.5 text-[11px] text-muted-foreground">
                   {exemplars.map((e, i) => (

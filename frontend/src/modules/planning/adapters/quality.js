@@ -20,18 +20,43 @@ export function mapQualityResult(q, text, extra = {}) {
   const dimensionDetails = {}
   for (const [key, v] of Object.entries(dims)) {
     const score = typeof v === 'object' ? (v?.score ?? 0) : (v ?? 0)
+    const rawScore = typeof v === 'object' ? (v?.raw_score ?? Math.round(score / 25)) : Math.round(score / 25)
+    const applicability = typeof v === 'object' ? (v?.applicability ?? 'applicable') : 'applicable'
     dimensionScores[key] = score
     dimensionDetails[key] = {
       score,
+      rawScore,
+      applicability,
       rationale: v?.justification || v?.rationale || '',
       issues: v?.issues || [],
-      standardReference: v?.standard_reference || null,
+      remedy: v?.remedy || v?.recommended_action || '',
+      standardReference: v?.standard_reference || v?.relevant_standard_reference || null,
     }
   }
 
   const assessmentStatus = q.status || ''
+  const overallScore = Math.round(q.overall_score ?? 0)
+  const overallScore4 = q.overall_score_4 ?? +(overallScore / 25).toFixed(2)
+  const qualityBand = q.quality_band
+    || (overallScore4 >= 3.5 ? 'Excellent' : overallScore4 >= 2.5 ? 'Good' : overallScore4 >= 1.5 ? 'Moderate' : overallScore4 >= 0.5 ? 'Poor' : 'Very poor')
   const uiStatus = BACKEND_STATUS_MAP[assessmentStatus]
-    || (q.overall_score >= 75 ? 'Passing' : 'Needs Review')
+    || (overallScore >= 75 ? 'Passing' : 'Needs Review')
+
+  const rawConf = (q?.confidence !== undefined && q?.confidence !== null) ? q.confidence : q?.confidence_level
+  let confidenceVal = 0.85
+  if (typeof rawConf === 'number' && !Number.isNaN(rawConf)) {
+    confidenceVal = rawConf <= 1.0 ? rawConf : rawConf / 100.0
+  } else if (typeof rawConf === 'string') {
+    const parsed = parseFloat(rawConf)
+    if (!Number.isNaN(parsed)) {
+      confidenceVal = parsed <= 1.0 ? parsed : parsed / 100.0
+    } else {
+      const lower = rawConf.trim().toLowerCase()
+      if (lower === 'high') confidenceVal = 0.90
+      else if (lower === 'low') confidenceVal = 0.45
+      else confidenceVal = 0.75
+    }
+  }
 
   return {
     id: q.id,
@@ -39,16 +64,22 @@ export function mapQualityResult(q, text, extra = {}) {
     description: text || q.text || '',
     priority: extra.priority || 'Medium',
     status: uiStatus,
-    overallScore: q.overall_score,
+    overallScore,
+    overallScore4,
+    qualityBand,
     dimensionScores,
     dimensionDetails,
+    applicableDimensions: q.applicable_dimensions || Object.keys(dimensionScores),
+    naDimensions: q.na_dimensions || [],
+    cannotAssessDimensions: q.cannot_assess_dimensions || [],
     smells: q.smells || [],
     retrieval: q.retrieval || { standards: [], exemplars: [], cross_req_hits: [] },
     suggestedRewrite: q.suggested_rewrite || null,
-    confidence: q.confidence,
+    confidence: confidenceVal,
     diagnosis: q.diagnosis || null,
     recommendedAction: q.recommended_action || null,
     toolOutputs: q.tool_outputs || [],
+    toolsUsed: q.tools_used || q.tools_invoked || (q.tool_outputs || []).map((tool) => tool.tool_name),
     dartTriggered: q.dart_triggered,
     lastChecked: extra.lastChecked || q.assessed_at || q.created_at || new Date().toISOString(),
     stale: false,

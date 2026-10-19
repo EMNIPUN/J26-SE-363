@@ -50,51 +50,51 @@ import NewRequirementModal from '../../../components/NewRequirementModal.jsx'
 import { useDartCases } from '../../../hooks/useDart.js'
 import { mapDartCases, getDartCasesForRequirement } from '../../../adapters/dart.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
-import { GATE_STATUS_TONE, QUALITY_GATE_THRESHOLD, formatRelativeTime } from '../../../utils.js'
+import { GATE_STATUS_TONE, QUALITY_GATE_THRESHOLD, formatRelativeTime, formatConfidence } from '../../../utils.js'
 import { showToast } from '@/shared/utils/toast.jsx'
 
 const IEEE_STANDARDS_INFO = [
   {
     key: 'clarity',
     title: 'Clarity (Unambiguity)',
-    standard: 'IEEE 830 § 4.3.2',
-    description: 'Each requirement must have only one semantic interpretation. Avoid fuzzy adjectives such as "user-friendly", "fast", or "flexible".',
-    rule: 'Use precise operational language with verifiable verbs (The system shall [action] when [condition]).',
+    standard: 'ISO/IEC/IEEE 29148 § 5.2.4',
+    description: 'Can the requirement be understood in only one reasonable way? Avoid vague adjectives such as "user-friendly", "fast", or "appropriate".',
+    rule: 'Use precise operational language with verifiable verbs: When [trigger], [actor] shall [action] [output] within [constraint].',
   },
   {
     key: 'completeness',
     title: 'Completeness',
-    standard: 'IEEE 830 § 4.3.3',
-    description: 'All significant requirements relating to functionality, performance, design constraints, and external interfaces must be specified.',
-    rule: 'Specify all inputs, valid ranges, output states, and standard exception handling behaviors.',
+    standard: 'ISO/IEC/IEEE 29148 § 5.2.5',
+    description: 'Does the requirement contain all necessary conditions, inputs, outputs, constraints, and exceptions without unstated assumptions?',
+    rule: 'Specify actor, trigger, action, input data, output result, constraints, and both normal path and failure path behavior.',
   },
   {
     key: 'consistency',
-    title: 'Consistency (Atomicity)',
-    standard: 'IEEE 830 § 4.3.4',
-    description: 'Requirements cannot contradict other functional specifications or architectural constraints within the SRS.',
-    rule: 'Each requirement must specify a single atomic obligation. Avoid compound requirements joined by "while also" or "and simultaneously".',
+    title: 'Consistency',
+    standard: 'ISO/IEC/IEEE 29148 § 5.2.6',
+    description: 'Does the requirement conflict with other requirements, constraints, or domain rules in the SRS set?',
+    rule: 'Each requirement must specify atomic behavior without contradictory permissions or compound bundled statements.',
   },
   {
     key: 'testability',
     title: 'Testability (Verifiability)',
-    standard: 'IEEE 830 § 4.3.5',
-    description: 'A cost-effective automated or manual test case must be able to prove whether the delivered software meets the specification.',
-    rule: 'Define exact numeric criteria: latency thresholds, throughput numbers, or concrete boolean conditions.',
+    standard: 'ISO/IEC/IEEE 29148 § 5.2.7',
+    description: 'Can satisfaction or violation of the requirement be objectively determined by inspection, analysis, demonstration, or test?',
+    rule: 'Define exact numeric criteria: latency bounds, throughput, specific error codes, or concrete boolean pass/fail conditions.',
   },
   {
     key: 'correctness',
     title: 'Correctness',
-    standard: 'IEEE 830 § 4.3.1',
-    description: 'Every requirement stated must be one the software shall actually meet — it must reflect a genuine, accurate need with no erroneous behaviour.',
-    rule: 'Confirm the stated behaviour is the intended one and is technically sound for the goal.',
+    standard: 'ISO/IEC/IEEE 29148 § 5.2.2',
+    description: 'Does the requirement accurately represent the stakeholder need, business rule, domain rule, or system constraint?',
+    rule: 'Ensure the requirement reflects actual approved stakeholder needs and standard architectural/security best practices.',
   },
   {
     key: 'traceability',
     title: 'Traceability',
-    standard: 'IEEE 830 § 4.3.8',
-    description: 'Each requirement must be uniquely identifiable and linkable backward to its source and forward to design and test artifacts.',
-    rule: 'Give each requirement a unique ID and keep it self-contained so it can be traced to a goal.',
+    standard: 'ISO/IEC/IEEE 29148 § 5.2.8',
+    description: 'Can the requirement be linked backward to its origin (source need/rule) and forward to design and test artifacts?',
+    rule: 'Include a unique ID, backward source link (e.g. Source: BR-xxx / STK-xxx), and forward verification link (e.g. Test: TC-xxx).',
   },
 ]
 
@@ -626,7 +626,7 @@ export default function SRSQuality() {
                           </span>
                         )}
                         <Badge tone={GATE_STATUS_TONE[selected.status]} className="text-xs font-semibold px-2.5 py-0.5">
-                          {selected.overallScore}% · {selected.status}
+                          {selected.overallScore4 !== undefined ? `${selected.overallScore4}/4 (${selected.overallScore}%)` : `${selected.overallScore}%`} · {selected.qualityBand || selected.status}
                         </Badge>
                       </div>
                     </div>
@@ -788,7 +788,7 @@ export default function SRSQuality() {
                     <div className="flex items-center gap-2 mb-2">
                       <Gavel className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-                        DART Activated — Low Confidence ({selected ? `${Math.round((selected.confidence ?? 1) * 100)}%` : ''})
+                        DART Activated — Low Confidence ({selected ? formatConfidence(selected.confidence) : ''})
                       </span>
                     </div>
                     {openCases.map((c) => (

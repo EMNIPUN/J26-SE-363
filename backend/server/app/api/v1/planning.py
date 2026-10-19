@@ -825,6 +825,15 @@ async def upload_srs(
         logger.exception(
             "Failed to persist SRS/quality results"
         )
+        # Never return an apparently successful upload when the database
+        # transaction failed. Roll back the partial document/requirement rows
+        # and let the UI tell the student to retry instead of showing results
+        # that disappear on refresh.
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="The SRS was analyzed but could not be saved. Please try again.",
+        ) from None
 
     return result
 

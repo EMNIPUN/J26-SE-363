@@ -96,3 +96,24 @@ export function formatRelativeTime(isoString) {
   const days = Math.round(hours / 24)
   return `${days}d ago`
 }
+
+export function formatConfidence(conf) {
+  if (conf === null || conf === undefined) return '85%'
+  if (typeof conf === 'number' && !Number.isNaN(conf)) {
+    const val = conf <= 1.0 ? conf * 100 : conf
+    return `${Math.round(val)}%`
+  }
+  if (typeof conf === 'string') {
+    const num = parseFloat(conf)
+    if (!Number.isNaN(num)) {
+      const val = num <= 1.0 ? num * 100 : num
+      return `${Math.round(val)}%`
+    }
+    const lower = conf.trim().toLowerCase()
+    if (lower === 'high') return '90%'
+    if (lower === 'moderate') return '75%'
+    if (lower === 'low') return '45%'
+  }
+  return '85%'
+}
+

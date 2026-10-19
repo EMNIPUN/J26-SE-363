@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select'
 import DartButton from '../../components/DartButton.jsx'
 import { GROUPS } from '../../data/mockData.js'
-import { ARBITRATION_CATEGORY_TONE } from '../../utils.js'
+import { ARBITRATION_CATEGORY_TONE, formatConfidence } from '../../utils.js'
 import { showToast } from '@/shared/utils/toast.jsx'
 import { useDartCases, useResolveCase } from '../../hooks/useDart.js'
 import { mapDartCases } from '../../adapters/dart.js'
@@ -71,7 +71,7 @@ function ProtocolStepper({ item }) {
               <div key={i} className="p-2.5 rounded-lg border border-border bg-muted/20">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-semibold text-foreground">{t.agentName}</span>
-                  <span className="text-[10px] text-muted-foreground">{Math.round(t.confidence * 100)}% conf.</span>
+                  <span className="text-[10px] text-muted-foreground">{formatConfidence(t.confidence)} conf.</span>
                 </div>
                 <p className="text-xs text-foreground mb-0.5">{t.diagnosis}</p>
                 {t.uncertaintyType && (

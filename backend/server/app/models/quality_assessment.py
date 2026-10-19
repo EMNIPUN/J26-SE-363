@@ -89,6 +89,8 @@ class QualityDimensionScore(Base):
     score: Mapped[float] = mapped_column(Numeric(5, 2))
     weight: Mapped[float] = mapped_column(Numeric(5, 2), default=1.0)
     justification: Mapped[str | None] = mapped_column(Text)
+    issues: Mapped[list | None] = mapped_column(JSONType)
+    recommended_action: Mapped[str | None] = mapped_column(Text)
     relevant_standard_reference: Mapped[str | None] = mapped_column(String(255))
 
     quality_assessment: Mapped["QualityAssessment"] = relationship(

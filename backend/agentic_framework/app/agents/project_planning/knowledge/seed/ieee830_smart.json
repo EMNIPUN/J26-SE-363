@@ -1,68 +1,56 @@
 [
   {
-    "id": "ieee830-clarity",
-    "category": "ieee830",
+    "id": "iso29148-clarity",
+    "category": "iso29148",
     "dimension": "clarity",
-    "text": "IEEE 830 — Unambiguous (Clarity): every requirement has exactly one interpretation. Avoid subjective words such as 'user-friendly', 'fast', 'efficient', 'flexible', 'secure', 'robust', or 'easy', because different readers interpret them differently. Replace them with precise, operational language: 'The system shall <actor> <action> <object> when <condition>.' A requirement is clear when a developer and a tester reading it independently would build and verify the same behaviour."
+    "text": "ISO/IEC/IEEE 29148 § 5.2.4 — Unambiguity (Clarity): Can the requirement be understood in only one reasonable way? A requirement must be precise, concise, and have only one reasonable interpretation. Avoid subjective words such as 'user-friendly', 'fast', 'efficient', 'flexible', 'secure', 'robust', or 'appropriate'. Avoid undefined actors ('the user', 'the administrator') or unclear conditions ('when necessary', 'if possible'). Avoid compound sentences bundling multiple obligations. Template: When <trigger>, <actor> shall <action> <output> within <measurable constraint>."
   },
   {
-    "id": "ieee830-completeness",
-    "category": "ieee830",
+    "id": "iso29148-completeness",
+    "category": "iso29148",
     "dimension": "completeness",
-    "text": "IEEE 830 — Complete (Completeness): the requirement states the actor, the action, the object, the triggering condition, the valid input ranges, the expected outputs, and the behaviour for error/exception cases. A requirement is incomplete if it omits what happens on invalid input, boundary values, or failure. Example gap: 'The system shall let users log in' omits credentials, validation, lockout, and failure handling."
+    "text": "ISO/IEC/IEEE 29148 § 5.2.5 — Completeness: Does the requirement contain all necessary conditions, inputs, outputs, constraints, and exceptions without unstated assumptions? A complete requirement includes: (1) Actor: who performs or receives action, (2) Trigger or precondition: when behavior occurs, (3) Action: what the system must do, (4) Input data: information needed, (5) Output or result: what happens afterward, (6) Constraints: performance/security/business rules, and (7) Exception behavior: normal path and failure path."
   },
   {
-    "id": "ieee830-correctness",
-    "category": "ieee830",
-    "dimension": "correctness",
-    "text": "IEEE 830 — Correct (Correctness): every requirement stated is one the software must actually meet, reflecting a genuine, accurate stakeholder need. A requirement is incorrect when it describes behaviour that is wrong for the goal, technically impossible, or contradicts the domain. Check that the stated behaviour is the intended one and is technically sound."
-  },
-  {
-    "id": "ieee830-testability",
-    "category": "ieee830",
+    "id": "iso29148-testability",
+    "category": "iso29148",
     "dimension": "testability",
-    "text": "IEEE 830 — Verifiable (Testability): a finite, cost-effective process (a test case) exists to check that the delivered software meets the requirement. Requirements with unquantified terms ('quickly', 'reliably', 'as needed') are not verifiable. Make them measurable: a number, a time limit (e.g. 'within 2 seconds'), a throughput, or a concrete pass/fail condition."
+    "text": "ISO/IEC/IEEE 29148 § 5.2.7 — Verifiability (Testability): Can satisfaction or violation of the requirement be objectively determined? A requirement must contain observable conditions and measurable criteria verifiable by Inspection, Analysis, Demonstration, or Test. Subjective statements like 'The app shall be easy to use' cannot be objectively verified. Quantify criteria with numeric bounds (e.g. latency, throughput, percentages, exact error states)."
   },
   {
-    "id": "ieee830-consistency",
-    "category": "ieee830",
+    "id": "iso29148-consistency",
+    "category": "iso29148",
     "dimension": "consistency",
-    "text": "IEEE 830 — Consistent (Consistency): no requirement conflicts with another, and no single requirement bundles contradictory or multiple obligations. Internal conflicts include different terms for the same thing, or two requirements that cannot both hold. A compound requirement ('the system shall X while also Y') breaks atomicity and should be split. Check each requirement against the rest of the SRS."
+    "text": "ISO/IEC/IEEE 29148 § 5.2.6 — Consistency: Does the requirement contradict other requirements, constraints, business rules, or system behavior? Requirements must be compatible in permissions, data definitions, and lifecycle states. If surrounding requirements are not available, Consistency should be marked 'Cannot Assess' unless an internal self-contradiction is present."
   },
   {
-    "id": "ieee830-traceability",
-    "category": "ieee830",
+    "id": "iso29148-traceability",
+    "category": "iso29148",
     "dimension": "traceability",
-    "text": "IEEE 830 — Traceable (Traceability): each requirement is uniquely identified (e.g. FR-01) and can be linked backward to its source/goal and forward to design, code and test artifacts. A requirement is hard to trace if it has no identifier, bundles several concerns, or cannot be tied to a stated objective. Keep each requirement atomic and labelled so it can be followed through the project."
+    "text": "ISO/IEC/IEEE 29148 § 5.2.8 — Traceability: Can the requirement be linked backward to its origin and forward to design, implementation, verification, or test artifacts? A requirement must have a unique ID (e.g. REQ-PAY-021), a valid backward source link (e.g. Stakeholder Need STK-xxx or Business Rule BR-xxx), and a downstream verification link (e.g. Test Case TC-xxx or Design DES-xxx). If only an ID exists without links, score is 1."
+  },
+  {
+    "id": "iso29148-correctness",
+    "category": "iso29148",
+    "dimension": "correctness",
+    "text": "ISO/IEC/IEEE 29148 § 5.2.2 — Correctness: Does the requirement accurately represent the stakeholder need, business rule, domain rule, or system constraint? A requirement is incorrect if it contradicts domain rules, standard security baselines (e.g. storing plain text passwords), or regulatory obligations. When no source document or baseline is available, Correctness is marked 'Cannot Assess'."
   },
   {
     "id": "smart-specific",
     "category": "smart",
     "dimension": "clarity",
-    "text": "SMART — Specific: the requirement targets one well-defined behaviour with a clear actor and action, not a vague aspiration. 'The system shall be modern' is not specific; 'The system shall display search results in a paginated list of 20 items per page' is."
+    "text": "SMART — Specific: Targets one well-defined behavior with an explicit actor, trigger, and action, not a vague aspiration. Example: 'When a customer submits a search request, the system shall display the first 20 matching products within 2 seconds.'"
   },
   {
     "id": "smart-measurable",
     "category": "smart",
     "dimension": "testability",
-    "text": "SMART — Measurable: the requirement includes a quantity or condition you can measure to confirm it is met — a time, a count, a percentage, or an explicit state. 'The system shall respond fast' is not measurable; 'The system shall return search results within 2 seconds for up to 10,000 records' is."
-  },
-  {
-    "id": "smart-achievable",
-    "category": "smart",
-    "dimension": "correctness",
-    "text": "SMART — Achievable: the requirement is realistic within the project's technology, time and resources. Check dependencies on third-party APIs, hardware and model constraints before committing to it."
-  },
-  {
-    "id": "smart-relevant",
-    "category": "smart",
-    "dimension": "traceability",
-    "text": "SMART — Relevant: the requirement contributes to a stated project goal and stays within scope. An out-of-scope or tangential requirement inflates effort and dilutes focus; tie each requirement to an approved objective."
+    "text": "SMART — Measurable: Contains concrete observable conditions: a time limit, a count, a percentage, or an explicit pass/fail check."
   },
   {
     "id": "smart-timebound",
     "category": "smart",
     "dimension": "testability",
-    "text": "SMART — Time-bound: where timing matters, the requirement states the time constraint explicitly (response time, deadline, timeout). 'The system shall process the upload promptly' is not time-bound; 'The system shall process a 5 MB upload within 10 seconds' is."
+    "text": "SMART — Time-bound: Explicitly specifies latency thresholds, response times, token validity durations, or timeout limits."
   }
 ]

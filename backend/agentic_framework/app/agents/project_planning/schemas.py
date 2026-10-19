@@ -48,6 +48,14 @@ class GateAction(str, Enum):
     DART = "dart"  # low confidence -> arbitration
 
 
+class QualityBand(str, Enum):
+    EXCELLENT = "Excellent"
+    GOOD = "Good"
+    MODERATE = "Moderate"
+    POOR = "Poor"
+    VERY_POOR = "Very poor"
+
+
 # ----- input (inside AgentRequest.input) -----------------------------------
 
 
@@ -74,9 +82,13 @@ class AnalyzeQualityInput(BaseModel):
 
 
 class DimensionScore(BaseModel):
-    score: int  # 0-100
-    rationale: str = ""
+    score: int  # 0-100 percentage for UI and DB backward-compatibility
+    raw_score: int | None = None  # 0-4 on ISO/IEC/IEEE 29148 rubric; None if N/A or C/A
+    applicability: str = "applicable"  # "applicable", "not_applicable", "cannot_assess"
+    rationale: str = ""  # Evidence / justification supporting the rating
     issues: list[str] = Field(default_factory=list)
+    remedy: str = ""
+    standard_reference: str = ""
 
 
 class Smell(BaseModel):
@@ -88,22 +100,30 @@ class Smell(BaseModel):
 class RetrievalEvidence(BaseModel):
     """What the RAG/similarity tools retrieved while scoring (for UI transparency)."""
 
-    standards: list[dict] = Field(default_factory=list)       # IEEE 830 / SMART criteria
+    standards: list[dict] = Field(default_factory=list)       # IEEE / ISO criteria
     exemplars: list[dict] = Field(default_factory=list)       # graded example requirements
     cross_req_hits: list[dict] = Field(default_factory=list)  # similar other requirements
 
 
 class RequirementQualityResult(BaseModel):
     id: str
-    overall_score: int
+    overall_score: int  # 0-100 percentage (round(Q_i / 4.0 * 100))
+    overall_score_4: float = 0.0  # 0.0-4.0 mean of applicable dimensions (Q_i)
+    quality_band: QualityBand = QualityBand.VERY_POOR
     status: GateStatus
     gate_action: GateAction
     dimension_scores: dict[str, DimensionScore] = Field(default_factory=dict)
+    applicable_dimensions: list[str] = Field(default_factory=list)
+    na_dimensions: list[str] = Field(default_factory=list)
+    cannot_assess_dimensions: list[str] = Field(default_factory=list)
     smells: list[Smell] = Field(default_factory=list)
     suggested_rewrite: str | None = None
     confidence: float = 1.0
     dart_triggered: bool = False
     retrieval: RetrievalEvidence | None = None
+    # Names of the tools that actually ran for this assessment. This is
+    # evidence for the UI, not a static list of claimed capabilities.
+    tools_used: list[str] = Field(default_factory=list)
 
 
 class AnalyzeQualityResult(BaseModel):
@@ -317,14 +337,6 @@ class DecompositionReadiness(str, Enum):
     READY = "Ready"
     READY_WITH_IMPROVEMENTS = "Ready with Improvements"
     NEEDS_ATTENTION = "Needs Attention"
-
-
-class QualityBand(str, Enum):
-    EXCELLENT = "Excellent"
-    GOOD = "Good"
-    MODERATE = "Moderate"
-    POOR = "Poor"
-    VERY_POOR = "Very poor"
 
 
 class DecompositionResult(BaseModel):

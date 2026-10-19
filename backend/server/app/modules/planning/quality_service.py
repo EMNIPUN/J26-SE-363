@@ -53,23 +53,36 @@ def save_assessment(
         )
         or 0
     ) + 1
+    raw_conf = agent_result.get("confidence")
+    if isinstance(raw_conf, (int, float)):
+        conf_num = float(raw_conf)
+        conf_level = (
+            ConfidenceLevel.HIGH if conf_num >= 0.8
+            else ConfidenceLevel.MODERATE if conf_num >= 0.5
+            else ConfidenceLevel.LOW
+        )
+        conf_basis = agent_result.get("confidence_basis") or str(conf_num)
+    else:
+        conf_level = CONFIDENCE_MAP.get(
+            str(raw_conf or "moderate").lower(),
+            ConfidenceLevel.MODERATE,
+        )
+        conf_basis = agent_result.get("confidence_basis")
+
     assessment = QualityAssessment(
         requirement_id=requirement_id,
         pipeline_session_id=session_id,
         revision_number=next_revision,
         requirement_text_snapshot=requirement_text,
         composite_score=agent_result.get("overall_score", 0),
-        confidence_level=CONFIDENCE_MAP.get(
-            str(agent_result.get("confidence", "moderate")).lower(),
-            ConfidenceLevel.MODERATE,
-        ),
-        confidence_basis=agent_result.get("confidence_basis"),
+        confidence_level=conf_level,
+        confidence_basis=conf_basis,
         diagnosis=agent_result.get("diagnosis"),
         relevant_quality_criterion=agent_result.get(
             "relevant_quality_criterion"
         ),
         recommended_action=agent_result.get("recommended_action"),
-        tools_invoked=agent_result.get("tools_invoked"),
+        tools_invoked=agent_result.get("tools_used") or agent_result.get("tools_invoked"),
         assessment_status=AssessmentStatus.COMPLETED,
         assessed_at=datetime.now(timezone.utc),
     )
@@ -89,18 +102,25 @@ def save_assessment(
             if isinstance(dim_data, (int, float))
             else dim_data.get("score", 0)
         )
+        issues = dim_data.get("issues", []) if isinstance(dim_data, dict) else []
+        if not isinstance(issues, list):
+            issues = [str(issues)]
+        applicability = str(dim_data.get("applicability", "applicable")).lower() if isinstance(dim_data, dict) else "applicable"
+        weight_val = 0.0 if applicability in ("cannot_assess", "not_applicable") else float(dim_data.get("weight", 1.0) if isinstance(dim_data, dict) else 1.0)
         db.add(
             QualityDimensionScore(
                 quality_assessment_id=assessment.id,
                 dimension=QualityDimension(dim_name),
                 score=float(score_val),
-                weight=float(
-                    dim_data.get("weight", 1.0)
-                    if isinstance(dim_data, dict)
-                    else 1.0
-                ),
+                weight=weight_val,
                 justification=(
-                    dim_data.get("justification")
+                    dim_data.get("rationale") or dim_data.get("justification")
+                    if isinstance(dim_data, dict)
+                    else None
+                ),
+                issues=[str(issue) for issue in issues if issue],
+                recommended_action=(
+                    dim_data.get("remedy") or dim_data.get("recommended_action")
                     if isinstance(dim_data, dict)
                     else None
                 ),
@@ -242,10 +262,15 @@ def assessment_to_dict(
 ) -> dict[str, Any]:
     dims = {}
     for ds in row.dimension_scores:
+        is_applicable = float(ds.weight) > 0.0
         dims[ds.dimension.value] = {
             "score": float(ds.score),
+            "raw_score": int(round(float(ds.score) / 25.0)) if is_applicable else None,
+            "applicability": "applicable" if is_applicable else "cannot_assess",
             "weight": float(ds.weight),
             "justification": ds.justification,
+            "issues": ds.issues or [],
+            "remedy": ds.recommended_action,
             "standard_reference": ds.relevant_standard_reference,
         }
     tools = [
@@ -263,17 +288,43 @@ def assessment_to_dict(
         }
         for t in sorted(row.tool_outputs, key=lambda x: x.execution_order)
     ]
+    overall_pct = float(row.composite_score)
+    overall_4 = round(overall_pct / 25.0, 2)
+    quality_band = (
+        "Excellent" if overall_4 >= 3.5
+        else "Good" if overall_4 >= 2.5
+        else "Moderate" if overall_4 >= 1.5
+        else "Poor" if overall_4 >= 0.5
+        else "Very poor"
+    )
+    raw_basis = row.confidence_basis
+    try:
+        conf_float = float(raw_basis) if raw_basis else None
+    except (ValueError, TypeError):
+        conf_float = None
+
+    if conf_float is None:
+        conf_float = (
+            0.90 if row.confidence_level == ConfidenceLevel.HIGH
+            else 0.45 if row.confidence_level == ConfidenceLevel.LOW
+            else 0.75
+        )
+
     return {
         "id": str(row.requirement_id),
         "revision_number": row.revision_number,
         "requirement_text_snapshot": row.requirement_text_snapshot,
-        "overall_score": float(row.composite_score),
-        "confidence": row.confidence_level.value,
+        "overall_score": overall_pct,
+        "overall_score_4": overall_4,
+        "quality_band": quality_band,
+        "confidence": conf_float,
+        "confidence_level": row.confidence_level.value,
         "confidence_basis": row.confidence_basis,
         "diagnosis": row.diagnosis,
         "recommended_action": row.recommended_action,
         "dimension_scores": dims,
         "tool_outputs": tools,
+        "tools_invoked": row.tools_invoked or [],
         "status": row.assessment_status.value,
         "assessed_at": (
             row.assessed_at.isoformat() if row.assessed_at else None
