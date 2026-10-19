@@ -67,6 +67,9 @@ class ToolRun(BaseModel):
 class ScanResult(BaseModel):
     run_id: str
     repo_path: str
+    repo_url: str | None = None  # set by the pipeline when the repo was fetched
+    commit_sha: str | None = None
+    scan_type: str = "full"
     languages: list[str] = Field(default_factory=list)
     findings: list[Finding] = Field(default_factory=list)
     runs: list[ToolRun] = Field(default_factory=list)
