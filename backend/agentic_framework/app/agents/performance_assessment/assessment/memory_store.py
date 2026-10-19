@@ -13,6 +13,7 @@ class MemoryStore:
     def __init__(self):
         self.runs, self.events, self.factor_results, self.results, self.snapshots, self.reviews, self.quizzes = {}, {}, {}, {}, [], {}, {}
         self._lock = threading.Lock()
+        self.teams = {}
 
     # runs
     def create_run(self, team_ref, sprint_id, mode, requested_by=None, job_id=None):
@@ -141,3 +142,15 @@ class MemoryStore:
                 q["status"] = "expired"
                 changed.append(q)
         return changed
+
+    # tracked teams
+    def upsert_tracked_team(self, team_ref, repo_url, board_ref=None, config=None, created_by=None):
+        self.teams[team_ref] = {"team_ref": team_ref, "repo_url": repo_url, "board_ref": board_ref, "config": config or {}, "status": "active", "created_by": created_by}
+        return self.teams[team_ref]
+
+    def get_tracked_team(self, team_ref):
+        return self.teams.get(team_ref)
+
+    def list_runs(self, team_ref=None, sprint_id=None, limit=50):
+        rows = [r for r in self.runs.values() if (team_ref is None or r["team_ref"] == team_ref) and (sprint_id is None or r["sprint_id"] == sprint_id)]
+        return sorted(rows, key=lambda r: r["created_at"], reverse=True)[:limit]

@@ -36,6 +36,7 @@ class TeamEvidence:
     quality: dict
     rev: str | None = None
     notes: list = field(default_factory=list)
+    patches: dict = field(default_factory=dict)  # {sha: {path: patch}} of the students' commits and of the commits linked to their tasks (for Requirement Fulfillment)
 
 
 def _day(iso: str) -> date:
@@ -209,7 +210,7 @@ def build_team_evidence(ws, repo_url, roster: Roster, sprint: dict, tasks_by_stu
             ev["ownership"] = {"added_lines": 0, "surviving_lines": 0, "files": 0, "primary_files": 0, "owned_files": 0}
         schema.validate(ev)
         result[sid] = ev
-    return TeamEvidence(result, quality, rev)
+    return TeamEvidence(result, quality, rev, patches={**patches, **extra_patches})
 
 
 def _github_parts(prs: list, roster: Roster, start: date, end: date, owner_of) -> dict:
