@@ -57,8 +57,57 @@ docker run --rm -v "$PWD:/app" selvia-security-assistant-tools \
   sh -c "pip install -q pydantic pyyaml pytest && git config --global --add safe.directory '*' && python -m pytest app/agents/security_assistant/tools/tests"
 ```
 
-Without the image, `python -m pytest app/agents/security_assistant/tools/tests` still runs the
-unit tests; the tests that need a real scanner are skipped.
+## Entry paths: manual and GitHub webhook (limited)
+
+Both paths end in the same function, which clones with `fetch_repo`, runs the tools and deletes the clone:
+
+```python
+from app.agents.security_assistant.pipeline import run_pipeline
+result = await run_pipeline("https://github.com/owner/repo")                    # manual: default branch, full scan
+result = await run_pipeline(url, sha, scan_type="secrets_only")                  # what the webhook calls
+```
+
+`fetch_repo(repo_url, commit_sha)` (`pipeline.py`): https://github.com URLs only; full history; git hooks and the
+template directory disabled; no submodules or LFS; symlinks written as plain files; size limit (500 MB) and time
+limit (300 s) enforced while cloning; checks out the exact SHA; never executes anything from the repository; deletes
+the clone afterwards, also on errors.
+
+`handle_github_event(headers, raw_body)` (`webhook.py`) is a plain async function, not an HTTP route; whatever
+receives the HTTP request later passes the headers and the *raw* body to it:
+
+1. verifies `X-Hub-Signature-256` against `SECURITY_ASSISTANT_WEBHOOK_SECRET` (no secret configured = reject everything);
+2. classifies: `push` -> `secrets_only` scan of the pushed commit; `pull_request` closed **and merged** -> `full`
+   scan of the merge commit; draft PRs, unmerged closes, other actions and other events -> ignored, reason logged;
+3. dedupes by commit SHA (in memory, bounded, lost on restart): a repeated delivery does not run twice. A push and
+   the merged PR for the same commit run `secrets_only` then `full`; a `full` scan makes a later `secrets_only`
+   of the same SHA redundant. A crashed pipeline releases its claim so a GitHub redelivery can retry;
+4. accepts only `https://github.com/<owner>/<repo>` repository URLs from the payload, then calls `run_pipeline`.
+
+Demo without network (signs the two sample payloads in `webhook_samples/` and replays them, plus duplicate, draft,
+unmerged, tampered and gitlab.com cases, with a stub pipeline that only prints what it would scan):
+
+```powershell
+uv run python -m app.agents.security_assistant.replay_webhook          # add --run to really clone and scan
+```
+
+Not part of this: an HTTP route, frontend, database tables, queues. Dedupe state is therefore per process.
+
+## Local setup with uv (the project package manager)
+
+The Python side is managed with [uv](https://docs.astral.sh/uv/) from `backend/agentic_framework/`
+(Python 3.11, pinned in `.python-version`). The tools layer adds no Python dependency of its own: it
+uses `pydantic`, `pyyaml` and `pytest`, which are already in `pyproject.toml` / `uv.lock`.
+
+```powershell
+winget install --id astral-sh.uv -e      # once; open a new terminal afterwards
+cd backend\agentic_framework
+uv sync                                   # creates .venv from uv.lock
+uv run pytest app/agents/security_assistant/tools/tests   # unit tests; real-scanner tests skip themselves
+```
+
+The scanner binaries (CodeQL, Gitleaks, ...) are not Python packages, so uv cannot install them:
+they come from the Docker image above. To run everything with the real scanners, use the Docker
+commands in "How to run it".
 
 Settings (optional, in `backend/agentic_framework/.env`): `SECURITY_ASSISTANT_SCAN_DIR`,
 `SECURITY_ASSISTANT_TOOL_TIMEOUT[_<TOOL>]`, `SECURITY_ASSISTANT_CODEQL_RAM_MB`,

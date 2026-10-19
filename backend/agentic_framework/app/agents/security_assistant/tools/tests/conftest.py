@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -5,6 +6,16 @@ from pathlib import Path
 import pytest
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture(autouse=True)
+def _isolate_tool_settings(monkeypatch):
+    """A developer .env may set these (other test suites load it); they would override test timeouts."""
+    for name in list(os.environ):
+        if name.startswith("SECURITY_ASSISTANT_TOOL_TIMEOUT") or name == "SECURITY_ASSISTANT_MAX_PARALLEL":
+            monkeypatch.delenv(name)
+
+
 # Built at test time so no secret is ever committed to this repository.
 FAKE_AWS_KEY = "AKIA" + "QYLPMN5HHHFPZAM2"
 # TruffleHog's AWS detector only reports a key ID that comes with its secret half.
