@@ -49,3 +49,5 @@ packages = ["app"]
 [tool.pytest.ini_options]
 testpaths = ["app", "tests"]
 pythonpath = ["."]
+# the factor packages have their own unittest suites (run from factor_models/, they need pandas and use their own import paths)
+norecursedirs = ["factor_models", ".venv", "node_modules"]
