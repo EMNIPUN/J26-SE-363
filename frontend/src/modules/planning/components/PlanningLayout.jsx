@@ -27,19 +27,17 @@ export default function PlanningLayout() {
   // Centralized requirement hydration across all planning routes
   useEffect(() => {
     const rows = qualityQuery.data?.requirements
-    if (rows && rows.length > 0) {
+    if (Array.isArray(rows)) {
       loadRequirements(mapPersistedRows(rows))
     }
   }, [qualityQuery.data]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Centralized user stories hydration across all planning routes
   useEffect(() => {
-    const stories = storiesQuery.data?.stories || storiesQuery.data?.data?.stories
-    if (stories && stories.length > 0) {
+    const stories = storiesQuery.data?.stories ?? storiesQuery.data?.data?.stories
+    if (Array.isArray(stories)) {
       const mapped = mapStoryRows(stories)
-      if (Object.keys(mapped).length > 0) {
-        loadStories(mapped)
-      }
+      loadStories(mapped, { replace: true })
     }
   }, [storiesQuery.data]) // eslint-disable-line react-hooks/exhaustive-deps
 

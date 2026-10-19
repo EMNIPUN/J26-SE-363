@@ -272,7 +272,9 @@ export const actions = {
   // Replace the whole requirement set with results from the real backend
   // (e.g. after an SRS upload). Resets per-requirement history to version 1.
   loadRequirements(reqs) {
-    if (!reqs || reqs.length === 0) return
+    // An empty array is an authoritative result too: keeping the previous
+    // localStorage value here made database-deleted requirements reappear.
+    if (!Array.isArray(reqs)) return
     const finalizedSet = new Set(readFinalizedIds())
     const finalizedDecompSet = new Set(readFinalizedDecompIds())
     const hydrated = reqs.map((r) => ({
@@ -390,9 +392,12 @@ export const actions = {
   // place every task create/edit/delete mutation funnels through (they all
   // invalidate ['planning-stories'] and re-hydrate via this function), so it
   // catches staleness regardless of which mutation caused it.
-  loadStories(map) {
-    if (!map || Object.keys(map).length === 0) return
-    const merged = { ...state.userStories }
+  loadStories(map, { replace = false } = {}) {
+    if (!map || typeof map !== 'object' || Array.isArray(map)) return
+    // The list endpoint returns the complete story set. Its central hydration
+    // must therefore be able to remove entries absent from the response;
+    // merging only is appropriate for partial page-level updates.
+    const merged = replace ? {} : { ...state.userStories }
     const changedTaskStoryIds = new Set()
     for (const [reqId, incomingStories] of Object.entries(map)) {
       const existingById = new Map((merged[reqId] || []).map((s) => [s.id, s]))
