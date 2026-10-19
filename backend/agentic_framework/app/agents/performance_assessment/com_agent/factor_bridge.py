@@ -216,11 +216,5 @@ async def classify_persona_via_bridge(
         except Exception as e:
             logger.warning(f"Behavioral pattern bridge fallback: {e}")
 
-    # Fallback classification if model/simulator is unavailable
-    e = factor_scores.get("effort", 0.5)
-    c = factor_scores.get("consistency", 0.5)
-    if e >= 0.70 and c >= 0.60:
-        return "Consistent Builder", 1.10, "Steady high-volume contributions."
-    elif e >= 0.60 and c < 0.35:
-        return "Deadline Rusher", 0.90, "Concentrated work at sprint deadline."
-    return "Balanced Contributor", 1.00, "Meeting baseline expectations."
+    # Neither the Behavioral Pattern package nor its simulator could be loaded: no pattern and no adjustment (the rules live in factor_models/06_behavioral_pattern)
+    return "Unclassified", 1.00, "Behavioral Pattern rules unavailable: no adjustment applied."

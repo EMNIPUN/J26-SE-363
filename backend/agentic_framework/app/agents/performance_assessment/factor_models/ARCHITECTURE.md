@@ -56,6 +56,7 @@ factor_models/
   04_collaboration/score.py, evaluate.py   fixed-weight score with an evidence gate; the agent entry point
   05_task_complexity/cleaning.py   task footprint before the task started           + tests/
   06_behavioral_pattern/cleaning.py   input checks only (reads the other factors)    + tests/
+  06_behavioral_pattern/rules.py, thresholds.json, evaluate.py   the five rules, fixed cut points, the agent entry point (`classify`)
   07_code_ownership/cleaning.py   blame on counted lines, quiz snippet selection     + tests/
   dataset/                  how the training data was built (see its README)
   ml_lib/                   model-agnostic training utilities (splits, metrics)

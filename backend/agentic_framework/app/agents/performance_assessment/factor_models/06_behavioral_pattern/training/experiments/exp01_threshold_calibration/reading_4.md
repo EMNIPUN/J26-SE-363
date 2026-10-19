@@ -1,0 +1,3 @@
+**Sensitivity** (all cut points moved together; the on/off switches of the extensions are not moved). Final calibrated set: 13.8% of student-sprints change pattern for a shift of -0.05 and 11.9% for +0.05, both within the 15% target; for -0.10 it is 24.5% and for +0.10, 21.6%. Calibrated v1 (original rules): 13.5% and 9.7%. The proposal's set changes less (6.6% and 7.5%) only because it fires so rarely.
+
+A lower shift makes more patterns fire (the share of student-sprints with a pattern goes from 36% at +0.05 to 58% at -0.10), so the cut points matter as much as the rules; they should be revisited once instructor judgements exist.

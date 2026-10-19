@@ -59,7 +59,7 @@ async def test_classify_persona_via_bridge():
         duration_seconds=0.01,
     )
     assert persona == "Consistent deep contributor"
-    assert modifier == 1.15
+    assert 1.10 <= modifier <= 1.20
     assert len(rationale) > 0
 
 

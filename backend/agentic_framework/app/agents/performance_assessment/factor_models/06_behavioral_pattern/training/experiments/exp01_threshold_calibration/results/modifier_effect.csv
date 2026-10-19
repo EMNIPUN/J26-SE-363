@@ -1,0 +1,3 @@
+thresholds,Spearman with vs without modifier,largest change (points),mean absolute change (points),share with modifier != 1,meets target (>= 0.95)
+proposal,0.995,7.616,0.428,0.119,True
+calibrated,0.99,9.227,1.515,0.401,True
