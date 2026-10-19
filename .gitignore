@@ -53,3 +53,8 @@ docker/keycloak/providers-src/**/target/
 **/04_collaboration/training/experiments/*/results/*.pkl
 **/04_collaboration/training/experiments/*/results/*.npz
 **/04_collaboration/training/experiments/*/results/*.joblib
+
+# Code Ownership: downloaded encoder weights, embedding cache, tuning pickles
+**/07_code_ownership/training/dataset/cache/
+**/07_code_ownership/training/experiments/*/results/*.pkl
+**/07_code_ownership/training/experiments/*/results/*.log

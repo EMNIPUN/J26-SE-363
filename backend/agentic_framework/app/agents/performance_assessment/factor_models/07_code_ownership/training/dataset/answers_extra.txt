@@ -1,0 +1,74 @@
+# Extra answers added after the first pass showed that answer length predicted the rating too well (Spearman 0.83 between words and rating).
+# For 18 functions: one SHORT correct answer (rating 5) and one LONG weak or wrong answer (rating 1-3). Same format and same author as answers.txt.
+
+## K001
+5: TypeError. fromutc() only works on datetime objects (it needs their utcoffset and dst), so anything else is refused immediately.
+2: So this is the first check in fromutc and it uses isinstance to see if dt is of the datetime class. The not in front reverses it so the if body runs when dt is something else, for example a string or an integer or None. In that situation the function runs the raise statement and creates a new TypeError with the text from the quotes and then the function is over for that call and nothing is returned. If it is a datetime then nothing happens here and the next if is checked.
+
+## K002
+5: ValueError. The status goes into the HTTP response line, so control characters like newlines could inject headers; they are refused before sending.
+1: When the regular expression finds a match the function validates the length of the status to make sure it is at least 4 characters, because HTTP statuses look like 200 OK, and then it checks that the first three characters are digits and the fourth is a space. If any of those are not true an AssertionError is raised, which is how the function makes sure the whole status line has the right format before it is used by the handler.
+
+## K005
+5: ValueError. An imported module must have a spec, and returning None would read as "not found", so it raises instead.
+2: In this function name is looked up in sys.modules and if it is not there then _find_spec is called with the path. In the else part module is taken from sys.modules, and if it is None the function returns None. Then the spec is read from module.__spec__ inside a try and if there's an AttributeError a ValueError is raised, and finally if spec is None a ValueError with the name is raised, otherwise spec is returned to the caller.
+
+## K006
+5: ValueError. No trailing newline means the line was cut off, and data[:-1] would then drop a real character.
+3: I think this check is about the format of the pickle data. The function reads one line with readline and every line in that format should finish with a newline, so if it doesn't there is something wrong with the file, maybe it was not written correctly, so it raises ValueError with the message. Then in the next lines it takes away the last character and handles quotes and decoding, which is the actual purpose of the function, reading a string.
+
+## K007
+5: The payload is a str for single-part messages, which has no append; the AttributeError becomes a clearer TypeError and the call fails.
+3: The function attach adds a payload to the message. First it checks if the _payload is None and if so it makes a list with the payload in it. Otherwise it goes into the try, where it calls append on the payload. There is an except AttributeError and inside it the code raises a TypeError with the message that attach is not valid on a message with a non-multipart payload. This is split on two lines in the code.
+
+## K008
+5: No extend method: the error is ignored and it falls through to the loop that appends each item individually.
+1: This function is for the pickle machine and load_appends is the opcode that takes the items from the stack after the mark. The catch is for AttributeError and it is needed because Python is dynamic so any object could be on the stack, even a number or a string. When that happens the exception stops the program and the pickle can't be loaded, so the function returns an error to the user and the unpickler closes the file.
+
+## K011
+5: A failing gethostname is ignored (pass), so the hostname comparison is skipped and the function continues to the resolve check.
+3: The function _is_local_authority gets an authority and a resolve flag. First it returns True if authority is empty or localhost. Then in the first try it calls socket.gethostname and if that gives gaierror or AttributeError nothing is done because of pass, and in the else part it compares authority with hostname and returns True if equal. After that, if resolve is false it returns False, and then there is another try with gethostbyname that returns False on errors and at the end it checks the address in FileHandler().get_names().
+
+## K013
+5: False. Non-callables and classes can't be function-like, so it skips the attribute checks.
+1: It returns True. When the object is not callable, or is a class, the function has found that it is a callable thing that has the properties of a function, because classes can be called like functions and have a __name__ and a __code__ too. After that no more work is needed and the result can be given back to whoever asked, which is likely the signature code in inspect.
+
+## K014
+5: True. Equal paths are an exact match, so the prefix check isn't needed.
+2: This function checks if a cookie path should be returned for a request. The first thing it does is write a debug line about the cookie path. Then the request path is taken with request_path(request) and the length of path is stored in pathlen. Then it compares req_path and path and if they are the same it returns True. Else there is the elif that tests startswith and whether the path ends with a slash or the next char is a slash.
+
+## K016
+5: It returns result as it is. For #ERROR it is already an exception object; only the string kinds need wrapping.
+1: The function handles the messages that come back from the manager process. For the '#ERROR' kind it creates a new RemoteError object with the traceback text, so that the caller gets the error from the other process, and it returns that RemoteError after checking that the result is a string, since only strings can be turned into errors. It is returned early because other kinds have extra formatting.
+
+## K017
+5: None. The child hasn't exited yet (sentinel not ready), so there is no return code and poll must not block.
+2: poll is used to check the status of the child process. If returncode is None, it imports wait from multiprocessing.connection, makes the timeout 0 if flag equals os.WNOHANG, else None, and then calls wait on a list with the sentinel. If that call gives a falsy value, which is the case here, the function returns None, and otherwise it goes on to read the returncode from the forkserver in a try block with a fallback of 255.
+
+## K018
+5: j. i >= j is an empty range, so there are no newlines to count and lineno/offset stay as they are.
+1: It gives back j after resetting the position of the parser to the start of the document. The idea is that if i is bigger than j the data has been read twice, so the line counter and the offset are reset to zero and the parser starts again from j. For this reason it can return at this point, without counting newlines in rawdata or updating anything else, because everything was reset.
+
+## K019
+5: It merges other's counts into this object's: counts[key] += other's count for each key (missing keys start at 0).
+2: It's part of the Trace results class, and update is used to combine two results objects, so you can run several traced programs and merge what they found. The loop over other_counts takes every key and puts the value from other into self.counts, so the old value is overwritten with the new one and keys that only exist in self are kept as they are. The other two loops do the same for the called functions and the callers and set them to 1.
+
+## K022
+5: pos advances to the first forbidden character (from error_on), and then the error is raised for that character.
+3: skip_until takes the source string, a position, the expected string, and two keyword arguments. It tries to find the expected string with index from pos, and if not found it sets new_pos to the length of the string. If error_on_eof is true there it raises an error. After that it checks whether the characters from pos to new_pos have anything in common with error_on and if they do, the while loop adds one to pos until src[pos] is in the error_on set, and then it raises a TOMLDecodeError with the character.
+
+## K024
+5: It tries each PATH directory in turn, returns the first existing file, and returns None if none matched.
+2: In this function paths is the PATH split into a list. After the extension checks, if executable is not a file in the current directory, the code goes into the for loop, where p is a directory from the list. For every p a new variable f is made by os.path.join and then os.path.isfile is called with f. The if statement uses that result. After the loop there is a return None, and the else branch of the outer if returns executable.
+
+## K025
+5: It picks the metaclass (explicit, else from bases), gets its __prepare__ namespace, and returns (meta, ns, kwds) with 'metaclass' removed.
+3: prepare_class has three parameters: name, bases that has a default of an empty tuple and kwds that has the default None. In the first part kwds is made into an empty dict if it's None, otherwise it's copied with dict(kwds). In the second part the code checks if 'metaclass' is in kwds, pops it, otherwise takes the type of the first base if there are bases, or type. Then it calls _calculate_meta if meta is a type, and checks __prepare__ to make ns, and returns the three values.
+
+## K029
+5: It pads each operand with leading zeros up to context.prec digits, or trims the extra leading digits if it is longer.
+2: This method belongs to the Decimal class and it is used when you do logical operations like and, or and xor on decimals. fill_logical makes the numbers into the format of the context by rounding them to the precision, so the digits after the decimal point are cut or filled with zeros at the end, and then both numbers are returned so the logical operation can be done bit by bit on the result.
+
+## K033
+5: It makes the path absolute (prepends the cwd if relative) and normalises it with normpath.
+1: abspath returns True when the path exists and is an absolute path. It handles the cases where the path is bytes and where it is a normal string, and for each of them it asks the operating system for the current directory with getcwd, to be able to check the path against it. After that normpath is called on the result and the function finishes with the answer for the caller.

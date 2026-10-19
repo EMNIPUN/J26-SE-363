@@ -15,7 +15,7 @@ from app.agents.performance_assessment.com_agent.state import (
     ActiveVerificationState,
     FactorOutput,
 )
-from app.agents.performance_assessment.com_agent.factor_bridge import evaluate_factor
+from app.agents.performance_assessment.com_agent.factor_bridge import evaluate_factor, generate_quiz_via_bridge
 
 logger = logging.getLogger(__name__)
 
@@ -49,22 +49,64 @@ async def ast_quiz_generator_node(state: Dict[str, Any]) -> Dict[str, Any]:
         av = ActiveVerificationState()
 
     if not av.generated_question:
-        av.target_code_snippet = DEFAULT_MOCK_SNIPPET
-        av.file_path = "backend/app/auth.py"
-        av.line_range = [45, 52]
-        av.generated_question = DEFAULT_MOCK_QUESTION
-        av.ast_metadata = {
-            "node_type": "FunctionDef",
-            "name": "generate_session_token",
-            "cyclomatic_complexity": 3,
-            "token_count": 42,
-        }
+        # the Code Ownership package (factor_models/07_code_ownership/quiz.py) picks the student's code and builds the question from its syntax tree
+        files = state.get("ownership_files") or []
+        quiz = None
+        if files:
+            quiz = await generate_quiz_via_bridge(
+                {"files": files, "student_id": state.get("student_id", ""), "sprint_id": state.get("sprint_id", "")}, context=state
+            )
+        if quiz:
+            av.target_code_snippet = quiz["code_snippet"]
+            av.file_path = quiz["file_path"]
+            av.line_range = quiz["line_range"]
+            av.generated_question = quiz["question"]
+            av.ast_metadata = {
+                **quiz["ast_metadata"],
+                "question_type": quiz["question_type"],
+                "reference_criteria": quiz["reference_criteria"],
+                "facts": quiz.get("facts"),
+                "warnings": quiz.get("warnings", []),
+            }
+        else:
+            av.target_code_snippet = DEFAULT_MOCK_SNIPPET
+            av.file_path = "backend/app/auth.py"
+            av.line_range = [45, 52]
+            av.generated_question = DEFAULT_MOCK_QUESTION
+            av.ast_metadata = {
+                "node_type": "FunctionDef",
+                "name": "generate_session_token",
+                "cyclomatic_complexity": 3,
+                "token_count": 42,
+            }
 
     return {
         "active_verification": av,
         "current_step": "quiz_generated",
     }
 
+
+
+async def _rate_answer(av: ActiveVerificationState, student_text: str) -> FactorOutput:
+    """Asks the Code Ownership package to rate the answer (frozen code encoder + trained regression head, KO = (R - 1) / 4).
+
+    An empty answer is a plain zero. If the package cannot score (no model installed, unsupported language) the bridge returns a fallback output and fusion
+    redistributes the weight; the node never invents a score.
+    """
+    if not student_text.strip():
+        return FactorOutput(score=0.0, features={"ko_raw_score": 0.0}, status="completed")
+    payload = {
+        "phase": "evaluate",
+        "student_response": student_text,
+        "generated_question": av.generated_question,
+        "code_snippet": av.target_code_snippet,
+        "file_path": av.file_path,
+        "ast_metadata": av.ast_metadata,
+        "facts": av.ast_metadata.get("facts") if av.ast_metadata else None,
+        "is_extension_period": av.is_extended,
+        "is_timeout": False,
+    }
+    return await evaluate_factor("code_ownership", payload=payload, context={})
 
 
 async def await_quiz_response_node(
@@ -159,16 +201,20 @@ async def await_quiz_response_node(
     av.student_response = student_text
     av.response_timestamp = now_iso
 
-    # Calculate UniXcoder comprehension score (mock semantic grading head)
-    # Good responses length/semantics yield high score in [0.70, 0.95]
+    # Comprehension rating by the Code Ownership package (direct injection of a score stays possible for overrides and tests)
     if isinstance(raw_response, dict) and "ownership_score" in raw_response:
         raw_score = float(raw_response["ownership_score"])
-    elif len(student_text.strip()) > 20:
-        raw_score = 0.85
-    elif len(student_text.strip()) > 0:
-        raw_score = 0.25
     else:
-        raw_score = 0.0
+        rated = await _rate_answer(av, student_text)
+        if rated.status != "completed":
+            return {
+                "active_verification": av,
+                "ko_raw_score": None,
+                "ko_fusion_score": None,
+                "factor_scores": {"code_ownership": rated},
+                "current_step": "quiz_evaluated",
+            }
+        raw_score = float(rated.features.get("ko_raw_score", rated.score))
     av.ownership_score = raw_score
 
     # Apply timeout score capping if response arrived during extension window
@@ -234,15 +280,16 @@ async def evaluate_ownership_tool(state: Dict[str, Any]) -> Dict[str, Any]:
         if av.ownership_score is not None:
             raw_score = av.ownership_score
         else:
-            # Delegate evaluation to factor bridge
-            payload = {
-                "student_response": student_text,
-                "is_extension_period": av.is_extended,
-                "is_timeout": False,
-                "code_snippet": av.target_code_snippet,
-            }
-            res = await evaluate_factor("code_ownership", payload=payload, context=state)
-            raw_score = float(res.features.get("ko_raw_score", res.score))
+            rated = await _rate_answer(av, student_text)
+            if rated.status != "completed":
+                return {
+                    "active_verification": av,
+                    "ko_raw_score": None,
+                    "ko_fusion_score": None,
+                    "factor_scores": {"code_ownership": rated},
+                    "current_step": "ownership_evaluated",
+                }
+            raw_score = float(rated.features.get("ko_raw_score", rated.score))
 
         if av.is_extended:
             fusion_score = min(raw_score, cap_ceiling)
