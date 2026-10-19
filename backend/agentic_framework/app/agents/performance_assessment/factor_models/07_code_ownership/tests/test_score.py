@@ -56,7 +56,21 @@ class Guards(unittest.TestCase):
 
     def test_a_genuine_answer_is_not_guarded(self):
         self.assertIsNone(KF.guard(GOOD, QUESTION, CODE))
-        self.assertIsNone(KF.guard(VAGUE, QUESTION, CODE))
+        self.assertIn("nothing from this code", KF.guard(VAGUE, QUESTION, CODE))  # a vague answer naming nothing of the code is not rated (by design)
+
+
+class RelevanceAndPadding(unittest.TestCase):
+    def test_an_answer_that_mentions_nothing_from_this_code_is_guarded(self):
+        other = "The loader reads each record from the stream and validates the checksum before it hands the parsed block back to the caller for further processing."
+        self.assertIn("nothing from this code", KF.guard(other, QUESTION, CODE, FACTS, "guard"))
+        self.assertIn("nothing from this code", KF.guard("It takes the input, processes it step by step and returns the correct result as expected.", QUESTION, CODE, FACTS, "guard"))
+
+    def test_repeating_one_word_is_guarded_as_padding(self):
+        self.assertIn("padding", KF.guard(GOOD + " " + " ".join(["indeed"] * 40), QUESTION, CODE, FACTS, "guard"))
+
+    def test_genuine_answers_are_not_caught_by_the_new_rules(self):
+        self.assertIsNone(KF.guard(GOOD, QUESTION, CODE, FACTS, "guard"))
+        self.assertIsNone(KF.guard("It checks the discount and raises when it is below zero, otherwise the total keeps going.", QUESTION, CODE, FACTS, "guard"))
 
 
 class Features(unittest.TestCase):

@@ -131,19 +131,33 @@ def featurize(answer, question, code, facts=None, qtype=None):
     }
 
 
-def guard(answer, question, code):
-    """Why an answer is rated 1 without the model, or None. Deterministic and checkable."""
+REPEAT_SHARE = 0.20
+REPEAT_MIN = 6
+
+
+def guard(answer, question, code, facts=None, qtype=None):
+    """Why an answer is rated 1 without the model, or None. Deterministic and checkable.
+
+    Rules (training/PROTOCOL.md, the last two added after the first robustness run): too short; repeats the question; copies the code; mentions nothing from this
+    code (no identifier of the code and no term of the fact the question asks about, so a fluent answer written for another function or a generic sentence is not rated);
+    one word makes up a large share of the answer (padding).
+    """
     text = (answer or "").strip()
     aw = words(text)
     if len(aw) < MIN_WORDS:
         return "the answer is empty or shorter than 4 words"
-    f = featurize(text, question, code)
+    f = featurize(text, question, code, facts, qtype)
     if f["question_echo"] >= ECHO_LIMIT:
         return "the answer mostly repeats the question"
     cl = [ln.strip() for ln in code.splitlines() if ln.strip()]
     pasted = sum(len(words(ln)) for ln in cl if ln and ln in text)
     if f["code_copy"] >= CODE_COPY_LIMIT or (len(aw) and pasted / len(aw) >= CODE_COPY_LIMIT):
         return "the answer mostly copies lines from the code"
+    if f["identifier_recall"] == 0 and f["focus_overlap"] == 0:
+        return "the answer mentions nothing from this code"
+    top = max((aw.count(w) for w in set(aw) if w not in STOP), default=0)
+    if top >= REPEAT_MIN and top / len(aw) >= REPEAT_SHARE:
+        return "one word makes up a large share of the answer (padding)"
     return None
 
 

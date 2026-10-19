@@ -64,7 +64,7 @@ def _encoder(key, threads=None):
 def rate(answer, question, code, facts=None, encoder=None, qtype=None):
     """Rate one answer. ``qtype`` is the question type from the quiz (guard, handler, ...). ``encoder`` may be passed in (tests, batch use); otherwise the card's encoder is loaded once and reused."""
     c = card()
-    why = kf.guard(answer, question, code)
+    why = kf.guard(answer, question, code, facts, qtype)
     hand = kf.featurize(answer or "", question or "", code or "", facts, qtype)
     out = {"guard": why, "features": {f"KO_{k}": v for k, v in hand.items()}, "model": {"encoder": c["encoder"], "feature_set": c["feature_set"], "head": c["head"], "version": SCORE_VERSION}}
     if why:

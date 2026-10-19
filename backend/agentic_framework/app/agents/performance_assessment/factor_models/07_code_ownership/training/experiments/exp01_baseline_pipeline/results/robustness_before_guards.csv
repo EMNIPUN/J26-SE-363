@@ -1,0 +1,253 @@
+attack,snippet_id,rating,guard
+code paste,K001,1.0,the answer mostly copies lines from the code
+question echo,K001,1.0,the answer mostly repeats the question
+generic filler,K001,2.957,
+answer to another function,K001,4.626,
+padding,K001,2.699,
+too short,K001,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K001,4.931,
+code paste,K002,1.0,the answer mostly copies lines from the code
+question echo,K002,1.0,the answer mostly repeats the question
+generic filler,K002,3.163,
+answer to another function,K002,3.802,
+padding,K002,3.662,
+too short,K002,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K002,4.8,
+code paste,K003,1.0,the answer mostly copies lines from the code
+question echo,K003,1.0,the answer mostly repeats the question
+generic filler,K003,3.028,
+answer to another function,K003,4.236,
+padding,K003,3.234,
+too short,K003,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K003,4.923,
+code paste,K004,1.0,the answer mostly copies lines from the code
+question echo,K004,1.0,the answer mostly repeats the question
+generic filler,K004,3.071,
+answer to another function,K004,4.762,
+padding,K004,2.851,
+too short,K004,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K004,5.0,
+code paste,K005,1.0,the answer mostly copies lines from the code
+question echo,K005,1.0,the answer mostly repeats the question
+generic filler,K005,3.014,
+answer to another function,K005,4.114,
+padding,K005,2.897,
+too short,K005,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K005,4.799,
+code paste,K006,1.0,the answer mostly copies lines from the code
+question echo,K006,1.0,the answer mostly repeats the question
+generic filler,K006,2.975,
+answer to another function,K006,3.288,
+padding,K006,3.9,
+too short,K006,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K006,4.801,
+code paste,K007,1.0,the answer mostly copies lines from the code
+question echo,K007,1.0,the answer mostly repeats the question
+generic filler,K007,3.014,
+answer to another function,K007,3.456,
+padding,K007,2.68,
+too short,K007,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K007,4.8,
+code paste,K008,1.0,the answer mostly copies lines from the code
+question echo,K008,1.0,the answer mostly repeats the question
+generic filler,K008,3.178,
+answer to another function,K008,4.373,
+padding,K008,2.513,
+too short,K008,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K008,4.8,
+code paste,K009,1.0,the answer mostly copies lines from the code
+question echo,K009,1.0,the answer mostly repeats the question
+generic filler,K009,3.011,
+answer to another function,K009,3.748,
+padding,K009,2.365,
+too short,K009,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K009,4.799,
+code paste,K010,1.0,the answer mostly copies lines from the code
+question echo,K010,1.0,the answer mostly repeats the question
+generic filler,K010,3.162,
+answer to another function,K010,2.586,
+padding,K010,4.187,
+too short,K010,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K010,4.8,
+code paste,K011,1.0,the answer mostly copies lines from the code
+question echo,K011,1.0,the answer mostly repeats the question
+generic filler,K011,3.17,
+answer to another function,K011,3.548,
+padding,K011,2.187,
+too short,K011,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K011,4.799,
+code paste,K012,1.0,the answer mostly copies lines from the code
+question echo,K012,1.0,the answer mostly repeats the question
+generic filler,K012,3.176,
+answer to another function,K012,3.466,
+padding,K012,2.271,
+too short,K012,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K012,4.8,
+code paste,K013,1.0,the answer mostly copies lines from the code
+question echo,K013,1.0,the answer mostly repeats the question
+generic filler,K013,2.999,
+answer to another function,K013,4.535,
+padding,K013,1.903,
+too short,K013,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K013,4.539,
+code paste,K014,1.0,the answer mostly copies lines from the code
+question echo,K014,1.0,the answer mostly repeats the question
+generic filler,K014,3.173,
+answer to another function,K014,3.038,
+padding,K014,2.276,
+too short,K014,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K014,4.798,
+code paste,K015,1.0,the answer mostly copies lines from the code
+question echo,K015,1.0,the answer mostly repeats the question
+generic filler,K015,3.021,
+answer to another function,K015,4.417,
+padding,K015,3.377,
+too short,K015,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K015,5.0,
+code paste,K016,1.0,the answer mostly copies lines from the code
+question echo,K016,1.0,the answer mostly repeats the question
+generic filler,K016,3.179,
+answer to another function,K016,3.802,
+padding,K016,3.051,
+too short,K016,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K016,5.0,
+code paste,K017,1.0,the answer mostly copies lines from the code
+question echo,K017,1.0,the answer mostly repeats the question
+generic filler,K017,3.011,
+answer to another function,K017,3.607,
+padding,K017,2.166,
+too short,K017,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K017,4.799,
+code paste,K018,1.0,the answer mostly copies lines from the code
+question echo,K018,1.0,the answer mostly repeats the question
+generic filler,K018,3.183,
+answer to another function,K018,3.183,
+padding,K018,2.675,
+too short,K018,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K018,5.0,
+code paste,K019,1.0,the answer mostly copies lines from the code
+question echo,K019,1.0,the answer mostly repeats the question
+generic filler,K019,2.998,
+answer to another function,K019,3.371,
+padding,K019,3.058,
+too short,K019,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K019,4.798,
+code paste,K020,1.0,the answer mostly copies lines from the code
+question echo,K020,1.0,the answer mostly repeats the question
+generic filler,K020,3.167,
+answer to another function,K020,3.967,
+padding,K020,3.873,
+too short,K020,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K020,4.8,
+code paste,K021,1.0,the answer mostly copies lines from the code
+question echo,K021,1.0,the answer mostly repeats the question
+generic filler,K021,3.005,
+answer to another function,K021,3.391,
+padding,K021,2.384,
+too short,K021,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K021,4.798,
+code paste,K022,1.0,the answer mostly copies lines from the code
+question echo,K022,1.0,the answer mostly repeats the question
+generic filler,K022,3.079,
+answer to another function,K022,4.258,
+padding,K022,2.943,
+too short,K022,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K022,4.821,
+code paste,K023,1.0,the answer mostly copies lines from the code
+question echo,K023,1.0,the answer mostly repeats the question
+generic filler,K023,2.999,
+answer to another function,K023,3.512,
+padding,K023,3.288,
+too short,K023,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K023,4.799,
+code paste,K024,1.0,the answer mostly copies lines from the code
+question echo,K024,1.0,the answer mostly repeats the question
+generic filler,K024,3.17,
+answer to another function,K024,3.414,
+padding,K024,2.437,
+too short,K024,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K024,4.799,
+code paste,K025,1.0,the answer mostly copies lines from the code
+question echo,K025,1.0,the answer mostly repeats the question
+generic filler,K025,2.855,
+answer to another function,K025,4.438,
+padding,K025,2.191,
+too short,K025,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K025,4.799,
+code paste,K026,1.0,the answer mostly copies lines from the code
+question echo,K026,1.0,the answer mostly repeats the question
+generic filler,K026,3.17,
+answer to another function,K026,1.794,
+padding,K026,2.594,
+too short,K026,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K026,4.798,
+code paste,K027,1.0,the answer mostly copies lines from the code
+question echo,K027,1.0,the answer mostly repeats the question
+generic filler,K027,3.002,
+answer to another function,K027,3.099,
+padding,K027,2.577,
+too short,K027,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K027,4.798,
+code paste,K028,1.0,the answer mostly copies lines from the code
+question echo,K028,1.0,the answer mostly repeats the question
+generic filler,K028,3.167,
+answer to another function,K028,2.865,
+padding,K028,4.102,
+too short,K028,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K028,4.816,
+code paste,K029,1.0,the answer mostly copies lines from the code
+question echo,K029,1.0,the answer mostly repeats the question
+generic filler,K029,3.014,
+answer to another function,K029,4.322,
+padding,K029,2.808,
+too short,K029,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K029,4.799,
+code paste,K030,1.0,the answer mostly copies lines from the code
+question echo,K030,1.0,the answer mostly repeats the question
+generic filler,K030,3.161,
+answer to another function,K030,3.658,
+padding,K030,3.835,
+too short,K030,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K030,4.8,
+code paste,K031,1.0,the answer mostly copies lines from the code
+question echo,K031,1.0,the answer mostly repeats the question
+generic filler,K031,3.03,
+answer to another function,K031,4.261,
+padding,K031,3.691,
+too short,K031,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K031,4.797,
+code paste,K032,1.0,the answer mostly copies lines from the code
+question echo,K032,1.0,the answer mostly repeats the question
+generic filler,K032,3.182,
+answer to another function,K032,3.927,
+padding,K032,4.22,
+too short,K032,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K032,4.8,
+code paste,K033,1.0,the answer mostly copies lines from the code
+question echo,K033,1.0,the answer mostly repeats the question
+generic filler,K033,3.023,
+answer to another function,K033,3.204,
+padding,K033,2.624,
+too short,K033,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K033,4.799,
+code paste,K034,1.0,the answer mostly copies lines from the code
+question echo,K034,1.0,the answer mostly repeats the question
+generic filler,K034,3.178,
+answer to another function,K034,1.119,
+padding,K034,2.842,
+too short,K034,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K034,4.798,
+code paste,K035,1.0,the answer mostly copies lines from the code
+question echo,K035,1.0,the answer mostly repeats the question
+generic filler,K035,3.007,
+answer to another function,K035,4.14,
+padding,K035,2.365,
+too short,K035,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K035,4.798,
+code paste,K036,1.0,the answer mostly copies lines from the code
+question echo,K036,1.0,the answer mostly repeats the question
+generic filler,K036,3.177,
+answer to another function,K036,3.722,
+padding,K036,3.976,
+too short,K036,1.0,the answer is empty or shorter than 4 words
+genuine level-5 answer (reference),K036,4.801,
