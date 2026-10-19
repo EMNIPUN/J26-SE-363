@@ -1,0 +1,5 @@
+variant,val_mae,val_rmse,pearson_r,spearman_rho,within_1_band,exact_band
+Ridge LOG4 (Best Feature Set),0.0643,0.0991,0.9519,0.9342,0.9844,0.7726
+Ridge LOG5 (Proposal Baseline),0.0651,0.0998,0.9512,0.934,0.9844,0.7726
+Ridge Enriched (LOC/commit + Test Ratio),0.0672,0.1026,0.9482,0.929,0.9844,0.7344
+"Ridge LOG3 (Commits, Lines, Files)",0.0765,0.1135,0.9355,0.9142,0.9792,0.724
