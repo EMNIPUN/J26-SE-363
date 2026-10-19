@@ -14,6 +14,7 @@ PY=${RF_PY:?set RF_PY to a python with langgraph}
 : "${RF_ENV_FILE:?set RF_ENV_FILE}"
 export RF_ENV_FILE
 STAGES=${*:-exp1 exp2 exp3}
+PB=${RF_PER_BUCKET:-4}   # held-out tasks per size bucket; the items are nested, so raising it later only adds items (8 is the full plan)
 tree() {  # tree <name> <branch>  -> path of a worktree on that branch
   local dir="$WT/$1"
   [ -d "$dir" ] || git -C "$ROOT" worktree add -q "$dir" "$2" || { echo "cannot make a worktree for $2 (is it checked out elsewhere?)" >&2; return 1; }
@@ -26,12 +27,12 @@ for s in $STAGES; do
   case $s in
     exp1) d=$(tree exp1 feature/requirement-fulfillment-single-prompt-sadeesha) || continue
           run "$d" experiments.single_prompt:SinglePromptAsProposed dev 2 runs/exp1_as_proposed_dev_smoke
-          run "$d" experiments.single_prompt:SinglePromptAsProposed held_out 8 runs/exp1_as_proposed_heldout
-          run "$d" experiments.single_prompt:SinglePromptCut held_out 8 runs/exp1_cut_heldout ;;
+          run "$d" experiments.single_prompt:SinglePromptAsProposed held_out "$PB" runs/exp1_as_proposed_heldout
+          run "$d" experiments.single_prompt:SinglePromptCut held_out "$PB" runs/exp1_cut_heldout ;;
     exp2) d=$(tree exp2 feature/requirement-fulfillment-agent-experiment-sadeesha) || continue
-          run "$d" experiments.agent:Agent held_out 8 runs/exp2_agent_heldout ;;
+          run "$d" experiments.agent:Agent held_out "$PB" runs/exp2_agent_heldout ;;
     exp3) d=$(tree exp3 feature/requirement-fulfillment-agent-critic-sadeesha) || continue
-          run "$d" experiments.agent_critic:AgentCritic held_out 8 runs/exp3_critic_heldout ;;
+          run "$d" experiments.agent_critic:AgentCritic held_out "$PB" runs/exp3_critic_heldout ;;
     repeat) d=$(tree exp2 feature/requirement-fulfillment-agent-experiment-sadeesha) || continue
           run "$d" experiments.agent:Agent held_out 2 runs/exp2_agent_repeat 3 ;;
   esac
