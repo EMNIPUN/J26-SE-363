@@ -93,7 +93,7 @@ class WorkspaceManager:
     # ---- running git -----------------------------------------------------------------------------------------------------------------
     def _env(self, token=None):
         env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k not in ("SSH_ASKPASS",)}
-        cfg = [("core.hooksPath", str(self.empty)), ("protocol.allow", "never"), ("protocol.https.allow", "always"), ("core.attributesFile", os.devnull), ("core.fsmonitor", "false"), ("gc.auto", "0")]
+        cfg = [("core.hooksPath", str(self.empty)), ("protocol.allow", "never"), ("protocol.https.allow", "always"), ("core.attributesFile", os.devnull), ("core.fsmonitor", "false"), ("gc.auto", "0"), ("core.quotepath", "false")]
         if self.allow_local:
             cfg += [("protocol.file.allow", "always")]
         if token:
