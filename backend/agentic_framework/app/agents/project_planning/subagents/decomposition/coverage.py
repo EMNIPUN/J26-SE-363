@@ -25,7 +25,7 @@ from app.agents.project_planning.schemas import (
 
 logger = logging.getLogger(__name__)
 
-_JUDGMENT_CHECKS = ("C2", "C3", "C4", "C5", "C7", "C8")
+_JUDGMENT_CHECKS = ("C2", "C3", "C4", "C5", "C7", "C8", "C10")
 _ALL_CHECKS = ("C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10")
 _ELEMENT_TYPES = ", ".join(t.value for t in CoverageElementType)
 
@@ -40,7 +40,7 @@ the main action, an input, an output, a business rule, a constraint, a permissio
 rule, an exception/error/recovery behavior, or a quality constraint).
 
 Step 2 — For each element, decide which student stories (by story_id) cover it, by \
-reading each story's title and user story description. An element is "Covered" only if \
+reading each story's title, user story description, and acceptance criteria. An element is "Covered" only if \
 at least one story clearly addresses it; otherwise it is "Missing". An element may be \
 covered by more than one story.
 
@@ -55,6 +55,8 @@ feedback is shown directly to the student to help them improve, not to block the
   - C5 exception_coverage: all defined error, failure, alternative, boundary and recovery behaviors are covered.
   - C7 no_duplicate_scope: stories do not substantially overlap or repeat the same behavior (list any overlapping element_ids in duplicate_elements).
   - C8 no_scope_loss: no necessary part of the requirement was omitted.
+  - C10 acceptance_traceability: every material story behavior has at least one specific,
+    relevant, and verifiable acceptance criterion. Fail for missing or vague criteria.
 
 Step 4 — List any story_id that introduces behavior unrelated to this requirement in \
 out_of_scope_stories.
@@ -76,7 +78,8 @@ Reply with a STRICT JSON object only (no markdown):
     "C4": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": [], "suggestion": "..."}},
     "C5": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": [], "suggestion": "..."}},
     "C7": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": [], "suggestion": "..."}},
-    "C8": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": [], "suggestion": "..."}}
+    "C8": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": [], "suggestion": "..."}},
+    "C10": {{"result": "Pass"|"Fail", "rationale": "...", "evidence": ["US-1"], "suggestion": "..."}}
   }},
   "duplicate_elements": ["E3"],
   "out_of_scope_stories": ["US-4"],
@@ -115,7 +118,8 @@ async def analyze_coverage(
         return _unavailable_analysis("LLM unavailable — coverage could not be assessed.")
 
     story_block = "\n".join(
-        f'- {s.get("id")}: "{s.get("title", "")}" | Description: "{s.get("description", "")}"'
+        f'- {s.get("id")}: "{s.get("title", "")}" | Description: "{s.get("description", "")}" '
+        f'| Acceptance criteria: {"; ".join(s.get("acceptance_criteria") or []) or "(none)"}'
         for s in stories
     )
     user_prompt = (
@@ -226,26 +230,8 @@ async def analyze_coverage(
         ),
     )
 
-    # C10 verifies that each story has a parent trace and covers at least one
-    # behavior extracted from that parent requirement.
-    untraceable_stories = sorted(set(unlinked) | set(orphan_stories))
-    checks["C10"] = CoverageCheck(
-        check_id="C10",
-        result=CheckResult.FAIL if untraceable_stories else CheckResult.PASS,
-        rationale=(
-            "Story(ies) lack a valid parent link or assigned-behavior coverage: "
-            + ", ".join(untraceable_stories)
-            if untraceable_stories
-            else "Every story is linked to the parent requirement and covers at least one assigned behavior."
-        ),
-        evidence=untraceable_stories,
-        suggestion=(
-            f"Make sure {', '.join(untraceable_stories)} is linked to this "
-            "requirement and describes a behavior that traces back to it."
-            if untraceable_stories
-            else ""
-        ),
-    )
+    # C10 is evaluated above because it needs the acceptance-criteria text;
+    # C1/C6 still deterministically enforce structural traceability.
 
     # C9 — no out-of-scope behavior: cross-check the LLM's judgment against the
     # Python-computed orphan set. A disagreement is treated as Fail and both

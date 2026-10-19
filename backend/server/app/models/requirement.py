@@ -36,6 +36,10 @@ class Requirement(TimestampMixin, Base):
     section_reference: Mapped[str | None] = mapped_column(String(100))
     extraction_confidence: Mapped[float | None] = mapped_column(Numeric(5, 2))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Explicit student action after a passing quality assessment. This is a
+    # workflow gate, not a browser preference, so it survives reloads.
+    quality_approved_for_decomposition: Mapped[bool] = mapped_column(Boolean, default=False)
+    decomposition_approved_for_effort: Mapped[bool] = mapped_column(Boolean, default=False)
     jira_epic_key: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     pipeline_session: Mapped["PipelineSession"] = relationship(

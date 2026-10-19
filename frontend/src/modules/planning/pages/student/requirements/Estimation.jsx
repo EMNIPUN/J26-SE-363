@@ -485,17 +485,9 @@ export default function Estimation() {
 
   function isDecompComplete(r) {
     if (!r || r.status !== 'Passing') return false
-    // A requirement has completed decomposition if decompFinalized is true,
-    // or if its decomposed user stories exist and are accepted or estimated.
-    const stories = userStories[r.id] || []
-    const hasDecomposedStories = stories.some(
-      (s) =>
-        s.status === 'Accepted' ||
-        s.status === 'accepted' ||
-        s.status === 'estimated' ||
-        s.student_story_points != null
-    )
-    return Boolean(r.decompFinalized || hasDecomposedStories)
+    // Effort access requires the student's persisted explicit handoff from
+    // decomposition; stories alone do not unlock this stage.
+    return Boolean(r.effortAuthorized)
   }
 
   // Sort requirements: decomposition-completed requirements first, then passing SRS, then others
@@ -521,14 +513,14 @@ export default function Estimation() {
 
   useEffect(() => {
     const stories = storiesResp?.data?.stories || storiesResp?.stories
-    if (!stories) return
+    if (!Array.isArray(stories)) return
     const mapped = mapStoryRows(stories)
-    loadStories(mapped)
+    loadStories(mapped, { replace: true })
   }, [storiesResp]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const rows = estimatesResp?.data?.estimates || estimatesResp?.estimates
-    if (!rows || rows.length === 0) return
+    if (!Array.isArray(rows)) return
     const estMap = {}
     for (const row of rows) {
       const storyRef = row.story_ref || row.user_story_id
@@ -540,7 +532,7 @@ export default function Estimation() {
         confirmed: row.confirmed ?? false,
       }
     }
-    if (Object.keys(estMap).length > 0) loadEstimations(estMap)
+    loadEstimations(estMap)
   }, [estimatesResp]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Collect all decomposed user stories (ignoring rejected ones)

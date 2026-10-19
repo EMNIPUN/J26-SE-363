@@ -42,7 +42,7 @@ import HighlightedRequirementText from '../../../components/HighlightedRequireme
 import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
 import EmptyState from '../../../../../shared/components/EmptyState.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
-import { srsTemplateUrl } from '../../../services/qualityService.js'
+import { qualityService, srsTemplateUrl } from '../../../services/qualityService.js'
 import { useUploadSrs, useAnalyzeQuality, useQualityResults, useRequirementHistory } from '../../../hooks/useQuality.js'
 import { mapExtractResult, mapAnalyzeResult, mapPersistedRows, mapQualityResult } from '../../../adapters/quality.js'
 import QualityEvidencePanel from '../../../components/QualityEvidencePanel.jsx'
@@ -105,7 +105,7 @@ export default function SRSQuality() {
     requirements,
     updateRequirementText,
     applyRequirementResult,
-    finalizeRequirement,
+    authorizeDecomposition,
     getRequirementHistory,
     loadRequirements,
   } = usePlanningData()
@@ -130,7 +130,7 @@ export default function SRSQuality() {
   // Hydrate from the DB once (an empty payload simply leaves the upload empty state).
   useEffect(() => {
     const rows = resultsQuery.data?.requirements
-    if (rows && rows.length > 0 && requirements.length === 0) {
+    if (Array.isArray(rows)) {
       loadRequirements(mapPersistedRows(rows))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -138,7 +138,7 @@ export default function SRSQuality() {
 
   // Falls back to the first requirement until the student picks one.
   const selected = requirements.find((r) => r.id === selectedId) || requirements[0] || null
-  const isFinalized = Boolean(selected?.finalized || selected?.decompUnlocked)
+  const isFinalized = Boolean(selected?.decompositionAuthorized)
   const historyQuery = useRequirementHistory(selected?.id)
   const currentDraft =
     draft && draft.id === selectedId
@@ -164,14 +164,21 @@ export default function SRSQuality() {
     setHistoryOpen(true)
   }
 
-  function handleProceedToDecomposition(req) {
+  async function handleProceedToDecomposition(req) {
     const target = req || selected
     if (!target) return
-    finalizeRequirement(target.id)
-    showToast.success('Quality gate finalized', {
-      description: `${target.id} approved and unlocked for Backlog Decomposition.`,
-    })
-    navigate(team(`/planning/requirements/decomposition?req=${target.id}`))
+    try {
+      await qualityService.proceedToDecomposition(target.id)
+      authorizeDecomposition(target.id)
+      showToast.success('Decomposition unlocked', {
+        description: `${target.id} is now available for Backlog Decomposition.`,
+      })
+      navigate(team(`/planning/requirements/decomposition?req=${target.id}`))
+    } catch (err) {
+      showToast.error('Could not unlock decomposition', {
+        description: err?.message || 'Please refresh SRS Quality and try again.',
+      })
+    }
   }
 
   // Intercept upload click: if an SRS document is already present, prompt with warning dialog.

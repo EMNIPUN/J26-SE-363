@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Sparkles,
@@ -76,6 +76,7 @@ import {
   useUpdateStory,
   useDeleteStory,
 } from '../../../hooks/useDecomposition.js'
+import { decompositionService } from '../../../services/decompositionService.js'
 import {
   mapDecompositionResult,
   mapStoryRows,
@@ -386,7 +387,6 @@ function TaskRow({ reqId, storyId, task, readOnly = false }) {
 }
 
 function BugSection({ reqId, storyId, bugs, readOnly = false }) {
-  const { addBug, toggleBugStatus } = usePlanningData()
   const [title, setTitle] = useState('')
   const [severity, setSeverity] = useState('Medium')
 
@@ -412,8 +412,7 @@ function BugSection({ reqId, storyId, bugs, readOnly = false }) {
                 <Badge tone={BUG_SEVERITY_TONE[b.severity]} className="text-[10px] px-1.5 py-0">{b.severity}</Badge>
                 <Badge
                   tone={b.status === 'Fixed' ? 'success' : 'warning'}
-                  onClick={() => !readOnly && toggleBugStatus(reqId, storyId, b.id)}
-                  className={`text-[10px] px-1.5 py-0 ${!readOnly ? 'cursor-pointer' : ''}`}
+                  className="text-[10px] px-1.5 py-0"
                 >
                   {b.status}
                 </Badge>
@@ -422,7 +421,7 @@ function BugSection({ reqId, storyId, bugs, readOnly = false }) {
           ))}
         </ul>
       )}
-      {!readOnly && (
+      {false && !readOnly && (
         <div className="flex items-center gap-2">
           <Input
             value={title}
@@ -445,10 +444,8 @@ function BugSection({ reqId, storyId, bugs, readOnly = false }) {
             variant="outline"
             className="h-8 text-xs shrink-0 gap-1"
             disabled={!title.trim()}
-            onClick={() => {
-              addBug(reqId, storyId, title.trim(), severity)
-              setTitle('')
-            }}
+            disabled
+            title="Issue tracking is not available until it has a database endpoint."
           >
             <Plus className="h-3 w-3" />
             Bug
@@ -1003,6 +1000,22 @@ const INVEST_RESULT_TONE = {
   'Cannot Assess': 'neutral',
 }
 
+const INVEST_COMPLETION_GUIDE = {
+  independent: 'Remove or explicitly justify dependencies on other unfinished stories. Keep this story deliverable on its own.',
+  negotiable: 'Describe the user outcome and leave technical design choices open. Replace prescribed technologies with the capability the user needs.',
+  valuable: 'State the user or stakeholder benefit in “so that …” terms, so the value of delivering this story is clear.',
+  estimable: 'Define the missing scope, rules, inputs, and acceptance criteria so a team can size the work without guessing.',
+  small: 'Split this into independently valuable slices. Keep one user goal and one coherent outcome in each story.',
+  testable: 'Add observable, measurable acceptance criteria that state what must happen and how pass/fail can be verified.',
+}
+
+function investGuidance(criterion, finding) {
+  const evidence = finding?.note?.trim() || finding?.evidence?.trim()
+  return evidence
+    ? `${evidence} Revision guide: ${INVEST_COMPLETION_GUIDE[criterion]}`
+    : INVEST_COMPLETION_GUIDE[criterion]
+}
+
 function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
   if (!evaluation) return null
   const checks = evaluation.coverage?.checks || []
@@ -1013,6 +1026,7 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
   const passedChecks = checks.filter((c) => c.result === 'Pass').length
   const analysisFailed = Boolean(evaluation.analysisFailed)
   const analysisSkipped = Boolean(evaluation.analysisSkipped)
+  const [selectedInvestGuide, setSelectedInvestGuide] = useState(null)
 
   return (
     <div className="space-y-4">
@@ -1085,6 +1099,9 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
                 </div>
                 {c.rationale && (
                   <p className="text-[11px] text-muted-foreground mt-1 ml-6">{c.rationale}</p>
+                )}
+                {c.result !== 'Pass' && c.suggestion && (
+                  <p className="text-[11px] text-foreground mt-1 ml-6"><span className="font-semibold">How to improve:</span> {c.suggestion}</p>
                 )}
               </div>
             ))
@@ -1174,14 +1191,29 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
                 </tr>
               </thead>
               <tbody>
-                {investStories.map(([storyRef, result]) => (
-                  <tr key={storyRef} className="border-t border-border/60">
+                {investStories.map(([storyRef, result]) => {
+                  const failedCriteria = INVEST_CRITERIA.filter(({ key }) => {
+                    const verdict = result[key]?.result
+                    return verdict === 'Fail' || verdict === 'Cannot Assess'
+                  })
+                  const acReadiness = result.acceptanceCriteriaReadiness || {}
+                  const weakAcceptanceCriteria = acReadiness.result === 'Fail' || acReadiness.result === 'Cannot Assess'
+                  return (
+                  <Fragment key={storyRef}>
+                  <tr className="border-t border-border/60">
                     <td className="py-2 pr-2 font-medium text-foreground">{storyRef}</td>
                     {INVEST_CRITERIA.map((c) => {
                       const cell = result[c.key] || {}
+                      const needsGuidance = cell.result === 'Fail' || cell.result === 'Cannot Assess'
+                      const guideKey = `${storyRef}:${c.key}`
                       return (
                         <td key={c.key} className="text-center px-1 py-2" title={cell.note || ''}>
-                          <Badge
+                          <button
+                            type="button"
+                            disabled={!needsGuidance}
+                            onClick={() => needsGuidance && setSelectedInvestGuide(selectedInvestGuide === guideKey ? null : guideKey)}
+                            className={needsGuidance ? 'cursor-pointer rounded focus:outline-none focus:ring-2 focus:ring-primary/40' : 'cursor-default'}
+                          ><Badge
                             tone={INVEST_RESULT_TONE[cell.result] || 'neutral'}
                             className="text-[9px] px-1 py-0"
                           >
@@ -1190,7 +1222,7 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
                               : cell.result === 'Cannot Assess'
                                 ? '—'
                                 : cell.result || '—'}
-                          </Badge>
+                          </Badge></button>
                         </td>
                       )
                     })}
@@ -1202,7 +1234,42 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
                       )}
                     </td>
                   </tr>
-                ))}
+                  {(failedCriteria.length > 0 || weakAcceptanceCriteria) && (
+                    <tr className="border-t border-amber-500/20 bg-amber-500/5">
+                      <td colSpan={8} className="px-3 py-3">
+                        <p className="text-[11px] font-semibold text-foreground mb-2">How {storyRef} can become INVEST-ready</p>
+                        <ul className="space-y-2 text-[11px] text-muted-foreground">
+                          {failedCriteria.map(({ key, label }) => (
+                            <li key={key}>
+                              <span className="font-semibold text-foreground">{label}: </span>
+                              {investGuidance(key, result[key])}
+                            </li>
+                          ))}
+                          {weakAcceptanceCriteria && (
+                            <li>
+                              <span className="font-semibold text-foreground">Acceptance criteria: </span>
+                              {(acReadiness.issues || []).join(' ') || acReadiness.suggestion || 'Add criteria that are specific, observable, verifiable, and relevant to this story.'}
+                              <span className="ml-1">Revision guide: {acReadiness.suggestion || 'For each material behavior, state a measurable pass/fail outcome.'}</span>
+                            </li>
+                          )}
+                        </ul>
+                      </td>
+                    </tr>
+                  )}
+                  {selectedInvestGuide?.startsWith(`${storyRef}:`) && (
+                    <tr className="border-t border-border/40 bg-amber-500/5">
+                      <td colSpan={8} className="px-3 py-3">
+                        {(() => {
+                          const criterion = selectedInvestGuide.split(':')[1]
+                          const definition = INVEST_CRITERIA.find((item) => item.key === criterion)
+                          return <div className="text-[11px] leading-relaxed"><p className="font-semibold text-foreground">How to complete {definition?.label}</p><p className="text-muted-foreground mt-1">{investGuidance(criterion, result[criterion])}</p></div>
+                        })()}
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -1298,14 +1365,17 @@ export default function Decomposition() {
     getStories,
     getDecompositionEvaluation,
     recordDecompositionAnalysis,
+    loadDecompositionEvaluations,
     getDecompositionHistory,
-    finalizeDecomposition,
+    authorizeEffortEstimation,
     loadStories,
     getTaskValidationEvaluation,
   } = usePlanningData()
 
   // An active requirement in Decomposition must pass IEEE 830 quality (>=75%) AND have proceeded/finalized
-  const isReqUnlocked = (r) => Boolean(r && r.status === 'Passing' && (r.finalized || r.decompUnlocked))
+  // Quality status is persisted by the API; do not depend on a browser-only
+  // "finalized" flag to decide whether the requirement is available.
+  const isReqUnlocked = (r) => Boolean(r && r.status === 'Passing' && r.decompositionAuthorized)
 
   // Sort requirements: only quality passed and proceeded requirements appear at the top.
   // Other requirements appear below and are greyed out / locked until "Proceed to Decomposition" is clicked.
@@ -1347,9 +1417,9 @@ export default function Decomposition() {
       })
       return
     }
-    if (storiesQuery.data?.stories) {
+    if (Array.isArray(storiesQuery.data?.stories)) {
       const mapped = mapStoryRows(storiesQuery.data.stories)
-      if (Object.keys(mapped).length > 0) loadStories(mapped)
+      loadStories(mapped, { replace: true })
     }
   }, [storiesQuery.data, storiesQuery.isError]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1360,11 +1430,9 @@ export default function Decomposition() {
       })
       return
     }
-    if (decompositionQuery.data?.results) {
+    if (Array.isArray(decompositionQuery.data?.results)) {
       const mapped = mapPersistedDecompositions(decompositionQuery.data.results)
-      for (const [reqId, eval_] of Object.entries(mapped)) {
-        if (eval_ && !eval_.malformed) recordDecompositionAnalysis(reqId, eval_)
-      }
+      loadDecompositionEvaluations(mapped)
     }
   }, [decompositionQuery.data, decompositionQuery.isError]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1432,6 +1500,8 @@ export default function Decomposition() {
       id: s.id,
       title: s.title,
       description: s.description || '',
+      acceptance_criteria: normalizeAcceptanceCriteria(s.acceptanceCriteria),
+      tasks: (s.tasks || []).map((t) => ({ id: t.id, title: t.title, description: t.description || '' })),
     }))
     analyzeMutation.mutate(
       {
@@ -1476,14 +1546,21 @@ export default function Decomposition() {
 
   const [provisionalConfirmOpen, setProvisionalConfirmOpen] = useState(false)
 
-  function completeProceedToEstimation(targetReq) {
+  async function completeProceedToEstimation(targetReq) {
     const target = targetReq || requirement
     if (!target) return
-    finalizeDecomposition(target.id)
-    showToast.success('Decomposition finalized', {
-      description: `${target.id} stories finalized for Effort Estimation.`,
-    })
-    navigate(team(`/planning/requirements/estimation?req=${target.id}`))
+    try {
+      await decompositionService.proceedToEffort(target.id)
+      authorizeEffortEstimation(target.id)
+      showToast.success('Effort Estimation unlocked', {
+        description: `${target.id} is now available for effort estimation.`,
+      })
+      navigate(team(`/planning/requirements/estimation?req=${target.id}`))
+    } catch (err) {
+      showToast.error('Could not unlock Effort Estimation', {
+        description: err?.message || 'Run a valid decomposition analysis and try again.',
+      })
+    }
   }
 
   // Ready proceeds immediately; Ready with Improvements / Needs Attention
@@ -1497,7 +1574,7 @@ export default function Decomposition() {
       setProvisionalConfirmOpen(true)
       return
     }
-    completeProceedToEstimation(target)
+    void completeProceedToEstimation(target)
   }
 
   function handleAddGapStory(gapLabel) {
@@ -2216,7 +2293,7 @@ export default function Decomposition() {
               size="sm"
               onClick={() => {
                 setProvisionalConfirmOpen(false)
-                completeProceedToEstimation(requirement)
+                void completeProceedToEstimation(requirement)
               }}
               className="text-xs font-bold cursor-pointer bg-amber-600 hover:bg-amber-700 text-white"
             >

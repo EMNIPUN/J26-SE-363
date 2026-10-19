@@ -39,8 +39,15 @@ export function mapQualityResult(q, text, extra = {}) {
   const overallScore4 = q.overall_score_4 ?? +(overallScore / 25).toFixed(2)
   const qualityBand = q.quality_band
     || (overallScore4 >= 3.5 ? 'Excellent' : overallScore4 >= 2.5 ? 'Good' : overallScore4 >= 1.5 ? 'Moderate' : overallScore4 >= 0.5 ? 'Poor' : 'Very poor')
-  const uiStatus = BACKEND_STATUS_MAP[assessmentStatus]
-    || (overallScore >= 75 ? 'Passing' : 'Needs Review')
+  // A provider's textual status alone must never unlock a stage. The
+  // persisted numeric assessment is the gate evidence; a malformed/raw
+  // response marked "passed" with no score must remain locked.
+  const completedOrPassed = !assessmentStatus
+    || assessmentStatus === 'completed'
+    || assessmentStatus === 'passed'
+  const uiStatus = overallScore >= 75 && completedOrPassed
+    ? 'Passing'
+    : (BACKEND_STATUS_MAP[assessmentStatus] || 'Needs Review')
 
   const rawConf = (q?.confidence !== undefined && q?.confidence !== null) ? q.confidence : q?.confidence_level
   let confidenceVal = 0.85
@@ -64,6 +71,8 @@ export function mapQualityResult(q, text, extra = {}) {
     description: text || q.text || '',
     priority: extra.priority || 'Medium',
     status: uiStatus,
+    decompositionAuthorized: Boolean(q.decomposition_authorized),
+    effortAuthorized: Boolean(q.effort_authorized),
     overallScore,
     overallScore4,
     qualityBand,

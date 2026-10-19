@@ -27,6 +27,7 @@ export const ENDPOINTS = {
     QUALITY: '/planning/quality',
     QUALITY_GATE: '/planning/quality/gate',
     QUALITY_HISTORY: (ref) => `/planning/quality/${ref}/history`,
+    QUALITY_PROCEED_TO_DECOMPOSITION: (ref) => `/planning/quality/${ref}/proceed-to-decomposition`,
     // User Stories + Decomposition Agent
     STORIES: '/planning/stories',
     STORY: (ref) => `/planning/stories/${ref}`,
@@ -36,6 +37,7 @@ export const ENDPOINTS = {
     STORY_TASKS_VALIDATION: (ref) => `/planning/stories/${ref}/tasks/validation`,
     DECOMPOSITION: '/planning/decomposition',
     DECOMPOSITION_HISTORY: (ref) => `/planning/decomposition/${ref}/history`,
+    DECOMPOSITION_PROCEED_TO_EFFORT: (ref) => `/planning/decomposition/${ref}/proceed-to-effort`,
     // Estimation
     ESTIMATES: '/planning/estimates',
     ESTIMATE_CONFIRM: (ref) => `/planning/estimates/${ref}/confirm`,

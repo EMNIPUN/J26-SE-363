@@ -45,171 +45,51 @@ const CACHED_DECOMP_HISTORY_KEY = 'selvia_cached_decomp_history'
 const CACHED_TASK_VALIDATIONS_KEY = 'selvia_cached_task_validations'
 
 function readFinalizedIds() {
-  try {
-    const raw = localStorage.getItem(FINALIZED_STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
+  return []
 }
 
 function saveFinalizedIds(ids) {
-  try {
-    localStorage.setItem(FINALIZED_STORAGE_KEY, JSON.stringify(ids))
-  } catch {
-    // ignore
-  }
+  void ids
 }
 
 function readFinalizedDecompIds() {
-  try {
-    const raw = localStorage.getItem(FINALIZED_DECOMP_STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
+  return []
 }
 
 function saveFinalizedDecompIds(ids) {
-  try {
-    localStorage.setItem(FINALIZED_DECOMP_STORAGE_KEY, JSON.stringify(ids))
-  } catch {
-    // ignore
-  }
-}
-
-function readCachedRequirements() {
-  try {
-    const raw = localStorage.getItem(CACHED_REQUIREMENTS_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed) || parsed.length === 0) return []
-    const finalizedSet = new Set(readFinalizedIds())
-    const finalizedDecompSet = new Set(readFinalizedDecompIds())
-    return parsed.map((r) => ({
-      ...r,
-      finalized: finalizedSet.has(r.id),
-      decompUnlocked: finalizedSet.has(r.id),
-      decompFinalized: finalizedDecompSet.has(r.id),
-    }))
-  } catch {
-    return []
-  }
-}
-
-function saveCachedRequirements(reqs) {
-  try {
-    if (Array.isArray(reqs)) {
-      localStorage.setItem(CACHED_REQUIREMENTS_KEY, JSON.stringify(reqs))
-    }
-  } catch {
-    // ignore
-  }
-}
-
-function readCachedUserStories() {
-  try {
-    const raw = localStorage.getItem(CACHED_USER_STORIES_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
-}
-
-function saveCachedUserStories(stories) {
-  try {
-    if (stories && typeof stories === 'object') {
-      localStorage.setItem(CACHED_USER_STORIES_KEY, JSON.stringify(stories))
-    }
-  } catch {
-    // ignore
-  }
-}
-
-function readCachedDecompEvaluations() {
-  try {
-    const raw = localStorage.getItem(CACHED_DECOMP_EVALUATIONS_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
-}
-
-function saveCachedDecompEvaluations(evaluations) {
-  try {
-    if (evaluations && typeof evaluations === 'object') {
-      localStorage.setItem(CACHED_DECOMP_EVALUATIONS_KEY, JSON.stringify(evaluations))
-    }
-  } catch {
-    // ignore
-  }
-}
-
-function readCachedDecompHistory() {
-  try {
-    const raw = localStorage.getItem(CACHED_DECOMP_HISTORY_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
-}
-
-function saveCachedDecompHistory(history) {
-  try {
-    if (history && typeof history === 'object') {
-      localStorage.setItem(CACHED_DECOMP_HISTORY_KEY, JSON.stringify(history))
-    }
-  } catch {
-    // ignore
-  }
-}
-
-function readCachedTaskValidations() {
-  try {
-    const raw = localStorage.getItem(CACHED_TASK_VALIDATIONS_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
-}
-
-function saveCachedTaskValidations(evaluations) {
-  try {
-    if (evaluations && typeof evaluations === 'object') {
-      localStorage.setItem(CACHED_TASK_VALIDATIONS_KEY, JSON.stringify(evaluations))
-    }
-  } catch {
-    // ignore
-  }
+  void ids
 }
 
 const CACHED_ESTIMATIONS_KEY = 'selvia_cached_estimations'
 
-function readCachedEstimations() {
+// Planning entities are server-owned. Older builds stored full requirements,
+// stories and agent results in localStorage, which made deleted database rows
+// reappear after navigation or a reload. Keep only harmless UI preferences
+// (for example finalization flags) locally; every planning entity hydrates
+// from the API.
+function clearLegacyEntityCache() {
   try {
-    const raw = localStorage.getItem(CACHED_ESTIMATIONS_KEY)
-    return raw ? JSON.parse(raw) : {}
+    [
+      CACHED_REQUIREMENTS_KEY,
+      CACHED_USER_STORIES_KEY,
+      CACHED_DECOMP_EVALUATIONS_KEY,
+      CACHED_DECOMP_HISTORY_KEY,
+      CACHED_TASK_VALIDATIONS_KEY,
+      CACHED_ESTIMATIONS_KEY,
+    ].forEach((key) => localStorage.removeItem(key))
   } catch {
-    return {}
+    // Browser storage may be unavailable; the in-memory state still starts empty.
   }
 }
 
-function saveCachedEstimations(estimations) {
-  try {
-    if (estimations && typeof estimations === 'object') {
-      localStorage.setItem(CACHED_ESTIMATIONS_KEY, JSON.stringify(estimations))
-    }
-  } catch {
-    // ignore
-  }
-}
+clearLegacyEntityCache()
 
-const initialRequirements = readCachedRequirements()
-const initialStories = readCachedUserStories()
-const initialDecompEvaluations = readCachedDecompEvaluations()
-const initialDecompHistory = readCachedDecompHistory()
-const initialTaskValidations = readCachedTaskValidations()
-const initialEstimations = readCachedEstimations()
+const initialRequirements = []
+const initialStories = {}
+const initialDecompEvaluations = {}
+const initialDecompHistory = {}
+const initialTaskValidations = {}
+const initialEstimations = {}
 
 // Synchronously hydrated from local cache on initial load/reload so the UI never
 // flashes 0% or empty state before background network queries resolve.
@@ -234,24 +114,6 @@ const listeners = new Set()
 
 function setState(patch) {
   state = { ...state, ...patch }
-  if (patch.requirements) {
-    saveCachedRequirements(state.requirements)
-  }
-  if (patch.userStories) {
-    saveCachedUserStories(state.userStories)
-  }
-  if (patch.estimations) {
-    saveCachedEstimations(state.estimations)
-  }
-  if (patch.decompositionEvaluations) {
-    saveCachedDecompEvaluations(state.decompositionEvaluations)
-  }
-  if (patch.decompositionHistory) {
-    saveCachedDecompHistory(state.decompositionHistory)
-  }
-  if (patch.taskValidationEvaluations) {
-    saveCachedTaskValidations(state.taskValidationEvaluations)
-  }
   listeners.forEach((listener) => listener())
 }
 
@@ -275,13 +137,11 @@ export const actions = {
     // An empty array is an authoritative result too: keeping the previous
     // localStorage value here made database-deleted requirements reappear.
     if (!Array.isArray(reqs)) return
-    const finalizedSet = new Set(readFinalizedIds())
-    const finalizedDecompSet = new Set(readFinalizedDecompIds())
     const hydrated = reqs.map((r) => ({
       ...r,
-      finalized: finalizedSet.has(r.id),
-      decompUnlocked: finalizedSet.has(r.id),
-      decompFinalized: finalizedDecompSet.has(r.id),
+      finalized: Boolean(r.decompositionAuthorized),
+      decompUnlocked: Boolean(r.decompositionAuthorized),
+      decompFinalized: Boolean(r.effortAuthorized),
     }))
     setState({
       requirements: hydrated,
@@ -311,6 +171,16 @@ export const actions = {
     })
   },
 
+  authorizeDecomposition(id) {
+    setState({
+      requirements: state.requirements.map((r) =>
+        r.id === id
+          ? { ...r, decompositionAuthorized: true, finalized: true, decompUnlocked: true }
+          : r,
+      ),
+    })
+  },
+
   finalizeDecomposition(id) {
     const set = new Set(readFinalizedDecompIds())
     set.add(id)
@@ -327,6 +197,14 @@ export const actions = {
       activityLog: withActivity(
         `Requirement ${id} decomposition finalized & locked — ready for Effort Estimation.`,
         'success',
+      ),
+    })
+  },
+
+  authorizeEffortEstimation(id) {
+    setState({
+      requirements: state.requirements.map((r) =>
+        r.id === id ? { ...r, effortAuthorized: true, decompFinalized: true } : r,
       ),
     })
   },
@@ -424,9 +302,30 @@ export const actions = {
     setState(patch)
   },
 
-  loadEstimations(map) {
-    if (!map || Object.keys(map).length === 0) return
-    setState({ estimations: { ...state.estimations, ...map } })
+  // Database hydration is an absolute replacement. In particular, an empty
+  // GET /decomposition result must clear previous assessments rather than
+  // leaving a browser-cached or earlier in-memory assessment visible.
+  loadDecompositionEvaluations(map) {
+    if (!map || typeof map !== 'object' || Array.isArray(map)) return
+    const userStories = { ...state.userStories }
+    for (const [reqId, stories] of Object.entries(userStories)) {
+      const evaluation = map[reqId]
+      if (!evaluation) continue
+      userStories[reqId] = stories.map((story) => ({
+        ...story,
+        investResult: evaluation.investResults?.[story.id] ?? story.investResult,
+      }))
+    }
+    setState({
+      userStories,
+      decompositionEvaluations: map,
+      decompositionHistory: {},
+    })
+  },
+
+  loadEstimations(map, { replace = true } = {}) {
+    if (!map || typeof map !== 'object' || Array.isArray(map)) return
+    setState({ estimations: replace ? map : { ...state.estimations, ...map } })
   },
 
   loadKanbanTasks(tasks) {
@@ -590,34 +489,6 @@ export const actions = {
         [reqId]: (state.userStories[reqId] || []).map((s) => (s.id === storyId ? { ...s, status: 'Accepted' } : s)),
       },
       activityLog: withActivity(`${storyId} accepted — ready for effort estimation.`, 'success', 'student'),
-    })
-  },
-
-  addBug(reqId, storyId, title, severity) {
-    setState({
-      userStories: {
-        ...state.userStories,
-        [reqId]: (state.userStories[reqId] || []).map((s) =>
-          s.id === storyId
-            ? { ...s, bugs: [...(s.bugs || []), { id: nextId('BUG'), title, severity, status: 'Open' }] }
-            : s,
-        ),
-      },
-    })
-  },
-
-  toggleBugStatus(reqId, storyId, bugId) {
-    setState({
-      userStories: {
-        ...state.userStories,
-        [reqId]: (state.userStories[reqId] || []).map((s) => {
-          if (s.id !== storyId) return s
-          return {
-            ...s,
-            bugs: (s.bugs || []).map((b) => (b.id === bugId ? { ...b, status: b.status === 'Open' ? 'Fixed' : 'Open' } : b)),
-          }
-        }),
-      },
     })
   },
 

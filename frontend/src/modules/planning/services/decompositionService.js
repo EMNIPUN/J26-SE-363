@@ -27,6 +27,9 @@ export const decompositionService = {
   getResults: () => apiClient.get(ENDPOINTS.PLANNING.DECOMPOSITION),
 
   getHistory: (requirementRef) => apiClient.get(ENDPOINTS.PLANNING.DECOMPOSITION_HISTORY(requirementRef)),
+
+  proceedToEffort: (requirementRef) =>
+    apiClient.post(ENDPOINTS.PLANNING.DECOMPOSITION_PROCEED_TO_EFFORT(requirementRef)),
 }
 
 export default decompositionService

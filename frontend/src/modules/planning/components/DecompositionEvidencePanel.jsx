@@ -109,7 +109,7 @@ export default function DecompositionEvidencePanel({ evaluation }) {
     )
   }
 
-  const { studentFeedback, score, qualityBand } = evaluation
+  const { studentFeedback, score, qualityBand, scoreComponents = {}, taskSummaries = [], toolsUsed = [], improvementPlan = [] } = evaluation
 
   return (
     <Card className="p-0 overflow-hidden border-border bg-card">
@@ -150,8 +150,47 @@ export default function DecompositionEvidencePanel({ evaluation }) {
 
           <ReadinessBanner evaluation={evaluation} />
 
+          <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+            {[
+              ['Coverage (40%)', scoreComponents.coverage],
+              ['Stories + AC (40%)', scoreComponents.story_acceptance],
+              ['Tasks (20%)', scoreComponents.task_quality],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-border p-2">
+                <p className="text-muted-foreground">{label}</p>
+                <p className="font-bold text-foreground mt-0.5">{Number(value || 0).toFixed(2)}/4</p>
+              </div>
+            ))}
+          </div>
+
+          {taskSummaries.length > 0 && (
+            <div className="text-[11px] rounded-lg border border-border p-3">
+              <p className="font-semibold text-foreground mb-1">Acceptance criteria and task readiness</p>
+              {taskSummaries.map((summary) => (
+                <p key={summary.story_id} className="text-muted-foreground">
+                  {summary.story_id}: {summary.ready ? 'tasks ready' : 'tasks need revision'}
+                  {summary.coverage?.missing_work_items?.length ? ` — missing: ${summary.coverage.missing_work_items.join(', ')}` : ''}
+                </p>
+              ))}
+            </div>
+          )}
+
           {/* Actionable feedback checklist — the agent's primary output, most important first */}
           <FeedbackList bullets={studentFeedback} heading="Top Improvements" />
+
+          {improvementPlan.length > 0 && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-[11px]">
+              <p className="font-semibold text-foreground mb-1.5">Prioritized improvement plan</p>
+              <ol className="space-y-1.5 list-decimal list-inside text-muted-foreground">
+                {improvementPlan.map((item, index) => (
+                  <li key={`${item.target || item.area || 'item'}-${index}`}>
+                    <span className="font-medium text-foreground">{item.target || item.area}: </span>
+                    {item.action || item.issue}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
 
           {/* Score + band — secondary context only, never the primary verdict */}
           <div className="flex items-center gap-2 pt-1 border-t border-border/40">
@@ -160,6 +199,11 @@ export default function DecompositionEvidencePanel({ evaluation }) {
               {score}/4 · {qualityBand}
             </Badge>
           </div>
+          {toolsUsed.length > 0 && (
+            <p className="text-[10px] text-muted-foreground">
+              Tools used: {toolsUsed.join(', ')}
+            </p>
+          )}
         </div>
       )}
     </Card>

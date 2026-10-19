@@ -145,7 +145,11 @@ export default function NewRequirementModal({
       resetForm()
       onOpenChange(false)
     } catch (err) {
-      console.warn('Backend quality check failed, using fallback:', err)
+      console.warn('Backend quality check failed:', err)
+      showToast.error('Requirement was not saved', {
+        description: err?.message || 'The database could not save this requirement. Please retry.',
+      })
+      return
 
       // Fallback for offline/demo environment
       const hasShall = trimmedText.toLowerCase().includes('shall')

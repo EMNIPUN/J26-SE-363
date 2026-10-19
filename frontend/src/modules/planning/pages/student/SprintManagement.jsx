@@ -2447,21 +2447,21 @@ export default function SprintManagement() {
       tasksResp?.data?.tasks ||
       tasksResp?.items ||
       tasksResp?.tasks;
-    if (!items) return;
+    if (!Array.isArray(items)) return;
     const mapped = mapSprintTasks(items);
     loadKanbanTasks(mapped);
   }, [tasksResp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const stories = storiesResp?.data?.stories || storiesResp?.stories;
-    if (!stories) return;
+    if (!Array.isArray(stories)) return;
     const mapped = mapStoryRows(stories);
-    loadStories(mapped);
+    loadStories(mapped, { replace: true });
   }, [storiesResp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const rows = estimatesResp?.data?.estimates || estimatesResp?.estimates;
-    if (!rows || rows.length === 0) return;
+    if (!Array.isArray(rows)) return;
     const estMap = {};
     for (const row of rows) {
       const storyRef = row.story_ref || row.user_story_id;
@@ -2477,7 +2477,7 @@ export default function SprintManagement() {
         confirmed: row.confirmed ?? false,
       };
     }
-    if (Object.keys(estMap).length > 0) loadEstimations(estMap);
+    loadEstimations(estMap);
   }, [estimatesResp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleMove(taskId, newStatus) {

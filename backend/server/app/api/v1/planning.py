@@ -95,7 +95,7 @@ from app.clients.ai_backend import (
 )
 from app.core.security import CurrentUser, get_current_user
 from app.database.session import get_db
-from app.models.enums import ParseStatus, PipelineStage, Priority, StoryStatus, TaskStatus
+from app.models.enums import AssessmentStatus, ParseStatus, PipelineStage, Priority, StoryStatus, TaskStatus
 from app.models.group import Group, GroupMember
 from app.models.pipeline_session import PipelineSession
 from app.models.project import Project
@@ -991,12 +991,40 @@ async def get_quality(
             d["id"] = req.requirement_ref
             d["text"] = req.requirement_text
             d["type"] = req.requirement_category.value
+            d["decomposition_authorized"] = req.quality_approved_for_decomposition
+            d["effort_authorized"] = req.decomposition_approved_for_effort
         results.append(d)
 
     return {
         "project_id": str(session.project_id),
         "requirements": results,
     }
+
+
+@router.post(
+    "/quality/{requirement_ref}/proceed-to-decomposition",
+    summary="Authorize a passing requirement for decomposition",
+)
+async def proceed_to_decomposition(
+    requirement_ref: str,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(_get_session, db, x_team_id, project_id, user, create=False)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active planning session was found.")
+    req = await run_in_threadpool(requirement_service.get_by_ref, db, session.id, requirement_ref)
+    if not req:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Requirement was not found.")
+    rows = await run_in_threadpool(quality_service.get_assessments, db, session.id)
+    assessment = next((row for row in rows if row.requirement_id == req.id), None)
+    if not assessment or assessment.assessment_status != AssessmentStatus.COMPLETED or float(assessment.composite_score) < DEFAULT_THRESHOLD:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This requirement must complete and pass SRS Quality (minimum 75%) first.")
+    req.quality_approved_for_decomposition = True
+    db.commit()
+    return {"requirement_ref": requirement_ref, "decomposition_authorized": True}
 
 
 @router.get(
@@ -1494,30 +1522,59 @@ async def analyze_decomposition(
         "dart_cases": [],
     }
 
+    # Decomposition is available only after THIS requirement has a completed,
+    # passing SRS-quality assessment in the database. This guard is enforced
+    # server-side so an old browser state or direct API call cannot bypass the
+    # stage order.
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active planning session was found.",
+        )
+    req = await run_in_threadpool(
+        requirement_service.get_by_ref, db, session.id, body.requirement.id,
+    )
+    if not req:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Requirement '{body.requirement.id}' was not found in this session.",
+        )
+    quality_rows = await run_in_threadpool(
+        quality_service.get_assessments, db, session.id,
+    )
+    quality = next((row for row in quality_rows if row.requirement_id == req.id), None)
+    if (
+        not quality
+        or quality.assessment_status != AssessmentStatus.COMPLETED
+        or float(quality.composite_score) < DEFAULT_THRESHOLD
+        or not req.quality_approved_for_decomposition
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Complete and pass SRS Quality (minimum 75%), then click Proceed to "
+                "Decomposition for this requirement."
+            ),
+        )
+
     # Reuse the prior analysis when the submitted stories are byte-for-byte
     # identical to what produced it — this is the main lever against hitting
     # the LLM provider's rate limit on repeated clicks / accidental
     # re-submits. A run that itself failed is never reused, so the student
     # can always retry after a transient error.
     input_hash = decomposition_service.compute_stories_hash(body.stories)
-    req = None
-    if session:
-        req = await run_in_threadpool(
-            requirement_service.get_by_ref, db, session.id, body.requirement.id,
-        )
-        if req:
-            cached = await run_in_threadpool(
-                decomposition_service.get_latest_assessment_for_requirement,
-                db, session.id, req.id,
-            )
-            unchanged = cached and cached.input_hash == input_hash
-            if unchanged and not cached.analysis_failed:
-                assessment_dict = decomposition_service.assessment_to_dict(cached)
-                assessment_dict["requirement_id"] = body.requirement.id
-                assessment_dict["reused"] = True
-                response["persisted"] = True
-                response["assessment"] = assessment_dict
-                return response
+    cached = await run_in_threadpool(
+        decomposition_service.get_latest_assessment_for_requirement,
+        db, session.id, req.id,
+    )
+    unchanged = cached and cached.input_hash == input_hash
+    if unchanged and not cached.analysis_failed:
+        assessment_dict = decomposition_service.assessment_to_dict(cached)
+        assessment_dict["requirement_id"] = body.requirement.id
+        assessment_dict["reused"] = True
+        response["persisted"] = True
+        response["assessment"] = assessment_dict
+        return response
 
     request = OrchestrationRequest(
         requester=user.to_requester(),
@@ -1671,6 +1728,33 @@ async def get_decomposition_gate(
     return {"gate": gate}
 
 
+@router.post(
+    "/decomposition/{requirement_ref}/proceed-to-effort",
+    summary="Authorize a decomposed requirement for effort estimation",
+)
+async def proceed_to_effort_estimation(
+    requirement_ref: str,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(_get_session, db, x_team_id, project_id, user, create=False)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active planning session was found.")
+    req = await run_in_threadpool(requirement_service.get_by_ref, db, session.id, requirement_ref)
+    if not req:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Requirement was not found.")
+    assessment = await run_in_threadpool(
+        decomposition_service.get_latest_assessment_for_requirement, db, session.id, req.id,
+    )
+    if not assessment or assessment.analysis_failed:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Run a valid decomposition analysis before proceeding to effort estimation.")
+    req.decomposition_approved_for_effort = True
+    db.commit()
+    return {"requirement_ref": requirement_ref, "effort_authorized": True}
+
+
 # ── Estimation ───────────────────────────────────────────────
 
 
@@ -1723,6 +1807,12 @@ async def save_estimate(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Story not found.",
+        )
+    requirement = db.get(Requirement, story.requirement_id)
+    if not requirement or not requirement.decomposition_approved_for_effort:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Review decomposition and click Proceed to Effort Estimation before saving estimates.",
         )
     user_db_id = await run_in_threadpool(
         _resolve_user_db_id, db, user
@@ -1805,6 +1895,12 @@ async def confirm_estimate(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Story not found.",
+        )
+    requirement = db.get(Requirement, story.requirement_id)
+    if not requirement or not requirement.decomposition_approved_for_effort:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Review decomposition and click Proceed to Effort Estimation before confirming estimates.",
         )
     estimates = await run_in_threadpool(
         estimation_service.list_estimates, db, session.id

@@ -75,10 +75,11 @@ export default function RequirementListPanel({ requirements, selectedId, onSelec
           <li key={req.id}>
             <button
               type="button"
-              onClick={() => onSelect(req.id)}
+              disabled={meta.locked}
+              onClick={() => !meta.locked && onSelect(req.id)}
               className={`w-full text-left p-3 cursor-pointer transition-colors ${
                 meta.locked
-                  ? 'opacity-55 bg-muted/20 hover:opacity-80'
+                  ? 'opacity-55 bg-muted/20 cursor-not-allowed'
                   : 'hover:bg-muted/40'
               } ${
                 selectedId === req.id ? 'bg-muted/60 ring-1 ring-border/80' : ''

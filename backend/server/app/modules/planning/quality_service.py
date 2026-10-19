@@ -23,6 +23,7 @@ from app.models.quality_assessment import (
     QualityGateDecision,
     QualityToolOutput,
 )
+from app.models.requirement import Requirement
 
 DIMENSION_NAMES = [d.value for d in QualityDimension]
 
@@ -40,6 +41,12 @@ def save_assessment(
     agent_result: dict[str, Any],
     requirement_text: str,
 ) -> QualityAssessment:
+    # A new/revised quality assessment invalidates any previous explicit
+    # authorization. The student must review this fresh result and proceed
+    # again before decomposition can run.
+    requirement = db.get(Requirement, requirement_id)
+    if requirement:
+        requirement.quality_approved_for_decomposition = False
     next_revision = (
         db.scalar(
             select(

@@ -179,9 +179,10 @@ class StoryInput(BaseModel):
     id: str
     title: str
     description: str = ""
-    # Informational only: acceptance criteria are stored but are not part of
-    # the user-story quality evaluation.
     acceptance_criteria: list[str] = Field(default_factory=list)
+    # Included when decomposition is run so task quality can be assessed in a
+    # single batch with the story and its acceptance criteria.
+    tasks: list["TaskInput"] = Field(default_factory=list)
     # Populated by the Core API from the owning requirement's id (stories are
     # always scoped to one requirement per analyze_decomposition call). Used
     # by the deterministic C1 parent-linkage check.
@@ -305,12 +306,41 @@ class StoryInvest(BaseModel):
     estimable: InvestCriterionResult = Field(default_factory=InvestCriterionResult)
     small: InvestCriterionResult = Field(default_factory=InvestCriterionResult)
     testable: InvestCriterionResult = Field(default_factory=InvestCriterionResult)
+    acceptance_criteria_readiness: "AcceptanceCriteriaReadiness" = Field(
+        default_factory=lambda: AcceptanceCriteriaReadiness()
+    )
     story_ready: bool = False  # True only if all 6 are Pass or Pass with note
 
 
 class InvestGateResult(BaseModel):
     all_stories_ready: bool = False
     failed_stories: list[str] = Field(default_factory=list)  # story_ids with >=1 Fail/Cannot Assess
+
+
+class AcceptanceCriteriaReadiness(BaseModel):
+    """Whether a story's criteria support an observable pass/fail test."""
+
+    result: InvestResult = InvestResult.CANNOT_ASSESS
+    criteria_count: int = 0
+    issues: list[str] = Field(default_factory=list)
+    evidence: list[str] = Field(default_factory=list)
+    suggestion: str = ""
+
+
+class DecompositionScoreComponents(BaseModel):
+    coverage: float = 0.0
+    story_acceptance: float = 0.0
+    task_quality: float = 0.0
+
+
+class DecompositionTaskSummary(BaseModel):
+    story_id: str
+    tasks: list["TaskValidationItem"] = Field(default_factory=list)
+    coverage: "TaskSetCoverage" = Field(default_factory=lambda: TaskSetCoverage())
+    quality_score: float = 0.0
+    ready: bool = False
+    analysis_failed: bool = False
+    failure_reason: str | None = None
 
 
 # ----- result: final gate + score ----------------------------------------------
@@ -346,6 +376,8 @@ class DecompositionResult(BaseModel):
     invest_gate: InvestGateResult = Field(default_factory=InvestGateResult)
     decomposition_quality_score: float = 0.0  # 0-4, computed from gate evidence
     quality_band: QualityBand = QualityBand.VERY_POOR
+    score_components: DecompositionScoreComponents = Field(default_factory=DecompositionScoreComponents)
+    task_summaries: list[DecompositionTaskSummary] = Field(default_factory=list)
     # Authoritative status - see DecompositionReadiness. Never a hard block:
     # the student can always proceed to effort estimation regardless of tier.
     readiness: DecompositionReadiness = DecompositionReadiness.NEEDS_ATTENTION
@@ -353,6 +385,8 @@ class DecompositionResult(BaseModel):
     gate_status: DecompositionGateStatus = DecompositionGateStatus.INCOMPLETE  # deprecated, see above
     needs_review_reason: str | None = None
     student_feedback: list[str] = Field(default_factory=list)
+    improvement_plan: list[dict] = Field(default_factory=list)
+    tools_used: list[str] = Field(default_factory=list)
     patterns: list[dict] = Field(default_factory=list)
     confidence: float = 1.0
     dart_triggered: bool = False

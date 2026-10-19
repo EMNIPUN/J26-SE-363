@@ -44,6 +44,9 @@ export const qualityService = {
 
   /** All stored versions of one requirement (history drawer). */
   getHistory: (requirementRef) => apiClient.get(ENDPOINTS.PLANNING.QUALITY_HISTORY(requirementRef)),
+
+  proceedToDecomposition: (requirementRef) =>
+    apiClient.post(ENDPOINTS.PLANNING.QUALITY_PROCEED_TO_DECOMPOSITION(requirementRef)),
 }
 
 /** Direct download URL for the backend-generated SRS template (plain <a download>). */

@@ -126,6 +126,11 @@ def compute_stories_hash(stories: list[dict[str, Any]]) -> str:
             str(s.get("id") or s.get("story_ref") or ""),
             str(s.get("title") or ""),
             str(s.get("description") or ""),
+            tuple(str(x) for x in (s.get("acceptance_criteria") or s.get("acceptanceCriteria") or [])),
+            tuple(sorted(
+                (str(t.get("id") or ""), str(t.get("title") or ""), str(t.get("description") or ""))
+                for t in (s.get("tasks") or [])
+            )),
         )
         for s in stories
     )
@@ -328,9 +333,16 @@ def save_assessment(
     normalized tables. ``agent_result`` field names must match
     DecompositionResult exactly — see schemas.py in the agentic framework."""
     cov = agent_result.get("coverage") or {}
+    # Any fresh decomposition assessment supersedes the prior handoff. The
+    # student must review it and explicitly proceed to effort estimation.
+    from app.models.requirement import Requirement
+    requirement = db.get(Requirement, requirement_id)
+    if requirement:
+        requirement.decomposition_approved_for_effort = False
     gate = cov.get("gate") or {}
     invest_gate = agent_result.get("invest_gate") or {}
     story_results = agent_result.get("stories") or []
+    score_components = agent_result.get("score_components") or {}
     readiness = agent_result.get("readiness", "Needs Attention")
     legacy_gate_status = agent_result.get("gate_status")
 
@@ -351,6 +363,18 @@ def save_assessment(
         failure_reason=agent_result.get("failure_reason"),
         input_hash=input_hash,
         coverage_score=cov.get("coverage_percentage", 0.0),
+        coverage_component_score=score_components.get("coverage"),
+        story_acceptance_component_score=score_components.get("story_acceptance"),
+        task_quality_component_score=score_components.get("task_quality"),
+        assessment_evidence={
+            "task_summaries": agent_result.get("task_summaries") or [],
+            "improvement_plan": agent_result.get("improvement_plan") or [],
+            "tools_used": agent_result.get("tools_used") or [],
+            "acceptance_criteria": {
+                item.get("story_id", ""): item.get("acceptance_criteria_readiness") or {}
+                for item in story_results
+            },
+        },
         stories_evaluated=len(story_results),
         stories_needing_revision=len(invest_gate.get("failed_stories") or []),
         diagnosis=(agent_result.get("student_feedback") or [None])[0],
@@ -381,6 +405,7 @@ def save_assessment(
                 check_id=check_id,
                 result=result,
                 rationale=check.get("rationale"),
+                suggestion=check.get("suggestion"),
             )
         )
 
@@ -464,7 +489,10 @@ def save_assessment(
         note = f" [{len(unmatched)} story result(s) unmatched to a saved story]"
         assessment.diagnosis = (assessment.diagnosis or "") + note
 
-    tools = agent_result.get("tool_outputs") or []
+    tools = agent_result.get("tool_outputs") or [
+        {"tool_name": name, "status": "success"}
+        for name in (agent_result.get("tools_used") or [])
+    ]
     for idx, tool in enumerate(tools):
         db.add(
             DecompositionToolOutput(
@@ -696,7 +724,7 @@ def assessment_to_dict(row: DecompositionAssessment) -> dict[str, Any]:
     /planning/decomposition — the frontend adapter only has one shape to
     handle regardless of which endpoint populated it."""
     checks = [
-        {"check_id": c.check_id, "result": c.result.value, "rationale": c.rationale}
+        {"check_id": c.check_id, "result": c.result.value, "rationale": c.rationale, "suggestion": c.suggestion}
         for c in sorted(row.gate_checks, key=lambda c: c.check_id)
     ]
     elements = [
@@ -732,6 +760,11 @@ def assessment_to_dict(row: DecompositionAssessment) -> dict[str, Any]:
                     else None
                 ),
                 **{c: criteria.get(c) for c in _CRITERIA_FIELDS},
+                "acceptance_criteria_readiness": (
+                    (row.assessment_evidence or {}).get("acceptance_criteria", {}).get(
+                        sa.user_story.story_ref if sa.user_story else "", {}
+                    )
+                ),
             }
         )
 
@@ -759,6 +792,11 @@ def assessment_to_dict(row: DecompositionAssessment) -> dict[str, Any]:
         "gate_status": row.gate_status.value if row.gate_status else None,
         "decomposition_quality_score": float(row.decomposition_quality_score),
         "quality_band": row.quality_band.value,
+        "score_components": {
+            "coverage": float(row.coverage_component_score or 0),
+            "story_acceptance": float(row.story_acceptance_component_score or 0),
+            "task_quality": float(row.task_quality_component_score or 0),
+        },
         "needs_review_reason": row.needs_review_reason,
         "analysis_failed": row.analysis_failed,
         "failure_reason": row.failure_reason,
@@ -777,6 +815,9 @@ def assessment_to_dict(row: DecompositionAssessment) -> dict[str, Any]:
         },
         "stories": stories,
         "student_feedback": student_feedback,
+        "task_summaries": (row.assessment_evidence or {}).get("task_summaries", []),
+        "improvement_plan": (row.assessment_evidence or {}).get("improvement_plan", []),
+        "tools_used": (row.assessment_evidence or {}).get("tools_used", []),
         "tool_outputs": tools,
         "stories_evaluated": row.stories_evaluated,
         "stories_needing_revision": row.stories_needing_revision,

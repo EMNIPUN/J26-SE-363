@@ -16,6 +16,7 @@ from app.agents.project_planning.schemas import (
     INVEST_CRITERIA,
     InvestCriterionResult,
     InvestResult,
+    AcceptanceCriteriaReadiness,
     StoryInvest,
 )
 
@@ -102,12 +103,15 @@ unclear dependency.
 MySQL triggers to update the inventory table".
   - Valuable: the story identifies a user, stakeholder, or system value -> fails on "As a developer, I \
 want to create a database table" with no user value.
-  - Estimable: the title and user story description contain enough information for a reasonable estimate -> \
-fails on unclear scope or undefined rules.
+  - Estimable: the title, description, and acceptance criteria contain enough information for a reasonable estimate -> \
+fails on unclear scope, undefined rules, or missing criteria.
   - Small: the story represents one coherent unit of work -> fails on a story covering registration, \
 login, password reset, and profile management all at once.
-  - Testable: the story description states observable behavior with a clear, verifiable outcome -> fails on \
-"The system should work well". Do not require acceptance criteria; they are intentionally absent.
+  - Testable: the story and its acceptance criteria state observable behavior with a clear, verifiable outcome -> fails on \
+"The system should work well" or criteria that cannot establish pass/fail.
+
+Also assess acceptance_criteria_readiness: criteria must be specific, observable, verifiable,
+relevant to the story, and sufficient to test its material behavior.
 
 You are given each story (title + user story description) and deterministic rule signals already detected \
 for it. Use these signals as evidence but apply your own judgment — rules can have false positives/negatives.
@@ -120,7 +124,8 @@ Reply with a STRICT JSON object only (no markdown), one entry per story_id exact
     "valuable": {"result": "Pass"|"Pass with note"|"Fail"|"Cannot Assess", "note": str, "evidence": str},
     "estimable": {"result": "Pass"|"Pass with note"|"Fail"|"Cannot Assess", "note": str, "evidence": str},
     "small": {"result": "Pass"|"Pass with note"|"Fail"|"Cannot Assess", "note": str, "evidence": str},
-    "testable": {"result": "Pass"|"Pass with note"|"Fail"|"Cannot Assess", "note": str, "evidence": str}
+    "testable": {"result": "Pass"|"Pass with note"|"Fail"|"Cannot Assess", "note": str, "evidence": str},
+    "acceptance_criteria_readiness": {"result": "Pass"|"Pass with note"|"Fail"|"Cannot Assess", "issues": [str], "evidence": [str], "suggestion": str}
   }
 }"""
 
@@ -159,6 +164,7 @@ async def validate_invest(
                 f'Story {s.get("id")}:\n'
                 f'  Title: "{s.get("title", "")}"\n'
                 f'  User story description: "{s.get("description", "")}"\n'
+                f'  Acceptance criteria: {"; ".join(s.get("acceptance_criteria") or []) or "(none)"}\n'
                 f"  Rule signals: "
                 + "; ".join(f"{k}={v['signal']}" for k, v in signals_by_story[s.get("id", "")].items())
                 for s in stories
@@ -201,13 +207,42 @@ async def validate_invest(
         else:
             criteria = {c: _from_signal(signals[c]) for c in INVEST_CRITERIA}
 
-        story_ready = all(criteria[c].result in _READY_RESULTS for c in INVEST_CRITERIA)
+        ac_raw = (story_llm or {}).get("acceptance_criteria_readiness", {}) or {}
+        try:
+            ac_result = InvestResult(ac_raw.get("result"))
+        except ValueError:
+            # Conservative deterministic fallback: criteria are indispensable
+            # for estimate/test readiness, but do not invent a passing result.
+            ac_result = InvestResult.CANNOT_ASSESS if story.get("acceptance_criteria") else InvestResult.FAIL
+        acceptance = AcceptanceCriteriaReadiness(
+            result=ac_result,
+            criteria_count=len(story.get("acceptance_criteria") or []),
+            issues=[str(x) for x in (ac_raw.get("issues") or [])],
+            evidence=[str(x) for x in (ac_raw.get("evidence") or [])],
+            suggestion=str(ac_raw.get("suggestion", "")),
+        )
+        if not story_llm and not acceptance.issues:
+            acceptance.issues = (["No acceptance criteria were supplied."] if not acceptance.criteria_count else ["Acceptance criteria could not be assessed because the LLM was unavailable."])
+            acceptance.suggestion = "Add observable Given/When/Then or measurable pass/fail criteria for this story."
+
+        # Weak criteria directly make estimate and test confidence weak.
+        if acceptance.result not in _READY_RESULTS:
+            for criterion in ("estimable", "testable"):
+                if criteria[criterion].result in _READY_RESULTS:
+                    criteria[criterion] = InvestCriterionResult(
+                        result=InvestResult.FAIL,
+                        note="Acceptance criteria are not ready for estimation and verification.",
+                        evidence="; ".join(acceptance.evidence),
+                    )
+
+        story_ready = all(criteria[c].result in _READY_RESULTS for c in INVEST_CRITERIA) and acceptance.result in _READY_RESULTS
         results.append(
             StoryInvest(
                 story_id=sid,
                 story_text=f"{title} {description}".strip(),
                 linked_parent_requirement=story.get("linked_parent_requirement", requirement_id),
                 story_ready=story_ready,
+                acceptance_criteria_readiness=acceptance,
                 **criteria,
             )
         )

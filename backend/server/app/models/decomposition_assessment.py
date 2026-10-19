@@ -223,6 +223,11 @@ class DecompositionAssessment(TimestampMixin, Base):
     composite_score: Mapped[float | None] = mapped_column(Numeric(5, 2))
     coverage_score: Mapped[float] = mapped_column(Numeric(5, 2))
     invest_composite_score: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    # Reproducible 40/40/20 evidence-based score components.
+    coverage_component_score: Mapped[float | None] = mapped_column(Numeric(3, 2))
+    story_acceptance_component_score: Mapped[float | None] = mapped_column(Numeric(3, 2))
+    task_quality_component_score: Mapped[float | None] = mapped_column(Numeric(3, 2))
+    assessment_evidence: Mapped[dict | None] = mapped_column(JSONType)
     confidence_level: Mapped[ConfidenceLevel] = mapped_column(
         string_enum(ConfidenceLevel, "dec_confidence_level")
     )
@@ -337,6 +342,7 @@ class CoverageGateCheckRow(Base):
         string_enum(CheckResult, "coverage_check_result")
     )
     rationale: Mapped[str | None] = mapped_column(Text)
+    suggestion: Mapped[str | None] = mapped_column(Text)
 
 
 class CoverageAnalysisResult(Base):

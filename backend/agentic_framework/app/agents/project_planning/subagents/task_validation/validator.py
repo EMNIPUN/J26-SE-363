@@ -21,6 +21,7 @@ from app.agents.project_planning.schemas import (
     TaskCriterionResult,
     TaskSetCoverage,
     TaskValidationItem,
+    DecompositionTaskSummary,
 )
 
 logger = logging.getLogger(__name__)
@@ -227,3 +228,62 @@ async def validate_tasks(
         llm_failed,
         failure_reason,
     )
+
+
+async def validate_task_sets(
+    requirement_text: str, stories: list[dict]
+) -> list[DecompositionTaskSummary]:
+    """Validate all stories' task sets in one provider request.
+
+    The manual task-validation endpoint retains ``validate_tasks``. Decomposition
+    uses this batched variant so a ten-story submission does not create ten LLM
+    calls. Empty task sets are represented explicitly and therefore cannot
+    accidentally qualify a decomposition as complete.
+    """
+    if not stories:
+        return []
+    client = get_llm_client()
+    if not client.configured:
+        return [DecompositionTaskSummary(story_id=s.get("id", ""), analysis_failed=True,
+            failure_reason="LLM unavailable — task validation could not be assessed.") for s in stories]
+
+    blocks = []
+    for story in stories:
+        tasks = story.get("tasks") or []
+        task_text = "\n".join(f'- {t.get("id")}: {t.get("title", "")} | {t.get("description", "")}' for t in tasks) or "(no tasks supplied)"
+        blocks.append(f'Story {story.get("id")}: {story.get("title", "")} | {story.get("description", "")}\nTasks:\n{task_text}')
+    system = _TASK_VALIDATION_SYSTEM.replace(
+        "a user story and the development tasks a \\\nstudent wrote", "multiple user stories and each story's development tasks"
+    ).replace('"tasks": {', '"stories": {"<story_id>": {"tasks": {')
+    # Keep the contract unambiguous for a batch response rather than relying
+    # on the single-story JSON example above.
+    system += '''\nReturn this batch JSON shape exactly: {"stories":{"US-1":{"tasks":{"T-1":{"relevance":{"result":"Pass","note":"","evidence":""},"scope":{"result":"Pass","note":"","evidence":""},"actionability":{"result":"Pass","note":"","evidence":""},"duplication":{"result":"Pass","note":"","evidence":""}}},"coverage_percentage":0,"missing_work_items":[]}}}. Include every story id. Empty task lists must have coverage_percentage 0 and at least one missing_work_items entry.'''
+    try:
+        raw = await client.complete_json(system, f'Parent requirement: "{requirement_text}"\n\n' + "\n\n".join(blocks), max_tokens=min(5000, max(1000, 550 * len(stories))))
+    except Exception:
+        logger.exception("Batched task validation failed")
+        return [DecompositionTaskSummary(story_id=s.get("id", ""), analysis_failed=True,
+            failure_reason="Task validation failed — please re-run validation.") for s in stories]
+
+    raw_stories = raw.get("stories", {}) if isinstance(raw, dict) else {}
+    summaries: list[DecompositionTaskSummary] = []
+    for story in stories:
+        sid, tasks = story.get("id", ""), story.get("tasks") or []
+        item = raw_stories.get(sid, {}) if isinstance(raw_stories, dict) else {}
+        task_raw = item.get("tasks", {}) if isinstance(item, dict) else {}
+        signals = detect_task_signals(tasks)
+        results = []
+        for task in tasks:
+            values = task_raw.get(task.get("id", ""), {}) if isinstance(task_raw, dict) else {}
+            criteria = {}
+            for criterion in TASK_CRITERIA:
+                value = values.get(criterion, {}) or {}
+                try: outcome = TaskCriterionOutcome(value.get("result"))
+                except ValueError: outcome = _from_signal(signals[task.get("id", "")][criterion]).result
+                criteria[criterion] = TaskCriterionResult(result=outcome, note=str(value.get("note", "")), evidence=str(value.get("evidence", "")))
+            results.append(TaskValidationItem(task_id=task.get("id", ""), task_ready=all(c.result in _READY_RESULTS for c in criteria.values()), **criteria))
+        coverage = TaskSetCoverage(coverage_percentage=max(0, min(100, float(item.get("coverage_percentage", 0) or 0))), missing_work_items=[str(x) for x in (item.get("missing_work_items") or [])])
+        ready = bool(tasks) and bool(results) and all(r.task_ready for r in results) and not coverage.missing_work_items
+        quality = sum(sum(1 if getattr(r, c).result == TaskCriterionOutcome.PASS else .75 if getattr(r, c).result == TaskCriterionOutcome.NEEDS_IMPROVEMENT else 0 for c in TASK_CRITERIA) / len(TASK_CRITERIA) for r in results) / max(len(results), 1)
+        summaries.append(DecompositionTaskSummary(story_id=sid, tasks=results, coverage=coverage, quality_score=round(quality * 4, 2), ready=ready))
+    return summaries

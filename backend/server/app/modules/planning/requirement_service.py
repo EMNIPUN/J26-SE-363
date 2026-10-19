@@ -74,4 +74,6 @@ def requirement_to_dict(row: Requirement) -> dict[str, Any]:
         "type": row.requirement_category.value,
         "section": row.section_reference,
         "db_id": str(row.id),
+        "decomposition_authorized": row.quality_approved_for_decomposition,
+        "effort_authorized": row.decomposition_approved_for_effort,
     }

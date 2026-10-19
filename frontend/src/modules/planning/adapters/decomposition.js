@@ -83,6 +83,11 @@ export function mapDecompositionResult(result) {
     }
     mapped.storyReady = story.story_ready ?? false
     mapped.coveragePercentage = story.coverage_percentage ?? null
+    mapped.acceptanceCriteriaReadiness = story.acceptance_criteria_readiness || {
+      result: 'Cannot Assess',
+      issues: ['Acceptance-criteria readiness was not returned for this analysis. Re-run decomposition after adding criteria.'],
+      suggestion: 'Add specific, observable, and measurable acceptance criteria for the story.',
+    }
     // overallPass kept for any legacy UI still reading the old boolean shape.
     mapped.overallPass = mapped.storyReady
     if (story.story_ref) investResults[story.story_ref] = mapped
@@ -107,12 +112,16 @@ export function mapDecompositionResult(result) {
     needsReviewReason: r.needs_review_reason || null,
     score: r.decomposition_quality_score ?? 0,
     qualityBand: r.quality_band || 'Very poor',
+    scoreComponents: r.score_components || { coverage: 0, story_acceptance: 0, task_quality: 0 },
     coverage: {
       percentage: cov.coverage_percentage ?? 0,
       elements: cov.elements || [],
       checks: cov.checks || [],
     },
     investResults,
+    taskSummaries: r.task_summaries || [],
+    improvementPlan: r.improvement_plan || [],
+    toolsUsed: r.tools_used || (r.tool_outputs || []).map((tool) => tool.tool_name).filter(Boolean),
     studentFeedback: r.student_feedback || [],
     diagnosis: r.diagnosis || '',
     recommendedAction: r.recommended_action || null,
