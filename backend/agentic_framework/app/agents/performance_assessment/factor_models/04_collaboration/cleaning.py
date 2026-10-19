@@ -71,17 +71,32 @@ def substance(body):
     return round(min(1.0, 0.2 + 0.6 * min(words, 40) / 40 + (0.2 if technical else 0.0)), 3)
 
 
-def featurize(evidence):
-    schema.validate(evidence)
+def contributions(evidence):
+    """The student's own contributions that count, with the cleaned scores: shared by ``featurize`` and the score (``score.py``).
+
+    Returns a dict: reviews, comments (kept ones), review_texts, discussion_texts, merged_for_others, reviewed_prs, own_prs, resolved, excluded counts.
+    """
     me = evidence["student_id"]
-    reviews = [r for r in evidence.get("reviews", []) if r.get("reviewer") == me and r.get("pr_author") != me and not BOT.search(r.get("reviewer") or "")]
-    comments = [m for m in evidence.get("comments", []) if m.get("author") == me and m.get("pr_author") != me]
+    all_reviews = [r for r in evidence.get("reviews", []) if r.get("reviewer") == me]
+    all_comments = [m for m in evidence.get("comments", []) if m.get("author") == me]
+    reviews = [r for r in all_reviews if r.get("pr_author") != me and not BOT.search(r.get("reviewer") or "")]
+    comments = [m for m in all_comments if m.get("pr_author") != me]
     review_texts = [r["body"] for r in reviews if r.get("body")] + [m["body"] for m in comments if m.get("kind") == "review_comment"]
     discussion = [m["body"] for m in comments if m.get("kind") == "discussion"]
     merged_for_others = int(evidence.get("merged_for_others", 0))
     reviewed_prs = {r["pr_id"] for r in reviews if r.get("pr_id")} | {m["pr_id"] for m in comments if m.get("pr_id")}
     own = [p for p in evidence.get("pull_requests", []) if p.get("author") == me]
     resolved = [p for p in own if p.get("merged_at") or p.get("closed_at")]
+    return {"reviews": reviews, "comments": comments, "review_texts": review_texts, "discussion_texts": discussion, "merged_for_others": merged_for_others,
+            "reviewed_prs": reviewed_prs, "own_prs": own, "resolved": resolved,
+            "excluded_self_or_bot": (len(all_reviews) - len(reviews)) + (len(all_comments) - len(comments))}
+
+
+def featurize(evidence):
+    schema.validate(evidence)
+    c = contributions(evidence)
+    reviews, comments, review_texts, discussion = c["reviews"], c["comments"], c["review_texts"], c["discussion_texts"]
+    merged_for_others, reviewed_prs, own, resolved = c["merged_for_others"], c["reviewed_prs"], c["own_prs"], c["resolved"]
     mean = lambda xs: round(statistics.mean(xs), 4) if xs else 0.0  # noqa: E731
     features = {
         "Co_PRC_depth": mean([substance(t) for t in review_texts]),

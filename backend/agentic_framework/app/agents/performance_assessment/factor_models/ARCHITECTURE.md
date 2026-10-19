@@ -53,6 +53,7 @@ factor_models/
   02_consistency/cleaning.py   active days and rhythm        + tests/
   03_requirement_fulfillment/cleaning.py   the diff a judge reads, board features   + tests/
   04_collaboration/cleaning.py   review and comment text cleaning, features          + tests/
+  04_collaboration/score.py, evaluate.py   fixed-weight score with an evidence gate; the agent entry point
   05_task_complexity/cleaning.py   task footprint before the task started           + tests/
   06_behavioral_pattern/cleaning.py   input checks only (reads the other factors)    + tests/
   07_code_ownership/cleaning.py   blame on counted lines, quiz snippet selection     + tests/
@@ -137,7 +138,8 @@ by leave-one-out) is refitted. The old `final_dataset.csv` and `marks_report.jso
 
 ## 9. What is still to build for the agent
 
-1. `evaluate.py` in each factor folder (the bridge looks for `evaluate.py`, `predict.py` or `model.py`): load the trained model,
+1. `evaluate.py` in each factor folder (**done for Collaboration**: `04_collaboration/evaluate.py` takes `evidence/1`, optionally with `evidence["team"] = {"reviews_and_comments": n}`
+   (a count only, nothing about other students); when the team never reviewed it raises `NotEnoughEvidence`, the bridge applies its fallback and fusion redistributes the weight; feature payloads still go to `simulate.py`) (the bridge looks for `evaluate.py`, `predict.py` or `model.py`): load the trained model,
    call `schema.validate`, `cleaning.featurize`, `model.predict`, return the result in §4.
 2. Extend `com_agent/ingestion/evidence_preparer.py`: store raw evidence in the contract's form (patches or `line_stats`,
    tasks with commit ids, blame-based `ownership`, `repo.reach_before` from an import graph of source files only) instead of

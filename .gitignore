@@ -47,3 +47,9 @@ docker/keycloak/providers-src/**/target/
 
 # Assessment dataset: student identities and raw (identifiable) evidence never leave this machine
 **/factor_models/dataset/private/
+
+# Collaboration: public datasets (GPL/MIT, downloaded by download_data.py) and large training caches stay local
+**/04_collaboration/data/
+**/04_collaboration/training/results/*.pkl
+**/04_collaboration/training/results/*.npz
+**/04_collaboration/training/results/*.joblib
