@@ -952,6 +952,7 @@ version = "0.1.0"
 source = { editable = "../shared" }
 dependencies = [
     { name = "procrastinate" },
+    { name = "psycopg", extra = ["binary", "pool"] },
     { name = "pydantic" },
     { name = "python-dotenv" },
 ]
@@ -959,6 +960,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "procrastinate", specifier = ">=3.10.0" },
+    { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.3.6" },
     { name = "pydantic", specifier = ">=2.13.5" },
     { name = "python-dotenv", specifier = ">=1.2.3" },
 ]

@@ -57,6 +57,6 @@ async def test_nightly_snapshots_start_only_for_sprints_in_progress_each_at_its_
 async def test_two_hourly_sync_queues_one_job_per_active_team(world):
     _, connector = world
     assert await tasks.sync_all(0) == {"teams": 1}
-    assert await tasks.sync_all(0) == {"teams": 1}
+    assert await tasks.sync_all(0) == {"teams": 0}  # the first sync is still waiting: not queued twice
     syncs = [j for j in connector.jobs.values() if j["task_name"] == "performance.sync_team"]
     assert len(syncs) == 1 and syncs[0]["queueing_lock"] == "sync:T1"

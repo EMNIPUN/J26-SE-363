@@ -1,0 +1,40 @@
+/* Live pipeline view: nodes, the rotating glow on the active node, and the comet that travels along the edge into it. */
+@property --pl-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.pl-panel { position: relative; overflow: auto; padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.pl-stage { position: relative; }
+.pl-svg { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+
+.pl-edge { fill: none; stroke: var(--border); stroke-width: 2; transition: stroke 0.3s; }
+.pl-edge.done { stroke: oklch(0.72 0.14 160); }
+.pl-edge.failed { stroke: var(--destructive); }
+.pl-edge.flowing { stroke: oklch(0.7 0.15 270); }
+.pl-edge-glow { fill: none; stroke: oklch(0.8 0.16 270); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 10 26; filter: blur(1.5px); animation: pl-dash 0.9s linear infinite; }
+.pl-comet { fill: oklch(0.88 0.16 270); filter: drop-shadow(0 0 6px oklch(0.75 0.2 270)) drop-shadow(0 0 12px oklch(0.75 0.2 270)); }
+@keyframes pl-dash { to { stroke-dashoffset: -36; } }
+
+.pl-node {
+  position: absolute; display: flex; flex-direction: column; justify-content: center; gap: 1px; padding: 0 12px; box-sizing: border-box;
+  border-radius: 10px; background: var(--card); border: 1.5px solid var(--border); color: var(--foreground); font-size: 12.5px; line-height: 1.2;
+  cursor: pointer; text-align: left; transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+}
+.pl-node:hover { border-color: var(--primary); }
+.pl-node.selected { box-shadow: 0 0 0 2px var(--primary); }
+.pl-node small { color: var(--muted-foreground); font-size: 10.5px; }
+.pl-node.idle { opacity: 0.62; }
+.pl-node.done { border-color: oklch(0.72 0.14 160); background: color-mix(in oklch, var(--card) 92%, oklch(0.72 0.14 160)); }
+.pl-node.failed { border-color: var(--destructive); background: color-mix(in oklch, var(--card) 90%, var(--destructive)); }
+.pl-node.waiting { border-color: oklch(0.78 0.15 80); background: color-mix(in oklch, var(--card) 90%, oklch(0.78 0.15 80)); }
+
+/* the active node: a conic gradient turning around its border */
+.pl-node.active { border-color: transparent; background: linear-gradient(var(--card), var(--card)) padding-box, conic-gradient(from var(--pl-angle), oklch(0.8 0.18 270), oklch(0.7 0.2 330), oklch(0.85 0.15 200), oklch(0.8 0.18 270)) border-box; animation: pl-spin 2.2s linear infinite; box-shadow: 0 0 14px oklch(0.75 0.18 270 / 0.55); }
+@keyframes pl-spin { to { --pl-angle: 360deg; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-node.active, .pl-edge-glow { animation: none; }
+  .pl-comet { display: none; }
+}

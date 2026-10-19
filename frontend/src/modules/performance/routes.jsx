@@ -2,6 +2,9 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import RequireRole from '@/shared/auth/RequireRole'
 
 import MyProgress from './pages/student/MyProgress.jsx'
+import MyAssessment from './pages/student/MyAssessment.jsx'
+import AssessmentHub from './pages/instructor/AssessmentHub.jsx'
+import RunPipeline from './pages/instructor/RunPipeline.jsx'
 import InstructorDashboard from './pages/instructor/Dashboard.jsx'
 import StudentDetail from './pages/instructor/StudentDetail.jsx'
 import Assessments from './pages/instructor/Assessments.jsx'
@@ -22,10 +25,13 @@ export default function PerformanceRoutes() {
     <Routes>
       <Route index element={<PerformanceIndex />} />
       <Route path="my-progress" element={<MyProgress />} />
+      <Route path="my-assessment" element={<MyAssessment />} />
 
       {/* Instructor & Admin restricted routes */}
       <Route element={<RequireRole allowedRoles={['instructor', 'admin']} />}>
         <Route path="dashboard" element={<InstructorDashboard />} />
+        <Route path="assessment" element={<AssessmentHub />} />
+        <Route path="runs/:runId" element={<RunPipeline />} />
         <Route path="students" element={<StudentDetail />} />
         <Route path="assessments" element={<Assessments />} />
         <Route path="reports" element={<Reports />} />

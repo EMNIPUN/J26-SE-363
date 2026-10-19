@@ -39,7 +39,10 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
         label: "Performance",
         icon: BarChart3,
         color: '#2563eb',
-        to: t('/performance/my-progress'),
+        children: [
+          { label: "My progress", to: t("/performance/my-progress") },
+          { label: "My assessment", to: t("/performance/my-assessment") },
+        ],
       },
       {
         label: "Project Security",
@@ -94,6 +97,7 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
         label: "Assessment",
         icon: ClipboardCheck,
         children: [
+          { label: "Assessment agent", to: t("/performance/assessment") },
           { label: "Assessment setup", to: t("/performance/assessments") },
           { label: "Reports", to: t("/performance/reports") },
         ],

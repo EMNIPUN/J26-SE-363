@@ -238,3 +238,29 @@ Every route is protected through the existing deps (`require_account_role`).
 - **Code Ownership scope:** the scorer is trained on Python only. Other languages give "not available" unless the lecturer enables unvalidated scoring.
 - **Groq limits:** the RF sub-agent depends on Groq rate limits. Budgets per run and caching matter, and the held-out RF results are still incomplete.
 - **Behavioral Pattern gaps:** Last-minute rusher and Burst worker rarely fire (see its README).
+
+## 16. Implementation status (branch `feature/assessment-agent-integration-sadeesha`)
+
+Built and tested:
+
+| Phase | What exists | Tests |
+|---|---|---|
+| P0 Foundations | Postgres tables `perf_*` (one DDL file, alembic `a7c3d5e91f02`, checked on a throwaway local database), `PerformanceStore`, in-memory twin, LangGraph Postgres checkpointer helper | store tests on local Postgres |
+| P1 Workspace and evidence | read-only git workspace, GitHub REST, Scrum MCP server and client, evidence builder, identity map | workspace 35, MCP 7, GitHub 7, builder 7 |
+| P2 Factors | `evaluate.py` for Effort, Consistency, Task Complexity (ridge cards), Requirement Fulfillment (sub-agent on real evidence), Code Ownership (production), Collaboration, Behavioral Pattern; factor cards; provisional mode | linear 13, RF 9, factor tests |
+| P3 Agent graph | team graph, student pipeline, audit/retry/escalate, fusion, justification, Code Ownership quiz flow with 48 h + 48 h windows, report | 25 tests incl. end to end on a real repo |
+| P4 Queue, API, events | jobs `assess_team`, `resume_run`, `refuse_student`, `sync_team`, `sync_all`, `snapshot_all`, `quiz_sweep`; `/api/v1/performance/*` incl. SSE and the GitHub webhook | 13 API tests, 3 task tests, route-protection test |
+| P5 Frontend | pipeline canvas (own SVG layout, rotating glow, comet along the edge into the active node, node log drawer), team hub, tracking form, results, day-by-day chart, review queue, identity-mapping form, student page with the code question | model, SSE and roster unit tests; lint and build clean |
+
+Decisions made while building:
+- No new frontend packages: the pipeline view uses plain SVG and CSS instead of `@xyflow/react` and `elkjs` (the graph is small and fixed).
+- The graph topology lives in `shared/performance/topology.py` so the agent and the Core API share it.
+- Checkpoints use one thread per run (`team:{team}:sprint:{sprint}:{run id}`); the cross-run memory is in the result tables.
+- A lecturer's override is stored beside the model's mark and never replaces it.
+
+Not done, or not verified:
+- P6 and P7: the 250-student load test and a run on a real team repository with the real board have not been done. Only throwaway repositories and a fake GitHub were used.
+- The pipeline view and the quiz page have not been looked at in a browser here (no Keycloak login in this environment); they are covered by unit tests, lint and a production build only.
+- The alembic migration was applied and reverted on a throwaway local PostgreSQL only; it has not been applied to the shared Supabase database.
+- `GITHUB_WEBHOOK_SECRET`, `GITHUB_TOKEN` and `GROQ_API_KEYS` must be set for webhooks, private repositories and Requirement Fulfillment.
+- Code Ownership needs the CodeBERT weights on the worker (about 500 MB, loaded once per process).
