@@ -125,6 +125,8 @@ def cmd_run(a):
     with ThreadPoolExecutor(max_workers=a.workers) as ex:
         list(ex.map(work, jobs))
     left = sum(1 for tid, k in jobs if (tid, k) not in {(json.loads(x)["task_id"], json.loads(x)["run"]) for x in results_path.read_text(encoding="utf-8").splitlines()}) if results_path.exists() else len(jobs)
+    (out / "status.json").write_text(json.dumps({"items": len(items), "runs": a.runs, "jobs_total": len(items) * a.runs, "jobs_not_done": left, "complete": left == 0,
+                                                  "paused_on_daily_limit": paused.is_set(), "updated": time.strftime("%Y-%m-%d %H:%M:%S")}, indent=1), encoding="utf-8")
     if paused.is_set():
         print(f"PAUSED: the daily token limit of the account is reached; {left} of {len(jobs)} jobs are not done. Run the same command again after the limit resets.")
     print("run finished ->", results_path)
