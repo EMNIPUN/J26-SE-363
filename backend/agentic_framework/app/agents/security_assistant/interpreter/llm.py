@@ -6,12 +6,16 @@ nothing else in the interpreter depends on Gemini.
 
 import asyncio
 import os
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 import httpx
+from dotenv import dotenv_values
 
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.5-flash"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+# backend/agentic_framework/.env, the same file the rest of the AI backend reads
+ENV_FILE = Path(__file__).resolve().parents[4] / ".env"
 
 
 class LLMError(Exception):
@@ -59,20 +63,38 @@ class GeminiClient:
                         except (KeyError, IndexError, ValueError, TypeError) as exc:
                             raise LLMError("Gemini returned no usable text") from exc
                     last = f"HTTP {resp.status_code}"
+                    try:  # Google explains the problem (unknown model, quota, ...); the message never holds the key
+                        last += ": " + str(resp.json()["error"]["message"])[:200].replace(self._key, "<key>")
+                    except (KeyError, ValueError, TypeError):
+                        pass
                     if resp.status_code not in (429, 500, 503):
                         break  # a client error will not get better by retrying
                 await asyncio.sleep(0.5 * (attempt + 1))
         raise LLMError(f"Gemini call failed: {last}")  # never include headers, so the key cannot leak
 
 
+def _setting(name: str) -> str | None:
+    """A setting from the process environment, else from the .env file (values are never logged)."""
+    value = os.environ.get(name)
+    if value:
+        return value
+    try:
+        return dotenv_values(ENV_FILE).get(name) or None
+    except OSError:
+        return None
+
+
 def get_default_client() -> LLMClient:
-    """Gemini configured from the environment: SECURITY_ASSISTANT_LLM_API_KEY (or GEMINI_API_KEY),
-    SECURITY_ASSISTANT_LLM_MODEL (default gemini-2.5-flash), SECURITY_ASSISTANT_LLM_TIMEOUT (seconds)."""
-    key = os.environ.get("SECURITY_ASSISTANT_LLM_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    """Gemini configured from the environment or backend/agentic_framework/.env:
+    SECURITY_ASSISTANT_LLM_API_KEY (or GEMINI_API_KEY), SECURITY_ASSISTANT_LLM_MODEL (default gemini-3.5-flash),
+    SECURITY_ASSISTANT_LLM_TIMEOUT (seconds). A real environment variable wins over the file."""
+    key = _setting("SECURITY_ASSISTANT_LLM_API_KEY") or _setting("GEMINI_API_KEY")
     if not key:
-        raise LLMNotConfigured("set SECURITY_ASSISTANT_LLM_API_KEY (or GEMINI_API_KEY) to call the LLM")
+        raise LLMNotConfigured(
+            "no API key found: set SECURITY_ASSISTANT_LLM_API_KEY (or GEMINI_API_KEY) in the environment "
+            f"or in {ENV_FILE}")
     return GeminiClient(
         key,
-        model=os.environ.get("SECURITY_ASSISTANT_LLM_MODEL", DEFAULT_MODEL),
-        timeout=float(os.environ.get("SECURITY_ASSISTANT_LLM_TIMEOUT", "60")),
+        model=_setting("SECURITY_ASSISTANT_LLM_MODEL") or DEFAULT_MODEL,
+        timeout=float(_setting("SECURITY_ASSISTANT_LLM_TIMEOUT") or "60"),
     )

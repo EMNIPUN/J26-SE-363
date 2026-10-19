@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from app.agents.security_assistant.interpreter.evidence import build_bundle
+from app.agents.security_assistant.interpreter import llm as llm_module
 from app.agents.security_assistant.interpreter.llm import (
     DEFAULT_MODEL, GeminiClient, LLMError, LLMNotConfigured, get_default_client,
 )
@@ -137,9 +138,38 @@ def test_gemini_retries_transient_errors():
     assert run(_client(handler, retries=2).complete("s", "u")) == "{}" and len(calls) == 3
 
 
-def test_default_client_needs_a_key_and_reads_the_model(monkeypatch):
-    for name in ("SECURITY_ASSISTANT_LLM_API_KEY", "GEMINI_API_KEY", "SECURITY_ASSISTANT_LLM_MODEL"):
+def _no_settings(monkeypatch, tmp_path, env_text=None):
+    """Ignore the developer's real environment and .env file."""
+    for name in ("SECURITY_ASSISTANT_LLM_API_KEY", "GEMINI_API_KEY", "SECURITY_ASSISTANT_LLM_MODEL",
+                 "SECURITY_ASSISTANT_LLM_TIMEOUT"):
         monkeypatch.delenv(name, raising=False)
+    env_file = tmp_path / ".env"
+    if env_text is not None:
+        env_file.write_text(env_text)
+    monkeypatch.setattr(llm_module, "ENV_FILE", env_file)
+
+
+def test_key_and_model_are_read_from_the_env_file(monkeypatch, tmp_path):
+    _no_settings(monkeypatch, tmp_path, "SECURITY_ASSISTANT_LLM_API_KEY=file-key\nSECURITY_ASSISTANT_LLM_MODEL=m-1\n"
+                 "SECURITY_ASSISTANT_LLM_TIMEOUT=12\n")
+    client = get_default_client()
+    assert (client._key, client.model, client._timeout) == ("file-key", "m-1", 12.0)
+
+
+def test_a_real_environment_variable_wins_over_the_env_file(monkeypatch, tmp_path):
+    _no_settings(monkeypatch, tmp_path, "SECURITY_ASSISTANT_LLM_API_KEY=file-key\n")
+    monkeypatch.setenv("SECURITY_ASSISTANT_LLM_API_KEY", "env-key")
+    assert get_default_client()._key == "env-key"
+
+
+def test_commented_out_or_empty_keys_in_the_env_file_do_not_count(monkeypatch, tmp_path):
+    _no_settings(monkeypatch, tmp_path, "# SECURITY_ASSISTANT_LLM_API_KEY=commented\nSECURITY_ASSISTANT_LLM_API_KEY=\n")
+    with pytest.raises(LLMNotConfigured, match="no API key found"):
+        get_default_client()
+
+
+def test_default_client_needs_a_key_and_reads_the_model(monkeypatch, tmp_path):
+    _no_settings(monkeypatch, tmp_path)
     with pytest.raises(LLMNotConfigured):
         get_default_client()
     monkeypatch.setenv("GEMINI_API_KEY", "k")
@@ -160,3 +190,11 @@ def test_live_gemini_returns_a_schema_valid_verdict():
     case = load_cases()[0]
     result = run(SemanticInterpreter(client).interpret(case.finding, case.bundle))
     assert not result.error and not result.output_rejected
+
+
+def test_google_error_message_is_shown_but_never_the_key():
+    body = {"error": {"message": "This model models/x is no longer available. (used key KEY-123)"}}
+    with pytest.raises(LLMError) as err:
+        run(_client(lambda r: httpx.Response(404, json=body)).complete("s", "u"))
+    assert "no longer available" in str(err.value) and "HTTP 404" in str(err.value)
+    assert "KEY-123" not in str(err.value)

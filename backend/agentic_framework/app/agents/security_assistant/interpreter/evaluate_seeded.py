@@ -61,6 +61,8 @@ async def main(argv=None) -> int:
                                          ("llm-error", bool(result.error))) if on)
         print(f"{case.finding.category.value} {case.id:<38} truth={case.ground_truth:<9} got={result.status:<9} "
               f"conf={result.confidence:.2f} {'ok ' if ok else 'MISS'} {flags}")
+        if result.error or result.output_rejected:
+            print(f"     reason: {(result.error or result.rationale)[:200]}")
     print(f"agreement with the labels: {correct}/{len(cases)}; calls that failed or were rejected: {errors}")
     return 0
 
