@@ -30,15 +30,29 @@ class Factor:
 
     @property
     def data(self):
-        return self.folder / "dataset" / self.dataset_file
+        p = self.folder / "dataset" / self.dataset_file
+        if p.exists():
+            return p
+        p = self.folder.parent.parent / "dataset" / self.dataset_file
+        if p.exists():
+            return p
+        return self.folder.parent / "dataset" / self.dataset_file
 
     @property
     def splits(self):
-        return self.folder / "dataset" / "splits.csv"
+        p = self.folder / "dataset" / "splits.csv"
+        if p.exists():
+            return p
+        p = self.folder.parent.parent / "dataset" / "splits.csv"
+        if p.exists():
+            return p
+        return self.folder.parent / "dataset" / "splits.csv"
 
     @property
     def results(self):
-        path = self.folder / "training" / "results"
+        path = self.folder / "results"
+        if not path.exists() and (self.folder / "training" / "results").exists():
+            return self.folder / "training" / "results"
         path.mkdir(parents=True, exist_ok=True)
         return path
 
