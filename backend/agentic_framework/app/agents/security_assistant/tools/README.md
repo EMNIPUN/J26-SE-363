@@ -19,7 +19,7 @@ result.complete   # False if any tool failed/timed out/was unavailable: no findi
 Check what is installed: `python -m app.agents.security_assistant.tools.check`. Scan a folder:
 `python -m app.agents.security_assistant.tools.runner <path>`. Tool image: `../Dockerfile`.
 
-Tests: `uv run pytest app/agents/security_assistant/tools/tests` (fixtures: seeded Python, Java and JS/TS
+Tests: `uv run pytest app/agents/security_assistant` is the fast suite; real scanners only with `-m integration` (fixtures: seeded Python, Java and JS/TS
 repos; real-tool tests are skipped when a binary is missing).
 
 Tools run one after another by default (quick ones first, CodeQL last); set

@@ -52,9 +52,9 @@ docker run --rm -v "$PWD:/app" selvia-security-assistant-tools \
 docker run --rm -v "$PWD:/app" -v /path/to/student-repo:/repo:ro selvia-security-assistant-tools \
   sh -c "pip install -q pydantic pyyaml && python -m app.agents.security_assistant.tools.runner /repo"
 
-# 4. Run the tests with the real scanners (slow: CodeQL builds a database per test)
+# 4. Run the tests with the real scanners (slow, on request only: CodeQL builds a database per test)
 docker run --rm -v "$PWD:/app" selvia-security-assistant-tools \
-  sh -c "pip install -q pydantic pyyaml pytest && git config --global --add safe.directory '*' && python -m pytest app/agents/security_assistant/tools/tests"
+  sh -c "pip install -q pydantic pyyaml pytest && git config --global --add safe.directory '*' && python -m pytest -m integration app/agents/security_assistant/tools/tests"
 ```
 
 ## Entry paths: manual and GitHub webhook (limited)
@@ -102,7 +102,7 @@ uses `pydantic`, `pyyaml` and `pytest`, which are already in `pyproject.toml` / 
 winget install --id astral-sh.uv -e      # once; open a new terminal afterwards
 cd backend\agentic_framework
 uv sync                                   # creates .venv from uv.lock
-uv run pytest app/agents/security_assistant/tools/tests   # unit tests; real-scanner tests skip themselves
+uv run pytest app/agents/security_assistant tests            # the fast suite (see Testing below)
 ```
 
 The scanner binaries (CodeQL, Gitleaks, ...) are not Python packages, so uv cannot install them:
@@ -126,3 +126,47 @@ Settings (optional, in `backend/agentic_framework/.env`): `SECURITY_ASSISTANT_SC
 - When ready, register the agent in `app/agents/registry.py`.
 
 See `docs/TEAM_DEVELOPMENT_GUIDE.md`.
+
+## Testing
+
+Fast suite (default; mocked tools, recorded outputs, mocked LLM; no real scanner, no network, no API key):
+
+```powershell
+cd backend\agentic_framework
+uv run pytest app/agents/security_assistant tests      # about 1 minute; the git based pipeline tests are the slowest
+```
+
+`pyproject.toml` deselects two markers by default: `integration` (real CodeQL, Gitleaks, TruffleHog, OSV-Scanner,
+npm audit, pip-audit, actionlint, zizmor, in the Docker image; includes the 40-minute CodeQL tests) and `live` (real LLM
+call, needs an API key). Run them only on request: `uv run pytest -m live`, and for scanners the Docker command above.
+A bare `uv run pytest` also collects other agents' tests; some of the performance_assessment ones fail on a fresh
+checkout because their mock fixture folder is git-ignored.
+
+## LLM Semantic Interpreter (`interpreter/`)
+
+Judges ONE finding that a scanner already produced; it cannot create findings. Input: the `Finding` plus an
+`EvidenceBundle` of labelled items with ids (E1 finding metadata, E2 code snippet, E3.. context such as where
+authorisation, sanitisers or a package are used), all size-limited and redacted. Output (schema-validated):
+`status` confirmed / dismissed / uncertain, `rationale`, `evidence_ids`, `confidence`.
+
+| Category | What the model is asked |
+|---|---|
+| V1 | is there middleware or annotation-based authorisation the scanner missed (authentication alone does not count) |
+| V2 | does a custom sanitiser neutralise the input before the sink |
+| V3 | is the misconfiguration real, and which is the most critical one |
+| V4 | live credential or test / example value (using the redaction hints kind, length, placeholder_like) |
+| V5 | is the vulnerable code path reachable |
+
+Built-in safety: secrets are redacted before every call (and again when the prompt is built); output that fails
+the schema is rejected (result `uncertain`, `output_rejected`); a cited evidence id that is not in the bundle, or a
+verdict without any evidence id, is downgraded to `uncertain`; the prompt declares repository text untrusted data
+and fences it in `<evidence>` blocks; an LLM error gives `uncertain` with the error, never a verdict. `hooks.py` has
+the single `governance_hook(event, data)` (called before and after the call), a no-op for now.
+
+LLM: Gemini, for this component only (`interpreter/llm.py`, `LLMClient` is a one-method protocol, so another model
+is one new class). Settings in `.env.example`: `SECURITY_ASSISTANT_LLM_API_KEY` (or `GEMINI_API_KEY`), `..._MODEL`.
+
+Seeded set for the RQ1 comparison: `interpreter/seeded/cases.json`, one real finding and one deliberate false
+positive per category (10 cases, scanner-style findings with hand-written evidence). Run
+`uv run python -m app.agents.security_assistant.interpreter.evaluate_seeded` (offline, a mock that answers with the
+labels: plumbing only) or add `--live` for a real Gemini run.
