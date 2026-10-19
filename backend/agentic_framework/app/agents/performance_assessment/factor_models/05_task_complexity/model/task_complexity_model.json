@@ -1,0 +1,91 @@
+{
+ "factor": "task_complexity",
+ "version": "task-complexity-linear/1",
+ "model": "ridge (median imputation, standardised, penalty by leave-one-out)",
+ "candidate": "proposal 5 + story points of the sprint",
+ "features": [
+  {
+   "name": "TC_SP",
+   "transform": "raw"
+  },
+  {
+   "name": "TC_SC",
+   "transform": "raw"
+  },
+  {
+   "name": "TC_FI",
+   "transform": "log"
+  },
+  {
+   "name": "TC_DR",
+   "transform": "log"
+  },
+  {
+   "name": "TC_CB",
+   "transform": "log"
+  },
+  {
+   "name": "TC_SP_total",
+   "transform": "log"
+  }
+ ],
+ "medians": [
+  4.0,
+  2.5835,
+  2.659660738827869,
+  1.0986122886681098,
+  1.6739139316184652,
+  2.1972245773362196
+ ],
+ "mean": [
+  4.0723819444444445,
+  2.583465277777778,
+  2.65201641923576,
+  1.2184750318887854,
+  1.656457297244553,
+  2.161367239681688
+ ],
+ "scale": [
+  1.335688893191905,
+  0.6167406927775242,
+  0.5991717383111196,
+  1.1212073190154954,
+  0.40698518735296363,
+  0.6071785157338021
+ ],
+ "coef": [
+  0.018558326466411788,
+  0.01317023892298287,
+  0.027702876378642535,
+  0.0122387690023358,
+  -0.021463191024029635,
+  0.12140688271940869
+ ],
+ "intercept": 0.5065972222222223,
+ "alpha": 0.01,
+ "guard": null,
+ "zero_rule": null,
+ "residual_quantiles": [
+  -0.1402059553554096,
+  0.14245827678570458
+ ],
+ "cv": {
+  "MAE": 0.08685295819117335,
+  "Pearson": 0.7800352592142886,
+  "Spearman": 0.7807139062214177,
+  "band_within_1": 1.0,
+  "baseline": "story points of the sprint (log, linear)",
+  "baseline_MAE": 0.09127018407386579,
+  "gain_over_baseline": 0.004417225882692444,
+  "gain_95": [
+   -0.0013715558051258687,
+   0.010190560623071734
+  ],
+  "beats_baseline": false,
+  "mean_predictor_MAE": 0.14539448302469138,
+  "n": 144,
+  "folds": "5 student-disjoint groups A-E"
+ },
+ "trained_on": "144 real student-sprints rated on the project rubric by the assistant (not human ratings)",
+ "seed": 20261018
+}
