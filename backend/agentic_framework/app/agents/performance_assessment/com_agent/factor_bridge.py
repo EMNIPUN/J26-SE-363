@@ -179,6 +179,28 @@ async def evaluate_factor(
         return get_fallback_for_factor(factor_name, str(e))
 
 
+async def generate_quiz_via_bridge(
+    payload: Dict[str, Any],
+    context: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Bridge for Factor 7 phase 1: the Code Ownership package picks the student's code and builds the AST question.
+
+    Returns the quiz dict, or None when the package has no ``generate_quiz`` (simulator only), found no function worth asking about, or failed;
+    the quiz node then keeps its placeholder quiz.
+    """
+    resolved = _resolve_factor_module("code_ownership")
+    if not resolved:
+        return None
+    mod, tier = resolved
+    if tier != "production" or not hasattr(mod, "generate_quiz"):
+        return None
+    try:
+        return mod.generate_quiz(payload, context=context or {})
+    except Exception as e:
+        logger.warning(f"Code Ownership quiz generation failed, keeping the placeholder quiz: {e}")
+        return None
+
+
 async def classify_persona_via_bridge(
     factor_scores: Dict[str, float],
     context: Optional[Dict[str, Any]] = None,

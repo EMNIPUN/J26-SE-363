@@ -1,0 +1,28 @@
+{
+ "production": {
+  "kind": "encoder",
+  "key": "codebert|B+H|svr",
+  "encoder": "codebert",
+  "feature_set": "B+H",
+  "head": "svr"
+ },
+ "encoder_model": "codebert|B+H|svr",
+ "keep_complex_head": true,
+ "complex_vs_ridge_interval": [
+  0.0171076451841633,
+  0.0543786413519616
+ ],
+ "complex_folds_won": 5,
+ "encoder_helps": true,
+ "encoder_vs_hand_interval": [
+  0.01751211231336197,
+  0.07088707888227799
+ ],
+ "encoder_folds_won": 5,
+ "best_hand_baseline": "hand-built features, forest",
+ "dev_MAE": {
+  "production": 0.1614402494171667,
+  "mean": 0.31860997097503163,
+  "length": 0.3090562832437555
+ }
+}

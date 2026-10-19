@@ -58,6 +58,7 @@ factor_models/
   06_behavioral_pattern/cleaning.py   input checks only (reads the other factors)    + tests/
   06_behavioral_pattern/rules.py, thresholds.json, evaluate.py   the five rules, fixed cut points, the agent entry point (`classify`)
   07_code_ownership/cleaning.py   blame on counted lines, quiz snippet selection     + tests/
+  07_code_ownership/quiz.py, questions.py, score.py, evaluate.py, model/   AST question, guards + CodeBERT/SVR answer rating, agent entry point, trained head
   dataset/                  how the training data was built (see its README)
   ml_lib/                   model-agnostic training utilities (splits, metrics)
 ```
@@ -147,7 +148,8 @@ by leave-one-out) is refitted. The old `final_dataset.csv` and `marks_report.jso
    only `net_human_loc`; replace `detect_dependencies_and_clean_loc` by `evidence.lines`.
 3. `factor_bridge.py`: pass the evidence reference through, check `versions` against the model's stored versions.
 4. Read-only explanation inputs: the `removed` summary (numbers only, never raw repository text).
-5. Retrain the models on `clean/final_dataset_clean.csv` with the existing protocols (tests scored once, on the real rated records).
+5. Code Ownership is built end to end (question generation, answer rating, entry point, trained head); it needs torch, transformers, scikit-learn, joblib and the CodeBERT weights in the agent environment, and the agent supplies the student's source files (`ownership_files`) to the quiz node.
+6. Retrain the models on `clean/final_dataset_clean.csv` with the existing protocols (tests scored once, on the real rated records).
 
 ## 10. Tests
 
