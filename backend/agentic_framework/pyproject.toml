@@ -42,4 +42,9 @@ packages = ["app"]
 [tool.pytest.ini_options]
 testpaths = ["app", "tests"]
 pythonpath = ["."]
-markers = ["integration: runs real scanner binaries; skipped when a tool is not installed"]
+markers = [
+    "integration: runs real scanner binaries (CodeQL, Gitleaks, ...); slow, only on request",
+    "live: calls a real LLM API and needs an API key; only on request",
+]
+# Default = fast suite. Real scanners and live LLM calls run only with: pytest -m integration / pytest -m live
+addopts = "-m 'not integration and not live'"
