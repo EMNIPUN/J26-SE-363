@@ -9,7 +9,7 @@ from scipy.stats import kendalltau, pearsonr, spearmanr
 HERE = Path(__file__).resolve().parent
 DATA = HERE.parent / "dataset" / "effort_dataset.csv"
 SPLITS = HERE.parent / "dataset" / "splits.csv"
-RESULTS = HERE / "results"
+RESULTS = HERE.parent / "experiments" / "exp01_baseline_pipeline" / "results"
 GROUPS = ["A", "B", "C", "D", "E"]
 FEATURES = ["E_CC", "E_LOC_net_capped", "E_FC", "E_CT", "E_RD"]
 SEED = 20261018

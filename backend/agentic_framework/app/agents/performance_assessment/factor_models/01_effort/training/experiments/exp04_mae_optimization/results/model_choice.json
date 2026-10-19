@@ -1,0 +1,22 @@
+{
+  "factor": "01_effort",
+  "model_name": "Ridge LOG4 (CC, LOC, CT, FC)",
+  "features": [
+    "E_CC (log)",
+    "E_LOC_net_capped (log)",
+    "E_CT (log)",
+    "E_FC (log)"
+  ],
+  "test_mae": 0.0642,
+  "baseline_mae": 0.0874,
+  "mae_gain": 0.0232,
+  "ci_95": [
+    0.0111,
+    0.0459
+  ],
+  "pearson_r": 0.9523,
+  "spearman_rho": 0.9348,
+  "within_1_band": 0.9861,
+  "statistically_beats_baseline": true,
+  "decision": "Selected as optimal production model"
+}
