@@ -1,4 +1,6 @@
-﻿import logging
+import asyncio
+import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -8,7 +10,7 @@ from shared.queue import app as procrastinate_app
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.errors import ApiError, api_error_handler
-from app.database.session import check_db_connection
+from app.database.session import check_db_connection, warm_pool
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,10 @@ logger = logging.getLogger(__name__)
 async def lifespan(fastapi_app: FastAPI):
     """Application lifespan — opens Procrastinate connection for job publishing."""
     logger.info("Initializing SELVIA Server...")
+
+    # Open a few database connections in the background: the first connect to a far-away database takes seconds, and it should not be a request that waits.
+    warm = asyncio.create_task(asyncio.to_thread(warm_pool, int(os.getenv("SERVER_DB_WARM", "3"))))
+    warm.add_done_callback(lambda t: logger.info("Database connections warmed: %s", t.result() if not t.exception() else t.exception()))
 
     # Open the Procrastinate app for the duration of the server lifetime.
     async with procrastinate_app.open_async():

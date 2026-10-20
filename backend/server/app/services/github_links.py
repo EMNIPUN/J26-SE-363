@@ -7,11 +7,11 @@ Three facts are kept, all verified by GitHub rather than typed:
 The assessment agent is started from these facts only (``agent_roster``); nobody types a roster.
 """
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from shared.github_app import GitHubApp, GitHubAppConfig, GitHubAppError, noreply_emails
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, func, select, update
+from sqlalchemy.orm import Session, aliased
 
 from app.core.config import settings
 from app.core.errors import bad_request, conflict
@@ -155,37 +155,60 @@ def disconnect_user(db: Session, user: User) -> None:
 
 # ---- the gate in front of the team ----------------------------------------------------------------------------------------------------
 
-def gate(db: Session, group: Group, user: User, staff: bool, app: GitHubApp) -> dict:
-    """May this person enter the team? Checked live against GitHub on every call.
+def gate(db: Session, ref: str, user: User, is_admin: bool, app: GitHubApp) -> dict | None:
+    """May this person enter the team? Checked live against GitHub on every call. ``None`` when there is no such team or the person is not in it (and is no administrator).
 
     Students must have linked a GitHub account (verified by GitHub) that can write to the repository the leader linked. Lecturers and administrators supervise and need no GitHub account.
     The answer says exactly why not, so the page can tell the person what to do: ``repo_not_linked`` (the leader has not linked it), ``account_not_linked``, ``no_access`` or ``read_only``
     (the connected account is not a collaborator with write access), ``github_unavailable`` (GitHub could not be asked; try again). When the App is not set up on the server, nothing can be verified
     and nobody is locked out (``verified`` is false).
+
+    Everything the database knows is read in one statement: this runs on every page load, and each round trip to a far-away database costs about half a second.
     """
-    row = team_link(db, group)
-    leader = group.leader_id == user.id
-    base = {"is_leader": leader, "repo": row.repo_full_name if row else None, "installed": row is not None, "installed_by": row.account_login if row else None, "login": None, "permission": None,
-            "verified": True, "staff": staff, "can_link": staff or leader,
-            "leader_name": next((m.user.name for m in group.members if m.user_id == group.leader_id), None)}
-    if staff:
-        return {**base, "state": "ok", "verified": False}
-    if not app.config.configured:
-        return {**base, "state": "ok", "verified": False}
-    if row is None or not row.repo_full_name:
-        return {**base, "state": "repo_not_linked"}
-    acc = linked_accounts(db, [user.id]).get(user.id)
-    if acc is None:
-        return {**base, "state": "account_not_linked"}
-    base["login"] = acc.login
     try:
-        perm = app.permission(row.installation_id, row.repo_full_name, acc.login)
+        which = Group.id == uuid.UUID(ref)
+    except ValueError:
+        which = func.upper(Group.code) == ref.strip().upper()
+    leader = aliased(User)
+    row = db.execute(
+        select(Group.id, Group.code, Group.name, Group.leader_id, leader.name, GroupMember.role, TeamGithub.repo_full_name, TeamGithub.installation_id, TeamGithub.account_login,
+               UserGithubAccount.login, TeamGithubAccess.id, TeamGithubAccess.permission, TeamGithubAccess.checked_at)
+        .select_from(Group)
+        .outerjoin(leader, leader.id == Group.leader_id)
+        .outerjoin(GroupMember, and_(GroupMember.group_id == Group.id, GroupMember.user_id == user.id))
+        .outerjoin(TeamGithub, TeamGithub.group_id == Group.id)
+        .outerjoin(UserGithubAccount, UserGithubAccount.user_id == user.id)
+        .outerjoin(TeamGithubAccess, and_(TeamGithubAccess.group_id == Group.id, TeamGithubAccess.user_id == user.id))
+        .where(which)
+    ).first()
+    if row is None:
+        return None
+    gid, code, name, leader_id, leader_name, member_role, repo, installation_id, installed_by, login, access_id, stored, checked_at = row
+    if member_role is None and not is_admin:
+        return None
+    staff = is_admin or member_role is MemberRole.LECTURER
+    is_leader = leader_id == user.id
+    base = {"is_leader": is_leader, "repo": repo, "installed": installation_id is not None, "installed_by": installed_by, "login": None, "permission": None,
+            "verified": True, "staff": staff, "can_link": staff or is_leader, "leader_name": leader_name, "team": code, "team_name": name, "configured": app.config.configured}
+    if staff or not app.config.configured:
+        return {**base, "state": "ok", "verified": False}
+    if not repo:
+        return {**base, "state": "repo_not_linked"}
+    if login is None:
+        return {**base, "state": "account_not_linked"}
+    base["login"] = login
+    try:
+        perm = app.permission(installation_id, repo, login)
     except GitHubAppError:
         return {**base, "state": "github_unavailable"}
-    rec = db.scalar(select(TeamGithubAccess).where(TeamGithubAccess.group_id == group.id, TeamGithubAccess.user_id == user.id)) or TeamGithubAccess(group_id=group.id, user_id=user.id)
-    rec.permission, rec.checked_at = perm, now()
-    db.add(rec)
-    db.commit()
+    # Written only when the answer changed or the stored one is old: the gate asks on every page load.
+    old = checked_at is not None and now() - checked_at.replace(tzinfo=checked_at.tzinfo or timezone.utc) > timedelta(minutes=10)
+    if access_id is None:
+        db.add(TeamGithubAccess(group_id=gid, user_id=user.id, permission=perm, checked_at=now()))
+        db.commit()
+    elif stored != perm or old:
+        db.execute(update(TeamGithubAccess).where(TeamGithubAccess.id == access_id).values(permission=perm, checked_at=now()))
+        db.commit()
     return {**base, "permission": perm, "state": "ok" if perm in WRITE else "read_only" if perm == "read" else "no_access"}
 
 

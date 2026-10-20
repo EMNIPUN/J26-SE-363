@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import Account, get_onboarded_account
 from app.core.config import settings
-from app.core.errors import ApiError, bad_request, forbidden
+from app.core.errors import ApiError, bad_request, forbidden, not_found
 from app.database.session import get_db
 from app.models import Group, GroupMember, MemberRole, TeamGithub, User, UserGithubAccount
 from app.services import github_links as links
@@ -171,9 +171,10 @@ def team_github(team: str, account: Onboarded, db: Db):
 @router.get("/teams/{team}/gate")
 def team_gate(team: str, account: Onboarded, db: Db, app: App):
     """The check in front of the team's dashboard, made again on every page load: may this person enter, and if not, what must they do. Answered live from GitHub."""
-    group, member = _team(db, team, account)
-    staff = account.role is UserRole.ADMIN or bool(member and member.role is MemberRole.LECTURER)
-    return {**links.gate(db, group, account.user, staff, app), "team": group.code, "team_name": group.name, "configured": app.config.configured}
+    answer = links.gate(db, team, account.user, account.role is UserRole.ADMIN, app)
+    if answer is None:
+        raise not_found("Team not found")
+    return answer
 
 
 @router.post("/teams/{team}/github/refresh")
