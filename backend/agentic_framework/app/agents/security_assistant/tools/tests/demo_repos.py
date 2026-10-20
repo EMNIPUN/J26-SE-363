@@ -6,7 +6,9 @@ and then deleted, so the secret scanners have something to find in the history.
 No secret is stored in this repository: the fake values are assembled here at run time.
 """
 
+import os
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -14,6 +16,12 @@ from pathlib import Path
 FIXTURES = Path(__file__).parent / "fixtures"
 FAKE_AWS_KEY = "AKIA" + "QYLPMN5HHHFPZAM2"
 FAKE_AWS_SECRET = "Zk9xQ2v7Lm4Rt8Yp1Nc6Wd3Hs5Jb0Ga2Ue" + "+Ff7Xi"
+
+
+def _writable_then_retry(func, path, _exc):
+    """rmtree on Windows cannot delete the read-only object files git writes; make them writable and try again."""
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -27,7 +35,7 @@ def make_demo_repos(dest: Path) -> list[Path]:
     for fixture in sorted(p for p in FIXTURES.iterdir() if p.is_dir()):
         repo = dest / fixture.name
         if repo.exists():
-            shutil.rmtree(repo)
+            shutil.rmtree(repo, onerror=_writable_then_retry)
         shutil.copytree(fixture, repo)
         _git(repo, "init", "-q")
         # commit messages carry task ids (see traceability_samples/tasks.json) so the trace command has something to match

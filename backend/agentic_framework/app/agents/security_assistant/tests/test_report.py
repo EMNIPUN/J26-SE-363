@@ -267,3 +267,14 @@ def test_report_snippets_replace_emails_phones_and_student_ids_in_the_students_c
     for personal in ("priya.natarajan", "student.example.edu", "555 0134", "S7654321"):
         assert personal not in md, personal
     assert "<EMAIL_1>" in md and "<STUDENT_ID_1>" in md
+
+
+def test_demo_repos_can_be_rebuilt_over_an_existing_copy(tmp_path):
+    """Regression: on Windows the second run of the README's demo_repos command failed with PermissionError, because git's
+    object files are read-only and shutil.rmtree could not delete them."""
+    from app.agents.security_assistant.tools.tests.demo_repos import make_demo_repos
+
+    first = make_demo_repos(tmp_path)
+    assert first and all((r / ".git").is_dir() for r in first)
+    second = make_demo_repos(tmp_path)  # the destination now holds repos with read-only git objects
+    assert [r.name for r in second] == [r.name for r in first] and all((r / ".git").is_dir() for r in second)
