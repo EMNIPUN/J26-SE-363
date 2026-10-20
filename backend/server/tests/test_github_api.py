@@ -75,7 +75,7 @@ def connect(api, sub, code, team="TEAM-ALPHA"):
 def test_the_leader_installs_the_app_and_picks_the_repository(gh):
     code = make_team(gh)
     r = install(gh)
-    assert r.status_code in (302, 307) and "/teams/TEAM-ALPHA/members?github=installed" in r.headers["location"]
+    assert r.status_code in (302, 307) and "/teams/TEAM-ALPHA/access?github=installed" in r.headers["location"]
     as_user(gh, "sam")
     repos = gh.get(f"/teams/{code}/github/repos").json()
     assert [x["full_name"] for x in repos] == ["acme/app", "acme/docs"]
@@ -309,6 +309,18 @@ def test_an_installation_that_github_sends_to_the_sign_in_address_is_accepted(gh
     state = parse_qs(urlparse(url).query)["state"][0]
     gh.sign_out()
     r = gh.get("/github/callback", params={"code": "unused", "installation_id": 7, "setup_action": "update", "state": state}, follow_redirects=False)
-    assert r.status_code in (302, 307) and "/teams/TEAM-ALPHA/members?github=installed" in r.headers["location"]
+    assert r.status_code in (302, 307) and "/teams/TEAM-ALPHA/access?github=installed" in r.headers["location"]
     as_user(gh, "sam")
     assert [x["full_name"] for x in gh.get(f"/teams/{code}/github/repos").json()] == ["acme/app", "acme/docs"]
+
+
+def test_an_install_returns_to_the_access_page_and_remembers_where_the_person_came_from(gh):
+    make_team(gh)
+    as_user(gh, "sam")
+    url = gh.post("/teams/TEAM-ALPHA/github/install", params={"back": "/teams/TEAM-ALPHA/members"}).json()["url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    gh.sign_out()
+    r = gh.get("/github/installed", params={"installation_id": 7, "state": state}, follow_redirects=False)
+    assert r.headers["location"].endswith("/teams/TEAM-ALPHA/access?github=installed&next=/teams/TEAM-ALPHA/members")
+    as_user(gh, "sam")
+    assert gh.post("/teams/TEAM-ALPHA/github/install", params={"back": "https://evil.example"}).status_code == 422

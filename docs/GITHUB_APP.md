@@ -19,7 +19,7 @@ Who may do what: the team leader and the team's lecturers (and administrators) l
 | | |
 |---|---|
 | `GET /github/config` | is the App set up |
-| `POST /teams/{team}/github/install` | the address to install the App (leader or lecturer) |
+| `POST /teams/{team}/github/install?back=` | the address to install the App (leader or lecturer); the person returns to the access page, then on to `back` |
 | `GET /github/installed` | GitHub sends the browser back here after the install (signed state, no token) |
 | `GET /teams/{team}/github/repos`, `PUT /teams/{team}/github/repo` | choose the repository |
 | `GET /teams/{team}/github`, `POST /teams/{team}/github/refresh`, `DELETE /teams/{team}/github` | status per member, check access again, unlink |
@@ -59,7 +59,7 @@ Tests: `backend/server/tests/test_github_app.py`, `test_github_api.py`, `test_pe
 
 ## The gate in front of a team (students only)
 
-A student reaches a team's dashboard only after `GET /teams/{team}/gate` says `ok`. The answer is made live against GitHub every time the page loads (and again every five minutes and when the tab regains focus), so access removed on GitHub closes the door here too.
+A student reaches a team's dashboard only after `GET /teams/{team}/gate` says `ok`. The check has its own address, `/teams/<code>/access`: the team guard sends every student there first (with `?next=` for the page they were going to), GitHub's callbacks (the install and the sign-in) return there too, and only a pass opens the dashboard. Nothing of the dashboard is drawn before that, and "passed" is kept in memory only, so a reload checks again. The answer is made live against GitHub every time the page loads (and again every five minutes and when the tab regains focus), so access removed on GitHub closes the door here too.
 
 | Answer | Meaning | What the page asks |
 |---|---|---|

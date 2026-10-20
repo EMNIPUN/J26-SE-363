@@ -90,8 +90,11 @@ Rail.propTypes = { gate: PropTypes.object }
 
 function RepoPicker({ teamId, gate, onDone }) {
   const [pick, setPick] = useState('')
+  const [params] = useSearchParams()
+  const next = params.get('next')
+  const back = next && /^\/[A-Za-z0-9/_\-.?=&]*$/.test(next) ? next : ''
   const repos = useQuery({ queryKey: githubKeys.repos(teamId), queryFn: () => githubService.repos(teamId), enabled: gate.installed })
-  const install = useMutation({ mutationFn: () => githubService.install(teamId), onSuccess: (r) => window.location.assign(r.url), onError: (e) => showToast.error(e.message) })
+  const install = useMutation({ mutationFn: () => githubService.install(teamId, back), onSuccess: (r) => window.location.assign(r.url), onError: (e) => showToast.error(e.message) })
   const choose = useMutation({ mutationFn: () => githubService.chooseRepo(teamId, pick), onSuccess: onDone, onError: (e) => showToast.error(e.message) })
   if (!gate.installed) {
     return (
@@ -132,7 +135,7 @@ export default function TeamAccessGate({ teamId, children }) {
     queryKey: githubKeys.gate(teamId), queryFn: () => githubService.gate(teamId),
     staleTime: 0, gcTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: true, refetchInterval: 5 * 60 * 1000, retry: 1,
   })
-  const connect = useMutation({ mutationFn: (choose) => githubService.connect(teamId, `/teams/${teamId}`, choose), onSuccess: (r) => window.location.assign(r.url), onError: (e) => showToast.error(e.message) })
+  const connect = useMutation({ mutationFn: (choose) => githubService.connect(teamId, `/teams/${teamId}/access`, choose), onSuccess: (r) => window.location.assign(r.url), onError: (e) => showToast.error(e.message) })
   const recheck = () => qc.invalidateQueries({ queryKey: githubKeys.gate(teamId) })
 
   useEffect(() => {

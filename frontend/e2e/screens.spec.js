@@ -130,3 +130,15 @@ test('the gate asks again on every load', async ({ page }) => {
   await expect(page.getByText('The team dashboard')).toBeVisible()
   expect(calls).toBeGreaterThanOrEqual(2)
 })
+
+test('the access page lets the student on to where they were going once the check passes', async ({ page }) => {
+  await open(page, '/teams/MC01/access?next=%2Fteams%2FMC01%2Fgithub', { role: 'student', gate: 'ok' })
+  await expect(page.getByText('Each member connects their GitHub account')).toBeVisible()
+  expect(page.url()).toContain('#/teams/MC01/github')
+})
+
+test('the access page stays on the check, at its own address, when the check fails', async ({ page }) => {
+  await open(page, '/teams/MC01/access?next=%2Fteams%2FMC01%2Fgithub', { role: 'student', gate: 'account_not_linked' })
+  await expect(page.getByRole('heading', { name: 'Sign in with GitHub to enter MediCare' })).toBeVisible()
+  expect(page.url()).toContain('#/teams/MC01/access')
+})

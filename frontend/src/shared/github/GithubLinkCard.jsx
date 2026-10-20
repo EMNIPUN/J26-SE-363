@@ -135,7 +135,7 @@ export default function GithubLinkCard({ team, repoUrl, canEditRepo }) {
             linked ? <p className="text-sm text-muted-foreground">Installed.</p> : (
               <>
                 <p className="text-sm text-muted-foreground">GitHub asks you to choose which repository the app may read. Choose only the team's repository.</p>
-                <Button size="sm" onClick={() => go.mutate(() => githubService.install(team))} disabled={go.isPending}>Install on GitHub</Button>
+                <Button size="sm" onClick={() => go.mutate(() => githubService.install(team, `/teams/${team}/members`))} disabled={go.isPending}>Install on GitHub</Button>
               </>
             )
           ) : <p className="text-sm text-muted-foreground">The team leader does this.</p>}
