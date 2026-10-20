@@ -125,9 +125,13 @@ class GitHubApp:
         return strongest(r.json().get("permission", "none"))
 
     # ---- a person signs in to GitHub from the system ---------------------------------------------------------------------------------
-    def authorize_url(self, state: str, redirect_uri: str) -> str:
+    def authorize_url(self, state: str, redirect_uri: str, choose_account: bool = False) -> str:
+        """Where the person signs in to GitHub. ``choose_account`` makes GitHub ask which account to use even when one is already signed in (for someone who was rejected and must use another)."""
         self._need()
-        return f"{WEB}/login/oauth/authorize?" + urlencode({"client_id": self.config.client_id, "redirect_uri": redirect_uri, "state": state, "allow_signup": "false"})
+        query = {"client_id": self.config.client_id, "redirect_uri": redirect_uri, "state": state, "allow_signup": "false"}
+        if choose_account:
+            query["prompt"] = "select_account"
+        return f"{WEB}/login/oauth/authorize?" + urlencode(query)
 
     def exchange_code(self, code: str, redirect_uri: str) -> str:
         self._need()

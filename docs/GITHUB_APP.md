@@ -56,3 +56,19 @@ GITHUB_CALLBACK_BASE=http://localhost:5173/api
 A run for a platform team is started from these verified facts only: the repository, the installation id, and for each student the platform user id, the verified login and GitHub's no-reply commit addresses. A typed GitHub username is never used to attribute work or to show someone a result. The worker mints its own installation token to clone and read the repository (a private one works, and the rate limit is the App's, not 60 an hour).
 
 Tests: `backend/server/tests/test_github_app.py`, `test_github_api.py`, `test_performance_platform.py`.
+
+## The gate in front of a team (students only)
+
+A student reaches a team's dashboard only after `GET /teams/{team}/gate` says `ok`. The answer is made live against GitHub every time the page loads (and again every five minutes and when the tab regains focus), so access removed on GitHub closes the door here too.
+
+| Answer | Meaning | What the page asks |
+|---|---|---|
+| `repo_not_linked` | the leader has not installed the App and chosen the repository | the leader links it; a member waits and checks again |
+| `account_not_linked` | the student has not signed in with GitHub | "Continue with GitHub" |
+| `read_only` / `no_access` | the connected account is not a collaborator with write access | check again, or "Use a different GitHub account" (GitHub is asked to let the person choose) |
+| `github_unavailable` | GitHub could not be asked | try again; the person is not let in meanwhile |
+| `ok` | in | |
+
+One GitHub account belongs to one person on the whole platform, so two members of a team can never share an account. Lecturers and administrators supervise and are not gated. When the App is not set up on the server nothing can be verified and nobody is locked out.
+
+The gate protects the dashboard pages. Other modules' API routes are not yet refused server-side for a student who skipped it; that needs the same check as a dependency on each route.

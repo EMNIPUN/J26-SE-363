@@ -89,7 +89,18 @@ export const liveEvents = () => {
   return all.slice(0, cut)
 }
 
-export async function mockApi(page, { role = 'instructor', live = false } = {}) {
+const GATE = {
+  ok: { state: 'ok' },
+  repo_not_linked: { state: 'repo_not_linked', is_leader: false, installed: false, repo: null },
+  repo_not_linked_leader: { state: 'repo_not_linked', is_leader: true, installed: true, installed_by: 'sadeesha', repo: null },
+  repo_not_installed_leader: { state: 'repo_not_linked', is_leader: true, installed: false, repo: null },
+  account_not_linked: { state: 'account_not_linked', installed: true, repo: 'acme/app', is_leader: false },
+  read_only: { state: 'read_only', installed: true, repo: 'acme/app', login: 'chathush', permission: 'read', is_leader: false },
+  no_access: { state: 'no_access', installed: true, repo: 'acme/app', login: 'some-other-account', permission: 'none', is_leader: false },
+  github_unavailable: { state: 'github_unavailable', installed: true, repo: 'acme/app', login: 'eric-devon', is_leader: false },
+}
+
+export async function mockApi(page, { role = 'instructor', live = false, gate = 'ok' } = {}) {
   await page.route((url) => url.pathname.startsWith('/api/'), async (route) => {
     const url = new URL(route.request().url())
     const p = url.pathname.replace(/^\/api/, '')
@@ -108,6 +119,8 @@ export async function mockApi(page, { role = 'instructor', live = false } = {}) 
     if (/^\/performance\/runs\/[^/]+$/.test(p) && m === 'GET') return json(runsList(live ? 'live' : 'done')[0])
     if (p === '/performance/reviews') return json([{ id: 'rev1', run_id: 'run-done', team_ref: 'MC01', sprint_id: 'MC01-S3', student_id: 'u-eri', kind: 'audit', reason: 'requirement_fulfillment could not be computed | A person should check the two tasks by hand.', status: 'open' }])
     if (p === '/github/config') return json({ configured: true, app_slug: 'selvia-ai' })
+    if (p === '/teams/MC01/gate') return json({ team: 'MC01', team_name: 'MediCare', leader_name: 'Sadeesha Sathsara', configured: true, verified: true, staff: false, can_link: false, ...GATE[gate] })
+    if (p === '/teams/MC01/github/repos') return json([{ id: 1, full_name: 'sadeesha/medicare', private: false }, { id: 2, full_name: 'sadeesha/medicare-docs', private: true }])
     if (p === '/teams/MC01/github') return json({ repo: 'acme/app', ready: true, blockers: [], notes: [], can_link: role === 'instructor', members: [{ user_id: 'u1', name: 'Sadeesha Sathsara', login: 'sadeesha', state: 'ready', is_leader: true }, { user_id: 'u2', name: 'Eric Devon', login: 'eric-devon', state: 'ready' }, { user_id: 'u3', name: 'Chathush Perera', login: 'chathush', state: 'read_only' }, { user_id: 'u4', name: 'Nipun Dhananjaya', login: null, state: 'not_connected' }] })
     if (p === '/performance/me/results') return json([{ team_ref: 'MC01', ...ownRow() }])
     if (p === '/performance/me/quizzes') return json([{ id: 'q1', team_ref: 'MC01', sprint_id: 'MC01-S3', question: 'What does build_report do, and what do rows and threshold control?', snippet: 'def build_report(rows, threshold):\n    total = 0\n    for row in rows:\n        if row > threshold:\n            total += row\n    return total', file_path: 'report.py', line_range: [1, 6], status: 'open', deadline_at: new Date(Date.now() + 40 * 3600e3).toISOString() }])

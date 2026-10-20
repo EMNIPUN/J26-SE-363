@@ -87,3 +87,46 @@ test('dark theme', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'The factors' })).toBeVisible()
   await shot(page, 'student-dark')
 })
+
+const GATE_CASES = [
+  ['repo_not_linked', 'Waiting for your team leader', 'Sadeesha Sathsara has not linked'],
+  ['repo_not_linked_leader', 'Link your team\u2019s repository', 'Now choose the repository'],
+  ['repo_not_installed_leader', 'Link your team\u2019s repository', 'Install on GitHub'],
+  ['account_not_linked', 'Sign in with GitHub to enter MediCare', 'Continue with GitHub'],
+  ['read_only', 'Your account can only read this repository', 'Use a different GitHub account'],
+  ['no_access', '@some-other-account is not a collaborator of this repository', 'Use a different GitHub account'],
+  ['github_unavailable', 'GitHub could not be reached', 'Try again in a moment'],
+]
+for (const [state, title, extra] of GATE_CASES) {
+  test(`the gate says what to do when: ${state}`, async ({ page }) => {
+    await open(page, '/teams/MC01/gate', { role: 'student', gate: state })
+    await expect(page.getByRole('heading', { name: title })).toBeVisible()
+    await expect(page.getByText(extra).first()).toBeVisible()
+    await expect(page.getByText('The team dashboard')).toHaveCount(0) // the dashboard is not rendered behind the gate
+    await shot(page, `gate-${state}`)
+  })
+}
+
+test('the gate lets the student through when the check passes', async ({ page }) => {
+  await open(page, '/teams/MC01/gate', { role: 'student', gate: 'ok' })
+  await expect(page.getByText('The team dashboard')).toBeVisible()
+})
+
+test('the gate on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await open(page, '/teams/MC01/gate', { role: 'student', gate: 'no_access' })
+  await expect(page.getByRole('heading', { name: /not a collaborator/ })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+  await shot(page, 'gate-phone')
+})
+
+test('the gate asks again on every load', async ({ page }) => {
+  let calls = 0
+  await open(page, '/teams/MC01/gate', { role: 'student', gate: 'ok' })
+  await page.route((url) => url.pathname === '/api/teams/MC01/gate', async (route) => { calls += 1; await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ state: 'ok' }) }) })
+  await page.reload()
+  await expect(page.getByText('The team dashboard')).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('The team dashboard')).toBeVisible()
+  expect(calls).toBeGreaterThanOrEqual(2)
+})

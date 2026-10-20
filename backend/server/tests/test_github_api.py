@@ -204,3 +204,98 @@ def test_nothing_works_until_the_app_is_set_up(api):
     r = api.post(f"/teams/{code}/github/install")
     assert r.status_code == 400 and r.json()["code"] == "github_not_configured"
     assert api.post("/me/github/connect", params={"team": code}).json()["code"] in ("github_not_configured", "leader_must_link_first")
+
+
+# ---- the gate in front of the team --------------------------------------------------------------------------------------------------
+
+def gate(api, sub, code="TEAM-ALPHA"):
+    as_user(api, sub)
+    return api.get(f"/teams/{code}/gate").json()
+
+
+def test_a_student_is_stopped_until_the_leader_has_linked_the_repository(gh):
+    make_team(gh)
+    g = gate(gh, "kim")
+    assert g["state"] == "repo_not_linked" and g["can_link"] is False and g["staff"] is False
+    g = gate(gh, "sam")  # the leader can link it
+    assert g["state"] == "repo_not_linked" and g["is_leader"] is True and g["can_link"] is True
+
+
+def test_the_gate_asks_for_the_github_account_then_checks_its_access_live(gh):
+    code = make_team(gh)
+    install(gh)
+    as_user(gh, "sam")
+    gh.put(f"/teams/{code}/github/repo", {"full_name": "acme/app"})
+    assert gate(gh, "kim")["state"] == "account_not_linked"
+    gh.sign_out()
+    connect(gh, "kim", "good-bob")  # "bob" can only read
+    g = gate(gh, "kim")
+    assert g["state"] == "read_only" and g["login"] == "bob" and g["permission"] == "read"
+    gh.sign_out()
+    connect(gh, "lee", "good-lee")  # "stranger" is not a collaborator
+    assert gate(gh, "lee")["state"] == "no_access"
+    gh.sign_out()
+    connect(gh, "sam", "good-ann")  # "ann-dev" can write
+    g = gate(gh, "sam")
+    assert g["state"] == "ok" and g["permission"] == "write" and g["repo"] == "acme/app"
+
+
+def test_the_gate_is_checked_again_every_time_so_lost_access_closes_it(gh):
+    code = make_team(gh)
+    install(gh)
+    as_user(gh, "sam")
+    gh.put(f"/teams/{code}/github/repo", {"full_name": "acme/app"})
+    gh.sign_out()
+    connect(gh, "sam", "good-ann")
+    assert gate(gh, "sam")["state"] == "ok"
+    original = gh.github.permission
+    gh.github.permission = lambda *a, **k: "none"  # the collaborator was removed on GitHub
+    assert gate(gh, "sam")["state"] == "no_access"
+    gh.github.permission = original
+    assert gate(gh, "sam")["state"] == "ok"
+
+    def down(*a, **k):
+        from shared.github_app import GitHubAppError
+
+        raise GitHubAppError("GitHub is down")
+
+    gh.github.permission = down
+    assert gate(gh, "sam")["state"] == "github_unavailable"  # not let in when GitHub cannot be asked
+
+
+def test_lecturers_and_administrators_pass_without_a_github_account(gh):
+    make_team(gh)
+    assert gate(gh, "ada")["state"] == "ok" and gate(gh, "ada")["staff"] is True
+    gh.sign_in("root", admin=True, email="root@example.com")
+    assert gh.get("/teams/TEAM-ALPHA/gate").json()["state"] == "ok"
+
+
+def test_the_gate_does_not_open_for_someone_outside_the_team(gh):
+    make_team(gh)
+    student(gh, "eve")
+    assert gh.get("/teams/TEAM-ALPHA/gate").status_code == 404
+
+
+def test_a_rejected_person_can_ask_github_to_choose_another_account(gh):
+    code = make_team(gh)
+    install(gh)
+    as_user(gh, "sam")
+    gh.put(f"/teams/{code}/github/repo", {"full_name": "acme/app"})
+    as_user(gh, "kim")
+    plain = gh.post("/me/github/connect", params={"team": code}).json()["url"]
+    other = gh.post("/me/github/connect", params={"team": code, "choose_account": "true"}).json()["url"]
+    assert "select_account" not in plain and "prompt=select_account" in other
+
+
+def test_when_the_app_is_not_set_up_nobody_is_locked_out(api):
+    from shared.github_app import GitHubAppConfig
+
+    fastapi_app.dependency_overrides[get_github_app] = lambda: GitHubApp(GitHubAppConfig())
+    make_team(api)
+    g = gate(api, "kim")
+    assert g["state"] == "ok" and g["verified"] is False and g["configured"] is False
+
+
+def test_the_gate_names_the_leader_so_a_waiting_member_knows_who_to_ask(gh):
+    make_team(gh)
+    assert gate(gh, "kim")["leader_name"] == "Sam"

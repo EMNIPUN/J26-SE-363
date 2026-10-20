@@ -14,13 +14,15 @@ export const githubService = {
   unlink: (team) => apiClient.delete(`/teams/${team}/github`),
   refresh: (team) => apiClient.post(`/teams/${team}/github/refresh`),
   mine: () => apiClient.get('/me/github'),
-  connect: (team, back) => apiClient.post('/me/github/connect', null, { params: { team, back } }),
+  gate: (team) => apiClient.get(`/teams/${team}/gate`),
+  connect: (team, back, chooseAccount = false) => apiClient.post('/me/github/connect', null, { params: { team, back, ...(chooseAccount ? { choose_account: true } : {}) } }),
   disconnect: () => apiClient.delete('/me/github'),
 }
 
 export const githubKeys = {
   config: ['github', 'config'],
   team: (team) => ['github', 'team', team],
+  gate: (team) => ['github', 'gate', team],
   repos: (team) => ['github', 'repos', team],
   mine: ['github', 'mine'],
 }

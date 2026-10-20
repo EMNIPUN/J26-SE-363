@@ -7,6 +7,7 @@ GET    /api/v1/teams/{team}/github/repos        step 2: the repositories the App
 PUT    /api/v1/teams/{team}/github/repo         step 2: the repository the team works in
 DELETE /api/v1/teams/{team}/github              take the link away
 GET    /api/v1/teams/{team}/github              the repository and each member's GitHub state (members see only their own row)
+GET    /api/v1/teams/{team}/gate                may this person enter the team? Checked live against GitHub on every call
 POST   /api/v1/teams/{team}/github/refresh      ask GitHub again who may write to the repository
 POST   /api/v1/me/github/connect                the address where a person signs in to GitHub
 GET    /api/v1/github/callback                  GitHub sends the browser back here after that sign-in (signed state, no token)
@@ -154,6 +155,14 @@ def team_github(team: str, account: Onboarded, db: Db):
     return state
 
 
+@router.get("/teams/{team}/gate")
+def team_gate(team: str, account: Onboarded, db: Db, app: App):
+    """The check in front of the team's dashboard, made again on every page load: may this person enter, and if not, what must they do. Answered live from GitHub."""
+    group, member = _team(db, team, account)
+    staff = account.role is UserRole.ADMIN or bool(member and member.role is MemberRole.LECTURER)
+    return {**links.gate(db, group, account.user, staff, app), "team": group.code, "team_name": group.name, "configured": app.config.configured}
+
+
 @router.post("/teams/{team}/github/refresh")
 def refresh(team: str, account: Onboarded, db: Db, app: App):
     group, member = _team(db, team, account)
@@ -167,7 +176,7 @@ def refresh(team: str, account: Onboarded, db: Db, app: App):
 
 @router.post("/me/github/connect", response_model=UrlOut)
 def start_connect(account: Onboarded, db: Db, app: App, team: Annotated[str, Query(max_length=64)],
-                  back: Annotated[str, Query(max_length=200, pattern=r"^/[A-Za-z0-9/_\-.?=&]*$")] = "/") -> UrlOut:
+                  back: Annotated[str, Query(max_length=200, pattern=r"^/[A-Za-z0-9/_\-.?=&]*$")] = "/", choose_account: bool = False) -> UrlOut:
     """A member signs in to GitHub for a team. The team leader has to link the repository first, so the member knows which repository they are joining."""
     group, _ = _team(db, team, account)
     row = links.team_link(db, group)
@@ -175,7 +184,7 @@ def start_connect(account: Onboarded, db: Db, app: App, team: Annotated[str, Que
         raise bad_request("leader_must_link_first", "The team leader has to link the repository before members connect their GitHub accounts")
     _require_configured(app)
     state = sign_state(app.config.state_secret, {"purpose": "connect", "user": str(account.user.id), "back": back})
-    return UrlOut(url=app.authorize_url(state, links.callback_url("callback")))
+    return UrlOut(url=app.authorize_url(state, links.callback_url("callback"), choose_account))
 
 
 @public_router.get("/github/callback")

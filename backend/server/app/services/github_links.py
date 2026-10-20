@@ -153,6 +153,42 @@ def disconnect_user(db: Session, user: User) -> None:
     db.commit()
 
 
+# ---- the gate in front of the team ----------------------------------------------------------------------------------------------------
+
+def gate(db: Session, group: Group, user: User, staff: bool, app: GitHubApp) -> dict:
+    """May this person enter the team? Checked live against GitHub on every call.
+
+    Students must have linked a GitHub account (verified by GitHub) that can write to the repository the leader linked. Lecturers and administrators supervise and need no GitHub account.
+    The answer says exactly why not, so the page can tell the person what to do: ``repo_not_linked`` (the leader has not linked it), ``account_not_linked``, ``no_access`` or ``read_only``
+    (the connected account is not a collaborator with write access), ``github_unavailable`` (GitHub could not be asked; try again). When the App is not set up on the server, nothing can be verified
+    and nobody is locked out (``verified`` is false).
+    """
+    row = team_link(db, group)
+    leader = group.leader_id == user.id
+    base = {"is_leader": leader, "repo": row.repo_full_name if row else None, "installed": row is not None, "installed_by": row.account_login if row else None, "login": None, "permission": None,
+            "verified": True, "staff": staff, "can_link": staff or leader,
+            "leader_name": next((m.user.name for m in group.members if m.user_id == group.leader_id), None)}
+    if staff:
+        return {**base, "state": "ok", "verified": False}
+    if not app.config.configured:
+        return {**base, "state": "ok", "verified": False}
+    if row is None or not row.repo_full_name:
+        return {**base, "state": "repo_not_linked"}
+    acc = linked_accounts(db, [user.id]).get(user.id)
+    if acc is None:
+        return {**base, "state": "account_not_linked"}
+    base["login"] = acc.login
+    try:
+        perm = app.permission(row.installation_id, row.repo_full_name, acc.login)
+    except GitHubAppError:
+        return {**base, "state": "github_unavailable"}
+    rec = db.scalar(select(TeamGithubAccess).where(TeamGithubAccess.group_id == group.id, TeamGithubAccess.user_id == user.id)) or TeamGithubAccess(group_id=group.id, user_id=user.id)
+    rec.permission, rec.checked_at = perm, now()
+    db.add(rec)
+    db.commit()
+    return {**base, "permission": perm, "state": "ok" if perm in WRITE else "read_only" if perm == "read" else "no_access"}
+
+
 # ---- what the agent is given ---------------------------------------------------------------------------------------------------------
 
 def member_states(db: Session, group: Group) -> list[dict]:
