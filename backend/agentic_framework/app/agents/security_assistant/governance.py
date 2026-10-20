@@ -40,7 +40,8 @@ import unicodedata
 from collections import Counter
 from pathlib import Path
 
-from app.agents.security_assistant.agent_loop import Action, DecisionTrail, Policy, RulePolicy, select
+from app.agents.security_assistant.agent_loop import Action, DecisionTrail, Policy, RulePolicy, select  # noqa: F401  (select: kept for callers)
+from app.agents.security_assistant.graphs.governance_graph import PERSISTENT, build_gate_graph
 from app.agents.security_assistant.pii import PIIRedactor
 from app.agents.security_assistant.redaction import find_secret_values, redact_text
 from app.agents.security_assistant.schemas import Category
@@ -178,17 +179,47 @@ class AuditLog:
         return entry
 
 
+class _GateField:
+    """An attribute of Governance that is a key of the gate graph's state: reading and writing it reads and writes `Governance.gstate`."""
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def __get__(self, obj, cls=None):
+        return self if obj is None else obj.gstate[self.name]
+
+    def __set__(self, obj, value):
+        obj.gstate[self.name] = value
+
+
 class Governance:
+    level = _GateField("level")
+    score = _GateField("score")
+    history = _GateField("history")
+    checked = _GateField("checked")
+    blocked = _GateField("blocked")
+    allowed = _GateField("allowed")
+    repo_indicator_count = _GateField("repo_indicator_count")
+    prompt_with_indicators = _GateField("prompt_with_indicators")
+    second_checks = _GateField("second_checks")
+    second_check_blocks = _GateField("second_check_blocks")
+    escalated = _GateField("escalated")
+    escalation_reason = _GateField("escalation_reason")
+
     def __init__(self, out_dir: Path | None = None, *, warn_only: bool = False, pii: PIIRedactor | None = None,
                  secret_values: set[str] | None = None, elevated_at: int | None = None, high_at: int | None = None,
                  policy: Policy | None = None):
         self.audit = AuditLog(Path(out_dir) / AUDIT_FILE if out_dir else None)
+        # the memory of the run: the state of the gate graph (graphs/governance_graph.py), carried from one invocation to the next
+        self.gstate: dict = {"level": "normal", "score": 0, "history": [], "checked": 0, "blocked": 0, "allowed": 0, "repo_indicator_count": 0,
+                             "prompt_with_indicators": 0, "second_checks": 0, "second_check_blocks": 0, "escalated": False,
+                             "escalation_reason": None, "step": 0}
         self.warn_only = warn_only
         self.pii = pii
         self.audit.pii = pii
         self.secrets: set[str] = set()
         self.set_secret_values(secret_values or set())
-        self.checked = self.blocked = self.allowed = self.scrubbed = 0
+        self.scrubbed = 0
         self.tool_check: dict = {}
         self.indicators: list[dict] = []
         self.prompt_indicators: Counter = Counter()
@@ -196,12 +227,9 @@ class Governance:
         # the state the governance agent keeps for the run
         self.elevated_at = elevated_at or _env_int("SECURITY_ASSISTANT_GOVERNANCE_ELEVATED_AT", 3)
         self.high_at = max(self.elevated_at + 1, high_at or _env_int("SECURITY_ASSISTANT_GOVERNANCE_HIGH_AT", 6))
-        self.level, self.score, self.history = "normal", 0, []
-        self.repo_indicator_count = self.prompt_with_indicators = self.second_checks = self.second_check_blocks = 0
-        self.escalated, self.escalation_reason = False, None
         self.policy, self._rules = policy or RulePolicy(), RulePolicy()
         self.trail = DecisionTrail("governance", self.audit)
-        self._step = 0
+        self._gate = build_gate_graph(self)  # the stateful gate; compiled once, invoked before every LLM call
 
     # ---- set up -------------------------------------------------------------------------------------------------------------------
     def set_secret_values(self, values: set[str]) -> None:
@@ -213,42 +241,27 @@ class Governance:
 
     # ---- state: score, scrutiny level, escalation --------------------------------------------------------------------------------
     def state(self) -> dict:
+        """The summary of the gate's state, as the policy sees it."""
         return {"level": self.level, "score": self.score, "elevated_at": self.elevated_at, "high_at": self.high_at,
                 "calls_checked": self.checked, "calls_blocked": self.blocked, "repo_indicators": self.repo_indicator_count,
                 "prompts_with_indicators": self.prompt_with_indicators, "second_checks": self.second_checks}
 
-    def _decide(self, subject: str, options: list[Action]):
-        state = self.state()
-        action, reason, rejected = select(self.policy, self._rules, state, options)
-        self._step += 1
-        entry = self.trail.record(self._step, self.policy.name if rejected is None else f"{self.policy.name} -> rules", state, options,
-                                  action, reason, rejected, subject=subject)
-        return action, entry
+    def _start_state(self, event: dict) -> dict:
+        """The input of one pass through the gate: the state the last pass ended with, the thresholds, and the event."""
+        return {**self.gstate, "elevated_at": self.elevated_at, "high_at": self.high_at, "noted": False, "phase": "pre",
+                "raise_needed": False, "escalate_needed": False, "block": None, **event}
 
-    def _score(self, kind: str, count: int = 1, subject: str = "run") -> None:
-        points = POINTS[kind] * count
-        self.score += points
-        self.history.append({"event": kind, "points": points, "score": self.score, "level": self.level})
-        self._maybe_raise(subject)
+    def _store(self, final: dict) -> None:
+        """Keep the persistent part of the final state of a pass: the gate remembers the run."""
+        for key in PERSISTENT:
+            value = final[key]
+            self.gstate[key] = list(value) if isinstance(value, list) else value
 
-    def _maybe_raise(self, subject: str) -> None:
-        """Scrutiny only goes up. Reaching a threshold is a decision with one valid option, recorded like every other."""
-        for target, at in (("elevated", self.elevated_at), ("high", self.high_at)):
-            if LEVELS.index(self.level) < LEVELS.index(target) and self.score >= at:
-                why = (f"score {self.score} reached {at}: {self.repo_indicator_count} indicator(s) in the repository, "
-                       f"{self.prompt_with_indicators} prompt(s) with indicators, {self.blocked} blocked call(s)")
-                action, entry = self._decide(subject, [Action("raise_scrutiny", target, why)])
-                previous, self.level = self.level, target
-                self.history.append({"event": "scrutiny_raised", "from": previous, "to": target, "score": self.score})
-                self.audit.record("scrutiny_change", from_level=previous, to_level=target, score=self.score, threshold=at)
-                self.trail.outcome(entry, f"{previous} -> {target}" + ("; every later call gets a second, stricter check" if target == "elevated"
-                                                                       else "; escalating to human review"))
-                if target == "high" and not self.escalated:
-                    reason = f"score {self.score}: repeated injection indicators or blocked calls in this run"
-                    _a, e2 = self._decide(subject, [Action("escalate_to_reviewer", None, reason)])
-                    self.escalated, self.escalation_reason = True, reason
-                    self.audit.record("escalation", level="high", score=self.score, reason=reason)
-                    self.trail.outcome(e2, "the run is flagged: a person should review audit.jsonl before relying on it")
+    def _invoke(self, event: dict) -> dict:
+        """One pass through the gate graph, starting from the state the last pass ended with."""
+        final = self._gate.invoke(self._start_state(event), {"recursion_limit": 60})
+        self._store(final)
+        return final
 
     def _strict_violations(self, system: str, user: str) -> list[tuple[str, str]]:
         """The second check, run at elevated scrutiny: the same questions asked of the folded text (see _fold)."""
@@ -312,7 +325,7 @@ class Governance:
             self.audit.record("injection_indicator", kind=h["kind"], source=h["source"], pattern=h["pattern"], count=h["count"],
                               effect="logged only; nothing was blocked or changed")
         if distinct:
-            self._score("repo_indicator", distinct)  # repeated indicators raise the scrutiny of every later call
+            self._invoke({"event": "repo", "distinct": distinct})  # repeated indicators raise the scrutiny of every later call
         return hits
 
     # ---- before a call ------------------------------------------------------------------------------------------------------------
@@ -336,54 +349,14 @@ class Governance:
 
     def pre_send(self, kind: str, *, finding_key: str, category: str, rule_id: str, system: str, user: str, offered_ids,
                  model: str | None = None, prompt_version: str | None = None, seed: int | None = None) -> str:
-        """Check one outgoing prompt and decide what to do with it. Returns the prompt's hash. Raises GovernanceBlock when the decision is
-        to block it. The decision is chosen from the options the checks leave valid: with a failed check there is no 'allow' option."""
-        digest = prompt_hash(system, user)
-        indicators = injection_indicators(_HARNESS.sub("", user))
-        self.prompt_indicators.update(indicators.keys())
-        self.checked += 1
-        if indicators:
-            self.prompt_with_indicators += 1
-            self._score("prompt_indicator", subject=finding_key)  # may raise the level, which then applies to this very call
-        first = self._violations(system, user)
-        second_required = self.level != "normal"
-        second: list[tuple[str, str]] = []
-        if second_required:
-            self.second_checks += 1
-            second = self._strict_violations(system, user)
-        violations = first + [v for v in second if v[0] not in {c for c, _ in first}]
-        if not violations:
-            options = [Action("allow_after_second_check" if second_required else "allow_call",
-                              why="no check failed" + (" (first check and second check)" if second_required else ""))]
-        else:
-            why = "; ".join(m for _c, m in violations)
-            options = [Action("block_call", why=why)]
-            if self.warn_only:
-                options.insert(0, Action("allow_call_warn_only", why=f"--governance-warn-only: recorded, not blocked. {why}"))
-        action, entry = self._decide(finding_key, options)
-        decision = {"allow_call": "send", "allow_after_second_check": "send", "allow_call_warn_only": "send-warn-only", "block_call": "blocked"}[action.name]
-        self.audit.record("pre_send_check", call=kind, finding_key=finding_key, category=category, rule_id=rule_id,
-                          prompt_sha256=digest, prompt_chars=len(system) + len(user), evidence_ids_offered=sorted(offered_ids),
-                          model=model, prompt_version=prompt_version, seed=seed,
-                          secret_check="fail" if any("secret" in c for c, _ in violations) else "pass",
-                          personal_data_check="fail" if any("personal" in c for c, _ in violations) else "pass",
-                          scrutiny=self.level, second_check=("fail" if second else "pass") if second_required else "not required",
-                          violations=[c for c, _ in violations], injection_indicators=indicators, decision=decision)
-        if action.name == "block_call":
-            self.blocked += 1
-            by_second = bool(second) and not first
-            self.second_check_blocks += by_second
-            self.trail.outcome(entry, "blocked; nothing was sent")
-            self._score("second_check_blocked" if by_second else "blocked_call", subject=finding_key)
-            code, message = violations[0]
-            raise GovernanceBlock(code, f"governance blocked the call before it was sent: {message}")
-        if action.name == "allow_call_warn_only":
-            self.allowed += 1
-            self.trail.outcome(entry, "sent although a check failed (warn-only)")
-            self._score("violation_allowed", subject=finding_key)
-        else:
-            self.trail.outcome(entry, "sent")
-        return digest
+        """Pass one outgoing prompt through the gate graph. Returns the prompt's hash; raises GovernanceBlock when the gate decided to block it.
+        The gate chooses from the options its checks leave valid: with a failed check there is no 'allow' option."""
+        final = self._invoke({"event": "call", "kind": kind, "finding_key": finding_key, "category": category, "rule_id": rule_id,
+                              "system": system, "user": user, "offered_ids": list(offered_ids), "model": model,
+                              "prompt_version": prompt_version, "seed": seed})
+        if final.get("block"):
+            raise GovernanceBlock(final["block"]["code"], final["block"]["message"])
+        return final["digest"]
 
     # ---- after a call ----------------------------------------------------------------------------------------------------------------
     def post_call(self, kind: str, *, finding_key: str, prompt_sha256: str, offered_ids, result) -> None:
