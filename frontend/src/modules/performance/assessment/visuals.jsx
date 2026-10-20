@@ -97,7 +97,7 @@ export function ContributionBar({ parts }) {
       <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
         {parts.map((p, i) => <div key={p.id} style={{ width: `${(p.points / 100) * 100}%`, background: colors[i % colors.length] }} title={`${p.label}: ${p.points.toFixed(1)} points`} />)}
       </div>
-      <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-3">
+      <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground @xl:grid-cols-3">
         {parts.map((p, i) => (
           <li key={p.id} className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full" style={{ background: colors[i % colors.length] }} />

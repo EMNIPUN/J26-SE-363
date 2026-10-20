@@ -39,14 +39,17 @@ export function developmentModel(rows, series) {
     students.forEach((s) => { const p = s.points.find((q) => q.day === day); row[s.name] = p ? round(p.mark) : null })
     return row
   })
-  const factorsByDay = days.map((day) => {
+  // The factor scores at every snapshot: the average of the whole team, or one student's own.
+  const factorRows = (who) => days.map((day) => {
     const row = { day }
     for (const f of FACTORS) {
-      const scores = students.map((s) => s.points.find((p) => p.day === day)?.factors?.[f.id]?.score).filter((v) => v != null)
+      const scores = who.map((s) => s.points.find((p) => p.day === day)?.factors?.[f.id]?.score).filter((v) => v != null)
       row[f.id] = scores.length ? round(mean(scores) * 100) : null
     }
     return row
   })
+  const factorsByDay = factorRows(students)
+  const factorsByStudent = Object.fromEntries(students.map((s) => [s.id, factorRows([s])]))
 
   const withChange = students.filter((s) => s.change != null)
   const best = [...withChange].sort((a, b) => b.change - a.change)[0]
@@ -60,7 +63,7 @@ export function developmentModel(rows, series) {
   const firstAvg = chart[0]?.average ?? null
   const latestAvg = chart.at(-1)?.average ?? null
   return {
-    students, chart, factorsByDay, warnings, days,
+    students, chart, factorsByDay, factorsByStudent, warnings, days,
     team: {
       snapshots: days.length, first: firstAvg, latest: latestAvg,
       change: days.length > 1 && firstAvg != null && latestAvg != null ? latestAvg - firstAvg : null,

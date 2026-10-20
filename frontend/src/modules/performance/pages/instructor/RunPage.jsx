@@ -11,6 +11,7 @@ import { assessmentApi, assessmentKeys } from '../../assessment/assessmentApi.js
 import { duration, when } from '../../assessment/format.js'
 import IdentityMapForm from '../../assessment/IdentityMapForm.jsx'
 import PipelineFlow from '../../assessment/PipelineFlow.jsx'
+import { PipelineSkeleton } from '../../assessment/Reveal.jsx'
 import { useFillHeight } from '../../assessment/useFillHeight.js'
 import { useRunEvents } from '../../assessment/useRunEvents.js'
 import { RunPill } from '../../assessment/visuals.jsx'
@@ -31,7 +32,7 @@ function Drawer({ path, events, names, onClose }) {
         <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
       </div>
       {mine.length === 0 && <p className="text-xs text-muted-foreground">Nothing has happened in this step yet.</p>}
-      <ol className="max-h-[28rem] space-y-1.5 overflow-auto pr-1 font-mono text-[11px] leading-relaxed xl:max-h-none xl:overflow-visible">
+      <ol className="max-h-[28rem] space-y-1.5 overflow-auto pr-1 font-mono text-[11px] leading-relaxed @5xl:max-h-none @5xl:overflow-visible">
         {mine.map((e) => (
           <li key={e.seq} className="flex gap-2">
             <span className="shrink-0 text-muted-foreground">{String(e.ts).slice(11, 19)}</span>
@@ -144,19 +145,19 @@ export default function RunPage() {
       )}
 
       {graph.data ? (
-        <div className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px] xl:grid-rows-[minmax(0,1fr)]">
-          <div className="min-h-0 max-w-3xl xl:overflow-y-auto xl:pr-2"><PipelineFlow topology={graph.data} events={shown} student={student} onStudent={setStudent} selected={selected} onSelect={setSelected} names={names} /></div>
-          <div className="min-h-0 space-y-4 xl:overflow-y-auto xl:pr-1">
+        <div className="grid min-h-0 flex-1 gap-5 @5xl:grid-cols-[minmax(0,1fr)_380px] @5xl:grid-rows-[minmax(0,1fr)]">
+          <div className="min-h-0 max-w-3xl @5xl:overflow-y-auto @5xl:pr-2"><PipelineFlow topology={graph.data} events={shown} student={student} onStudent={setStudent} selected={selected} onSelect={setSelected} names={names} /></div>
+          <div className="min-h-0 space-y-4 @5xl:overflow-y-auto @5xl:pr-1">
             {selected ? <Drawer path={selected} events={shown} names={names} onClose={() => setSelected(null)} /> : <Card className="p-4 text-sm text-muted-foreground">Choose a step to read what it did, line by line.</Card>}
             <Card className="gap-2 p-4">
               <h3 className="text-sm font-semibold">Latest</h3>
-              <ol className="max-h-72 space-y-1 overflow-auto font-mono text-[11px] xl:max-h-none xl:overflow-visible">
+              <ol className="max-h-72 space-y-1 overflow-auto font-mono text-[11px] @5xl:max-h-none @5xl:overflow-visible">
                 {shown.filter((e) => e.type === 'log').slice(-12).reverse().map((e) => <li key={e.seq} className="flex gap-2"><span className="shrink-0 text-muted-foreground">{e.node_path.split('/').pop().replace(/_/g, ' ')}</span><span className={`min-w-0 break-words ${LEVEL[e.level] || ''}`}>{e.message}</span></li>)}
               </ol>
             </Card>
           </div>
         </div>
-      ) : <div className="h-64 animate-pulse rounded-xl bg-muted" aria-busy="true" />}
+      ) : <PipelineSkeleton />}
     </div>
   )
 }

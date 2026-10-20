@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card'
 import { BarChart3, CheckCircle2, Clock, History, Timer, Users } from 'lucide-react'
 import { duration, when } from '../../../assessment/format.js'
 import Panel from '../../../assessment/Panel.jsx'
+import { Stagger } from '../../../assessment/Reveal.jsx'
 import { runStats } from '../../../assessment/runStats.js'
 import { RunPill } from '../../../assessment/visuals.jsx'
 
@@ -36,15 +37,15 @@ export default function RunAnalysis({ runs }) {
   ].filter((p) => p.n > 0)
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <Stagger className="space-y-6">
+      <div className="grid gap-4 @xl:grid-cols-2 @5xl:grid-cols-4">
         <Stat icon={History} tone="bg-indigo-100 text-indigo-600 dark:bg-indigo-950" label="Runs" value={s.total} sub={`${s.snapshots} snapshot${s.snapshots === 1 ? '' : 's'} · ${s.finals} final`} />
         <Stat icon={CheckCircle2} tone={s.failed ? 'bg-amber-100 text-amber-600 dark:bg-amber-950' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950'} label="Success rate" value={rate} sub={s.failed ? `${s.failed} failed` : s.succeeded ? 'None failed' : 'Nothing has finished yet'} />
         <Stat icon={Timer} tone="bg-sky-100 text-sky-600 dark:bg-sky-950" label="Average time" value={s.averageSeconds == null ? '-' : duration(s.averageSeconds)} sub={s.fastestSeconds != null ? `Fastest ${duration(s.fastestSeconds)} · slowest ${duration(s.slowestSeconds)}` : 'After the first finished run'} />
         <Stat icon={Clock} tone="bg-violet-100 text-violet-600 dark:bg-violet-950" label="Latest run" value={<RunPill status={s.latest.status} />} sub={`${when(s.latest.created_at)}${s.students != null ? ` · ${s.students} students` : ''}`} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="grid gap-6 @4xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Panel title="How long each run took" icon={BarChart3} hint="Oldest on the left. The colour is how the run ended.">
           {s.durations.length === 0 ? <p className="text-sm text-muted-foreground">No run has finished yet.</p> : (
             <div className="h-56">
@@ -71,7 +72,7 @@ export default function RunAnalysis({ runs }) {
           </div>
         </Panel>
       </div>
-    </div>
+    </Stagger>
   )
 }
 RunAnalysis.propTypes = { runs: PropTypes.array }

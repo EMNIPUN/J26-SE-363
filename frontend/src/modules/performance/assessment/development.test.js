@@ -26,9 +26,11 @@ describe('how a team developed', () => {
     expect(m.team).toMatchObject({ snapshots: 3, first: 40, latest: 55, change: 15 })
   })
 
-  it('averages a factor over the team for each day', () => {
+  it('averages a factor over the team for each day, or gives the scores of one student', () => {
     expect(m.factorsByDay[0].effort).toBe(40)
     expect(m.factorsByDay[0].consistency).toBeNull()
+    expect(m.factorsByStudent.b.map((r) => r.effort)).toEqual([60, 80, 66])
+    expect(m.factorsByStudent.c[1].effort).toBeNull() // no snapshot that day
   })
 
   it('names the students worth a look, and why', () => {

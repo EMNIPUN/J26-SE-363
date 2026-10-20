@@ -99,7 +99,6 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
           { label: "Planning decisions", to: t("/planning/instructor/arbitration") },
         ],
       },
-      { label: "Method and weights", icon: ClipboardCheck, to: t("/performance/method") },
       {
         label: "Security & Quality",
         icon: ShieldCheck,

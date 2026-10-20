@@ -42,7 +42,8 @@ test('a student for the lecturer: separate sections, parts that come in one by o
   await expect(page.locator('main img, #root img').first()).toBeVisible()
   await expect(page.getByText('2nd of 4 in the team').or(page.getByText(/of 4 in the team/))).toBeVisible()
   for (const title of ['Points to check', 'How the mark is made', 'Why this mark', 'The factors']) await expect(page.getByRole('heading', { name: title })).toBeVisible()
-  await expect(page.getByText('Effort added the most').or(page.getByText(/added the most/)).first()).toBeVisible()
+  await expect(page.getByText('Biggest strength')).toBeVisible()
+  await expect(page.getByText('Held back by')).toBeVisible()
   // the arrow on a factor card opens its explanation
   const height = async (name) => (await page.getByRole('heading', { name }).locator('xpath=ancestor::*[contains(@class,"gap-4")][1]').boundingBox()).height
   const before = await height('Consistency')
@@ -51,6 +52,16 @@ test('a student for the lecturer: separate sections, parts that come in one by o
   await expect(page.getByRole('button', { name: 'Hide the explanation of Effort' })).toHaveAttribute('aria-expanded', 'true')
   await page.waitForTimeout(500)
   expect(Math.abs((await height('Consistency')) - before)).toBeLessThan(2) // the card next to it does not grow with it
+  // the radar chart of the factors, beside the explanations (columns, not one card after another)
+  await expect(page.getByRole('heading', { name: 'Factor profile' })).toBeVisible()
+  await expect(page.locator('.recharts-radar').first()).toBeVisible()
+  const radarBox = await page.getByRole('heading', { name: 'Factor profile' }).boundingBox()
+  const whyBox = await page.getByRole('heading', { name: 'Why this mark' }).boundingBox()
+  expect(whyBox.x).toBeGreaterThan(radarBox.x + 300) // side by side
+  // sprint by sprint: each factor in every sprint; Code Ownership is not followed that way
+  await scrollUntilVisible(page, page.getByRole('heading', { name: 'Sprint by sprint' }))
+  await expect(page.getByText('Not followed sprint by sprint.')).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: /MC01-S4/ })).toBeVisible()
   // later parts appear when they are about to be seen
   await scrollUntilVisible(page, page.getByRole('heading', { name: 'The code questions' }))
   await expect(page.getByText('Open all 10 questions')).toBeVisible()
@@ -226,4 +237,32 @@ test('the run page is one fixed screen: the pipeline and the logs scroll on thei
   expect(m.page).toBeLessThanOrEqual(1) // the page itself does not scroll
   expect(m.scrollers).toBeGreaterThanOrEqual(1) // a column inside does
   await shot(page, 'run-fixed-screen')
+})
+
+test('the student report follows the width of the workspace, so it holds together when the AI chat takes a third of it', async ({ page }) => {
+  await open(page, `/teams/MC01/performance/students/${STUDENTS[0].id}?sprint=MC01-S4`)
+  await expect(page.getByRole('heading', { name: 'Factor profile' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Why this mark' })).toBeVisible()
+  const wide = { profile: await page.getByRole('heading', { name: 'Factor profile' }).boundingBox(), why: await page.getByRole('heading', { name: 'Why this mark' }).boundingBox() }
+  expect(wide.why.x).toBeGreaterThan(wide.profile.x + 300) // two columns with the whole width
+  // the chat opens: the workspace is narrower than the window, though the window has not changed
+  await page.evaluate(() => { document.querySelector('main').style.width = '700px' })
+  await page.waitForTimeout(500)
+  const narrow = { profile: await page.getByRole('heading', { name: 'Factor profile' }).boundingBox(), why: await page.getByRole('heading', { name: 'Why this mark' }).boundingBox() }
+  expect(Math.abs(narrow.why.x - narrow.profile.x)).toBeLessThan(5) // one column
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true) // nothing sticks out
+  const cards = await page.evaluate(() => [...document.querySelectorAll('[id^=factor-]')].map((el) => el.getBoundingClientRect().width))
+  expect(Math.min(...cards)).toBeGreaterThan(300) // no card is squeezed into a sliver
+  await shot(page, 'student-narrow-workspace')
+})
+
+test('the student report has a jump bar and keeps the long explanations behind an info button', async ({ page }) => {
+  await open(page, `/teams/MC01/performance/students/${STUDENTS[0].id}?sprint=MC01-S4`)
+  await expect(page.getByRole('navigation', { name: 'Sections of this report' })).toBeVisible()
+  await expect(page.getByText('Strongest')).toBeVisible()
+  await page.getByRole('button', { name: 'About: Factor profile' }).click()
+  await expect(page.getByText('The dashed shape is the team average.')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: /More detail/ }).click()
+  await expect(page.getByText('Confidence').first()).toBeVisible()
 })

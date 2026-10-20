@@ -9,7 +9,7 @@ describe('the lecturer navigation', () => {
     expect(team.children.map((c) => c.to)).toContain('/teams/MC01/performance/team/runs')
     expect(JSON.stringify(nav)).not.toContain('Team assessment')
   })
-  it('keeps the method page reachable', () => {
-    expect(nav.find((s) => s.label === 'Method and weights').to).toBe('/teams/MC01/performance/method')
+  it('has no menu entry for the method page: it is reached by a link from the team pages', () => {
+    expect(JSON.stringify(nav)).not.toContain('performance/method')
   })
 })

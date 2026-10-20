@@ -81,7 +81,7 @@ export default function RunPipeline() {
       {current === 'waiting_human' && identityReview && <IdentityMapForm runId={runId} review={identityReview} onDone={() => client.invalidateQueries({ queryKey: ['perf-run'] })} />}
       {current === 'failed' && run.data?.error && <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">The run failed: {run.data.error.type}: {run.data.error.message}</p>}
       {graph.data ? (
-        <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
+        <div className="grid gap-5 @5xl:grid-cols-[1fr_380px]">
           <PipelineCanvas
             topology={graph.data}
             states={states}
@@ -96,7 +96,7 @@ export default function RunPipeline() {
               )
             }
           />
-          <div className="space-y-3 xl:sticky xl:top-4 self-start">
+          <div className="space-y-3 @5xl:sticky @5xl:top-4 self-start">
             {selected ? <NodeDrawer path={selected} events={events} onClose={() => setSelected(null)} /> : <p className="text-sm text-muted-foreground">Click a node to see its log.</p>}
             <div className="rounded-xl border bg-card p-3">
               <h3 className="text-sm font-semibold mb-1">Latest</h3>

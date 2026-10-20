@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, AlertTriangle, ArrowRight, Flag, Play, RefreshCw, Settings2, TrendingUp, Users, Workflow } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import PageHeader from '@/shared/components/PageHeader.jsx'
 import { useTeam } from '@/shared/hooks/useTeams.js'
 import { useConfirm } from '@/shared/utils/useConfirm.js'
@@ -11,6 +10,7 @@ import { showToast } from '@/shared/utils/toast.jsx'
 import { assessmentApi, assessmentKeys } from '../../assessment/assessmentApi.js'
 import { when } from '../../assessment/format.js'
 import { RunPill } from '../../assessment/visuals.jsx'
+import { Skel, StatRowSkeleton, TableSkeleton } from '../../assessment/Reveal.jsx'
 import SprintSelect from '../../assessment/SprintSelect.jsx'
 import ResultsTab from './team/ResultsTab.jsx'
 import DevelopmentTab from './team/DevelopmentTab.jsx'
@@ -96,7 +96,15 @@ export default function TeamAssessment() {
     URL.revokeObjectURL(url)
   }
 
-  if (team.isPending) return <Skeleton className="h-64 w-full" aria-busy="true" />
+  if (team.isPending) {
+    return (
+      <div className="space-y-6" aria-busy="true">
+        <div className="flex flex-wrap items-end justify-between gap-4"><div className="space-y-2"><Skel className="h-8 w-56" /><Skel className="h-3 w-80 bg-muted/70" /></div><div className="flex gap-2"><Skel className="h-10 w-48 rounded-xl" /><Skel className="h-10 w-28" /><Skel className="h-10 w-40" /></div></div>
+        <StatRowSkeleton />
+        <TableSkeleton rows={4} columns={7} />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -140,7 +148,7 @@ export default function TeamAssessment() {
         {tab === 'development' && <DevelopmentTab team={teamId} sprint={sprint} rows={results.data} sprintInfo={sprints.find((s) => s.id === sprint)} base={base} canRun={!busy && ready && Boolean(sprint) && !active} onSnapshot={() => start('snapshot')} />}
         {tab === 'runs' && <RunsTab runs={runs.data} loading={runs.isPending && Boolean(sprint)} base={base} onRerun={rerun} onReport={report} busy={busy} />}
         {tab === 'reviews' && <ReviewsTab team={code} />}
-        {tab === 'setup' && <SetupTab tracking={tracking.data} readiness={readiness.data} runs={runs.data} base={base} membersPath={`/teams/${teamId}/members`} />}
+        {tab === 'setup' && <SetupTab loading={readiness.isPending || tracking.isPending} tracking={tracking.data} readiness={readiness.data} runs={runs.data} base={base} membersPath={`/teams/${teamId}/members`} />}
       </div>
     </div>
   )

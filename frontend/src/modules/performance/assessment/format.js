@@ -9,7 +9,7 @@ export const FACTORS = [
   { id: 'requirement_fulfillment', label: 'Requirement Fulfillment', question: 'Does the code meet the tasks?', measures: "Whether the student's own code changes meet the acceptance criteria of the tasks assigned to them." },
   { id: 'collaboration', label: 'Collaboration', question: "Does the student help the team's work?", measures: "Substantive reviews and discussion of teammates' pull requests." },
   { id: 'task_complexity', label: 'Task Complexity', question: 'How demanding were the tasks?', measures: 'How hard the assigned tasks were, from story points and the size of the code they touch.' },
-  { id: 'code_ownership', label: 'Code Ownership', question: 'Does the student understand their code?', measures: 'A question about a function the student wrote, rated against what the code does.' },
+  { id: 'code_ownership', label: 'Code Ownership', question: 'Does the student understand their code?', measures: 'A question about a function the student wrote, rated against what the code does.', perSprint: false, why: 'It is measured by questions at the end of a sprint and answered by hand, so one sprint is not comparable with the next.' },
 ]
 
 export const FACTOR_LABEL = Object.fromEntries([...FACTORS.map((f) => [f.id, f.label]), ['behavioral_pattern', 'Working pattern']])
@@ -105,50 +105,47 @@ export function summarize(rows) {
 }
 
 const WORD = { high: 'a strong contribution', medium: 'a moderate contribution', low: 'a weak contribution' }
+const PRIORITY = ['strong', 'weak', 'flag', 'out', 'override', 'range', 'pattern', 'provisional']
+const LEAD = { strong: 'Biggest strength', weak: 'Held back by', flag: 'To check', out: 'Left out', override: 'Lecturer mark', range: 'Confidence', pattern: 'Working pattern', provisional: 'Still running' }
 
 /**
- * In words, why this student got this mark: what added the most, what held it back, what was left out, what the working pattern did, and how sure the prediction is.
- * Everything comes from the result itself; nothing is guessed. Returns a headline and a list of `{ kind, text }` lines.
+ * Why this student got this mark, short enough to scan: a headline, the three things that matter most (`key`), and the rest (`more`).
+ * Each line is `{ kind, lead, text }`: a bold lead word and one short sentence. Everything comes from the result itself; nothing is guessed.
  */
 export function explainMark(result, weights) {
-  if (!result) return { headline: '', lines: [] }
+  if (!result) return { headline: '', key: [], more: [] }
   const j = result.justification || {}
   const mark = result.effective_mark ?? result.mark
   const parts = contributions(result.factors, weights)
   const total = parts.reduce((a, p) => a + p.points, 0)
   const lines = []
+  const add = (kind, text) => lines.push({ kind, lead: LEAD[kind], text })
 
   const top = [...parts].sort((a, b) => b.points - a.points)[0]
-  if (top) lines.push({ kind: 'strong', text: `${top.label} added the most: ${Math.round(top.points)} of ${Math.round(total)} points, from a score of ${score100(top.score)}.` })
+  if (top) add('strong', `${top.label}: ${Math.round(top.points)} of ${Math.round(total)} points (score ${score100(top.score)})`)
   const weakest = [...parts].sort((a, b) => a.score - b.score)[0]
-  if (weakest && parts.length > 1 && weakest.score < 0.67) lines.push({ kind: 'weak', text: `${weakest.label} held the mark back most: a score of ${score100(weakest.score)}, which is ${weakest.score < 0.34 ? 'low' : 'middling'}.` })
+  if (weakest && parts.length > 1 && weakest.score < 0.67) add('weak', `${weakest.label}: score ${score100(weakest.score)}, ${weakest.score < 0.34 ? 'low' : 'middling'}`)
 
   const scoredIds = new Set(parts.map((p) => p.id))
-  for (const f of FACTORS) {
-    if (scoredIds.has(f.id)) continue
-    const why = (j.factors?.[f.id]?.reasons || []).filter(Boolean)[0] || factorState(result.factors?.[f.id]).label.toLowerCase()
-    const said = /weight/i.test(why) // some reasons already say where the weight went
-    lines.push({ kind: 'out', text: `${f.label} is not part of the mark: ${why.replace(/\.$/, '')}.${said ? '' : ' Its weight was shared among the factors that could be measured.'}` })
+  const out = FACTORS.filter((f) => !scoredIds.has(f.id))
+  if (out.length) {
+    const why = (f) => ((j.factors?.[f.id]?.reasons || []).filter(Boolean)[0] || factorState(result.factors?.[f.id]).label).replace(/\.$/, '')
+    add('out', `${out.map((f) => f.label).join(', ')}. Their weight goes to the other factors${out.length === 1 ? ` (${why(out[0]).toLowerCase()})` : ''}`)
   }
+
+  const flags = (j.flags || []).length
+  if (flags) add('flag', `${flags} point${flags === 1 ? '' : 's'} need a person to look (see Points to check)`)
 
   const pattern = result.factors?.behavioral_pattern
-  if (pattern?.persona) {
-    if (pattern.applied && pattern.modifier != null && pattern.modifier !== 1) lines.push({ kind: 'pattern', text: `The working pattern "${pattern.persona}" adjusted the total by a factor of ${Number(pattern.modifier).toFixed(2)}.` })
-    else lines.push({ kind: 'pattern', text: `The working pattern "${pattern.persona}" is shown as a tendency. It changes the mark only once the sprint is final.` })
-  }
-
-  if (result.override?.mark != null) lines.push({ kind: 'override', text: `The lecturer set the mark to ${markText(result.override.mark)}; the agent predicted ${markText(result.mark)}.` })
+  if (pattern?.persona) add('pattern', pattern.applied && pattern.modifier != null && pattern.modifier !== 1 ? `${pattern.persona}: adjusted the total by ${Number(pattern.modifier).toFixed(2)}` : `${pattern.persona}. Counts only once the sprint is final`)
+  if (result.override?.mark != null) add('override', `Set to ${markText(result.override.mark)}; the agent predicted ${markText(result.mark)}`)
 
   const interval = result.mark_interval
-  if (interval) {
-    const wide = interval[1] - interval[0] >= 30
-    lines.push({ kind: 'range', text: `The likely range is ${rangeText(interval)}. ${wide ? 'It is wide because some evidence is missing or the sprint is not over.' : 'It is fairly narrow: the evidence is steady.'}` })
-  }
-  if (parts.some((p) => result.factors[p.id]?.provisional)) lines.push({ kind: 'range', text: 'The sprint is still running, so every score is to date and the mark can still move.' })
-  const flags = (j.flags || []).length
-  if (flags) lines.push({ kind: 'flag', text: `${flags} point${flags === 1 ? '' : 's'} need a person to check them (see Points to check).` })
+  if (interval) add('range', `Likely ${rangeText(interval)}. ${interval[1] - interval[0] >= 30 ? 'Wide: some evidence is missing' : 'Narrow: the evidence is steady'}`)
+  if (parts.some((p) => result.factors[p.id]?.provisional)) add('provisional', 'Scores are to date; the mark can still move')
 
-  return { headline: mark == null ? 'No mark yet' : `${markText(mark)} out of 100: ${WORD[markBand(mark)] || ''}`.trim(), lines }
+  lines.sort((a, b) => PRIORITY.indexOf(a.kind) - PRIORITY.indexOf(b.kind))
+  return { headline: mark == null ? 'No mark yet' : `${markText(mark)} out of 100: ${WORD[markBand(mark)] || ''}`.trim(), key: lines.slice(0, 3), more: lines.slice(3) }
 }
 
 /** One sentence for a factor card: what its score means and what it did to the mark. */
@@ -181,4 +178,48 @@ export function quizSummary(questions) {
     expired: questions.filter((q) => q.status === 'expired').length,
     average: rated.length ? rated.reduce((a, q) => a + Number(q.rating), 0) / rated.length : null,
   }
+}
+
+/** The factors a student can be followed on from one sprint to the next. Code Ownership cannot: it is a few questions at the end of each sprint. */
+export const TRACKED = FACTORS.filter((f) => f.perSprint !== false)
+
+/** The team average of each factor in a set of results, 0 to 1 (null when nobody was scored). */
+export function teamAverage(rows) {
+  return Object.fromEntries(FACTORS.map((f) => {
+    const scores = (rows || []).map((r) => r.factors?.[f.id]).filter((x) => x?.status === 'completed' && x.score != null).map((x) => x.score)
+    return [f.id, scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null]
+  }))
+}
+
+/** The points of a radar chart: one spoke per factor, the student's score and the team average (0 to 100). A factor with no score sits at 0 and is marked as not measured. */
+export function radarData(result, average) {
+  return FACTORS.map((f) => {
+    const state = factorState(result?.factors?.[f.id])
+    const avg = average?.[f.id]
+    return { id: f.id, factor: f.label, short: f.label.replace('Requirement Fulfillment', 'Requirements').replace('Task Complexity', 'Complexity').replace('Code Ownership', 'Ownership'), score: state.kind === 'scored' ? Math.round(result.factors[f.id].score * 100) : 0, average: avg == null ? null : Math.round(avg * 100), measured: state.kind === 'scored', state: state.label }
+  })
+}
+
+/**
+ * Sprint by sprint: for each sprint, the student's mark and each factor's score, and how much a factor moved since the last sprint in which it was scored.
+ * `sprints` is oldest first; `resultOf(id)` is that sprint's result for the student (null when there is none, undefined while it loads).
+ * Factors that cannot be followed from sprint to sprint (Code Ownership) come back with `tracked: false` and the reason, and no cells.
+ */
+export function factorHistory(sprints, resultOf) {
+  const results = sprints.map((s) => ({ id: s.id, result: resultOf(s.id) }))
+  const marks = results.map(({ id, result }) => ({ sprint: id, loading: result === undefined, mark: result ? (result.effective_mark ?? result.mark) : null }))
+  const rows = FACTORS.map((f) => {
+    if (f.perSprint === false) return { id: f.id, label: f.label, tracked: false, why: f.why, cells: [] }
+    let last = null
+    const cells = results.map(({ id, result }) => {
+      if (result === undefined) return { sprint: id, kind: 'loading', score: null, delta: null }
+      const state = factorState(result?.factors?.[f.id])
+      const score = state.kind === 'scored' ? Math.round(result.factors[f.id].score * 100) : null
+      const delta = score != null && last != null ? score - last : null
+      if (score != null) last = score
+      return { sprint: id, kind: result ? state.kind : 'missing', score, delta, label: state.label }
+    })
+    return { id: f.id, label: f.label, tracked: true, cells }
+  })
+  return { marks, rows, sprints: sprints.map((s) => s.id), enough: results.filter((r) => r.result).length >= 2 }
 }

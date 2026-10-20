@@ -12,13 +12,14 @@ import { assessmentApi, assessmentKeys } from '../../../assessment/assessmentApi
 import { duration, when } from '../../../assessment/format.js'
 import Panel from '../../../assessment/Panel.jsx'
 import { RunPill } from '../../../assessment/visuals.jsx'
+import { ChartSkeleton, ListSkeleton, Stagger, StatRowSkeleton } from '../../../assessment/Reveal.jsx'
 import RunAnalysis from './RunAnalysis.jsx'
 
 export function RunsTab({ runs, loading, base, onRerun, onReport, busy }) {
-  if (loading) return <div className="h-32 animate-pulse rounded-xl bg-muted" />
+  if (loading) return <div className="space-y-6" aria-busy="true"><StatRowSkeleton /><ChartSkeleton height={220} /><ListSkeleton rows={4} /></div>
   if (!runs?.length) return <EmptyState icon={Workflow} title="No assessment has run for this sprint" description="Start a snapshot or a final assessment above. You can watch each run live and open it again afterwards." />
   return (
-    <div className="space-y-6">
+    <Stagger className="space-y-6">
       <RunAnalysis runs={runs} />
       <Panel title="All runs" icon={History} hint="Newest first. Open one to see its pipeline, read its report or run it again.">
     <div className="space-y-2">
@@ -43,7 +44,7 @@ export function RunsTab({ runs, loading, base, onRerun, onReport, busy }) {
       })}
     </div>
       </Panel>
-    </div>
+    </Stagger>
   )
 }
 RunsTab.propTypes = { runs: PropTypes.array, loading: PropTypes.bool, base: PropTypes.string, onRerun: PropTypes.func, onReport: PropTypes.func, busy: PropTypes.bool }
@@ -87,9 +88,9 @@ export function ReviewsTab({ team }) {
   const qc = useQueryClient()
   const q = useQuery({ queryKey: assessmentKeys.reviews, queryFn: () => assessmentApi.reviews('open') })
   const list = (q.data || []).filter((r) => r.team_ref.toLowerCase() === String(team).toLowerCase())
-  if (q.isPending) return <div className="h-32 animate-pulse rounded-xl bg-muted" />
+  if (q.isPending) return <ListSkeleton rows={3} />
   if (!list.length) return <EmptyState icon={CheckCircle2} title="Nothing waiting for you" description="When the agent finds something it cannot settle itself, for example work that looks higher than the student understands, it appears here." />
-  return <div className="space-y-3">{list.map((r) => <ReviewItem key={r.id} review={r} onChanged={() => { qc.invalidateQueries({ queryKey: assessmentKeys.reviews }); qc.invalidateQueries({ queryKey: ['assessment'] }) }} />)}</div>
+  return <Stagger className="space-y-3" step={80}>{list.map((r) => <ReviewItem key={r.id} review={r} onChanged={() => { qc.invalidateQueries({ queryKey: assessmentKeys.reviews }); qc.invalidateQueries({ queryKey: ['assessment'] }) }} />)}</Stagger>
 }
 ReviewsTab.propTypes = { team: PropTypes.string }
 

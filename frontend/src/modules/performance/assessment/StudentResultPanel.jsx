@@ -70,7 +70,7 @@ export default function StudentResultPanel({ result, trajectory }) {
           <ul className="list-disc pl-4">{j.flags.map((f, i) => <li key={i}>{f.message}{f.action ? ` — ${f.action}${f.reason ? `: ${f.reason}` : ''}` : ''}</li>)}</ul>
         </div>
       )}
-      <div className="grid gap-3 md:grid-cols-2">{Object.entries(j.factors || {}).map(([k, b]) => <FactorCard key={k} block={b} />)}</div>
+      <div className="grid gap-3 @2xl:grid-cols-2">{Object.entries(j.factors || {}).map(([k, b]) => <FactorCard key={k} block={b} />)}</div>
       {j.how_computed && <p className="text-xs text-muted-foreground">{j.how_computed}</p>}
       {trajectory && <section><h3 className="text-sm font-semibold mb-2">Day by day</h3><Trajectory points={trajectory} /></section>}
       {(j.caveats || []).map((c, i) => <p key={i} className="text-xs text-muted-foreground italic">{c}</p>)}

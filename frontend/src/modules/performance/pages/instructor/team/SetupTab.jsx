@@ -7,6 +7,7 @@ import GithubIcon from '@/shared/github/GithubIcon.jsx'
 import { MEMBER_STATE } from '@/shared/github/githubService.js'
 import { FACTOR_LABEL, when } from '../../../assessment/format.js'
 import Panel from '../../../assessment/Panel.jsx'
+import { PanelSkeleton, Stagger } from '../../../assessment/Reveal.jsx'
 import { Avatar, RunPill } from '../../../assessment/visuals.jsx'
 
 const DONE = ['succeeded', 'completed', 'finished']
@@ -39,7 +40,8 @@ const STEPS = [
  * The team's assessment setup, read only: whether everything the agent needs is in place, who is connected, what it reads, how a sprint is assessed, the weights in use and the latest runs.
  * The repository and the people come from GitHub (the team leader links them); the sprints and tasks come from the team's Scrum board.
  */
-export default function SetupTab({ tracking, readiness, runs, membersPath, base }) {
+export default function SetupTab({ tracking, readiness, runs, loading, membersPath, base }) {
+  if (loading) return <div className="space-y-6" aria-busy="true"><PanelSkeleton height={230} /><PanelSkeleton height={260} /><PanelSkeleton height={190} /></div>
   const members = readiness?.members || []
   const ready = members.filter((m) => m.state === 'ready').length
   const sprints = tracking?.config?.sprints || []
@@ -56,7 +58,7 @@ export default function SetupTab({ tracking, readiness, runs, membersPath, base 
   const passed = checks.filter((c) => c.ok).length
 
   return (
-    <div className="space-y-6">
+    <Stagger className="space-y-6" step={110}>
       <Panel
         title="Ready to assess?" icon={BookOpenCheck} hint="What the agent needs before it can assess this team."
         aside={<Badge tone={readiness?.ready ? 'success' : 'warning'}>{readiness?.ready ? 'Ready to assess' : 'Not ready'}</Badge>}
@@ -66,7 +68,7 @@ export default function SetupTab({ tracking, readiness, runs, membersPath, base 
           <span className="text-sm font-medium tabular-nums text-foreground">{passed} of {checks.length}</span>
         </div>
         {(readiness?.blockers || []).map((b) => <p key={b} className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">{b}</p>)}
-        <ul className="grid gap-3 md:grid-cols-2">{checks.map((c) => <Check key={c.label} {...c} />)}</ul>
+        <ul className="grid gap-3 @2xl:grid-cols-2">{checks.map((c) => <Check key={c.label} {...c} />)}</ul>
       </Panel>
 
       <Panel
@@ -74,7 +76,7 @@ export default function SetupTab({ tracking, readiness, runs, membersPath, base 
         aside={<Button variant="outline" size="sm" asChild><Link to={membersPath}>Manage the GitHub link</Link></Button>}
       >
         {readiness?.repo && <p className="mb-4 inline-flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-1.5 font-mono text-sm"><GithubIcon className="h-4 w-4" />{readiness.repo}</p>}
-        <ul className="grid gap-3 md:grid-cols-2">
+        <ul className="grid gap-3 @2xl:grid-cols-2">
           {members.map((m) => {
             const s = MEMBER_STATE[m.state] || MEMBER_STATE.not_connected
             return (
@@ -95,7 +97,7 @@ export default function SetupTab({ tracking, readiness, runs, membersPath, base 
       </Panel>
 
       <Panel title="What the agent reads" icon={KanbanSquare} hint="Only these. It never runs a student's code.">
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 @2xl:grid-cols-3">
           {[
             { Icon: GitBranch, title: 'The repository', lines: ['Commits, with their authors, times and changed lines', 'Pull requests, reviews and comments', 'The code around each change, read only'] },
             { Icon: KanbanSquare, title: 'The Scrum board', lines: ['Each task, who it is assigned to and its status', 'The acceptance criteria of each task', 'Story points and the sprint dates'] },
@@ -121,7 +123,7 @@ export default function SetupTab({ tracking, readiness, runs, membersPath, base 
         </ol>
       </Panel>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 @4xl:grid-cols-2">
         <Panel title="Weights in use" icon={Scale} hint="How much each factor counts towards the mark." aside={<Button variant="ghost" size="sm" asChild><Link to={`${base}/method`}>Method<ArrowRight className="h-3.5 w-3.5" /></Link></Button>}>
           {weights ? (
             <ul className="space-y-3">
@@ -149,7 +151,7 @@ export default function SetupTab({ tracking, readiness, runs, membersPath, base 
           )}
         </Panel>
       </div>
-    </div>
+    </Stagger>
   )
 }
-SetupTab.propTypes = { tracking: PropTypes.object, readiness: PropTypes.object, runs: PropTypes.array, membersPath: PropTypes.string, base: PropTypes.string }
+SetupTab.propTypes = { tracking: PropTypes.object, readiness: PropTypes.object, runs: PropTypes.array, loading: PropTypes.bool, membersPath: PropTypes.string, base: PropTypes.string }

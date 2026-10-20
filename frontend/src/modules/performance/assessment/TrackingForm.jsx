@@ -37,9 +37,9 @@ export default function TrackingForm({ initial, onSaved }) {
 
   return (
     <form onSubmit={save} className="space-y-4 rounded-xl border bg-card p-5">
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 @2xl:grid-cols-3">
         <label className="text-sm space-y-1">Team reference<Input required disabled={Boolean(initial)} value={team} onChange={(e) => setTeam(e.target.value)} placeholder="T9" /></label>
-        <label className="text-sm space-y-1 md:col-span-2">GitHub repository<Input required type="url" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="https://github.com/owner/project" /></label>
+        <label className="text-sm space-y-1 @2xl:col-span-2">GitHub repository<Input required type="url" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="https://github.com/owner/project" /></label>
         <label className="text-sm space-y-1">Scrum board team id<Input value={board} onChange={(e) => setBoard(e.target.value)} placeholder="same as the team reference" /></label>
       </div>
       <div className="space-y-2">

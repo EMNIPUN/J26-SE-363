@@ -5,7 +5,7 @@ import { ArrowLeft, ChevronDown, FileCode2, MessageSquareQuote } from 'lucide-re
 import EmptyState from '@/shared/components/EmptyState.jsx'
 import { assessmentApi, assessmentKeys } from '../../assessment/assessmentApi.js'
 import { questionsOf, quizSummary, when } from '../../assessment/format.js'
-import Reveal, { PanelSkeleton } from '../../assessment/Reveal.jsx'
+import Reveal, { PanelSkeleton, StatRowSkeleton } from '../../assessment/Reveal.jsx'
 import { Avatar } from '../../assessment/visuals.jsx'
 
 const STATUS = {
@@ -45,7 +45,7 @@ function Question({ q, open, onToggle }) {
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${status.cls}`}>{status.label}</span>
           </span>
         </span>
-        <span className="hidden shrink-0 sm:block"><Rating value={q.rating} /></span>
+        <span className="hidden shrink-0 @xl:block"><Rating value={q.rating} /></span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-300 ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
       <div id={id} className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: open ? '1fr' : '0fr' }}>
@@ -103,12 +103,12 @@ export default function StudentQuestions() {
       </div>
 
       {quiz.isPending ? (
-        <div className="space-y-3">{[0, 1, 2, 3].map((i) => <PanelSkeleton key={i} height={84} title={false} />)}</div>
+        <div className="space-y-6"><StatRowSkeleton count={4} /><div className="space-y-3">{[0, 1, 2, 3].map((i) => <PanelSkeleton key={i} height={84} title={false} />)}</div></div>
       ) : questions.length === 0 ? (
         <EmptyState icon={MessageSquareQuote} title="No questions yet" description="The code questions are asked in the final assessment of the sprint." />
       ) : (
         <>
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <dl className="grid grid-cols-2 gap-3 @xl:grid-cols-5">
             {[['Questions', summary.total], ['Answered', summary.answered], ['Waiting', summary.open], ['Not answered', summary.expired], ['Average rating', summary.average == null ? '-' : `${summary.average.toFixed(1)} / 5`]].map(([label, value]) => (
               <div key={label} className="rounded-2xl border bg-card px-4 py-3 shadow-sm">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</dt>

@@ -25,7 +25,7 @@ const client = new QueryClient({ defaultOptions: { queries: { retry: false, refe
 
 // eslint-disable-next-line react-refresh/only-export-components
 function Frame({ children }) {
-  return <main className="mx-auto w-full min-w-0 max-w-6xl p-4 sm:p-6">{children}</main>
+  return <main className="workspace-container mx-auto w-full min-w-0 max-w-6xl p-4 sm:p-6">{children}</main>
 }
 
 createRoot(document.getElementById('root')).render(

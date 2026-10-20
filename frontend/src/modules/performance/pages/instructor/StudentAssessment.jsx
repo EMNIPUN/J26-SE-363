@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import PropTypes from 'prop-types'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CalendarRange, Medal, RefreshCw, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -12,9 +12,9 @@ import { showToast } from '@/shared/utils/toast.jsx'
 import GithubIcon from '@/shared/github/GithubIcon.jsx'
 import { useTeam } from '@/shared/hooks/useTeams.js'
 import { assessmentApi, assessmentKeys } from '../../assessment/assessmentApi.js'
-import { markBand, markText, styleOf } from '../../assessment/format.js'
+import { factorHistory, markBand, markText, styleOf, teamAverage } from '../../assessment/format.js'
 import ResultView from '../../assessment/ResultView.jsx'
-import { PanelSkeleton } from '../../assessment/Reveal.jsx'
+import { PanelSkeleton, ProfileSkeleton } from '../../assessment/Reveal.jsx'
 import { Avatar } from '../../assessment/visuals.jsx'
 
 function MarkDialog({ open, onClose, result, onSave }) {
@@ -60,23 +60,23 @@ function Profile({ result, rows, teamName, sprint, sprintInfo, login, back, acti
   ].filter(Boolean)
   return (
     <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-      <div className="relative h-28 bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500 sm:h-32">
+      <div className="relative h-28 bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500 @xl:h-32">
         <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" aria-hidden="true" />
         <Button variant="secondary" size="sm" asChild className="absolute left-4 top-4 bg-white/90 text-foreground backdrop-blur hover:bg-white"><Link to={back}><ArrowLeft className="h-4 w-4" />Team results</Link></Button>
         {action && <div className="absolute right-4 top-4">{action}</div>}
       </div>
-      <div className="flex flex-col gap-5 px-6 pb-6 sm:flex-row sm:items-end sm:gap-6">
-        <div className="-mt-14 shrink-0 sm:-mt-16"><div className="rounded-full bg-card p-1.5 shadow-lg ring-1 ring-border"><Avatar name={result.student?.name} picture={result.student?.picture} size={112} /></div></div>
-        <div className="min-w-0 flex-1 space-y-3 sm:pb-1">
+      <div className="flex flex-col gap-5 px-6 pb-6 @xl:flex-row @xl:items-end @xl:gap-6">
+        <div className="-mt-14 shrink-0 @xl:-mt-16"><div className="rounded-full bg-card p-1.5 shadow-lg ring-1 ring-border"><Avatar name={result.student?.name} picture={result.student?.picture} size={112} /></div></div>
+        <div className="min-w-0 flex-1 space-y-3 @xl:pb-1">
           <div>
-            <h1 className="truncate text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{result.student?.name}</h1>
+            <h1 className="text-3xl font-bold leading-tight tracking-tight text-foreground @xl:text-4xl">{result.student?.name}</h1>
             <p className="mt-1 text-sm text-muted-foreground">Assessment report</p>
           </div>
           <ul className="flex flex-wrap gap-2">
             {chips.map((c) => <li key={c.text} className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium text-foreground"><c.Icon className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />{c.text}</li>)}
           </ul>
         </div>
-        <div className="shrink-0 rounded-2xl border bg-muted/30 px-5 py-3 text-center sm:mb-1">
+        <div className="shrink-0 rounded-2xl border bg-muted/30 px-5 py-3 text-center @xl:mb-1">
           <p className={`text-4xl font-bold tabular-nums leading-none ${styleOf(markBand(mine)).text}`}>{markText(mine)}</p>
           <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">predicted mark</p>
         </div>
@@ -105,6 +105,14 @@ export default function StudentAssessment() {
   const team = useTeam(teamId)
   const tracking = useQuery({ queryKey: assessmentKeys.tracking(teamId), queryFn: () => assessmentApi.tracking(teamId), retry: false })
   const readiness = useQuery({ queryKey: assessmentKeys.readiness(teamId), queryFn: () => assessmentApi.readiness(teamId) })
+  // Every sprint of the team, to follow the student from one to the next. They are only asked for when that part of the page is about to be seen.
+  const sprintList = [...(tracking.data?.config?.sprints ?? [])].sort((a, b) => String(a.start).localeCompare(String(b.start)))
+  const sprintResults = useQueries({ queries: sprintList.map((sp) => ({ queryKey: assessmentKeys.results(teamId, sp.id), queryFn: () => assessmentApi.results(teamId, sp.id), enabled: Boolean(seen.history) })) })
+  const history = sprintList.length ? factorHistory(sprintList, (id) => {
+    const q = sprintResults[sprintList.findIndex((sp) => sp.id === id)]
+    if (!q || (q.isPending && q.fetchStatus !== 'idle')) return undefined
+    return q.data?.find((r) => r.student_id === studentId) ?? null
+  }) : null
   const weights = runs.data?.find((r) => r.summary?.method)?.summary.method.weights
   const latest = runs.data?.[0]
   const back = `/teams/${teamId}/performance/team/results?sprint=${encodeURIComponent(sprint)}`
@@ -133,11 +141,10 @@ export default function StudentAssessment() {
 
   if (results.isPending) {
     return (
-      <div className="space-y-8" aria-busy="true">
-        <div className="flex items-center gap-4"><span className="h-12 w-12 animate-pulse rounded-full bg-muted" /><span className="h-5 w-48 animate-pulse rounded bg-muted" /></div>
-        <PanelSkeleton height={200} title={false} />
-        <PanelSkeleton height={160} />
-        <PanelSkeleton height={220} />
+      <div className="space-y-6" aria-busy="true">
+        <ProfileSkeleton />
+        <PanelSkeleton height={190} title={false} />
+        <div className="grid gap-6 @5xl:grid-cols-12"><div className="@5xl:col-span-7"><PanelSkeleton height={380} /></div><div className="space-y-6 @5xl:col-span-5"><PanelSkeleton height={150} /><PanelSkeleton height={220} /></div></div>
       </div>
     )
   }
@@ -150,7 +157,7 @@ export default function StudentAssessment() {
         login={readiness.data?.members?.find((m) => m.user_id === studentId)?.login} back={back}
         action={latest && !['queued', 'running', 'waiting_human'].includes(latest.status) ? <Button variant="secondary" onClick={evaluateAgain}><RefreshCw className="h-4 w-4" />Re-evaluate</Button> : null}
       />
-      <ResultView result={result} weights={weights} mode="lecturer" trajectory={traj.data} quiz={quiz.data} quizLoading={quiz.isPending} questionsHref={`/teams/${teamId}/performance/students/${studentId}/questions?sprint=${encodeURIComponent(sprint)}`} onSetMark={() => setDialog(true)} onSeen={onSeen} />
+      <ResultView result={result} weights={weights} mode="lecturer" trajectory={traj.data} quiz={quiz.data} quizLoading={quiz.isPending} history={history} average={teamAverage(results.data)} currentSprint={sprint} questionsHref={`/teams/${teamId}/performance/students/${studentId}/questions?sprint=${encodeURIComponent(sprint)}`} onSetMark={() => setDialog(true)} onSeen={onSeen} />
       {dialog && <MarkDialog open onClose={() => setDialog(false)} result={result} onSave={save} />}
     </div>
   )

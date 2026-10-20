@@ -6,11 +6,12 @@ import { Area, CartesianGrid, ComposedChart, Legend, Line, LineChart, Responsive
 import { Activity, AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock, Camera, CheckCircle2, LineChart as LineChartIcon, Minus, TrendingUp, Trophy, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { assessmentApi, assessmentKeys } from '../../../assessment/assessmentApi.js'
 import { developmentModel, sprintProgress } from '../../../assessment/development.js'
 import { FACTORS, markBand, styleOf, when } from '../../../assessment/format.js'
 import Panel from '../../../assessment/Panel.jsx'
+import { ChartSkeleton, PanelSkeleton, Stagger, StatRowSkeleton, TableSkeleton } from '../../../assessment/Reveal.jsx'
 import { Avatar } from '../../../assessment/visuals.jsx'
 
 const label = (day) => new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
@@ -86,6 +87,7 @@ export default function DevelopmentTab({ team, sprint, rows, sprintInfo, base, c
   const queries = useQueries({ queries: (rows || []).map((r) => ({ queryKey: assessmentKeys.trajectory(team, sprint, r.student_id), queryFn: () => assessmentApi.trajectory(team, sprint, r.student_id) })) })
   const loading = queries.some((q) => q.isPending)
   const [hidden, setHidden] = useState({})
+  const [who, setWho] = useState('team') // whose factors the last chart shows: the whole team, or one student
   const series = queries.map((q) => q.data || [])
   const model = developmentModel(rows, series)
   const range = sprintProgress(sprintInfo)
@@ -106,15 +108,17 @@ export default function DevelopmentTab({ team, sprint, rows, sprintInfo, base, c
       </Panel>
     )
   }
-  if (loading) return <div className="space-y-4" aria-busy="true"><Skeleton className="h-24 w-full" /><Skeleton className="h-80 w-full" /></div>
+  if (loading) return <div className="space-y-6" aria-busy="true"><StatRowSkeleton /><PanelSkeleton height={110} /><ChartSkeleton height={300} /><TableSkeleton rows={4} columns={6} /></div>
 
   const t = model.team
   const shownStudents = model.students.filter((s) => !hidden[s.id])
   const enough = model.days.length >= 2
+  const focus = model.students.find((s) => s.id === who)
+  const factorRows = focus ? model.factorsByStudent[focus.id] : model.factorsByDay
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <Stagger className="space-y-6" step={110}>
+      <div className="grid gap-4 @xl:grid-cols-2 @5xl:grid-cols-4">
         <Stat icon={Users} tone="bg-indigo-100 text-indigo-600 dark:bg-indigo-950" label="Team average now" value={t.latest ?? '-'} sub={t.change != null ? <span>Since the first snapshot <Delta value={t.change} /></span> : 'One snapshot so far'} />
         <Stat icon={Camera} tone="bg-sky-100 text-sky-600 dark:bg-sky-950" label="Snapshots" value={t.snapshots} sub={t.lastAt ? `Last one ${when(new Date(t.lastAt).toISOString())}` : 'None yet'} />
         <Stat icon={Trophy} tone="bg-emerald-100 text-emerald-600 dark:bg-emerald-950" label="Most improved" value={t.improved ? t.improved.name.split(' ')[0] : '-'} sub={t.improved ? `+${Math.round(t.improved.change)} points` : 'Nobody has risen 5 points yet'} />
@@ -199,11 +203,25 @@ export default function DevelopmentTab({ team, sprint, rows, sprintInfo, base, c
         )}
       </Panel>
 
-      <Panel title="Factors over time" icon={Activity} hint="The team average of each factor at every snapshot, from 0 to 100. A factor that cannot be measured yet has no line.">
+      <Panel
+        title="Factors over time" icon={Activity}
+        hint={`${focus ? `${focus.name}'s score for each factor` : 'The team average of each factor'} at every snapshot, from 0 to 100. A factor that cannot be measured yet has no line.`}
+        aside={(
+          <Select value={who} onValueChange={setWho}>
+            <SelectTrigger aria-label="Whose factors" className="h-10 w-auto min-w-52 gap-3 rounded-xl border-border/80 bg-card px-3 text-sm font-medium shadow-sm data-[state=open]:border-primary data-[state=open]:ring-2 data-[state=open]:ring-primary/20">
+              <div className="flex items-center gap-2">{focus ? <Avatar name={focus.name} picture={focus.picture} size={22} /> : <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-primary/10 text-primary"><Users className="h-3 w-3" aria-hidden="true" /></span>}<span>{focus ? focus.name : 'Whole team (average)'}</span></div>
+            </SelectTrigger>
+            <SelectContent align="end" className="min-w-60 rounded-xl p-1.5 shadow-2xl">
+              <SelectItem value="team" className="cursor-pointer rounded-lg py-2 pl-9 pr-3"><span className="flex items-center gap-2 text-sm"><Users className="h-4 w-4 text-primary" aria-hidden="true" />Whole team (average)</span></SelectItem>
+              {model.students.map((s) => <SelectItem key={s.id} value={s.id} className="cursor-pointer rounded-lg py-2 pl-9 pr-3"><span className="flex items-center gap-2 text-sm"><Avatar name={s.name} picture={s.picture} size={22} />{s.name}</span></SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+      >
         {!enough ? <p className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">Needs at least two snapshots.</p> : (
           <div className="h-72">
             <ResponsiveContainer>
-              <LineChart data={model.factorsByDay} margin={{ top: 8, right: 16, bottom: 0, left: -8 }}>
+              <LineChart data={factorRows} margin={{ top: 8, right: 16, bottom: 0, left: -8 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis dataKey="day" tickFormatter={label} fontSize={11} /><YAxis domain={[0, 100]} fontSize={11} /><Tooltip labelFormatter={label} /><Legend />
                 {FACTORS.map((f) => <Line key={f.id} dataKey={f.id} name={f.label} stroke={FACTOR_COLORS[f.id]} strokeWidth={2} dot={{ r: 2.5 }} connectNulls />)}
@@ -212,7 +230,7 @@ export default function DevelopmentTab({ team, sprint, rows, sprintInfo, base, c
           </div>
         )}
       </Panel>
-    </div>
+    </Stagger>
   )
 }
 DevelopmentTab.propTypes = { team: PropTypes.string, sprint: PropTypes.string, rows: PropTypes.array, sprintInfo: PropTypes.object, base: PropTypes.string, canRun: PropTypes.bool, onSnapshot: PropTypes.func }

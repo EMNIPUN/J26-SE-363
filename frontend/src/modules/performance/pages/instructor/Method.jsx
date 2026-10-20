@@ -6,6 +6,7 @@ import EmptyState from '@/shared/components/EmptyState.jsx'
 import PageHeader from '@/shared/components/PageHeader.jsx'
 import { assessmentApi, assessmentKeys } from '../../assessment/assessmentApi.js'
 import { FACTORS, FACTOR_LABEL } from '../../assessment/format.js'
+import { ChartSkeleton, PanelSkeleton, Stagger } from '../../assessment/Reveal.jsx'
 
 /**
  * How the marks are made, in the proposal's words: seven factors, fixed weights, a pattern adjustment, and the limits of the evidence.
@@ -19,7 +20,7 @@ export default function Method() {
   const max = Math.max(0.01, ...Object.values(weights))
 
   return (
-    <div className="space-y-6">
+    <Stagger className="space-y-6" step={100}>
       <PageHeader title="Method and weights" description="How a mark is made, and what each factor can and cannot tell you. The agent decides nothing on its own: the formula is fixed and every step can be traced." />
       <Card className="gap-3 p-5">
         <h3 className="flex items-center gap-2 text-sm font-semibold"><Scale className="h-4 w-4" aria-hidden="true" />The formula</h3>
@@ -31,7 +32,9 @@ export default function Method() {
         </ul>
       </Card>
 
-      {!method ? (
+      {runs.isPending ? (
+        <div className="space-y-6" aria-busy="true"><PanelSkeleton height={220} /><ChartSkeleton height={160} /></div>
+      ) : !method ? (
         <EmptyState icon={Scale} title="Shown after the first assessment" description="The weights and factor notes are read from a finished run so that they are exactly what that run used. Start a snapshot from the Assessment page." />
       ) : (
         <>
@@ -47,7 +50,7 @@ export default function Method() {
               ))}
             </div>
           </Card>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 @2xl:grid-cols-2">
             {[...FACTORS.map((f) => f.id), 'behavioral_pattern'].map((id) => {
               const f = method.factors?.[id]
               if (!f) return null
@@ -71,6 +74,6 @@ export default function Method() {
           <p>The factor models were checked on 144 student sprints that an assistant rated, not on grades from teaching staff, so they have not yet been compared with your own judgement. Code Ownership is tested on Python only. Task Complexity is close to the sprint's story points. Treat every mark as a prediction to check against what you know of the team.</p>
         </div>
       </Card>
-    </div>
+    </Stagger>
   )
 }

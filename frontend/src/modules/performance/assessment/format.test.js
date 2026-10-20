@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { band, contributions, duration, explainFactor, explainMark, factorState, initials, markBand, markText, questionsOf, quizSummary, rangeText, summarize } from './format.js'
+import { band, contributions, duration, explainFactor, explainMark, factorState, initials, markBand, markText, factorHistory, questionsOf, quizSummary, radarData, rangeText, summarize, teamAverage, TRACKED } from './format.js'
 
 describe('bands and text', () => {
   it('cuts scores at the same points as the justification', () => {
@@ -62,6 +62,7 @@ describe('summarize', () => {
 
 describe('why this mark', () => {
   const weights = { effort: 0.2, consistency: 0.15, requirement_fulfillment: 0.25, collaboration: 0.15, task_complexity: 0.1, code_ownership: 0.15 }
+  const sc = (score) => ({ status: 'completed', score, provisional: true })
   const result = {
     mark: 61, effective_mark: 61, mark_interval: [45, 76],
     factors: {
@@ -72,22 +73,28 @@ describe('why this mark', () => {
     justification: { flags: [{ message: 'x' }], factors: { collaboration: { reasons: ['Nobody reviewed anything in this sprint.'] } } },
   }
 
-  it('names what added the most, what held the mark back and what was left out', () => {
-    const { headline, lines } = explainMark(result, weights)
+  it('puts the three things that matter most first, each with a lead word, and the rest after', () => {
+    const { headline, key, more } = explainMark(result, weights)
     expect(headline).toBe('61 out of 100: a moderate contribution')
-    const text = lines.map((l) => l.text).join(' | ')
-    expect(text).toContain('Effort added the most')
-    expect(text).toContain('Consistency held the mark back most: a score of 30, which is low')
-    expect(text).toContain('Collaboration is not part of the mark: Nobody reviewed anything in this sprint.')
-    expect(text).toContain('Code Ownership is not part of the mark: waiting for the answer')
-    expect(text).toContain('adjusted the total by a factor of 0.94')
-    expect(text).toContain('The likely range is 45 to 76')
-    expect(text).toContain('still running')
-    expect(text).toContain('1 point need a person')
+    expect(key.map((l) => l.lead)).toEqual(['Biggest strength', 'Held back by', 'To check'])
+    expect(key[0].text).toContain('Effort')
+    expect(key[1].text).toBe('Consistency: score 30, low')
+    const rest = more.map((l) => `${l.lead}: ${l.text}`).join(' | ')
+    expect(rest).toContain('Left out: Collaboration, Code Ownership. Their weight goes to the other factors')
+    expect(rest).toContain('Burst worker: adjusted the total by 0.94')
+    expect(rest).toContain('Likely 45 to 76')
+    expect(rest).toContain('Still running')
+  })
+
+  it('says why a single left-out factor is left out', () => {
+    const one = { ...result, factors: { ...result.factors, code_ownership: sc(0.7) } }
+    const out = [...explainMark(one, weights).key, ...explainMark(one, weights).more].find((l) => l.kind === 'out')
+    expect(out.text).toContain('Collaboration')
+    expect(out.text).toContain('nobody reviewed anything in this sprint')
   })
 
   it('says nothing about a student who has no result', () => {
-    expect(explainMark(null, weights)).toEqual({ headline: '', lines: [] })
+    expect(explainMark(null, weights)).toEqual({ headline: '', key: [], more: [] })
   })
 
   it('explains one factor card in a sentence', () => {
@@ -108,5 +115,44 @@ describe('the code questions', () => {
     const s = quizSummary([{ status: 'answered', rating: 4 }, { status: 'answered', rating: 2 }, { status: 'open' }, { status: 'expired' }])
     expect(s).toEqual({ total: 4, answered: 2, open: 1, expired: 1, average: 3 })
     expect(quizSummary([]).average).toBeNull()
+  })
+})
+
+describe('the radar chart and the sprint by sprint view', () => {
+  const sc = (score) => ({ status: 'completed', score })
+  const s3 = { effective_mark: 60, factors: { effort: sc(0.5), consistency: sc(0.4), requirement_fulfillment: sc(0.7), collaboration: { status: 'not_available' }, task_complexity: sc(0.6), code_ownership: { status: 'pending' } } }
+  const s4 = { effective_mark: 75, factors: { effort: sc(0.8), consistency: sc(0.3), requirement_fulfillment: sc(0.9), collaboration: sc(0.5), task_complexity: sc(0.6), code_ownership: sc(0.9) } }
+
+  it('has one spoke per factor, with the team average beside it', () => {
+    const data = radarData(s4, teamAverage([s3, s4]))
+    expect(data.map((d) => d.id)).toHaveLength(6)
+    expect(data.find((d) => d.id === 'effort')).toMatchObject({ score: 80, average: 65, measured: true })
+    expect(radarData(s3, {}).find((d) => d.id === 'code_ownership')).toMatchObject({ score: 0, measured: false })
+    expect(radarData(s3, {}).find((d) => d.id === 'collaboration').average).toBeNull()
+  })
+
+  it('follows each factor from sprint to sprint, with the change since the last scored sprint', () => {
+    const h = factorHistory([{ id: 'S3' }, { id: 'S4' }], (id) => (id === 'S3' ? s3 : s4))
+    expect(h.enough).toBe(true)
+    expect(h.marks.map((m) => m.mark)).toEqual([60, 75])
+    const effort = h.rows.find((r) => r.id === 'effort')
+    expect(effort.cells.map((c) => [c.score, c.delta])).toEqual([[50, null], [80, 30]])
+    const collab = h.rows.find((r) => r.id === 'collaboration')
+    expect(collab.cells.map((c) => [c.kind, c.score, c.delta])).toEqual([['unavailable', null, null], ['scored', 50, null]]) // nothing to compare with
+  })
+
+  it('does not follow Code Ownership sprint by sprint, and says why', () => {
+    const h = factorHistory([{ id: 'S3' }, { id: 'S4' }], () => s4)
+    const co = h.rows.find((r) => r.id === 'code_ownership')
+    expect(co).toMatchObject({ tracked: false, cells: [] })
+    expect(co.why).toContain('questions')
+    expect(TRACKED.map((f) => f.id)).not.toContain('code_ownership')
+  })
+
+  it('waits for sprints that are still loading and needs two sprints to say anything', () => {
+    const h = factorHistory([{ id: 'S3' }, { id: 'S4' }], (id) => (id === 'S3' ? s3 : undefined))
+    expect(h.enough).toBe(false)
+    expect(h.rows[0].cells[1].kind).toBe('loading')
+    expect(h.marks[1].loading).toBe(true)
   })
 })

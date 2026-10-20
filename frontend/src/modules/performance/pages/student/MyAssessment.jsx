@@ -12,6 +12,7 @@ import { githubKeys, githubService } from '@/shared/github/githubService.js'
 import { showToast } from '@/shared/utils/toast.jsx'
 import { assessmentApi } from '../../assessment/assessmentApi.js'
 import ResultView from '../../assessment/ResultView.jsx'
+import { PanelSkeleton } from '../../assessment/Reveal.jsx'
 
 function hoursLeft(q) {
   const h = (new Date(q.extended_until || q.deadline_at) - Date.now()) / 36e5
@@ -74,7 +75,7 @@ export default function MyAssessment() {
         </Card>
       )}
       {open.map((q) => <Quiz key={q.id} quiz={q} onDone={refresh} />)}
-      {results.isPending ? <div className="h-48 animate-pulse rounded-xl bg-muted" aria-busy="true" /> : (results.data || []).length === 0 ? (
+      {results.isPending ? <div className="space-y-6" aria-busy="true"><PanelSkeleton height={190} title={false} /><PanelSkeleton height={380} /></div> : (results.data || []).length === 0 ? (
         <EmptyState icon={Hourglass} title="No assessment yet" description="It appears here after your lecturer runs the first snapshot of your team's sprint." />
       ) : (results.data || []).map((r) => (
         <section key={`${r.team_ref}-${r.sprint_id}`} className="space-y-3">

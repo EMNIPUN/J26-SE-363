@@ -15,21 +15,27 @@ export const STUDENTS = [
 const scored = (score, extra = {}) => ({ status: 'completed', score, interval: [Math.max(0, score - 0.15), Math.min(1, score + 0.15)], provisional: true, ...extra })
 const none = (status) => ({ status, score: null, interval: null, provisional: false })
 
-function factors(i) {
-  const k = [[0.82, 0.74, 0.7, null, 0.71, 'pending'], [0.68, 0.26, 0.33, null, 0.8, 'pending'], [0.75, 0.52, 0.55, null, 0.76, 'pending'], [0, 0.1, null, null, 0.7, 'pending']][i]
+const LATER = 'MC01-S4'
+const LATER_MARKS = [84, 71, 58, 20]
+function factors(i, sprint = 'MC01-S3') {
+  const k = sprint === LATER
+    ? [[0.86, 0.7, 0.78, 0.55, 0.72, 0.88], [0.74, 0.4, 0.52, 0.4, 0.78, 0.6], [0.7, 0.6, 0.6, null, 0.74, 0.7], [0.1, 0.2, null, null, 0.66, 0.3]][i]
+    : [[0.82, 0.74, 0.7, null, 0.71, 'pending'], [0.68, 0.26, 0.33, null, 0.8, 'pending'], [0.75, 0.52, 0.55, null, 0.76, 'pending'], [0, 0.1, null, null, 0.7, 'pending']][i]
   return {
-    effort: k[0] === 0 ? none('not_available') : scored(k[0]), consistency: scored(k[1]), requirement_fulfillment: k[2] == null ? none('not_available') : scored(k[2]), collaboration: none('not_available'),
-    task_complexity: scored(k[4]), code_ownership: none('pending'), behavioral_pattern: { persona: STUDENTS[i].pattern, applied: false, modifier: 1 },
+    effort: k[0] === 0 ? none('not_available') : scored(k[0]), consistency: scored(k[1]), requirement_fulfillment: k[2] == null ? none('not_available') : scored(k[2]), collaboration: k[3] == null ? none('not_available') : scored(k[3]),
+    task_complexity: scored(k[4]), code_ownership: typeof k[5] === 'number' ? scored(k[5], { provisional: false }) : none('pending'), behavioral_pattern: { persona: STUDENTS[i].pattern, applied: false, modifier: 1 },
   }
 }
 const block = (title, status, score, reasons, warnings = []) => ({ title, status, score, band: score == null ? null : score < 0.34 ? 'low' : score < 0.67 ? 'medium' : 'high', reasons, warnings, how_much_to_trust: 'Checked on 144 assistant-rated sprints; not yet compared with lecturer grades.' })
 
-function result(i) {
-  const s = STUDENTS[i]
-  const f = factors(i)
+function result(i, sprint = 'MC01-S3') {
+  const s = { ...STUDENTS[i] }
+  if (sprint === LATER) { s.mark = LATER_MARKS[i]; s.interval = [Math.max(0, s.mark - 9), Math.min(100, s.mark + 9)] }
+  const f = factors(i, sprint)
+  if (sprint === LATER) for (const k of Object.keys(f)) if (f[k]?.provisional) f[k] = { ...f[k], provisional: false }
   const flags = i === 1 ? [{ severity: 'warn', message: 'Requirement Fulfillment could not be judged: the model refused two requests.', action: 'escalate', reason: 'A person should check the two tasks by hand.' }] : i === 3 ? [{ severity: 'warn', message: 'No commits in the sprint, but the board shows 2 tasks as done.', action: 'escalate', reason: 'The commits may be under an unmapped e-mail address.' }] : []
-  return {
-    id: `r${i}`, run_id: 'run-done', team_ref: 'MC01', sprint_id: 'MC01-S3', student_id: s.id, student: { name: s.name, picture: FACES[s.id] }, mark: s.mark, effective_mark: i === 1 ? 66 : s.mark, mark_interval: s.interval, status: s.status,
+  const r = {
+    id: `r${i}`, run_id: 'run-done', team_ref: 'MC01', sprint_id: sprint, student_id: s.id, student: { name: s.name, picture: FACES[s.id] }, mark: s.mark, effective_mark: i === 1 && sprint !== LATER ? 66 : s.mark, mark_interval: s.interval, status: s.status,
     override: i === 1 ? { mark: 66, reason: 'Pair-programmed with Chathush; most of the integration was his.', by_name: 'Ada Lecturer', at: '2026-04-14T09:00:00Z' } : null, factors: f,
     justification: {
       summary: `Provisional mark ${s.mark} out of 100 (plausible range ${s.interval[0]} to ${s.interval[1]}). Strongest factor: Task Complexity; weakest: ${i === 3 ? 'Effort' : 'Consistency'}. Not part of the mark: Code Ownership, Collaboration.`,
@@ -48,6 +54,13 @@ function result(i) {
       audit: { summary: 'The results are consistent; one factor needs a person to look at it.', model: 'openai/gpt-oss-120b', checked: [{ tool: 'inspect_evidence', result: '{"count": 9, "recent": [...]}' }, { tool: 'get_factor_card', result: '{"title": "Effort"...}' }], left_out: {}, actions: flags.map((x, n) => ({ id: `x${n}`, factor: 'requirement_fulfillment', severity: 'warn', action: x.action, reason: x.reason })) },
     },
   }
+  if (sprint === LATER) {
+    r.status = 'final'
+    r.provisional = false
+    r.justification.factors.collaboration = block('Collaboration', f.collaboration.status, f.collaboration.score, f.collaboration.score == null ? ['Collaboration could not be measured: nobody in the team reviewed or commented in this sprint.'] : ['4 substantive reviews of teammates\' pull requests'])
+    r.justification.factors.code_ownership = block('Code Ownership', f.code_ownership.status, f.code_ownership.score, ['Answered 8 of 10 questions about code written in this sprint; the answers were rated 4.0 of 5 on average.'])
+  }
+  return r
 }
 
 function ownRow() {
@@ -158,7 +171,7 @@ export function respond(p, m, { role = 'instructor', live = false, gate = 'ok' }
     if (p === '/performance/teams/MC01/tracking') return json({ team_ref: 'MC01', repo_url: 'https://github.com/acme/app', board_ref: 'MC01', status: 'active', config: { sprints: [{ id: 'MC01-S3', start: '2026-04-10', end: '2026-04-15' }, { id: 'MC01-S4', start: '2026-04-16', end: '2026-04-21' }], release_to_students: true } })
     if (p === '/performance/teams/MC01/readiness') return json({ ready: true, blockers: [], notes: ['Lee has not connected GitHub.'], repo: 'acme/app', members: [{ user_id: 'u1', name: 'Sadeesha Sathsara', picture: FACES['u-sam'], login: 'sadeesha', state: 'ready', is_leader: true }, { user_id: 'u2', name: 'Eric Devon', picture: FACES['u-eri'], login: 'eric-devon', state: 'ready' }, { user_id: 'u3', name: 'Chathush Perera', picture: FACES['u-cha'], login: 'chathush', state: 'read_only' }, { user_id: 'u4', name: 'Nipun Dhananjaya', picture: FACES['u-nip'], login: null, state: 'not_connected' }] })
     if (/^\/performance\/teams\/MC01\/runs$/.test(p)) return json(runsList(live ? 'live' : 'done'))
-    if (/\/sprints\/[^/]+\/results$/.test(p)) return json(STUDENTS.map((_, i) => result(i)))
+    if (/\/sprints\/[^/]+\/results$/.test(p)) { const sprint = p.match(/\/sprints\/([^/]+)\/results$/)[1]; return json(STUDENTS.map((_, i) => result(i, sprint))) }
     if (/\/trajectory$/.test(p)) return json(trajectoryOf(p.match(/\/students\/([^/]+)\/trajectory$/)?.[1]))
     if (/\/quiz$/.test(p)) return json({ ...QUESTIONS[0], questions: QUESTIONS })
     if (p === '/performance/graph') return json(topology)
