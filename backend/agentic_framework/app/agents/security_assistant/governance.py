@@ -73,6 +73,28 @@ _REASON_CODES = (("cited evidence ids", "unknown_evidence_id"), ("a confirmed or
                  ("the model dismissed a secret finding", "v4_dismissal_unsupported"))
 
 
+def _strings(node):
+    """Every string value of a JSON document (keys are fixed field names)."""
+    if isinstance(node, str):
+        yield node
+    elif isinstance(node, dict):
+        for v in node.values():
+            yield from _strings(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _strings(v)
+
+
+def _map_strings(node, fn):
+    if isinstance(node, str):
+        return fn(node)
+    if isinstance(node, dict):
+        return {k: _map_strings(v, fn) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_map_strings(v, fn) for v in node]
+    return node
+
+
 def _env_int(name: str, default: int) -> int:
     try:
         return max(1, int(os.environ[name])) if os.environ.get(name) else default
@@ -406,8 +428,32 @@ class Governance:
             n += sum(self._hit(m, digits) for m in pattern.finditer(text))
         return n
 
+    def count_leaks_json(self, doc) -> int:
+        """Like count_leaks, for a JSON document: each string is checked as the reader sees it (a JSON escape such as the \\n before an
+        `@decorator` line is not part of a made-up e-mail address)."""
+        return sum(self.count_leaks(s) for s in _strings(doc))
+
+    def scrub_json(self, text: str, label: str) -> str:
+        """scrub() for the text of a JSON document: the values are removed inside the strings, so the result is always valid JSON."""
+        doc = json.loads(text)
+        removed = [0]
+
+        def clean(s: str) -> str:
+            s, n = self._scrub_str(s)
+            removed[0] += n
+            return s
+
+        out = json.dumps(_map_strings(doc, clean), indent=2, ensure_ascii=False)
+        self.audit.record("report_scan", file=label, items_removed=removed[0], decision="scrubbed" if removed[0] else "clean")
+        return out if removed[0] else text
+
     def scrub(self, text: str, label: str) -> str:
         """Remove known secret values, full personal values and personal-data patterns from a report before it is written, and log how many."""
+        text, removed = self._scrub_str(text)
+        self.audit.record("report_scan", file=label, items_removed=removed, decision="scrubbed" if removed else "clean")
+        return text
+
+    def _scrub_str(self, text: str) -> tuple[str, int]:
         removed = 0
         for value in self._report_values():
             text, n = re.subn(rf"(?<![A-Za-z0-9]){re.escape(value)}(?![A-Za-z0-9])", "[removed by governance]", text, flags=re.I)
@@ -423,8 +469,7 @@ class Governance:
 
             text = pattern.sub(repl, text)
             removed += count[0]
-        self.audit.record("report_scan", file=label, items_removed=removed, decision="scrubbed" if removed else "clean")
-        return text
+        return text, removed
 
     def end(self, *, complete: bool, reasons: int) -> None:
         self.audit.record("run_end", calls_checked=self.checked, calls_blocked=self.blocked, violations_allowed_in_warn_only=self.allowed,

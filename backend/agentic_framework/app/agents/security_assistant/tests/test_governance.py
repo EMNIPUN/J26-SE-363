@@ -361,3 +361,24 @@ def test_known_secret_values_come_from_the_file_and_from_the_commit_of_a_deleted
 def test_governance_changes_no_verdict_and_drops_no_finding(repo, tmp_path):
     with_gov = assess_run(repo, tmp_path, Spy())
     assert {f["status"] for f in with_gov["findings"]} == {"confirmed"} and len(with_gov["findings"]) == 2
+
+
+# ---- regression: the scrub works on the strings of a JSON report, so an escape can never be taken for text ---------------------------
+def test_a_json_report_with_an_escaped_newline_before_a_decorator_stays_valid_and_is_not_counted_as_a_leak(tmp_path):
+    import json as _json
+    from app.agents.security_assistant.pii import PIIRedactor
+    gov = gv.Governance(tmp_path, pii=PIIRedactor())
+    doc = {"example": {"code": "limiter = Limiter(app)\n@app.route(\"/login\")\n@limiter.limit(\"5 per minute\")\ndef login(): ..."}}
+    text = _json.dumps(doc, indent=2, ensure_ascii=False)
+    assert gov.count_leaks(text) > 0  # the old way of checking took the "n@app.route" of the escape for an e-mail address
+    assert gov.count_leaks_json(doc) == 0
+    assert _json.loads(gov.scrub_json(text, "report.json")) == doc
+
+
+def test_scrub_json_removes_a_real_email_inside_a_string_and_keeps_the_document_valid(tmp_path):
+    import json as _json
+    from app.agents.security_assistant.pii import PIIRedactor
+    gov = gv.Governance(tmp_path, pii=PIIRedactor())
+    text = _json.dumps({"a": ["write to jane.doe@example.org\nplease"], "n": 3}, indent=2)
+    clean = _json.loads(gov.scrub_json(text, "report.json"))
+    assert "jane.doe@example.org" not in str(clean) and "[removed by governance]" in clean["a"][0] and clean["n"] == 3
