@@ -22,6 +22,7 @@ import {
   UserCheck,
   Layers,
   Activity,
+  FileCheck,
 } from 'lucide-react'
 import Card from '../../../../shared/components/Card.jsx'
 import Badge from '../../../../shared/components/Badge.jsx'
@@ -48,6 +49,7 @@ import SupervisorNoticeBoard from '../../components/SupervisorNoticeBoard.jsx'
 import SupervisorConsultationModal from '../../components/SupervisorConsultationModal.jsx'
 import ExportPlanningReportModal from '../../components/ExportPlanningReportModal.jsx'
 import NewRequirementModal from '../../components/NewRequirementModal.jsx'
+import BacklogReadinessPassport from '../../components/BacklogReadinessPassport.jsx'
 import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import { usePlanningData } from '../../context/usePlanningData.js'
 import { QUALITY_DIMENSIONS, GROUPS } from '../../data/mockData.js'
@@ -167,6 +169,8 @@ export default function Dashboard() {
   const [consultModalOpen, setConsultModalOpen] = useState(false)
   const [exportModalOpen, setExportModalOpen] = useState(false)
   const [newReqModalOpen, setNewReqModalOpen] = useState(false)
+  const [passportModalOpen, setPassportModalOpen] = useState(false)
+  const [passportReq, setPassportReq] = useState(null)
 
   const { data: dartData } = useDartCases()
   const allDartCases = mapDartCases(dartData?.cases || [])
@@ -797,6 +801,7 @@ export default function Dashboard() {
                         <TableHead className="w-[70px] text-center">Decomp.</TableHead>
                         <TableHead className="w-[70px] text-center">Effort</TableHead>
                         <TableHead className="w-[95px] text-right">Sprint Status</TableHead>
+                        <TableHead className="w-[100px] text-right">Passport</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -813,7 +818,15 @@ export default function Dashboard() {
                             onClick={() => setSelectedReq(r)}
                           >
                             <TableCell className="max-w-[220px]">
-                              <p className="text-xs font-mono font-semibold text-primary">{r.id}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-mono font-semibold text-primary">{r.id}</p>
+                                {r.status === 'Passing' && (
+                                  <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-1 py-0.2 rounded-full">
+                                    <CheckCircle2 className="h-2.5 w-2.5" />
+                                    Passed
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-xs text-foreground truncate font-medium">{r.title}</p>
                             </TableCell>
                             <TableCell>
@@ -848,12 +861,27 @@ export default function Dashboard() {
                             <TableCell className="text-right">
                               <StatusDot tone={ROW_STATUS_TONE[state.key]}>{state.label}</StatusDot>
                             </TableCell>
+                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs font-semibold gap-1 text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50 cursor-pointer shadow-2xs px-2"
+                                onClick={() => {
+                                  setPassportReq(r)
+                                  setPassportModalOpen(true)
+                                }}
+                                title={`View Backlog Readiness Passport for ${r.id}`}
+                              >
+                                <FileCheck className="h-3.5 w-3.5" />
+                                <span>Passport</span>
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         )
                       })}
                       {filteredRequirements.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-xs text-muted-foreground py-10">
+                          <TableCell colSpan={7} className="text-center text-xs text-muted-foreground py-10">
                             No requirements match current search or status filter.
                           </TableCell>
                         </TableRow>
@@ -1186,6 +1214,17 @@ export default function Dashboard() {
 
                 <div className="pt-2 space-y-2">
                   <Button
+                    variant="outline"
+                    className="w-full text-xs font-semibold cursor-pointer gap-1.5 border-primary/30 text-primary hover:bg-primary/5 hover:border-primary/50 shadow-xs"
+                    onClick={() => {
+                      setPassportReq(selectedReq)
+                      setPassportModalOpen(true)
+                    }}
+                  >
+                    <FileCheck className="h-4 w-4" />
+                    View Requirement Readiness Passport
+                  </Button>
+                  <Button
                     className="w-full text-xs cursor-pointer"
                     onClick={() => {
                       const target = targetForRequirement(selectedReq, userStories, estimations)
@@ -1236,6 +1275,20 @@ export default function Dashboard() {
       />
 
       <DartButton context="dashboard" />
+
+      {/* Backlog Readiness Passport Modal */}
+      {passportReq && (
+        <BacklogReadinessPassport
+          open={passportModalOpen}
+          onOpenChange={(val) => {
+            setPassportModalOpen(val)
+            if (!val) setPassportReq(null)
+          }}
+          parentRequirement={passportReq}
+          stories={userStories[passportReq.id] || []}
+          story={userStories[passportReq.id]?.[0] || null}
+        />
+      )}
     </div>
   )
 }

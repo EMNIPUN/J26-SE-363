@@ -13,6 +13,7 @@ import {
   Gavel,
   RefreshCw,
   CheckCircle2,
+  Circle,
   XCircle,
   Clock,
   Sparkles,
@@ -77,13 +78,43 @@ const INVEST_CRITERIA_META = [
 export default function BacklogReadinessPassport({
   open,
   onOpenChange,
-  storyRef,
+  storyRef: initialStoryRef,
   passport: initialPassport,
-  storyTitle,
+  storyTitle: initialStoryTitle,
   parentRequirement,
-  story,
+  story: initialStory,
+  stories = [],
   coverageEvaluation,
 }) {
+  const [selectedStoryId, setSelectedStoryId] = useState(null)
+
+  // Resolve active story and storyRef
+  const activeStory =
+    (stories.length > 0 && selectedStoryId
+      ? stories.find((s) => (s.id || s.story_ref) === selectedStoryId)
+      : null) ||
+    initialStory ||
+    (stories.length > 0 ? stories[0] : null)
+
+  const storyRef =
+    selectedStoryId ||
+    initialStoryRef ||
+    activeStory?.id ||
+    activeStory?.story_ref ||
+    parentRequirement?.id ||
+    ''
+
+  const story = activeStory || initialStory || null
+
+  const storyTitle =
+    activeStory?.title ||
+    initialStoryTitle ||
+    (activeStory
+      ? `User Story ${storyRef}`
+      : parentRequirement?.title
+        ? `${parentRequirement.id ? `${parentRequirement.id}: ` : ''}${parentRequirement.title}`
+        : 'Requirement Backlog Readiness')
+
   const { data: fetchedPassport, isLoading, refetch } = useStoryPassport(
     storyRef,
     Boolean(open && storyRef && !initialPassport),
@@ -122,88 +153,118 @@ export default function BacklogReadinessPassport({
     rawPassport?.quality_gate_passed ??
     (isParentInLaterStage ? true : qualityScore != null && qualityScore >= 75)
 
-  // 3. Decomposition Completeness Dimension
-  const missingElements =
-    rawPassport?.missing_parent_elements ??
-    rawPassport?.passport_data?.missing_parent_elements ??
-    (coverageEvaluation?.coverage?.elements || [])
-      .filter((el) => {
-        const res = (el.coverage_result || el.result || '').toUpperCase()
-        return res === 'MISSING' || res === 'UNCOVERED'
-      })
-      .map((el) => el.description)
-
-  const coveredElements =
-    rawPassport?.covered_parent_elements ??
-    rawPassport?.passport_data?.covered_parent_elements ??
-    (coverageEvaluation?.coverage?.elements || [])
-      .filter((el) => {
-        const res = (el.coverage_result || el.result || '').toUpperCase() !== 'MISSING'
-        return Boolean(res)
-      })
-      .map((el) => el.description)
-
-  const coverageScore =
-    rawPassport?.decomposition_coverage_score ??
-    rawPassport?.passport_data?.coverage_percentage ??
-    (coverageEvaluation?.score != null ? Math.round((coverageEvaluation.score / 4) * 100) : null) ??
-    (coverageEvaluation?.readiness === 'Ready' || parentRequirement?.decompFinalized ? 100 : null)
-
-  const isDecompApproved = Boolean(
-    parentRequirement?.decomposition_approved_for_effort ||
-    parentRequirement?.decompFinalized ||
-    coverageEvaluation?.readiness === 'Ready' ||
-    coverageEvaluation?.readiness === 'Ready with Improvements' ||
-    coverageEvaluation?.canProceed ||
-    (missingElements.length === 0 && (coverageScore == null || coverageScore >= 75)) ||
-    (coveredElements.length > 0 && missingElements.length === 0)
+  // Helper flags: Has decomposition or INVEST actually been performed?
+  const hasStories = Boolean((stories && stories.length > 0) || story)
+  const hasDecompRun = Boolean(
+    qualityGatePassed &&
+      (rawPassport?.decomposition_coverage_score != null ||
+        coverageEvaluation != null ||
+        parentRequirement?.decompFinalized ||
+        parentRequirement?.decomposition_approved_for_effort)
   )
 
-  const isDecompGatePassed =
-    rawPassport?.decomposition_gate_passed ??
-    isDecompApproved ??
-    (missingElements.length === 0 && (coverageScore == null || coverageScore >= 75))
+  // 3. Decomposition Completeness Dimension
+  const missingElements = hasDecompRun
+    ? (rawPassport?.missing_parent_elements ??
+        rawPassport?.passport_data?.missing_parent_elements ??
+        (coverageEvaluation?.coverage?.elements || [])
+          .filter((el) => {
+            const res = (el.coverage_result || el.result || '').toUpperCase()
+            return res === 'MISSING' || res === 'UNCOVERED'
+          })
+          .map((el) => el.description))
+    : []
+
+  const coveredElements = hasDecompRun
+    ? (rawPassport?.covered_parent_elements ??
+        rawPassport?.passport_data?.covered_parent_elements ??
+        (coverageEvaluation?.coverage?.elements || [])
+          .filter((el) => {
+            const res = (el.coverage_result || el.result || '').toUpperCase() !== 'MISSING'
+            return Boolean(res)
+          })
+          .map((el) => el.description))
+    : []
+
+  const coverageScore = hasDecompRun
+    ? (rawPassport?.decomposition_coverage_score ??
+        rawPassport?.passport_data?.coverage_percentage ??
+        (coverageEvaluation?.score != null ? Math.round((coverageEvaluation.score / 4) * 100) : null) ??
+        (coverageEvaluation?.readiness === 'Ready' || parentRequirement?.decompFinalized ? 100 : null))
+    : null
+
+  const isDecompApproved = Boolean(
+    qualityGatePassed &&
+      (parentRequirement?.decomposition_approved_for_effort ||
+        parentRequirement?.decompFinalized ||
+        coverageEvaluation?.readiness === 'Ready' ||
+        coverageEvaluation?.readiness === 'Ready with Improvements' ||
+        coverageEvaluation?.canProceed ||
+        (hasDecompRun && coveredElements.length > 0 && missingElements.length === 0))
+  )
+
+  const isDecompGatePassed = Boolean(
+    qualityGatePassed &&
+      (rawPassport?.decomposition_gate_passed ??
+        isDecompApproved ??
+        (hasDecompRun && missingElements.length === 0 && coverageScore != null && coverageScore >= 75))
+  )
 
   // 4. INVEST Criteria Dimension
   const investDetails =
     rawPassport?.invest_details || rawPassport?.passport_data?.invest_criteria || {}
   const clientInvestResult = story?.investResult || {}
+  const hasInvestData = Boolean(
+    qualityGatePassed &&
+      hasStories &&
+      (rawPassport?.invest_details != null ||
+        rawPassport?.passport_data?.invest_criteria != null ||
+        story?.investResult != null)
+  )
 
   const resolvedInvest = {
-    I:
-      investDetails.i != null
-        ? investDetails.i === 'pass' || investDetails.i === 'pass_with_note'
-        : clientInvestResult.I?.pass ?? true,
-    N:
-      investDetails.n != null
-        ? investDetails.n === 'pass' || investDetails.n === 'pass_with_note'
-        : clientInvestResult.N?.pass ?? true,
-    V:
-      investDetails.v != null
-        ? investDetails.v === 'pass' || investDetails.v === 'pass_with_note'
-        : clientInvestResult.V?.pass ?? true,
-    E:
-      investDetails.e != null
-        ? investDetails.e === 'pass' || investDetails.e === 'pass_with_note'
-        : clientInvestResult.E?.pass ?? true,
-    S:
-      investDetails.s != null
-        ? investDetails.s === 'pass' || investDetails.s === 'pass_with_note'
-        : clientInvestResult.S?.pass ?? true,
-    T:
-      investDetails.t != null
-        ? investDetails.t === 'pass' || investDetails.t === 'pass_with_note'
-        : clientInvestResult.T?.pass ?? true,
+    I: hasInvestData
+      ? (investDetails.i != null
+          ? investDetails.i === 'pass' || investDetails.i === 'pass_with_note'
+          : Boolean(clientInvestResult.I?.pass))
+      : false,
+    N: hasInvestData
+      ? (investDetails.n != null
+          ? investDetails.n === 'pass' || investDetails.n === 'pass_with_note'
+          : Boolean(clientInvestResult.N?.pass))
+      : false,
+    V: hasInvestData
+      ? (investDetails.v != null
+          ? investDetails.v === 'pass' || investDetails.v === 'pass_with_note'
+          : Boolean(clientInvestResult.V?.pass))
+      : false,
+    E: hasInvestData
+      ? (investDetails.e != null
+          ? investDetails.e === 'pass' || investDetails.e === 'pass_with_note'
+          : Boolean(clientInvestResult.E?.pass))
+      : false,
+    S: hasInvestData
+      ? (investDetails.s != null
+          ? investDetails.s === 'pass' || investDetails.s === 'pass_with_note'
+          : Boolean(clientInvestResult.S?.pass))
+      : false,
+    T: hasInvestData
+      ? (investDetails.t != null
+          ? investDetails.t === 'pass' || investDetails.t === 'pass_with_note'
+          : Boolean(clientInvestResult.T?.pass))
+      : false,
   }
 
-  const investPassedCount = Object.values(resolvedInvest).filter(Boolean).length
+  const investPassedCount = hasInvestData ? Object.values(resolvedInvest).filter(Boolean).length : 0
   const isInvestGatePassed = Boolean(
-    isDecompApproved ||
-      (rawPassport?.invest_gate_passed ??
-        rawPassport?.invest_passed ??
-        (clientInvestResult.overallPass !== undefined
-          ? clientInvestResult.overallPass
-          : investPassedCount === 6))
+    qualityGatePassed &&
+      hasInvestData &&
+      (isDecompApproved ||
+        (rawPassport?.invest_gate_passed ??
+          rawPassport?.invest_passed ??
+          (clientInvestResult.overallPass !== undefined
+            ? clientInvestResult.overallPass
+            : investPassedCount === 6)))
   )
 
   // 5. Story Points Dimension
@@ -309,6 +370,35 @@ export default function BacklogReadinessPassport({
                   </span>
                 )}
               </div>
+
+              {/* Story Switcher Tabs if requirement has multiple stories */}
+              {stories && stories.length > 1 && (
+                <div className="flex items-center gap-1.5 pt-2 flex-wrap border-t border-border/40 mt-1.5">
+                  <span className="text-[11px] font-bold text-muted-foreground mr-1">
+                    Stories ({stories.length}):
+                  </span>
+                  {stories.map((s) => {
+                    const sid = s.id || s.story_ref
+                    const isSelected = sid === storyRef
+                    return (
+                      <button
+                        key={sid}
+                        type="button"
+                        onClick={() => setSelectedStoryId(sid)}
+                        className={`text-xs px-2.5 py-1 rounded-md font-mono font-semibold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-primary text-primary-foreground shadow-xs ring-1 ring-primary'
+                            : 'bg-muted/70 hover:bg-muted text-foreground border border-border/70'
+                        }`}
+                        title={s.title || sid}
+                      >
+                        {sid}
+                        {s.title ? ` · ${s.title.slice(0, 20)}…` : ''}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
           </div>
         </div>
 
@@ -387,7 +477,15 @@ export default function BacklogReadinessPassport({
                       <span className="text-xs font-semibold text-muted-foreground">
                         2. Decomposition Completeness
                       </span>
-                      {isDecompGatePassed ? (
+                      {!qualityGatePassed ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 dark:text-rose-400">
+                          <XCircle className="h-3.5 w-3.5" /> Stage 1 Locked
+                        </span>
+                      ) : !hasDecompRun ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
+                          <Circle className="h-3.5 w-3.5" /> Not Evaluated
+                        </span>
+                      ) : isDecompGatePassed ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                           <CheckCircle2 className="h-3.5 w-3.5" /> Complete
                         </span>
@@ -399,10 +497,18 @@ export default function BacklogReadinessPassport({
                     </div>
                     <div className="flex items-baseline gap-2">
                       <span className="text-xl font-extrabold text-foreground font-mono">
-                        {coverageScore != null ? `${Math.round(coverageScore)}%` : '100%'}
+                        {!qualityGatePassed
+                          ? '0%'
+                          : !hasDecompRun
+                          ? '—'
+                          : `${Math.round(coverageScore ?? 0)}%`}
                       </span>
                       <span className="text-[11px] text-muted-foreground">
-                        {missingElements.length > 0
+                        {!qualityGatePassed
+                          ? 'Locked: Must pass IEEE 830 Quality Gate first'
+                          : !hasDecompRun
+                          ? 'Pending: No user stories decomposed yet'
+                          : missingElements.length > 0
                           ? `${missingElements.length} parent element(s) missing`
                           : 'Full parent requirement coverage'}
                       </span>
@@ -415,7 +521,15 @@ export default function BacklogReadinessPassport({
                       <span className="text-xs font-semibold text-muted-foreground">
                         3. INVEST Readiness Criteria
                       </span>
-                      {investPassedCount === 6 ? (
+                      {!qualityGatePassed ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 dark:text-rose-400">
+                          <XCircle className="h-3.5 w-3.5" /> Stage 1 Locked
+                        </span>
+                      ) : !hasInvestData ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
+                          <Circle className="h-3.5 w-3.5" /> Not Evaluated
+                        </span>
+                      ) : investPassedCount === 6 ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                           <CheckCircle2 className="h-3.5 w-3.5" /> Approved (6/6 Criteria)
                         </span>
@@ -425,29 +539,37 @@ export default function BacklogReadinessPassport({
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                          <AlertTriangle className="h-3.5 w-3.5" /> Needs Revision (
-                          {investPassedCount}/6 Passed)
+                          <AlertTriangle className="h-3.5 w-3.5" /> Needs Revision ({investPassedCount}/6 Passed)
                         </span>
                       )}
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
                       {INVEST_CRITERIA_META.map((c) => {
-                        const pass = resolvedInvest[c.key] ?? true
+                        const isEvaluated = qualityGatePassed && hasInvestData
+                        const pass = isEvaluated ? Boolean(resolvedInvest[c.key]) : false
                         return (
                           <div
                             key={c.key}
                             className={`p-2 rounded-lg border text-center transition-all ${
-                              pass
+                              !isEvaluated
+                                ? 'bg-muted/30 border-border/60 text-muted-foreground opacity-60'
+                                : pass
                                 ? 'bg-emerald-500/5 border-emerald-500/25 text-emerald-700 dark:text-emerald-400'
                                 : isDecompApproved
                                 ? 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400'
                                 : 'bg-rose-500/5 border-rose-500/25 text-rose-700 dark:text-rose-400'
                             }`}
-                            title={`${c.label}: ${c.desc}${!pass && isDecompApproved ? ' (Advisory suggestion for effort sizing)' : ''}`}
+                            title={
+                              !isEvaluated
+                                ? `${c.label}: Not evaluated yet`
+                                : `${c.label}: ${c.desc}${!pass && isDecompApproved ? ' (Advisory suggestion for effort sizing)' : ''}`
+                            }
                           >
                             <div className="flex items-center justify-center gap-1">
                               <span className="font-mono font-bold text-xs">{c.key}</span>
-                              {pass ? (
+                              {!isEvaluated ? (
+                                <Circle className="h-3 w-3 text-muted-foreground/50" />
+                              ) : pass ? (
                                 <Check className="h-3 w-3" />
                               ) : isDecompApproved ? (
                                 <AlertTriangle className="h-3 w-3" />
@@ -529,15 +651,43 @@ export default function BacklogReadinessPassport({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Covered Elements */}
-                  <div className="p-3.5 rounded-xl border border-emerald-500/25 bg-emerald-500/5">
-                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 mb-2">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
+                  <div
+                    className={`p-3.5 rounded-xl border ${
+                      !qualityGatePassed || !hasDecompRun
+                        ? 'border-border/70 bg-muted/20'
+                        : 'border-emerald-500/25 bg-emerald-500/5'
+                    }`}
+                  >
+                    <span
+                      className={`text-xs font-bold flex items-center gap-1.5 mb-2 ${
+                        !qualityGatePassed || !hasDecompRun
+                          ? 'text-muted-foreground'
+                          : 'text-emerald-700 dark:text-emerald-400'
+                      }`}
+                    >
+                      {!qualityGatePassed || !hasDecompRun ? (
+                        <Circle className="h-3.5 w-3.5 text-muted-foreground" />
+                      ) : (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                      )}
                       <span>Covered Parent Elements</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 font-mono">
-                        {coveredElements.length > 0 ? coveredElements.length : 'All'}
+                      <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-muted font-mono font-semibold">
+                        {!qualityGatePassed || !hasDecompRun
+                          ? '0'
+                          : coveredElements.length > 0
+                          ? coveredElements.length
+                          : 'All'}
                       </span>
                     </span>
-                    {coveredElements.length > 0 ? (
+                    {!qualityGatePassed ? (
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Decomposition coverage is held until requirement clears the Stage 1 IEEE 830 Quality Gate ({Math.round(qualityScore || 0)}%).
+                      </p>
+                    ) : !hasDecompRun ? (
+                      <p className="text-xs text-muted-foreground font-medium">
+                        No user stories decomposed yet for this requirement. Create user stories to establish capability coverage.
+                      </p>
+                    ) : coveredElements.length > 0 ? (
                       <ul className="space-y-1.5">
                         {coveredElements.slice(0, 5).map((el, i) => (
                           <li
@@ -551,8 +701,7 @@ export default function BacklogReadinessPassport({
                       </ul>
                     ) : (
                       <p className="text-xs text-emerald-800 dark:text-emerald-300 font-medium">
-                        ✓ Core functional behaviors and acceptance criteria are mapped to parent
-                        requirement.
+                        ✓ Core functional behaviors and acceptance criteria are mapped to parent requirement.
                       </p>
                     )}
                   </div>
@@ -560,44 +709,57 @@ export default function BacklogReadinessPassport({
                   {/* Missing Elements */}
                   <div
                     className={`p-3.5 rounded-xl border ${
-                      missingElements.length > 0
+                      !qualityGatePassed || !hasDecompRun
+                        ? 'border-border/70 bg-muted/20'
+                        : missingElements.length > 0
                         ? 'border-rose-500/25 bg-rose-500/5'
                         : 'border-border/80 bg-muted/20'
                     }`}
                   >
                     <span
                       className={`text-xs font-bold flex items-center gap-1.5 mb-2 ${
-                        missingElements.length > 0
+                        !qualityGatePassed || !hasDecompRun
+                          ? 'text-muted-foreground'
+                          : missingElements.length > 0
                           ? 'text-rose-700 dark:text-rose-400'
                           : 'text-muted-foreground'
                       }`}
                     >
-                      {missingElements.length > 0 ? (
+                      {!qualityGatePassed || !hasDecompRun ? (
+                        <Circle className="h-3.5 w-3.5 text-muted-foreground" />
+                      ) : missingElements.length > 0 ? (
                         <XCircle className="h-3.5 w-3.5 text-rose-600" />
                       ) : (
                         <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                       )}
                       <span>Missing Parent Elements</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-muted font-mono">
-                        {missingElements.length}
+                      <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-muted font-mono font-semibold">
+                        {!qualityGatePassed || !hasDecompRun ? '—' : missingElements.length}
                       </span>
                     </span>
-                    {missingElements.length > 0 ? (
+                    {!qualityGatePassed ? (
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Traceability gap analysis is not available while requirement is failing quality gate.
+                      </p>
+                    ) : !hasDecompRun ? (
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Decomposition analysis will check for missing parent elements once user stories are written.
+                      </p>
+                    ) : missingElements.length > 0 ? (
                       <ul className="space-y-1.5">
-                        {missingElements.map((el, i) => (
+                        {missingElements.slice(0, 4).map((el, i) => (
                           <li
                             key={i}
                             className="text-xs text-rose-900 dark:text-rose-300 flex items-start gap-1.5 font-semibold"
                           >
-                            <span className="text-rose-600 shrink-0 mt-0.5">⚠️</span>
+                            <span className="text-rose-500 shrink-0 mt-0.5">•</span>
                             <span>{el}</span>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                        ✓ Zero missing parent behaviors detected. All required capability aspects
-                        are covered.
+                      <p className="text-xs text-muted-foreground font-medium">
+                        ✓ Zero missing parent behaviors detected. All required capability aspects are covered.
                       </p>
                     )}
                   </div>
@@ -646,15 +808,17 @@ export default function BacklogReadinessPassport({
                       <span>Required Action to Clear Gate</span>
                     </div>
                     <p className="text-xs text-rose-900 dark:text-rose-200 font-medium leading-relaxed">
-                      {missingElements.length > 0
+                      {!qualityGatePassed
+                        ? `Requirement quality score is below the 75-point threshold (${Math.round(qualityScore || 0)}%). Resolve SRS quality smells in Stage 1.`
+                        : !hasStories
+                        ? 'Requirement passed SRS Quality. Proceed to Backlog Decomposition (Stage 2) and write user stories.'
+                        : missingElements.length > 0
                         ? `Add user stories or acceptance criteria covering missing elements: ${missingElements.join(
                             ', ',
                           )}.`
-                        : !qualityGatePassed
-                        ? 'Requirement quality score is below the 75-point threshold. Resolve SRS quality smells in Stage 1.'
                         : rawPassport?.student_action_required ||
                           rawPassport?.action_required ||
-                          'Review failed INVEST criteria or SRS quality smells to proceed.'}
+                          'Review failed INVEST criteria or backlog decomposition to proceed.'}
                     </p>
                   </div>
                 )}

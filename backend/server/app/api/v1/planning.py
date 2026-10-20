@@ -2185,10 +2185,40 @@ async def get_story_passport(
                 )
             ).first()
 
+        if not story:
+            from app.models.requirement import Requirement
+            req = db.scalars(
+                select(Requirement).where(
+                    or_(
+                        func.lower(Requirement.requirement_ref) == story_ref.lower(),
+                        func.lower(Requirement.legacy_id) == story_ref.lower(),
+                    ),
+                    Requirement.pipeline_session_id == session.id,
+                )
+            ).first()
+            if not req:
+                req = db.scalars(
+                    select(Requirement).where(
+                        or_(
+                            func.lower(Requirement.requirement_ref) == story_ref.lower(),
+                            func.lower(Requirement.legacy_id) == story_ref.lower(),
+                        ),
+                    )
+                ).first()
+            if req:
+                story = db.scalars(
+                    select(UserStory)
+                    .where(
+                        UserStory.requirement_id == req.id,
+                        UserStory.is_active.is_(True),
+                    )
+                    .order_by(UserStory.created_at.asc())
+                ).first()
+
     if not story:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User story '{story_ref}' was not found.",
+            detail=f"User story or requirement '{story_ref}' was not found.",
         )
     row = await run_in_threadpool(
         passport_service.evaluate_story_passport, db, session.id, story.id

@@ -18,6 +18,7 @@ import {
   Save,
   Clock,
   RotateCcw,
+  FileCheck,
 } from 'lucide-react'
 import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import Card from '../../../../../shared/components/Card.jsx'
@@ -46,6 +47,7 @@ import DartButton from '../../../components/DartButton.jsx'
 import RequirementListPanel from '../../../components/RequirementListPanel.jsx'
 import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
 import PassportBadge from '../../../components/PassportBadge.jsx'
+import BacklogReadinessPassport from '../../../components/BacklogReadinessPassport.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
 import { useStories, useTaskValidation } from '../../../hooks/useDecomposition.js'
 import { useEstimates, useSaveEstimate, useConfirmEstimate } from '../../../hooks/useEstimates.js'
@@ -526,6 +528,7 @@ export default function Estimation() {
     : (eligibleReqs[0]?.id || sortedRequirements[0]?.id || '')
 
   const [userSelectedReqId, setUserSelectedReqId] = useState(null)
+  const [passportModalOpen, setPassportModalOpen] = useState(false)
   const selectedReqId = userSelectedReqId || defaultReqId
   const { data: storiesResp } = useStories()
   const { data: estimatesResp } = useEstimates()
@@ -623,11 +626,14 @@ export default function Estimation() {
     }
     const done = stories.filter((s) => isStoryEstimated(s)).length
     const percent = Math.round((done / stories.length) * 100)
+    const isPassed = percent === 100
     return {
       percent,
-      tone: percent === 100 ? 'success' : 'warning',
+      tone: isPassed ? 'success' : 'warning',
       locked: false,
       finalized: Boolean(r.decompFinalized),
+      passed: isPassed,
+      stageLabel: isPassed ? 'Estimated' : null,
     }
   }
 
@@ -796,6 +802,18 @@ export default function Estimation() {
                   <h3 className="truncate text-sm font-semibold text-foreground">{requirement.title}</h3>
                 </div>
                 <div className="flex items-center gap-3">
+                  {/* Single Visible Button: Readiness Passport */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPassportModalOpen(true)}
+                    className="text-xs font-semibold gap-1.5 border-primary/30 text-primary hover:bg-primary/5 hover:border-primary/50 cursor-pointer shadow-2xs h-8 px-3 shrink-0"
+                    title="View Backlog Readiness Passport for this requirement in 1 click"
+                  >
+                    <FileCheck className="h-3.5 w-3.5" />
+                    <span>Readiness Passport</span>
+                  </Button>
+
                   {/* Filter tabs */}
                   <div className="flex items-center rounded-lg border border-border p-0.5 bg-muted/40 text-xs">
                     <button
@@ -917,6 +935,17 @@ export default function Estimation() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Backlog Readiness Passport Modal */}
+      {requirement && (
+        <BacklogReadinessPassport
+          open={passportModalOpen}
+          onOpenChange={setPassportModalOpen}
+          parentRequirement={requirement}
+          stories={reqStories.map((s) => s.story)}
+          story={reqStories?.[0]?.story}
+        />
+      )}
     </div>
   )
 }

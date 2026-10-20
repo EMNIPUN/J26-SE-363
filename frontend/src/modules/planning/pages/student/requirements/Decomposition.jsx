@@ -29,6 +29,7 @@ import {
   Save,
   X,
   ShieldAlert,
+  FileCheck,
 } from 'lucide-react'
 import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import Card from '../../../../../shared/components/Card.jsx'
@@ -60,6 +61,7 @@ import SupervisorConsultationModal from '../../../components/SupervisorConsultat
 import DecompositionEvidencePanel from '../../../components/DecompositionEvidencePanel.jsx'
 import TaskValidationEvidencePanel from '../../../components/TaskValidationEvidencePanel.jsx'
 import PassportBadge from '../../../components/PassportBadge.jsx'
+import BacklogReadinessPassport from '../../../components/BacklogReadinessPassport.jsx'
 import StagePassCriteriaCard from '../../../components/StagePassCriteriaCard.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
 import { useDartCases } from '../../../hooks/useDart.js'
@@ -1461,6 +1463,7 @@ export default function Decomposition() {
   const [showNewStoryForm, setShowNewStoryForm] = useState(false)
   const [gapInitialTitle, setGapInitialTitle] = useState('')
   const [mainTab, setMainTab] = useState('all')
+  const [passportModalOpen, setPassportModalOpen] = useState(false)
 
   // Derive active requirement ID: student manual pick -> URL query param -> first unlocked -> first in catalog
   const selectedReqId =
@@ -1572,17 +1575,21 @@ export default function Decomposition() {
         tone: 'neutral',
         locked: true,
         finalized: false,
+        passed: false,
       }
     }
     const eval_ = getDecompositionEvaluation(r.id)
     const isFinal = Boolean(r.decompFinalized)
     const percent = eval_ ? Math.round(((eval_.score ?? 0) / 4) * 100) : 0
     const isReady = eval_?.readiness === 'Ready'
+    const isPassed = isFinal || isReady || (eval_ && eval_.score === 4)
     return {
       percent,
-      tone: isFinal || isReady ? 'success' : percent > 0 ? 'warning' : 'neutral',
+      tone: isPassed ? 'success' : percent > 0 ? 'warning' : 'neutral',
       locked: false,
       finalized: isFinal,
+      passed: isPassed,
+      stageLabel: isFinal ? 'Finalized' : isReady ? 'Decomp Passed' : 'Passed',
     }
   }
 
@@ -2055,6 +2062,18 @@ export default function Decomposition() {
                       ) : (
                         <Badge tone="neutral" className="text-xs">Not Evaluated</Badge>
                       )}
+
+                      {/* Single Visible Button: Readiness Passport */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPassportModalOpen(true)}
+                        className="text-xs font-semibold gap-1.5 border-primary/30 text-primary hover:bg-primary/5 hover:border-primary/50 cursor-pointer shadow-2xs h-7 px-2.5"
+                        title="View Backlog Readiness Passport for this requirement in 1 click"
+                      >
+                        <FileCheck className="h-3.5 w-3.5" />
+                        <span>Readiness Passport</span>
+                      </Button>
                     </div>
                   </div>
 
@@ -2172,6 +2191,18 @@ export default function Decomposition() {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
+                        {/* Single Visible Button: Readiness Passport */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPassportModalOpen(true)}
+                          className="text-xs font-semibold gap-1.5 border-primary/30 text-primary hover:bg-primary/5 hover:border-primary/50 cursor-pointer shadow-2xs"
+                          title="Open Backlog Readiness Passport to inspect trust gates and pending action items"
+                        >
+                          <FileCheck className="h-3.5 w-3.5" />
+                          <span>Readiness Passport</span>
+                        </Button>
+
                         <Button
                           size="sm"
                           variant={!analyzing && evaluation && !canRunAnalysis ? 'outline' : 'default'}
@@ -2559,6 +2590,18 @@ export default function Decomposition() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Backlog Readiness Passport Modal */}
+      {requirement && (
+        <BacklogReadinessPassport
+          open={passportModalOpen}
+          onOpenChange={setPassportModalOpen}
+          parentRequirement={requirement}
+          stories={stories}
+          story={stories?.[0]}
+          coverageEvaluation={evaluation}
+        />
+      )}
     </div>
   )
 }

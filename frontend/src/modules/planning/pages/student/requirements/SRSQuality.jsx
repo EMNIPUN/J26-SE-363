@@ -19,6 +19,7 @@ import {
   Check,
   Layers,
   FileEdit,
+  FileCheck,
 } from 'lucide-react'
 import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import Card from '../../../../../shared/components/Card.jsx'
@@ -48,6 +49,7 @@ import { mapExtractResult, mapAnalyzeResult, mapPersistedRows, mapQualityResult 
 import QualityEvidencePanel from '../../../components/QualityEvidencePanel.jsx'
 import NewRequirementModal from '../../../components/NewRequirementModal.jsx'
 import StagePassCriteriaCard from '../../../components/StagePassCriteriaCard.jsx'
+import BacklogReadinessPassport from '../../../components/BacklogReadinessPassport.jsx'
 import { useDartCases } from '../../../hooks/useDart.js'
 import { mapDartCases, getDartCasesForRequirement } from '../../../adapters/dart.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
@@ -125,6 +127,7 @@ export default function SRSQuality() {
   const [consultOpen, setConsultOpen] = useState(false)
   const [reuploadWarningOpen, setReuploadWarningOpen] = useState(false)
   const [mainTab, setMainTab] = useState('all')
+  const [passportModalOpen, setPassportModalOpen] = useState(false)
   const fileInputRef = useRef(null)
   const uploading = uploadMut.isPending
 
@@ -512,12 +515,17 @@ export default function SRSQuality() {
                 selectedId={selected?.id}
                 onSelect={selectRequirement}
                 maxHeight="calc(100vh - 12rem)"
-                getItemMeta={(r) => ({
-                  percent: r.overallScore,
-                  tone: r.status === 'Passing' ? 'success' : r.status === 'Needs Review' ? 'warning' : 'danger',
-                  locked: false,
-                  finalized: Boolean(r.finalized || r.decompUnlocked),
-                })}
+                getItemMeta={(r) => {
+                  const passed = Boolean(r.status === 'Passing' || r.decompositionAuthorized || (r.overallScore != null && r.overallScore >= 75))
+                  return {
+                    percent: r.overallScore,
+                    tone: passed ? 'success' : r.status === 'Needs Review' ? 'warning' : 'danger',
+                    locked: false,
+                    finalized: Boolean(r.finalized || r.decompUnlocked || r.decompositionAuthorized),
+                    passed,
+                    stageLabel: passed ? 'Quality Passed' : null,
+                  }
+                }}
               />
             </div>
 
@@ -558,8 +566,20 @@ export default function SRSQuality() {
                     })}
                   </div>
 
-                  {/* Right: Top-Right Corner "Go to Next Step" Button */}
+                  {/* Right: Top-Right Corner "Go to Next Step" Button & Passport */}
                   <div className="flex items-center gap-2">
+                    {/* Single Visible Button: Readiness Passport */}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPassportModalOpen(true)}
+                      className="text-xs font-semibold gap-1.5 border-primary/30 text-primary hover:bg-primary/5 hover:border-primary/50 cursor-pointer shadow-2xs shrink-0"
+                      title="View Backlog Readiness Passport for this requirement in 1 click"
+                    >
+                      <FileCheck className="h-3.5 w-3.5" />
+                      <span>Readiness Passport</span>
+                    </Button>
+
                     {isFinalized ? (
                       <Link
                         to={team(`/planning/requirements/decomposition?req=${selected.id}`)}
@@ -1035,6 +1055,17 @@ export default function SRSQuality() {
         onOpenChange={setConsultOpen}
         requirements={requirements}
       />
+
+      {/* Backlog Readiness Passport Modal */}
+      {selected && (
+        <BacklogReadinessPassport
+          open={passportModalOpen}
+          onOpenChange={setPassportModalOpen}
+          parentRequirement={selected}
+          stories={[]}
+          story={null}
+        />
+      )}
     </div>
   )
 }
