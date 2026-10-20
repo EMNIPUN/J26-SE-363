@@ -92,3 +92,38 @@ async def test_errors_are_reported_not_swallowed():
     gh = GitHubREST(client=httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404, json={"message": "Not Found"}))))
     with pytest.raises(GitHubError, match="404"):
         await gh.pulls_bundle("https://github.com/org/repo")
+
+
+@pytest.mark.asyncio
+async def test_pull_requests_are_read_together_and_keep_their_order():
+    """Five requests per pull request used to run one after another. Here every request waits for the others to arrive: if they were not made together, the test would hang."""
+    import asyncio
+
+    n_prs, waiting, release = 4, [], asyncio.Event()
+    peak = {"now": 0, "max": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("the async handler below is used")
+
+    async def slow(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/repos/org/repo/pulls":
+            return httpx.Response(200, json=[{"number": i, "updated_at": "2026-03-09T00:00:00Z"} for i in range(n_prs, 0, -1)])
+        peak["now"] += 1
+        peak["max"] = max(peak["max"], peak["now"])
+        waiting.append(path)
+        if len(waiting) >= n_prs:  # all pull requests have started: let everyone go
+            release.set()
+        await asyncio.wait_for(release.wait(), timeout=5)
+        peak["now"] -= 1
+        if path.endswith("/reviews") or path.endswith("/comments"):
+            return httpx.Response(200, json=[])
+        if path.endswith("/commits"):
+            return httpx.Response(200, json=[{"sha": "b" * 40}])
+        return httpx.Response(200, json={"merged_by": None})
+
+    gh = GitHubREST(client=httpx.AsyncClient(transport=httpx.MockTransport(slow)), concurrency=n_prs)
+    prs = await gh.pulls_bundle("https://github.com/org/repo")
+    assert [p["number"] for p in prs] == [4, 3, 2, 1]  # the order GitHub gave
+    assert peak["max"] >= n_prs  # several requests were in flight at once
+    assert all(p["_commits"] == ["b" * 40] for p in prs)

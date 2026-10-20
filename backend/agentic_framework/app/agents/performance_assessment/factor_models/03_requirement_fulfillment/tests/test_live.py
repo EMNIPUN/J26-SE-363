@@ -120,6 +120,65 @@ class NothingToShow(unittest.TestCase):
             E.evaluate(case(extra_tasks=[extra]), {"llm": scripted(), "cancel": stop})
 
 
+class VerdictsAreReusedWhenNothingChanged(unittest.TestCase):
+    """A nightly snapshot of a quiet team, a re-run or a re-composition must not pay the model again for a task whose evidence did not change."""
+
+    def setUp(self):
+        import tempfile
+        self.dir = tempfile.TemporaryDirectory()
+        self.old = os.environ.get("RF_CACHE_DIR")
+        os.environ["RF_CACHE_DIR"] = self.dir.name
+
+    def tearDown(self):
+        if self.old is None:
+            os.environ.pop("RF_CACHE_DIR", None)
+        else:
+            os.environ["RF_CACHE_DIR"] = self.old
+        self.dir.cleanup()
+
+    def test_the_second_run_makes_no_model_call_and_gives_the_same_answer(self):
+        first, second = scripted(), scripted()
+        a = E.evaluate(case(), {"llm": first})
+        b = E.evaluate(case(), {"llm": second})
+        self.assertGreater(first.n, 0)
+        self.assertEqual(second.n, 0)
+        self.assertEqual(a["score"], b["score"])
+        self.assertEqual(a["tasks"][0]["verdicts"], b["tasks"][0]["verdicts"])
+        self.assertEqual((a["features"]["RF_tasks_reused"], b["features"]["RF_tasks_reused"]), (0, 1))
+
+    def test_a_change_in_the_students_lines_judges_the_task_again(self):
+        E.evaluate(case(), {"llm": scripted()})
+        changed = case()
+        changed["patches"][SHA]["src/auth.py"] += "+def extra():" + chr(10) + "+    return 1" + chr(10)
+        again = scripted()
+        E.evaluate(changed, {"llm": again})
+        self.assertGreater(again.n, 0)
+
+    def test_a_change_in_the_acceptance_criteria_judges_the_task_again(self):
+        E.evaluate(case(), {"llm": scripted()})
+        changed = case()
+        changed["evidence"]["tasks"][0]["acceptance_criteria"] = ["Passwords are hashed with bcrypt", "Duplicate emails are rejected", "A welcome mail is sent"]
+        again = scripted()
+        E.evaluate(changed, {"llm": again})
+        self.assertGreater(again.n, 0)
+
+    def test_it_can_be_switched_off(self):
+        os.environ["RF_CACHE"] = "0"
+        try:
+            E.evaluate(case(), {"llm": scripted()})
+            again = scripted()
+            E.evaluate(case(), {"llm": again})
+            self.assertGreater(again.n, 0)
+        finally:
+            os.environ.pop("RF_CACHE", None)
+
+    def test_an_unclear_verdict_is_never_kept(self):
+        E._cache_put("k" * 64, {"verdicts": ["met", "cannot_tell"]})
+        E._cache_put("e" * 64, {"error": "refused", "verdicts": ["met"]})
+        self.assertIsNone(E._cache_get("k" * 64))
+        self.assertIsNone(E._cache_get("e" * 64))
+
+
 class ModelCallsThatTheProviderRefuses(unittest.TestCase):
     def test_a_call_to_a_tool_that_is_not_offered_costs_a_step_not_the_task(self):
         """The provider answers HTTP 400 'Tool call validation failed' when the model names a tool that is not offered (in the last step only the verdict is). It happened nine times in a real run."""

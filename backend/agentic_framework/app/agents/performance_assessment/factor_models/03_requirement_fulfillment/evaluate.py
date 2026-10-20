@@ -12,10 +12,12 @@
 The sprint score has a rough band only: on the 10-task development smoke the critic version's task-level MAE was 0.34 (EXPERIMENTS.md); no held-out run was finished.
 """
 import asyncio
+import hashlib
 import importlib.util
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -42,6 +44,49 @@ def _default_llm():
         raise NotEnoughEvidence(f"no language-model client: {e}") from e
 
 
+# ---- verdicts that need not be judged again ---------------------------------------------------------------------------------------------------
+# A task's verdicts depend on exactly four things: the task (its text and criteria), the student's changed lines the model is shown, the prompts and rubric, and the model.
+# When none of them changed since an earlier run (a nightly snapshot of a quiet team, a re-run, a quiz answer that re-composes a student), the earlier verdicts are used and the
+# model is not called. The key is a hash of those four things, so any change to any of them judges the task again. Only clean results are kept (no error, no "cannot tell"),
+# so a verdict the model could not reach is never frozen. Switched on by RF_CACHE_DIR (the worker sets it inside its workspace); RF_CACHE=0 turns it off.
+
+def _cache_dir():
+    if os.environ.get("RF_CACHE", "1").strip().lower() in ("0", "false", "no", "off"):
+        return None
+    d = os.environ.get("RF_CACHE_DIR")
+    return Path(d) if d else None
+
+
+def _task_key(bench, tid, agent, llm):
+    commits = [{"sha": c["sha"], "message": c.get("message", ""), "files": [{"path": f["path"], "added": f["added"], "deleted": f["deleted"], "hunk": bench.hunk(c["sha"], f["path"])} for f in c["files"]]}
+               for c in bench.student_commits(bench.sprint, bench.student)]
+    blob = json.dumps({"v": 1, "task": bench.task_public(tid), "commits": commits, "agent": agent.config(), "model": getattr(llm, "model", "")}, sort_keys=True, default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def _cache_get(key):
+    d = _cache_dir()
+    if d is None:
+        return None
+    try:
+        return json.loads((d / f"{key}.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def _cache_put(key, res):
+    d = _cache_dir()
+    if d is None or res.get("error") or not res.get("verdicts") or "cannot_tell" in res["verdicts"]:
+        return
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        tmp = d / f".{key}.{os.getpid()}.tmp"
+        tmp.write_text(json.dumps(res), encoding="utf-8")
+        os.replace(tmp, d / f"{key}.json")
+    except (OSError, TypeError, ValueError):
+        pass  # a cache that cannot be written is only a missed speed-up
+
+
 class _Traced:
     """The language-model client, with one event per call (what was asked, how long it took, whether it was refused). It changes nothing about the calls."""
 
@@ -56,7 +101,11 @@ class _Traced:
         reply = self._inner.chat(messages, **kw)
         tag = kw.get("tag", "")
         if reply.ok:
-            self._emit("llm_call", f"{tag}: {reply.prompt_tokens}+{reply.completion_tokens} tokens, {reply.latency:.1f}s" + (f", {reply.attempts} attempts" if reply.attempts > 1 else ""), {"tag": tag})
+            prompt_tokens = getattr(reply, "prompt_tokens", 0)
+            completion_tokens = getattr(reply, "completion_tokens", 0)
+            latency = getattr(reply, "latency", 0.0)
+            attempts = getattr(reply, "attempts", 1)
+            self._emit("llm_call", f"{tag}: {prompt_tokens}+{completion_tokens} tokens, {latency:.1f}s" + (f", {attempts} attempts" if attempts > 1 else ""), {"tag": tag})
         else:
             self._emit("llm_error", f"{tag}: {reply.error_kind or 'error'}: {str(reply.error)[:120]} ({reply.attempts} attempts)", {"tag": tag})
         return reply
@@ -94,6 +143,7 @@ def evaluate(payload, context=None):
     values, rows, warnings = {}, [], []
     usage = Usage()
     no_view = []
+    cached_tasks = 0
     for tid in judged:
         if ctx.get("cancel") is not None and ctx["cancel"].is_set():
             warnings.append("stopped before all tasks were judged: out of time")
@@ -106,7 +156,13 @@ def evaluate(payload, context=None):
             continue
         scope = Scope(bench, bench.sprint, bench.student)
         emit("task_start", f"judging task {tid}", {"task": tid})
-        res = agent.assess(bench, tid, scope, llm, usage)
+        key = _task_key(bench, tid, agent, llm) if _cache_dir() is not None else None
+        res = _cache_get(key) if key else None
+        reused = res is not None
+        if res is None:
+            res = agent.assess(bench, tid, scope, llm, usage)
+            if key:
+                _cache_put(key, res)
         if res.get("error"):
             warnings.append(f"task {tid}: not judged ({res['error']})")
             rows.append({"task": tid, "status": "error", "error": res["error"]})
@@ -118,7 +174,9 @@ def evaluate(payload, context=None):
             warnings.append(f"task {tid}: some criteria could not be decided from the code shown")
         rows.append({"task": tid, "status": "judged", "fulfilment": round(v, 4), "band": band(v), "verdicts": res["verdicts"], "reasons": res.get("reasons"), "evidence": res.get("evidence"),
                      "coverage": res.get("coverage"), "critic": res.get("critic")})
-        emit("task_done", f"task {tid}: fulfilment {v:.2f}", {"task": tid, "verdicts": res["verdicts"]})
+        if reused:
+            cached_tasks += 1
+        emit("task_done", f"task {tid}: fulfilment {v:.2f}" + (" (reused from an earlier run: nothing changed, no model call)" if reused else ""), {"task": tid, "verdicts": res["verdicts"], "reused": reused})
     if not provisional:
         for tid in no_view:
             values[tid] = 0.0  # the sprint is over and the task is claimed, but none of the student's changes can be seen
@@ -138,7 +196,7 @@ def evaluate(payload, context=None):
     score = sprint_score(list(values.values()))
     spread = 0.34
     features = {"RF_tasks_assigned": len(task_ids), "RF_tasks_judged": sum(1 for r in rows if r["status"] == "judged"), "RF_tasks_not_started": len(skipped), "RF_llm_score": round(score, 4),
-                "RF_cannot_tell_tasks": sum(1 for r in rows if r.get("verdicts") and "cannot_tell" in r["verdicts"])}
+                "RF_cannot_tell_tasks": sum(1 for r in rows if r.get("verdicts") and "cannot_tell" in r["verdicts"]), "RF_tasks_reused": cached_tasks}
     return {"factor": "requirement_fulfillment", "score": round(score, 4), "interval": [round(max(0.0, score - spread), 4), round(min(1.0, score + spread), 4)], "features": features, "removed": {},
             "versions": {"agent": agent_mod, "rubric": __import__("rf_bench.rubric", fromlist=["x"]).RUBRIC_HASH}, "warnings": warnings, "provisional": provisional, "tasks": rows, "usage": usage.as_dict(),
             "model": getattr(llm, "model", "") if llm else ""}

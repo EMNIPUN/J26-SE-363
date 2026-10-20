@@ -35,13 +35,14 @@ def owner_repo(repo_url: str) -> str:
 
 class GitHubREST:
     def __init__(self, token: Optional[str] = None, *, client: Optional[httpx.AsyncClient] = None, base: str = "https://api.github.com", max_wait: float = 60.0,
-                 per_page: int = 100, max_pages: int = 10, max_requests: int = 600, sleep=asyncio.sleep):
+                 per_page: int = 100, max_pages: int = 10, max_requests: int = 600, concurrency: int = 6, sleep=asyncio.sleep):
         headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "selvia-assessment-agent"}
         if token:
             headers["Authorization"] = f"Bearer {token}"
         self._client = client or httpx.AsyncClient(headers=headers, timeout=30.0)
         self.base, self.max_wait, self.per_page, self.max_pages, self.max_requests, self._sleep = base.rstrip("/"), max_wait, per_page, max_pages, max_requests, sleep
         self.requests = 0
+        self.concurrency = max(1, concurrency)  # pull requests read at the same time
 
     async def aclose(self):
         await self._client.aclose()
@@ -82,14 +83,19 @@ class GitHubREST:
         """Pull requests updated since ``since`` with their reviews, comments, commit SHAs and merger."""
         slug = owner_repo(repo_url)
         pulls = await self._paged(f"/repos/{slug}/pulls", {"state": "all", "sort": "updated", "direction": "desc"}, stop=(lambda p: since and p["updated_at"] < since))
-        out = []
-        for p in pulls[:max_prs]:
+        # Five requests per pull request, and every pull request is independent of the others: they ran one after another (minutes for a busy repository). They now run together,
+        # a few pull requests at a time, within the same request budget and rate-limit handling. The order of the result is the order GitHub gave.
+        gate = asyncio.Semaphore(self.concurrency)
+
+        async def one(p):
             n = p["number"]
-            detail = await self._get(f"{self.base}/repos/{slug}/pulls/{n}")
+            async with gate:
+                detail, reviews, review_comments, issue_comments, commits = await asyncio.gather(
+                    self._get(f"{self.base}/repos/{slug}/pulls/{n}"), self._paged(f"/repos/{slug}/pulls/{n}/reviews"), self._paged(f"/repos/{slug}/pulls/{n}/comments"),
+                    self._paged(f"/repos/{slug}/issues/{n}/comments"), self._paged(f"/repos/{slug}/pulls/{n}/commits"))
             p["merged_by"] = ((detail.json().get("merged_by") or {}).get("login"))
-            p["_reviews"] = await self._paged(f"/repos/{slug}/pulls/{n}/reviews")
-            p["_review_comments"] = await self._paged(f"/repos/{slug}/pulls/{n}/comments")
-            p["_issue_comments"] = await self._paged(f"/repos/{slug}/issues/{n}/comments")
-            p["_commits"] = [c["sha"] for c in await self._paged(f"/repos/{slug}/pulls/{n}/commits")]
-            out.append(p)
-        return out
+            p["_reviews"], p["_review_comments"], p["_issue_comments"] = reviews, review_comments, issue_comments
+            p["_commits"] = [c["sha"] for c in commits]
+            return p
+
+        return list(await asyncio.gather(*(one(p) for p in pulls[:max_prs])))
