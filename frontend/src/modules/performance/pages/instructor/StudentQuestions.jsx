@@ -96,7 +96,7 @@ export default function StudentQuestions() {
           <Link to={back} aria-label="Back to the student" className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"><ArrowLeft className="h-4 w-4" /></Link>
           {name && <Avatar name={name} picture={person?.picture} size={44} />}
           <div>
-            <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-foreground"><MessageSquareQuote className="h-5 w-5 text-primary" aria-hidden="true" />Code questions</h1>
+            <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground"><MessageSquareQuote className="h-5 w-5 text-primary" aria-hidden="true" />Code questions</h1>
             <p className="text-sm text-muted-foreground">{name ? `${name} · ` : ''}Sprint {sprint}</p>
           </div>
         </div>
@@ -112,7 +112,7 @@ export default function StudentQuestions() {
             {[['Questions', summary.total], ['Answered', summary.answered], ['Waiting', summary.open], ['Not answered', summary.expired], ['Average rating', summary.average == null ? '-' : `${summary.average.toFixed(1)} / 5`]].map(([label, value]) => (
               <div key={label} className="rounded-2xl border bg-card px-4 py-3 shadow-sm">
                 <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</dt>
-                <dd className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{value}</dd>
+                <dd className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">{value}</dd>
               </div>
             ))}
           </dl>

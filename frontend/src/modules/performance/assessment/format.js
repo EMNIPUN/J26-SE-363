@@ -223,3 +223,30 @@ export function factorHistory(sprints, resultOf) {
   })
   return { marks, rows, sprints: sprints.map((s) => s.id), enough: results.filter((r) => r.result).length >= 2 }
 }
+
+const EVIDENCE_KINDS = [
+  ['commit', /\bcommits?\b/i],
+  ['task', /\btasks?\b|\bstory points?\b|\bacceptance\b|\bsubtasks?\b/i],
+  ['code', /\bfiles?\b|\blines?\b|\bfunction\b|\bsource\b/i],
+  ['review', /\breview|\bcomment|\bpull request|\bPRs?\b/i],
+]
+
+/**
+ * The evidence behind a mark, factor by factor: the lines each factor says its score rests on (counted commits, tasks and criteria, reviews, files), each tagged with what kind of evidence it is.
+ * A factor with nothing to show is left out.
+ */
+export function evidenceOf(result) {
+  if (!result) return []
+  const blocks = result?.justification?.factors || {}
+  return FACTORS.map((f) => {
+    const lines = (blocks[f.id]?.reasons || []).filter(Boolean).map((text) => ({ text, kind: (EVIDENCE_KINDS.find(([, re]) => re.test(text)) || ['note'])[0] }))
+    return { id: f.id, label: f.label, scored: factorState(result.factors?.[f.id]).kind === 'scored', lines }
+  }).filter((g) => g.lines.length > 0)
+}
+
+/** The agent's own short explanation of the mark: the friendly summary when there is one, else the first two sentences of the summary. */
+export function briefOf(result) {
+  const j = result?.justification || {}
+  if (j.friendly_summary) return j.friendly_summary
+  return String(j.summary || '').split(/(?<=\.)\s+/).slice(0, 2).join(' ')
+}

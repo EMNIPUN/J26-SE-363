@@ -69,7 +69,7 @@ function Profile({ result, rows, teamName, sprint, sprintInfo, login, back, acti
         <div className="-mt-14 shrink-0 @xl:-mt-16"><div className="rounded-full bg-card p-1.5 shadow-lg ring-1 ring-border"><Avatar name={result.student?.name} picture={result.student?.picture} size={112} /></div></div>
         <div className="min-w-0 flex-1 space-y-3 @xl:pb-1">
           <div>
-            <h1 className="text-3xl font-bold leading-tight tracking-tight text-foreground @xl:text-4xl">{result.student?.name}</h1>
+            <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground @xl:text-3xl">{result.student?.name}</h1>
             <p className="mt-1 text-sm text-muted-foreground">Assessment report</p>
           </div>
           <ul className="flex flex-wrap gap-2">
@@ -77,7 +77,7 @@ function Profile({ result, rows, teamName, sprint, sprintInfo, login, back, acti
           </ul>
         </div>
         <div className="shrink-0 rounded-2xl border bg-muted/30 px-5 py-3 text-center @xl:mb-1">
-          <p className={`text-4xl font-bold tabular-nums leading-none ${styleOf(markBand(mine)).text}`}>{markText(mine)}</p>
+          <p className={`text-3xl font-bold tabular-nums leading-none ${styleOf(markBand(mine)).text}`}>{markText(mine)}</p>
           <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">predicted mark</p>
         </div>
       </div>

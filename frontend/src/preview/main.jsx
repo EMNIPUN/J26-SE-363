@@ -25,7 +25,16 @@ const client = new QueryClient({ defaultOptions: { queries: { retry: false, refe
 
 // eslint-disable-next-line react-refresh/only-export-components
 function Frame({ children }) {
-  return <main className="workspace-container mx-auto w-full min-w-0 max-w-6xl p-4 sm:p-6">{children}</main>
+  // ?shell=1 reproduces the real workspace: a top bar, and under it a padded area that scrolls on its own (the page itself does not scroll).
+  if (new URLSearchParams(window.location.search).get('shell')) {
+    return (
+      <div className="flex h-screen flex-col overflow-hidden">
+        <header data-testid="top-nav" className="flex h-16 shrink-0 items-center border-b bg-card px-6 text-sm font-medium">Top navigation</header>
+        <main className="workspace-container min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8"><div className="mx-auto w-full max-w-[1440px]">{children}</div></main>
+      </div>
+    )
+  }
+  return <main className="workspace-container mx-auto w-full min-w-0 max-w-6xl p-4 sm:p-6 lg:p-8">{children}</main>
 }
 
 createRoot(document.getElementById('root')).render(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { band, contributions, duration, explainFactor, explainMark, factorState, initials, markBand, markText, factorHistory, questionsOf, quizSummary, radarData, rangeText, summarize, teamAverage, TRACKED } from './format.js'
+import { band, contributions, duration, explainFactor, explainMark, factorState, initials, markBand, markText, briefOf, evidenceOf, factorHistory, questionsOf, quizSummary, radarData, rangeText, summarize, teamAverage, TRACKED } from './format.js'
 
 describe('bands and text', () => {
   it('cuts scores at the same points as the justification', () => {
@@ -154,5 +154,36 @@ describe('the radar chart and the sprint by sprint view', () => {
     expect(h.enough).toBe(false)
     expect(h.rows[0].cells[1].kind).toBe('loading')
     expect(h.marks[1].loading).toBe(true)
+  })
+})
+
+describe('the agent brief and its evidence', () => {
+  const result = {
+    factors: { effort: { status: 'completed', score: 0.7 }, collaboration: { status: 'not_available' }, requirement_fulfillment: { status: 'completed', score: 0.5 } },
+    justification: {
+      summary: 'Provisional mark 61 out of 100. Strongest factor: Effort. Weakest: Consistency.',
+      factors: {
+        effort: { reasons: ['9 counted commits, 2335 net lines of real code, 58 files changed', '44 comment lines were not counted as work'] },
+        requirement_fulfillment: { reasons: ['task MC01-304: 1 of 4 acceptance criteria met'] },
+        collaboration: { reasons: ['Nobody reviewed anything in this sprint.'] },
+        consistency: { reasons: [] },
+      },
+    },
+  }
+
+  it('lists the evidence of each factor with its kind, and leaves out a factor that has none', () => {
+    const e = evidenceOf(result)
+    expect(e.map((g) => g.id)).toEqual(['effort', 'requirement_fulfillment', 'collaboration'])
+    expect(e[0].lines.map((l) => l.kind)).toEqual(['commit', 'code'])
+    expect(e[1].lines[0]).toMatchObject({ kind: 'task' })
+    expect(e[1].scored).toBe(true)
+    expect(e[2].scored).toBe(false)
+    expect(evidenceOf(undefined)).toEqual([])
+  })
+
+  it('gives the friendly summary, or the first two sentences of the summary', () => {
+    expect(briefOf({ justification: { friendly_summary: 'A steady contributor.', summary: 'x' } })).toBe('A steady contributor.')
+    expect(briefOf(result)).toBe('Provisional mark 61 out of 100. Strongest factor: Effort.')
+    expect(briefOf({})).toBe('')
   })
 })

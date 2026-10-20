@@ -30,7 +30,7 @@ function Stat({ icon: Icon, label: name, value, sub, tone }) {
       <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon className="h-5 w-5" aria-hidden="true" /></span>
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{name}</p>
-        <p className="truncate text-2xl font-semibold tabular-nums leading-tight text-foreground">{value}</p>
+        <p className="truncate text-xl font-semibold tabular-nums leading-tight text-foreground">{value}</p>
         {sub && <p className="truncate text-xs text-muted-foreground">{sub}</p>}
       </div>
     </Card>

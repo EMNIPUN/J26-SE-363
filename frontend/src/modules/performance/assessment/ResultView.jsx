@@ -1,15 +1,15 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import PropTypes from 'prop-types'
 import { Link } from 'react-router-dom'
 import { CartesianGrid, Area, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { AlertTriangle, ArrowRight, BarChart3, ChevronDown, Gauge, History, Info, Layers, LineChart, MessageSquareQuote, MinusCircle, PenLine, Radar, ShieldCheck, Sparkles, TrendingDown, TrendingUp } from 'lucide-react'
+import { AlertTriangle, ArrowRight, BarChart3, Bot, ChevronDown, FileCode2, Gauge, GitBranch, History, Info, Layers, LineChart, ListChecks, MessageSquare, MessageSquareQuote, MinusCircle, PenLine, Radar, ShieldCheck, Sparkles, TrendingDown, TrendingUp } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { contributions, explainFactor, explainMark, FACTORS, factorState, markBand, markText, questionsOf, quizSummary, score100, styleOf, when } from './format.js'
+import { briefOf, contributions, evidenceOf, explainFactor, explainMark, FACTORS, factorState, markBand, markText, questionsOf, quizSummary, score100, styleOf, when } from './format.js'
 import FactorRadar from './FactorRadar.jsx'
 import Panel, { InfoTip } from './Panel.jsx'
 import Reveal, { PanelSkeleton } from './Reveal.jsx'
 import SprintHistory from './SprintHistory.jsx'
-import { useContainerWidth } from './useContainerWidth.js'
+import { scrollerOf, useContainerWidth } from './useContainerWidth.js'
 import { ContributionBar, FactorBar, ScoreRing, StatusPill } from './visuals.jsx'
 
 /** Opens and closes smoothly. The content stays in the page, so it can be found and read by assistive technology. */
@@ -160,7 +160,7 @@ function WhyThisMark({ result, weights }) {
   if (!key.length && !summary) return null
   return (
     <div className="space-y-4">
-      <p className="text-xl font-semibold leading-snug tracking-tight text-foreground">{headline}</p>
+      <p className="text-base font-semibold leading-snug text-foreground">{headline}</p>
       <ul className="space-y-2">{key.map((l) => <Line2 key={l.kind} line={l} />)}</ul>
       {(rest.length > 0 || summary) && (
         <div>
@@ -199,7 +199,7 @@ function QuestionsCard({ quiz, href, loading }) {
         {stats.map((x) => (
           <div key={x.label} className="rounded-xl border bg-muted/30 px-3 py-2.5">
             <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">{x.label}</dt>
-            <dd className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">{x.value}</dd>
+            <dd className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">{x.value}</dd>
           </div>
         ))}
       </dl>
@@ -210,6 +210,46 @@ function QuestionsCard({ quiz, href, loading }) {
   )
 }
 QuestionsCard.propTypes = { quiz: PropTypes.object, href: PropTypes.string, loading: PropTypes.bool }
+
+const EVIDENCE_ICON = { commit: GitBranch, task: ListChecks, review: MessageSquare, code: FileCode2, note: Info }
+const SHOWN_EVIDENCE = 5
+
+/** The agent's own short explanation of the mark, and the evidence it rests on, grouped by factor. The first few lines show; the rest are one click away. */
+function AgentBrief({ result }) {
+  const [all, setAll] = useState(false)
+  const text = briefOf(result)
+  const groups = evidenceOf(result)
+  const total = groups.reduce((n, g) => n + g.lines.length, 0)
+  const audit = result.justification?.audit || {}
+  // The first few lines across all the groups, in order, unless everything is asked for.
+  const before = (i) => groups.slice(0, i).reduce((n, g) => n + g.lines.length, 0)
+  const visible = groups.map((g, i) => ({ ...g, lines: g.lines.slice(0, all ? undefined : Math.max(0, SHOWN_EVIDENCE - before(i))) })).filter((g) => g.lines.length > 0)
+  if (!text && !total) return null
+  return (
+    <div className="space-y-4">
+      {text && <p className="max-w-prose text-base leading-relaxed text-foreground">{text}</p>}
+      {total > 0 && (
+        <div className="space-y-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Evidence it used</p>
+          {visible.map((g) => (
+            <div key={g.id} className="space-y-1.5">
+              <p className="flex items-center gap-2 text-sm font-semibold text-foreground">{g.label}{!g.scored && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">not scored</span>}</p>
+              <ul className="space-y-1">
+                {g.lines.map((l, i) => {
+                  const Icon = EVIDENCE_ICON[l.kind]
+                  return <li key={i} className="flex items-start gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5 text-sm leading-snug text-foreground/90"><Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0">{l.text}</span></li>
+                })}
+              </ul>
+            </div>
+          ))}
+          {total > SHOWN_EVIDENCE && <button type="button" onClick={() => setAll(!all)} aria-expanded={all} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"><ChevronDown className={`h-4 w-4 transition-transform ${all ? 'rotate-180' : ''}`} aria-hidden="true" />{all ? 'Show less' : `Show all ${total} lines`}</button>}
+        </div>
+      )}
+      {audit.model && <p className="text-[11px] text-muted-foreground">Written by the agent ({audit.model}) from the evidence above. It explains; it does not set the mark.</p>}
+    </div>
+  )
+}
+AgentBrief.propTypes = { result: PropTypes.object }
 
 /** What to look at first, as four short pills instead of a paragraph. */
 function AtAGlance({ parts, flags, outCount }) {
@@ -233,13 +273,93 @@ function AtAGlance({ parts, flags, outCount }) {
 }
 AtAGlance.propTypes = { parts: PropTypes.array, flags: PropTypes.number, outCount: PropTypes.number }
 
-/** Jump to a part of the page. It stays in view while scrolling. */
+/**
+ * Jump to a part of the page, and see which part you are in. The bar is pinned directly under the top navigation while the page scrolls: a full-width strip with a blurred
+ * background and a shadow (so it reads as its own layer over the content), and the tab of the section being read is highlighted as you scroll.
+ */
 function JumpBar({ items }) {
-  const go = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const bar = useRef(null)
+  const sentinel = useRef(null)
+  const [active, setActive] = useState(items[0]?.id)
+  const [stuck, setStuck] = useState(false)
+  // A pinned element stops one padding-width below the top of a padded scroll area. The workspace is one, so the bar is pinned at minus that padding to sit directly under the top navigation.
+  const [pad, setPad] = useState({ top: 0, x: 0 })
+  const ids = items.map((i) => i.id).join(',')
+
+  useEffect(() => {
+    const measure = () => {
+      const scroller = scrollerOf(bar.current)
+      const css = scroller ? getComputedStyle(scroller) : null
+      setPad({ top: css ? parseFloat(css.paddingTop) || 0 : 0, x: css ? parseFloat(css.paddingLeft) || 0 : 0 })
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return undefined
+    const watcher = new IntersectionObserver(([entry]) => setStuck(!entry.isIntersecting), { root: scrollerOf(sentinel.current), threshold: 0 })
+    watcher.observe(sentinel.current)
+    return () => watcher.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const scroller = scrollerOf(bar.current) || window
+    let queued = false
+    const update = () => {
+      queued = false
+      // The section being read is the one whose top is closest above the line just under the bar. Sections side by side start level: the first of them wins.
+      const line = bar.current.getBoundingClientRect().bottom + 24
+      let current = ids.split(',')[0]
+      let best = -Infinity
+      for (const id of ids.split(',')) {
+        const top = document.getElementById(id)?.getBoundingClientRect().top
+        if (top != null && top <= line && top > best + 1) { best = top; current = id }
+      }
+      setActive(current)
+    }
+    const onScroll = () => { if (!queued) { queued = true; requestAnimationFrame(update) } }
+    update()
+    scroller.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => { scroller.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll) }
+  }, [ids])
+
+  // Keep the highlighted tab in view when the bar itself scrolls sideways on a narrow screen.
+  useEffect(() => {
+    const el = bar.current?.querySelector('[aria-current="true"]')
+    const box = bar.current
+    if (!el || !box) return
+    const left = el.offsetLeft - 16
+    if (left < box.scrollLeft || el.offsetLeft + el.offsetWidth > box.scrollLeft + box.clientWidth) box.scrollTo({ left, behavior: 'smooth' })
+  }, [active])
+
+  const go = (id) => { setActive(id); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
   return (
-    <nav aria-label="Sections of this report" className="sticky top-0 z-20 -mx-1 flex gap-1 overflow-x-auto rounded-xl border bg-card/90 p-1 shadow-sm backdrop-blur">
-      {items.map((i) => <button key={i.id} type="button" onClick={() => go(i.id)} className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">{i.label}</button>)}
-    </nav>
+    <>
+      <div ref={sentinel} aria-hidden="true" className="-mb-px h-px" />
+      <nav
+        ref={bar} aria-label="Sections of this report"
+        style={{ top: -pad.top, ...(stuck ? { marginInline: -pad.x, paddingInline: pad.x } : null) }}
+        className={`sticky z-20 flex gap-1 overflow-x-auto border transition-[background-color,box-shadow,border-radius] duration-200 ${stuck
+          ? 'rounded-none border-x-0 border-t-0 bg-background/75 py-2 shadow-lg shadow-black/5 backdrop-blur-xl'
+          : 'rounded-xl bg-card/90 p-1 shadow-sm backdrop-blur'}`}
+      >
+        {items.map((i) => {
+          const on = i.id === active
+          return (
+            <button
+              key={i.id} type="button" onClick={() => go(i.id)} aria-current={on ? 'true' : undefined}
+              className={`relative shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${on ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
+            >
+              {i.label}
+              <span className={`absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-primary transition-opacity ${on ? 'opacity-100' : 'opacity-0'}`} aria-hidden="true" />
+            </button>
+          )
+        })}
+      </nav>
+    </>
   )
 }
 JumpBar.propTypes = { items: PropTypes.array }
@@ -272,6 +392,7 @@ export default function ResultView({ result, weights, mode = 'lecturer', traject
   const jump = [
     { id: 'sec-profile', label: 'Factor profile' },
     showHistory && { id: 'sec-history', label: 'Sprint by sprint' },
+    { id: 'sec-brief', label: 'Agent brief' },
     { id: 'sec-why', label: 'Why this mark' },
     { id: 'sec-factors', label: 'Factors' },
     lecturer && { id: 'sec-questions', label: 'Code questions' },
@@ -289,7 +410,7 @@ export default function ResultView({ result, weights, mode = 'lecturer', traject
               {overridden && <span className="inline-flex items-center gap-1 rounded-md bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950 dark:text-violet-300"><PenLine className="h-3 w-3" />Set by the lecturer</span>}
               <InfoTip label="this mark">{lecturer ? 'A prediction to support your decision, not a grade. ' : 'A prediction from your repository and board, to be checked by your lecturer. '}{(j.caveats || [])[0]}</InfoTip>
             </div>
-            {j.friendly_summary && <p className="max-w-prose text-lg font-medium leading-snug text-foreground">{j.friendly_summary}</p>}
+            {j.friendly_summary && <p className="max-w-prose text-base leading-snug text-foreground">{j.friendly_summary}</p>}
             <AtAGlance parts={parts} flags={flags.length} outCount={FACTORS.length - parts.length} />
             {overridden && lecturer && result.override?.mark != null && (
               <p className="rounded-lg bg-violet-50 p-3 text-sm dark:bg-violet-950/30">
@@ -331,6 +452,13 @@ export default function ResultView({ result, weights, mode = 'lecturer', traject
             <Panel title="How the mark is made" icon={Layers} hint="Points each factor adds" info={j.how_computed}>
               <ContributionBar parts={parts} />
               {pattern?.applied && pattern.modifier !== 1 && <p className="mt-3 text-sm">Pattern <span className="font-medium">{pattern.persona}</span>: total adjusted by {Number(pattern.modifier).toFixed(2)}.</p>}
+            </Panel>
+          </Reveal>
+        ))}
+        {column('brief', (
+          <Reveal id="sec-brief" delay={360} height={260}>
+            <Panel title="Agent's brief" icon={Bot} hint="What it saw, and the evidence" info="A short explanation written by the agent from the evidence below it. Every line of evidence comes from the repository or the Scrum board. The agent explains the mark; it does not decide it.">
+              <AgentBrief result={result} />
             </Panel>
           </Reveal>
         ))}

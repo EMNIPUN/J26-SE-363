@@ -63,7 +63,7 @@ export default function SprintHistory({ history, current }) {
             <tr className="bg-muted/30">
               <td className="px-3 py-3 font-semibold text-foreground">Predicted mark</td>
               {history.marks.map((m) => m.loading ? <td key={m.sprint} className="px-3 py-3"><Skel className="mx-auto h-6 w-10" /></td> : (
-                <td key={m.sprint} className={`px-3 py-3 text-center text-lg font-bold tabular-nums ${styleOf(markBand(m.mark)).text}`}>{markText(m.mark)}</td>
+                <td key={m.sprint} className={`px-3 py-3 text-center text-base font-semibold tabular-nums ${styleOf(markBand(m.mark)).text}`}>{markText(m.mark)}</td>
               ))}
             </tr>
             {tracked.map((r) => (

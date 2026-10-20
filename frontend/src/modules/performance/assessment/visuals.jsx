@@ -17,7 +17,7 @@ export function ScoreRing({ mark, interval, size = 132, label = 'predicted mark'
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth="9" strokeLinecap="round" strokeDasharray={`${c * pct} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: 'stroke-dasharray 0.6s ease' }} />
       </svg>
       <div className="absolute inset-x-0 top-0 flex flex-col items-center justify-center" style={{ height: size }}>
-        <span className="text-4xl font-bold tabular-nums leading-none text-foreground">{markText(mark)}</span>
+        <span className="text-3xl font-bold tabular-nums leading-none text-foreground">{markText(mark)}</span>
         <span className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">out of 100</span>
       </div>
       <p className="mt-1 text-center text-xs text-muted-foreground">{interval ? `likely ${rangeText(interval)}` : label}</p>

@@ -4,7 +4,7 @@ import { mockApi, STUDENTS } from './mock.js'
 const shot = (page, name, full = true) => page.screenshot({ path: `e2e/screenshots/${name}.png`, fullPage: full })
 const open = async (page, hash, opts = {}) => {
   await mockApi(page, opts)
-  await page.goto(`/preview.html?role=${opts.role || 'instructor'}${opts.theme ? `&theme=${opts.theme}` : ''}#${hash}`)
+  await page.goto(`/preview.html?role=${opts.role || 'instructor'}${opts.theme ? `&theme=${opts.theme}` : ''}${opts.shell ? '&shell=1' : ''}#${hash}`)
 }
 
 test('team results', async ({ page }) => {
@@ -42,6 +42,8 @@ test('a student for the lecturer: separate sections, parts that come in one by o
   await expect(page.locator('main img, #root img').first()).toBeVisible()
   await expect(page.getByText('2nd of 4 in the team').or(page.getByText(/of 4 in the team/))).toBeVisible()
   for (const title of ['Points to check', 'How the mark is made', 'Why this mark', 'The factors']) await expect(page.getByRole('heading', { name: title })).toBeVisible()
+  await expect(page.getByRole('heading', { name: "Agent's brief" })).toBeVisible()
+  await expect(page.getByText('Evidence it used')).toBeVisible()
   await expect(page.getByText('Biggest strength')).toBeVisible()
   await expect(page.getByText('Held back by')).toBeVisible()
   // the arrow on a factor card opens its explanation
@@ -265,4 +267,22 @@ test('the student report has a jump bar and keeps the long explanations behind a
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: /More detail/ }).click()
   await expect(page.getByText('Confidence').first()).toBeVisible()
+})
+
+test('the jump bar keeps its gap under the first card, pins directly under the top navigation, and highlights the section being read', async ({ page }) => {
+  await open(page, `/teams/MC01/performance/students/${STUDENTS[0].id}?sprint=MC01-S4`, { shell: true }) // the real workspace: a top bar, and a padded area that scrolls on its own
+  const bar = page.getByRole('navigation', { name: 'Sections of this report' })
+  await expect(bar).toBeVisible()
+  const gap = await bar.evaluate((el) => el.getBoundingClientRect().top - el.previousElementSibling.previousElementSibling.getBoundingClientRect().bottom)
+  expect(gap).toBeGreaterThan(18) // the space between the first card and the bar is kept
+  expect(gap).toBeLessThan(30)
+  await expect(bar.getByRole('button', { name: 'Factor profile' })).toHaveAttribute('aria-current', 'true')
+  await page.evaluate(() => { const m = document.querySelector('main'); const el = document.getElementById('sec-factors'); m.scrollTo(0, el.getBoundingClientRect().top - m.getBoundingClientRect().top + m.scrollTop - 50) })
+  await expect(bar.getByRole('button', { name: 'Factors' })).toHaveAttribute('aria-current', 'true')
+  await expect(bar.getByRole('button', { name: 'Factor profile' })).not.toHaveAttribute('aria-current', 'true')
+  const navBottom = (await page.getByTestId('top-nav').boundingBox()).y + (await page.getByTestId('top-nav').boundingBox()).height
+  expect(Math.abs((await bar.boundingBox()).y - navBottom)).toBeLessThan(2) // directly under the top navigation, not floating below it
+  await shot(page, 'student-sticky-bar')
+  await bar.getByRole('button', { name: 'Why this mark' }).click()
+  await expect(bar.getByRole('button', { name: 'Why this mark' })).toHaveAttribute('aria-current', 'true')
 })

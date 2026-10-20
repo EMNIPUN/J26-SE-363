@@ -13,7 +13,7 @@ function Stat({ icon: Icon, label, value, hint, tone }) {
       <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon className="h-5 w-5" aria-hidden="true" /></span>
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-2xl font-semibold tabular-nums text-foreground">{value}</p>
+        <p className="text-xl font-semibold tabular-nums text-foreground">{value}</p>
         {hint && <p className="truncate text-xs text-muted-foreground">{hint}</p>}
       </div>
     </Card>
@@ -82,7 +82,7 @@ export default function ResultsTab({ rows, loading, sprint, base }) {
                     </span>
                   </span>
                   <span>
-                    <span className={`text-2xl font-semibold tabular-nums ${st.text}`}>{markText(r.effective_mark)}</span>
+                    <span className={`text-xl font-semibold tabular-nums ${st.text}`}>{markText(r.effective_mark)}</span>
                     <span className="block text-xs text-muted-foreground">{r.override ? 'set by you' : rangeText(r.mark_interval)}</span>
                   </span>
                   <span className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-2 @xl:grid-cols-3 @2xl:grid-cols-6 @2xl:gap-x-3">
