@@ -1,0 +1,3 @@
+**Single features are weak, and several together are not.** Development folds, out of fold: predicting the mean gives MAE 0.319; answer length alone MAE 0.309 (Spearman 0.45); identifier recall 0.314 (0.33); overlap with the asked-about fact 0.322 (0.19); TF-IDF similarity to the reference explanation 0.317 (0.02). The 12 hand-built features together reach MAE 0.206 to 0.215 and Spearman 0.63 to 0.65 (forest, boosting, ridge), QWK 0.56 to 0.62. That is the bar the encoder models have to beat.
+
+TF-IDF similarity to the reference has no signal: the reference explanation is built from the syntax tree in a stiff style that students (and the assistant) do not echo.
