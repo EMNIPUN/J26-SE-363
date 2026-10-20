@@ -75,6 +75,9 @@ PRIORITY_MAP = {
 }
 
 STORY_KEY_PREFIX = "SCRUM"
+# Bump this whenever the assessment rules change. It ensures students do not
+# keep seeing a cached verdict produced by an older rubric.
+DECOMPOSITION_EVALUATOR_VERSION = "2026-10-21-general-scenario-calibration"
 
 
 def _allocate_story_ref(db: Session) -> str:
@@ -134,7 +137,11 @@ def compute_stories_hash(stories: list[dict[str, Any]]) -> str:
         )
         for s in stories
     )
-    payload = json.dumps(normalized, sort_keys=True, ensure_ascii=True)
+    payload = json.dumps(
+        {"evaluator_version": DECOMPOSITION_EVALUATOR_VERSION, "stories": normalized},
+        sort_keys=True,
+        ensure_ascii=True,
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 

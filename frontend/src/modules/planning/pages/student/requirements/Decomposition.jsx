@@ -100,8 +100,6 @@ const INVEST_CRITERIA = [
   { key: 'testable', code: 'T', label: 'Testable', description: 'The story describes observable behavior that can be verified.' },
 ]
 
-const TASK_UNLOCK_PASS_COUNT = 4
-
 const BUG_SEVERITY_TONE = { Low: 'neutral', Medium: 'warning', High: 'danger' }
 
 function normalizeAcceptanceCriteria(value) {
@@ -538,7 +536,7 @@ function InvestBadges({ investResult }) {
   )
 }
 
-function StoryInvestImprovementGuidance({ story }) {
+function StoryInvestImprovementGuidance({ story, onEdit }) {
   const result = story.investResult
   if (!result) return null
 
@@ -552,11 +550,22 @@ function StoryInvestImprovementGuidance({ story }) {
       <p className="text-[11px] font-semibold text-foreground mb-2">
         INVEST improvement guidance for {story.id}
       </p>
-      <ul className="space-y-1.5 text-[11px] text-muted-foreground leading-relaxed">
+      <ul className="space-y-2 text-[11px] text-muted-foreground leading-relaxed">
         {failedCriteria.map(({ key, label }) => (
           <li key={key}>
             <span className="font-semibold text-foreground">{label}: </span>
             {investGuidance(key, result[key])}
+            {onEdit && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-2 h-6 px-2 text-[10px] gap-1 align-middle"
+                onClick={onEdit}
+                title={`Edit the story to address the ${label} feedback`}
+              >
+                <PenLine className="h-3 w-3" /> Edit story
+              </Button>
+            )}
           </li>
         ))}
         {weakAcceptanceCriteria && (
@@ -595,10 +604,10 @@ function StoryCard({
   const [newTaskPriority, setNewTaskPriority] = useState('medium')
 
   const accepted = story.status === 'accepted' || story.status === 'Accepted'
-  const investPassCount = INVEST_CRITERIA.filter((criterion) => story.investResult?.[criterion.key]?.pass).length
-  // Tasks may start once the story has a solid majority of INVEST signals.
-  // Full INVEST compliance remains required before the story is accepted.
-  const unlocked = investPassCount >= TASK_UNLOCK_PASS_COUNT || accepted
+  // INVEST feedback is coaching, not a prerequisite for implementation
+  // planning. Sprint tasks remain development work; feedback is resolved by
+  // editing the story or its acceptance criteria.
+  const unlocked = Boolean(story.investResult) || story.tasks.length > 0 || accepted
   const canAccept = story.investResult?.overallPass === true && !accepted
   const taskEvaluation = getTaskValidationEvaluation(story.id)
 
@@ -810,10 +819,17 @@ function StoryCard({
       )}
 
       {/* INVEST Criterion Chips */}
-      {!editing && story.investResult ? (
+      {story.investResult ? (
         <>
-          <InvestBadges investResult={story.investResult} />
-          <StoryInvestImprovementGuidance story={story} />
+          {!editing && <InvestBadges investResult={story.investResult} />}
+          <StoryInvestImprovementGuidance
+            story={story}
+            onEdit={!readOnly && !editing ? () => {
+              setDraftTitle(story.title)
+              setDraftAcceptanceCriteria(normalizeAcceptanceCriteria(story.acceptanceCriteria).join('\n'))
+              setEditing(true)
+            } : undefined}
+          />
         </>
       ) : (
         !editing && (
@@ -829,7 +845,7 @@ function StoryCard({
           <>
             <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
               <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                Tasks ({story.tasks.length})
+                Sprint development tasks ({story.tasks.length})
               </span>
               <div className="flex items-center gap-1.5">
                 {taskEvaluation && !taskEvaluation.analysisFailed && !taskEvaluation.malformed && (
@@ -948,7 +964,7 @@ function StoryCard({
           !editing && (
             <p className="text-[11px] text-muted-foreground italic flex items-center gap-1.5">
               <Lock className="h-3 w-3" />
-              Tasks, sub-tasks and bug tracking unlock after at least {TASK_UNLOCK_PASS_COUNT} of 6 INVEST criteria pass.
+              Tasks are available after the story is analyzed, even when INVEST feedback needs work.
             </p>
           )
         )}
