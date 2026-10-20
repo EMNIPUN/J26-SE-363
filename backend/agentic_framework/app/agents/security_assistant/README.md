@@ -128,6 +128,19 @@ Prepare once: build the Docker image if you want to show a live scan; otherwise 
 7. **RQ1.** Open `rq1_results/rq1_comparison.csv`; read the Python row and the note that the ground truth cannot judge the 15 dismissed dependency advisories. Say what is missing (JS and Java rows, the LLM column of the deliberate false positives).
 8. **Close** with "What is mocked" from the table above, in particular the Tutor.
 
+What running this script from start to finish showed (verification, 2026-10-20):
+
+- **`uv` must be installed.** Every command above starts with `uv run python`. If `uv` is not on the PATH, use the project's own interpreter instead:
+  `.\.venv\Scripts\python.exe -m app.agents.security_assistant....`.
+- **The LLM quota is the limit, not the code.** Groq's free tier allows 200,000 tokens per day per model, and one `assess` run costs about 30,000 to 45,000
+  (17 interpreter calls took about 28,000, plus link proposals). A few runs in one day exhaust `openai/gpt-oss-120b`; the run then finishes in about a minute as
+  INCOMPLETE with every affected finding "uncertain" and the 429 reason in the report (this is intended, and it is what happened during the verification). Keep a buffer, or set
+  `SECURITY_ASSISTANT_LLM_MODEL=openai/gpt-oss-20b` for the demo (its quota is separate; it judged the same demo repo slightly differently: it dismissed `zizmor:unpinned-uses`).
+- **Timings measured:** `demo_repos` 1 s, `scan --from-json` 1 s, `interpret --dry-run` 2 s, the refusal 3 s, `assess` on the Python demo repo 2 to 4.5 minutes
+  (`--delay 6` between calls), the two incomplete-run demos 2 to 4 s each (nothing is sent). A real CodeQL scan adds 3 to 9 minutes per repository (Python 3 min, JS 5.5, Java 7 to 8).
+- **Unclear on first read:** `--skip codeql` together with `--reuse-scan` marks CodeQL as skipped (coverage V1 and V2 become NONE) but keeps the CodeQL findings that are in the saved file.
+  The reused findings are real; the banner is saying "this run did not check these categories itself".
+
 ## Known limitations
 
 - **Mock Tutor.** No real comprehension measurement exists yet; probe questions are real, scores and the closed/open decision are simulated.
