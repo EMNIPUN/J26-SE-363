@@ -107,3 +107,57 @@ def read_run(team: str, run: str, account: Onboarded, db: Db, reader: Reader, st
                 "threshold": meta.get("threshold"), "total_tokens": usage.get("total_tokens"), "tutor_is_mock": bool((rep.get("questions") or {}).get("meta", {}).get("tutor_is_mock", True))},
         "my_contributor_ids": my_contributor_ids(reader, group, run, account, student),
     }
+
+
+# ---- findings ---------------------------------------------------------------------------------------------------------------------------
+HIDDEN_FOR_SECRETS = "Code line hidden for secrets"
+
+
+def _contributor(finding: dict) -> str | None:
+    return (finding.get("introducing_commit") or {}).get("contributor")
+
+
+def _summary(f: dict, mine: set[str]) -> dict:
+    risk = f.get("risk") or {}
+    return {
+        "group_id": f["group_id"], "category": f["category"], "title": (f.get("message") or f["rule_id"])[:160], "tool": f["tool"], "rule_id": f["rule_id"],
+        "cwe": f.get("cwe"), "file_path": f.get("file_path"), "line": f.get("line"), "package": f.get("package"),
+        "status": f["status"], "confidence": f.get("confidence"), "risk_rank": risk.get("rank"), "risk_score": risk.get("score"),
+        "contributor": _contributor(f), "mine": bool(_contributor(f) and _contributor(f) in mine),
+        "links": [{"kind": x["kind"], "id": x["id"], "status": x["status"]} for x in f.get("links") or []],
+        "probe_decision": (f.get("probe") or {}).get("decision"),
+    }
+
+
+def _card(f: dict, mine: set[str]) -> dict:
+    """The whole finding. A secret finding never shows its code line: `snippet_note` tells the page what to show instead."""
+    card = {**f, "mine": bool(_contributor(f) and _contributor(f) in mine)}
+    if f["category"] == "V4":
+        card["snippet_note"] = HIDDEN_FOR_SECRETS
+    return card
+
+
+Category = Annotated[str | None, Query(pattern="^V[1-5]$")]
+Status = Annotated[str | None, Query(pattern="^(confirmed|dismissed|uncertain|not interpreted)$")]
+
+
+@router.get("/teams/{team}/runs/{run}/findings", summary="The findings of a run, by category, status and 'mine'")
+def list_findings(team: str, run: str, account: Onboarded, db: Db, reader: Reader, category: Category = None, status: Status = None,
+                  mine: bool = False, student: Annotated[str | None, Query()] = None) -> dict:
+    group = team_access(db, team, account)
+    data = load_run(reader, group, run)
+    ids = set(my_contributor_ids(reader, group, run, account, student))
+    rows = [_summary(f, ids) for f in data["report"]["findings"]]
+    rows = [r for r in rows if (category is None or r["category"] == category) and (status is None or r["status"] == status) and (not mine or r["mine"])]
+    rows.sort(key=lambda r: (r["risk_rank"] is None, r["risk_rank"] or 0, r["group_id"]))
+    return {"run_id": run, "demo_data": demo_data(), "my_contributor_ids": sorted(ids), "counts": counts(data["report"]["findings"]), "findings": rows}
+
+
+@router.get("/teams/{team}/runs/{run}/findings/{group_id}", summary="One finding with everything the run knows about it")
+def read_finding(team: str, run: str, group_id: str, account: Onboarded, db: Db, reader: Reader, student: Annotated[str | None, Query()] = None) -> dict:
+    group = team_access(db, team, account)
+    data = load_run(reader, group, run)
+    found = next((f for f in data["report"]["findings"] if f["group_id"] == group_id), None)
+    if found is None:
+        raise not_found("Finding not found")
+    return _card(found, set(my_contributor_ids(reader, group, run, account, student)))

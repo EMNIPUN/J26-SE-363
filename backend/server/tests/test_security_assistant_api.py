@@ -182,3 +182,101 @@ def test_demo_mode_is_off_by_default_and_reads_the_bundled_sample_only_when_turn
     assert settings.SECURITY_ASSISTANT_DEMO_MODE is False and get_reader().root.name == "does-not-exist"
     monkeypatch.setattr(settings, "SECURITY_ASSISTANT_DEMO_MODE", True)
     assert get_reader().root.name == "sample_results"
+
+
+# ---- step 3: findings and "mine" -------------------------------------------------------------------------------------------------------
+def finding(gid, category="V2", status="confirmed", rank=None, contributor=None, **extra):
+    return {"group_id": gid, "category": category, "status": status, "rule_id": f"rule-{gid}", "tool": "semgrep", "message": f"message {gid}",
+            "cwe": "CWE-89", "file_path": "app.py", "line": 10, "confidence": 0.8,
+            "risk": {"rank": rank, "score": 5.0 if rank else None, "breakdown": []} if rank else None,
+            "introducing_commit": {"sha": "abc1234", "contributor": contributor} if contributor else None,
+            "links": [{"kind": "story", "id": "US-1", "status": "verified", "methods": [], "evidence": "x", "confidence": 0.9}],
+            "probe": {"decision": "closed"}, "snippet": "  9 | a\n>10 | b", **extra}
+
+
+@pytest.fixture
+def many(team, results):
+    path = results / CODE / RUN / "report.json"
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc["findings"] = [finding("A", "V2", "confirmed", rank=2, contributor=MINE), finding("B", "V2", "dismissed", rank=1, contributor="C-99999999"),
+                       finding("C", "V1", "uncertain"), finding("D", "V4", "confirmed", rank=3, contributor=MINE, snippet="x = '<line hidden: it holds the secret>'"),
+                       finding("E", "V5", "not interpreted")]
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    return team
+
+
+def findings_url(suffix="", code=CODE):
+    return f"/security-assistant/teams/{code}/runs/{RUN}/findings{suffix}"
+
+
+def test_findings_are_sorted_by_risk_rank_with_unranked_last(api, many):
+    as_user(api, "sam")
+    body = api.get(findings_url()).json()
+    assert [f["group_id"] for f in body["findings"]] == ["B", "A", "D", "C", "E"]
+    assert body["counts"]["V2"] == {"confirmed": 1, "dismissed": 1, "uncertain": 0, "not interpreted": 0} and body["counts"]["V5"]["not interpreted"] == 1
+
+
+def test_findings_can_be_filtered_by_category_and_status(api, many):
+    as_user(api, "sam")
+    assert [f["group_id"] for f in api.get(findings_url("?category=V2")).json()["findings"]] == ["B", "A"]
+    assert [f["group_id"] for f in api.get(findings_url("?category=V2&status=dismissed")).json()["findings"]] == ["B"]
+    assert [f["group_id"] for f in api.get(findings_url("?status=uncertain")).json()["findings"]] == ["C"]
+    assert api.get(findings_url("?category=V9")).status_code == 422 and api.get(findings_url("?status=bad")).status_code == 422
+
+
+def test_the_summary_counts_match_the_list(api, many):
+    as_user(api, "sam")
+    body = api.get(findings_url()).json()
+    for category, row in body["counts"].items():
+        listed = [f for f in body["findings"] if f["category"] == category]
+        assert sum(row.values()) == len(listed)
+
+
+def test_mine_keeps_only_findings_whose_introducing_commit_is_the_viewers(api, many):
+    as_user(api, "sam")
+    body = api.get(findings_url("?mine=true")).json()
+    assert [f["group_id"] for f in body["findings"]] == ["A", "D"] and all(f["mine"] for f in body["findings"]) and body["my_contributor_ids"] == [MINE]
+    assert [f["mine"] for f in api.get(findings_url()).json()["findings"]] == [False, True, True, False, False]
+
+
+def test_mine_is_empty_for_a_student_who_is_not_in_the_mapping(api, many):
+    as_user(api, "kim")
+    body = api.get(findings_url("?mine=true")).json()
+    assert body["findings"] == [] and body["my_contributor_ids"] == []
+
+
+def test_a_lecturer_sees_mine_through_a_chosen_student(api, many):
+    sam = next(s for s in students_of(api) if s["display_name"] == "Sam")
+    assert [f["group_id"] for f in api.get(findings_url(f"?mine=true&student={sam['id']}")).json()["findings"]] == ["A", "D"]
+
+
+def test_findings_are_team_checked_like_the_runs(api, many):
+    as_user(api, "zed")
+    assert api.get(findings_url()).status_code == 404 and api.get(findings_url("/A")).status_code == 404
+    as_user(api, "sam")
+    assert api.get(findings_url(code="NO-TEAM")).status_code == 404
+
+
+def test_one_finding_comes_with_everything_and_unknown_ones_are_404(api, many):
+    as_user(api, "sam")
+    card = api.get(findings_url("/A")).json()
+    assert card["group_id"] == "A" and card["links"][0]["id"] == "US-1" and card["probe"]["decision"] == "closed" and card["mine"] is True
+    assert card["introducing_commit"]["contributor"] == MINE and "snippet_note" not in card
+    assert api.get(findings_url("/NOPE")).status_code == 404
+
+
+def test_a_secret_finding_says_the_code_line_is_hidden(api, many):
+    as_user(api, "sam")
+    assert api.get(findings_url("/D")).json()["snippet_note"] == "Code line hidden for secrets"
+
+
+def test_no_email_name_or_secret_is_in_any_findings_answer(api, many, results):
+    path = results / CODE / RUN / "report.json"
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc["findings"][0]["rationale"] = "see jane@example.org and ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2"
+    doc["findings"][0]["introducing_commit"]["contributor"] = "Jane Doe"
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    as_user(api, "sam")
+    text = api.get(findings_url()).text + api.get(findings_url("/A")).text + api.get(findings_url("?mine=true")).text
+    for bad in ("jane@example.org", "ghp_a1B2", "Jane Doe", "sam@example.com", "salt"):
+        assert bad not in text
