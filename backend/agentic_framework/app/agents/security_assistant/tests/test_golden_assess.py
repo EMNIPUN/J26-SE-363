@@ -30,3 +30,26 @@ def test_python_demo_full_run_is_identical_to_the_recorded_output(demo, tmp_path
 def test_python_demo_without_the_llm_is_identical_to_the_recorded_output(demo, tmp_path):
     report = go(demo, tmp_path, allow_external_llm=False, client=Forbidden())
     check(golden.snapshot(report, tmp_path), GOLDEN_NO_LLM)
+
+
+GOLDEN_FIELDS = Path(__file__).parent / "golden" / "assess_python_demo_fields.json"
+
+
+def fields_snapshot(report):
+    """The report fields the frontend reads (added for the Security Assistant pages), normalised like the other snapshots."""
+    n = golden.norm
+    return {
+        "meta_temperature": report["meta"]["temperature"],
+        "findings": [{
+            "group": f["group_id"], "cwe": f["cwe"], "message": n(f["message"]), "snippet": n(f["snippet"]) if f["snippet"] else None,
+            "original_status": f["original_status"], "downgrade_reason": f["downgrade_reason"],
+            "example": f["fix_guidance"]["example"] if f["fix_guidance"] else None,
+            "references": f["fix_guidance"]["references"] if f["fix_guidance"] else None,
+            "attempt_log": [[a["attempt"], a["hint_level"], n(a["text"]), a["score"], a["result"]] for a in f["probe"]["attempt_log"]] if f["probe"] else None,
+        } for f in report["findings"]],
+    }
+
+
+def test_python_demo_frontend_fields_are_identical_to_the_recorded_output(demo, tmp_path):
+    report = go(demo, tmp_path, client=Mock(), req=SAMPLES / "requirements.json", tasks=SAMPLES / "tasks.json")
+    check(fields_snapshot(report), GOLDEN_FIELDS)
