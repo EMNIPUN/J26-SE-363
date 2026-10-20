@@ -24,6 +24,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.agents.security_assistant import guidance as guide
 from app.agents.security_assistant.dedupe import FindingGroup, dedupe
 from app.agents.security_assistant.interpreter.evidence import build_bundle
 from app.agents.security_assistant.interpreter.interpreter import SemanticInterpreter
@@ -154,7 +155,8 @@ async def run_calls(plan: Plan, client: LLMClient, delay: float = 0.0, say=print
 
 def _brief(f) -> dict:
     return {"finding_key": finding_key(f), "category": f.category.value, "tool": f.tool, "rule_id": f.rule_id,
-            "file_path": f.file_path, "line": f.line}
+            "file_path": f.file_path, "line": f.line,
+            "fix_pattern": guide.guidance_for(f).id}
 
 
 def summarize(plan: Plan, outcomes: list[Outcome]) -> dict:
@@ -223,6 +225,20 @@ def render_section(doc: dict) -> str:
         what = f"{g['package']} ({len(g['members'])} findings)" if g["kind"] == "package" else where
         M.append(f"| {g['group_id']} | {rep['category']} | {_cell(rep['rule_id'])} | {_cell(what)} | **{r['status']}**{flag} | "
                  f"{r['confidence']:.2f} | {_cell(', '.join(r['evidence_ids']) or '-')} | {_cell(r['error'] or r['downgrade_reason'] or r['rationale'])} |")
+    confirmed = [g for g in doc["groups"] if g["result"]["status"] == "confirmed"]
+    if confirmed:
+        M += ["", "### How to fix the confirmed findings", "",
+              "The standard advice for each type of issue is in the section \"How to fix (by type of issue)\" above. "
+              "The text below is a note the LLM wrote for this code: a suggestion to review and test, not a finished patch.", ""]
+        for g in confirmed:
+            rep, r = g["representative"], g["result"]
+            where = rep["file_path"] + (f":{rep['line']}" if rep["line"] else "") if rep["file_path"] else (g["package"] or "-")
+            standard = guide.by_id(rep.get("fix_pattern"))
+            M.append(f"**{g['group_id']} `{rep['rule_id']}` - {_cell(where)}**" + (f" (standard advice: {standard.title})" if standard else ""))
+            note = (r["recommendation"].strip()
+                    or (f"_The model's note was not kept: {r['recommendation_dropped']}. Use the standard advice._"
+                        if r.get("recommendation_dropped") else "_The model gave no tailored advice; use the standard advice._"))
+            M += ["", note, ""]
     return "\n".join(M) + "\n"
 
 

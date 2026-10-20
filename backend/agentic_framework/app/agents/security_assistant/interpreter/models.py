@@ -65,6 +65,8 @@ class Verdict(BaseModel):
     rationale: str = Field(min_length=1, max_length=1500)
     evidence_ids: list[str] = Field(max_length=MAX_EVIDENCE_ITEMS)
     confidence: float = Field(ge=0.0, le=1.0)
+    # advice for the student; only kept for confirmed findings (the interpreter drops it otherwise)
+    recommendation: str = Field(default="", max_length=900)
 
 
 class CallRecord(BaseModel):
@@ -100,3 +102,5 @@ class InterpretationResult(BaseModel):
     model: str | None = None
     prompt_version: str = ""
     call: CallRecord | None = None  # finish reason, output length and token usage; never the model's text
+    recommendation: str = ""  # tailored advice from the model, only for confirmed findings; to review, not scanner output
+    recommendation_dropped: str | None = None  # why the model's note was not kept (it named a version, SHA or URL not in the evidence)

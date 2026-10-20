@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.agents.security_assistant import guidance as guide
 from app.agents.security_assistant.redaction import redact_text
 from app.agents.security_assistant.schemas import Category, Finding, RunStatus, ScanResult, ToolRun
 
@@ -203,6 +204,7 @@ def to_json(rep: ScanReport) -> str:
         for key in ("message", "masked_snippet", "source", "sink"):
             if d.get(key):
                 d[key] = redact_text(d[key])
+        d["fix_pattern"] = guide.guidance_for(f).id  # which "how to fix" entry applies (see report.md)
         return d
 
     doc = {
@@ -228,6 +230,25 @@ def from_json(text: str) -> tuple[ScanResult, list[str]]:
 
 def _cell(text: str) -> str:
     return str(text).replace("|", "\\|").replace("\n", " ")
+
+
+def how_to_fix_section(findings: list[Finding]) -> list[str]:
+    """One block per kind of issue (not per finding): why it matters, fix steps, a short example in the language of the
+    affected files and where it applies. Written by the team (guidance.py), the same for every scan."""
+    groups: dict[str, tuple[guide.Guidance, list[Finding]]] = {}
+    for f in findings:
+        g = guide.guidance_for(f)
+        groups.setdefault(g.id, (g, []))[1].append(f)
+    if not groups:
+        return []
+    out = ["", "## How to fix (by type of issue)", "",
+           "Standard advice, written by the course team. Every finding above points to one of these. The examples are "
+           "short suggestions: adapt them to your code and run your tests.", ""]
+    for g, items in sorted(groups.values(), key=lambda p: (p[0].category.value, p[0].title)):
+        out += [f"### {g.category.value}: {g.title}", "", guide.render_markdown(g, items), ""]
+        where = sorted({_location(f) for f in items})
+        out += ["Applies to: " + ", ".join(f"`{w}`" for w in where[:8]) + (f" and {len(where) - 8} more" if len(where) > 8 else ""), ""]
+    return out
 
 
 def render_markdown(rep: ScanReport) -> str:
@@ -268,6 +289,7 @@ def render_markdown(rep: ScanReport) -> str:
                   f"- **CWE:** {f.cwe or '-'}   **Severity (from tool):** {f.severity_tool or '-'}",
                   f"- **Where:** {_cell(_location(f))}" + (f" in `{f.function_or_endpoint}`" if f.function_or_endpoint else ""),
                   f"- **Message:** {_cell(redact_text(f.message)) or '-'}"]
+            M.append(f"- **How to fix:** {guide.guidance_for(f).title} (see \"How to fix\" below)")
             if f.source or f.sink:
                 M.append(f"- **Source -> sink:** {_cell(redact_text(f.source or '-'))} -> {_cell(redact_text(f.sink or '-'))}")
             if f.masked_snippet:
@@ -275,6 +297,7 @@ def render_markdown(rep: ScanReport) -> str:
             if i in rep.snippets:
                 M += ["", "```", rep.snippets[i], "```"]
             M.append("")
+    M += how_to_fix_section(rep.findings)
     return "\n".join(M) + "\n"
 
 

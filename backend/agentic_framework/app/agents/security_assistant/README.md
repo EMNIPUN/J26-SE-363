@@ -160,6 +160,29 @@ The LLM cannot add findings: output with extra fields is rejected, a failed call
 (with the reason), and a cited evidence id that is not in the bundle downgrades the answer to `uncertain`.
 Exit codes: 0 ok, 2 some calls failed, 3 usage error, 4 refused (no `--allow-external-llm`).
 
+## Fix advice for students (`guidance.py`)
+
+Every finding comes with advice on how to fix it, from two sources:
+
+1. **Standard advice (always, no LLM).** `guidance.py` has one entry per type of issue, written by the team: why it
+   matters, 2-4 fix steps, a short corrected example in the language of the affected file (Python, JavaScript/TypeScript,
+   Java, or `ci` for workflow files) and a link (an OWASP cheat sheet, plus the CWE page). The entry is chosen by rule id,
+   then by CWE, then by a general entry for the category, so no finding is left without advice. `report.md` (from `scan` and
+   from `interpret`) shows it as a section "How to fix (by type of issue)" with the locations it applies to, and every
+   finding links to its entry; `findings.json` records the entry id in `fix_pattern`.
+2. **A tailored note from the LLM, for confirmed findings only.** The verdict has a `recommendation` field (2-3 sentences
+   about this code, at most 6 lines of example, based on the evidence and the standard advice, no invented APIs). It is
+   dropped for dismissed and uncertain findings, and for answers that were downgraded; secrets in it are masked. It
+   appears in `interpreted.json` and in the report section "How to fix the confirmed findings", marked as a suggestion
+   to review and test, not a patch.
+   Models invent concrete values (a "fixed in 2.0.0" that is wrong, a commit SHA), so the prompt forbids them and the code
+   enforces it: a note that contains a version number, 40-character SHA or URL that appears nowhere in the evidence, the
+   finding or the standard advice is not kept (`recommendation_dropped` says why) and the report falls back to the standard
+   advice. The standard dependency examples therefore use placeholders such as `<fixed version>`.
+
+To add or change advice, edit the table in `guidance.py` (the tests check that every rule the tools can produce has
+specific advice, that examples are short and hold no secret, and that the links are the ones that were checked).
+
 ## Personal data (PII) redaction (`pii.py`)
 
 Before anything is sent to the LLM, `PIIRedactor` (next to `redaction.py`, which handles secrets) replaces personal data

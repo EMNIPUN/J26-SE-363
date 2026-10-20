@@ -14,6 +14,7 @@ import re
 
 from pydantic import ValidationError
 
+from app.agents.security_assistant import guidance as guide
 from app.agents.security_assistant.interpreter.hooks import governance_hook
 from app.agents.security_assistant.interpreter.llm import LLMClient, LLMError
 from app.agents.security_assistant.interpreter.models import (
@@ -53,6 +54,20 @@ def _diagnostics(call: CallRecord | None) -> str:
     return f" [{', '.join(parts)}{note}]"
 
 
+# a version number such as 2.0.0 or v4.17, a 40 character commit SHA, or a URL
+_CONCRETE = re.compile(r"(?<![\w.])v?\d+\.\d+(?:\.\d+)*(?![\w])|(?<![0-9a-fA-F])[0-9a-f]{40}(?![0-9a-fA-F])|https?://[^\s)>\"']+")
+
+
+def _ungrounded(recommendation: str, grounded: str) -> str | None:
+    """The first version number, commit SHA or URL in the advice that appears nowhere in the evidence, the finding or the
+    team's guidance, else None. Models invent these (a made-up "fixed in 2.0.0"); advice with one is not shown."""
+    for match in _CONCRETE.finditer(recommendation):
+        token = match.group(0).rstrip(".")
+        if token not in grounded and token.lstrip("v") not in grounded:
+            return token
+    return None
+
+
 class SemanticInterpreter:
     def __init__(self, client: LLMClient, pii: PIIRedactor | None = None):
         self._client = client
@@ -86,6 +101,14 @@ class SemanticInterpreter:
         if reason and verdict.status != "uncertain":
             result.original_status, result.status = verdict.status, "uncertain"
             result.downgraded, result.downgrade_reason = True, reason
+        if result.status == "confirmed":  # advice only for findings that were confirmed with valid evidence
+            advice = redact_text(verdict.recommendation).strip()
+            grounded = "\n".join([*(i.content for i in bundle.items), guide.prompt_text(guide.guidance_for(finding), finding)])
+            invented = _ungrounded(advice, grounded) if advice else None
+            if invented:  # a version, SHA or URL the model made up: do not show the note
+                result.recommendation_dropped = f"the note named {invented!r}, which is not in the evidence or the guidance"
+            else:
+                result.recommendation = advice
         governance_hook("post_llm", {"finding_key": base["finding_key"], "result": result})
         return result
 

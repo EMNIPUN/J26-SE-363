@@ -41,8 +41,9 @@ VERDICT_SCHEMA = {
         "rationale": {"type": "string"},
         "evidence_ids": {"type": "array", "items": {"type": "string"}},
         "confidence": {"type": "number"},
+        "recommendation": {"type": "string"},
     },
-    "required": ["status", "rationale", "evidence_ids", "confidence"],
+    "required": ["status", "rationale", "evidence_ids", "confidence", "recommendation"],
     "additionalProperties": False,
 }
 

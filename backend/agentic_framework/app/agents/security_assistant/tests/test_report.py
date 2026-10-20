@@ -2,6 +2,7 @@
 findings included); no scanner and no network is started."""
 
 import asyncio
+import re
 import json
 import shutil
 import sys
@@ -181,7 +182,7 @@ def test_command_renders_a_saved_findings_json(tmp_path, capsys):
     code = run(scan_module.main(["--from-json", str(SAVED), str(REPO), "--out", str(out)]))
     printed = capsys.readouterr().out
     assert code == 0 and "FINDINGS: 12 total" in printed and f"Wrote {out / 'findings.json'}" in printed
-    assert (out / "report.md").read_text(encoding="utf-8").count("### V") == 12
+    assert len(re.findall(r"^### V\d\.\d+ ", (out / "report.md").read_text(encoding="utf-8"), re.M)) == 12
 
 
 def test_command_exit_code_is_2_when_a_tool_failed(tmp_path):
