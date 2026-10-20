@@ -20,7 +20,12 @@ from datetime import datetime
 from pathlib import Path
 
 from app.agents.security_assistant.pipeline import FetchError, fetch_repo
-from app.agents.security_assistant.report import build_report, from_json, render_console, write_report
+from app.agents.security_assistant.agent_loop import render_trail
+from app.agents.security_assistant.governance import AUDIT_FILE, AuditLog
+from app.agents.security_assistant.orchestrator import orchestrate
+from app.agents.security_assistant.report import build_report, from_json, render_console, upsert_section, write_report
+
+TRAIL_MARK = "<!-- decision-trail-orchestrator -->"
 from app.agents.security_assistant.tools.runner import InvalidRepoPath, default_tools, run_all
 
 
@@ -52,12 +57,14 @@ async def scan(source: str, *, skip: list[str], ref: str | None = None, out_dir:
         async with repo_ctx as repo:  # a cloned repo is deleted when this block ends, so snippets are read inside it
             if not Path(repo).is_dir():
                 raise InvalidRepoPath(f"not a directory: {source}")
-            result = await run_all(repo, tools=tools)
+            outcome = await orchestrate(Path(repo), tools, skipped=skip, audit=AuditLog(out_dir / AUDIT_FILE))
+            result = outcome.result
             report = build_report(result, skipped=skip, source=source, repo=Path(repo))
             report.commit_sha = ref if is_url else None
     except (FetchError, InvalidRepoPath) as exc:
         return f"cannot scan {source}: {exc}", 3
     write_report(report, out_dir)
+    upsert_section(out_dir / "report.md", TRAIL_MARK, f"{TRAIL_MARK}\n" + render_trail({"Analysis Orchestrator": outcome.trail}))
     code = 0 if report.complete else 2
     return render_console(report, max_rows=max_rows, out_dir=out_dir), code
 

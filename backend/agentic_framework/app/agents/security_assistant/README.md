@@ -420,6 +420,37 @@ id, so the order never depends on the input order. Outputs: `risk.json` (weights
 and a ranked table with the breakdown in `report.md`. The weights are a starting point for the team to review, not a
 measured probability.
 
+## Agent loops (`agent_loop.py`) and the Analysis Orchestrator (`orchestrator.py`)
+
+Three components work as bounded agent loops: they **select** their next action, **keep state**, and **loop until a goal is met** or a budget is
+spent. The rules that keep them safe are in code, not in a prompt:
+
+- Each component has a **fixed action vocabulary**. In every step the code computes the list of actions that are valid in the current state; a
+  policy may only pick from that list. A pick outside it is rejected, recorded (`rejected` in the trail) and replaced by the deterministic rules.
+  There is no free-form command, no shell, nothing outside the list.
+- **Steps and retries are capped** by configuration (`SECURITY_ASSISTANT_<COMPONENT>_MAX_STEPS` / `_MAX_RETRIES`, or the shared
+  `SECURITY_ASSISTANT_AGENT_MAX_STEPS` / `_MAX_RETRIES`). When the budget is spent the loop stops and says so.
+- The **policy is swappable**: any object with `choose(state, options) -> (action, reason)`. The default is a set of deterministic rules; an LLM
+  policy would get the same small state summary and the same options and could only return one of them.
+- **Every decision is recorded** as an `agent_decision` line in `audit.jsonl` and as a row of the "Decision trail" section of `report.md`
+  (and `report.json` -> `decision_trail`): step, subject, policy, chosen action, why, result.
+
+**Analysis Orchestrator.** Goal: a findings report in which every category is covered (FULL or nothing to scan) and no dependency coverage gap is
+open. State: each tool's latest status, retries used per tool, coverage per category, open and recorded gaps, steps used.
+
+| Action | When it is valid | What it does |
+|---|---|---|
+| `run_tools` | first | the first pass; a tool whose precondition fails (wrong language, no lockfile for npm-audit, no requirements file for pip-audit) is not run and recorded as not applicable with the reason ("OSV-Scanner only") |
+| `retry_tool` | a tool failed or timed out and its retries are not spent (default 1) | runs it again; a missing binary is never retried |
+| `codeql_per_language` | CodeQL failed, retries spent, and the repository has several CodeQL languages | one CodeQL run per language, so a failing language does not cost the others; the findings of the working ones are kept, the tool stays failed unless all worked |
+| `scan_declared` | the full OSV-Scanner run failed, retries spent, and a requirements file has loose pins | reads the declared versions of that folder only |
+| `record_gap` | a dependency coverage gap is open | accepts it as a reported hole; when no tool supports it, the reason says why (for example a `package.json` dependency missing from the lockfile: reading declared npm versions would need `npm install`, which is never run) |
+| `skip_with_reason` | a tool cannot be run or retried | acknowledges the hole so the loop can end honestly |
+| `stop` | always | goal met / coverage acceptable with recorded gaps / nothing left to try / budget spent |
+
+`assess` and `scan` use the loop; for a reused `findings.json` (`assess --reuse-scan`) the same loop runs in **review mode**: no tool can run, but the
+gaps and holes it finds are decided on and shown in the trail. The default budget is 20 steps and 1 retry per tool.
+
 ## Coverage gaps in the dependency check (`tools/coverage_gaps.py`)
 
 The dependency scanners read lockfiles and pinned lists; they never install anything. A dependency that a manifest **declares** but that no

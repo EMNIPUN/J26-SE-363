@@ -31,6 +31,8 @@ from app.agents.security_assistant import questions as qs
 from app.agents.security_assistant import risk as rk
 from app.agents.security_assistant import trace as tr
 from app.agents.security_assistant import governance as gv
+from app.agents.security_assistant.agent_loop import render_trail
+from app.agents.security_assistant import orchestrator as orch
 from app.agents.security_assistant.dedupe import dedupe
 from app.agents.security_assistant.interpreter.llm import LLMClient, LLMError, get_default_client
 from app.agents.security_assistant.interpreter.models import finding_key
@@ -159,6 +161,7 @@ def render(report: dict, scan_md: str, idoc, tdoc, risk_doc, qdoc, findings: lis
         M.append(qs.render_section(qdoc))
     if report.get("governance"):
         M.append(gv.render_section(report["governance"]))
+    M.append(render_trail(report.get("decision_trail") or {}))
     M += ["## Limitations", ""] + [f"- {x}" for x in report["limitations"]]
     return "\n".join(M) + "\n"
 
@@ -168,7 +171,7 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
                        out_dir: Path | str | None = None, allow_external_llm: bool = False, client: LLMClient | None = None,
                        tutor: qs.TutorChannel | None = None, threshold: float | None = None, ref: str | None = None,
                        tools=None, max_findings: int | None = None, delay: float = 0.0, retries: int = 2,
-                       governance_warn_only: bool = False, fetch_options: dict | None = None, say=lambda text: None) -> dict:
+                       governance_warn_only: bool = False, fetch_options: dict | None = None, agent_config=None, orchestrator_policy=None, say=lambda text: None) -> dict:
     """Run every stage and write report.json and report.md into `out_dir`. Returns the report (a dict).
     Raises ValueError for unusable arguments (an unknown tool in `skip`, a threshold outside 0..1)."""
     skipped = parse_skip(skip)
@@ -183,6 +186,7 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
     result = scan_report = idoc = tdoc = risk_doc = qdoc = None
     plan = llm = None
     link_usage: dict = {}
+    trails: dict[str, list[dict]] = {}
     findings: list[dict] = []
     guidance_used: dict[str, dict] = {}
     reused = False
@@ -221,13 +225,19 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
                     chosen = [x for x in (tools if tools is not None else default_tools()) if x.name not in skipped]
                     if (rejected := gov.check_tools([x.name for x in chosen], "tools to run")):
                         raise gv.ToolNotAllowed(f"governance: tool(s) not on the allow-list: {', '.join(rejected)}")
-                    result = await run_all(repo, tools=chosen)
-                    detail = f"{len(result.runs)} tool run(s), {len(result.findings)} finding(s)"
+                    outcome = await orch.orchestrate(repo, chosen, config=agent_config, audit=gov.audit, skipped=skipped, policy=orchestrator_policy)
+                    result, trails["Analysis Orchestrator"] = outcome.result, outcome.trail
+                    detail = (f"{len(result.runs)} tool run(s), {len(result.findings)} finding(s); agent loop: {outcome.steps} step(s), "
+                              f"{outcome.stop_reason}")
                 if reused and (rejected := gov.check_tools([r.tool for r in result.runs] + [f.tool for f in result.findings],
                                                            "the reused findings.json")):
                     raise gv.ToolNotAllowed(f"governance rejected the reused findings.json: tool(s) not on the allow-list: {', '.join(rejected)}")
                 if reused and not result.coverage_gaps and "coverage_gaps" not in json.loads(Path(reuse_scan).read_text(encoding="utf-8"))["scan"]:
                     result.coverage_gaps = find_dependency_gaps(repo)  # a findings.json from before this check: look at the repo now
+                if reused:  # the same loop in review mode: no tool can run, but gaps and holes are decided on and shown
+                    outcome = await orch.review(result, config=agent_config, audit=gov.audit, skipped=skipped, policy=orchestrator_policy)
+                    result, trails["Analysis Orchestrator"] = outcome.result, outcome.trail
+                    detail += f"; agent loop (review, no tool can run): {outcome.steps} step(s), {outcome.stop_reason}"
                 scan_report = build_report(result, skipped=skipped, source=label, repo=repo, pii=pii)
                 scan_report.commit_sha = ref if is_url else scan_report.commit_sha
                 scan_md = render_markdown(scan_report)
@@ -382,6 +392,7 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
         "scan": scan_info,
         "interpretation": idoc["summary"] if idoc else None,
         "llm_usage": _usage(idoc, link_usage),
+        "decision_trail": trails,
         "findings": findings,
         "dismissed": [x for x in (risk_doc["excluded"] if risk_doc else [])],
         "guidance": list(guidance_used.values()),

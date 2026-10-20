@@ -111,13 +111,16 @@ class AuditLog:
     """One JSON line per decision. Values are cleaned before they are written: strings are cut, secrets and personal data removed,
     so the file cannot hold a prompt, a secret, a name or an e-mail address."""
 
-    def __init__(self, path: Path | None):
+    def __init__(self, path: Path | None, append: bool = False):
         self.path, self.seq = (Path(path) if path else None), 0
         self.forbidden: set[str] = set()  # literal secrets and personal values that must never appear in the file
         self.pii: PIIRedactor | None = None
         if self.path is not None:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            self.path.write_text("", encoding="utf-8")  # a new run starts a new log; within a run lines are only appended
+            if append and self.path.exists():  # a second command of the same output folder continues the log
+                self.seq = len(self.path.read_text(encoding="utf-8").splitlines())
+            else:
+                self.path.write_text("", encoding="utf-8")  # a new run starts a new log; within a run lines are only appended
 
     def _clean(self, value):
         if isinstance(value, bool) or value is None or isinstance(value, (int, float)):
