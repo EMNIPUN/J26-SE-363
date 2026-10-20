@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import PropTypes from 'prop-types'
+import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Check, Loader2, RefreshCw, ShieldAlert, ShieldCheck, X } from 'lucide-react'
@@ -16,9 +17,10 @@ const TONE = {
   reject: { ring: 'from-rose-500 to-orange-400', soft: 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300', Icon: ShieldAlert },
 }
 
+// Drawn on the page body, not where the gate sits in the tree: inside the dashboard shell a transformed or clipped ancestor would shrink or hide a fixed full-screen page.
 function Backdrop({ children }) {
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-background">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] overflow-y-auto bg-background">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
         <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-indigo-400/25 blur-3xl" />
         <div className="absolute -right-24 top-1/3 h-96 w-96 rounded-full bg-violet-400/20 blur-3xl" />
@@ -26,7 +28,8 @@ function Backdrop({ children }) {
         <div className="absolute inset-0 opacity-[0.35] [background-image:radial-gradient(var(--border)_1px,transparent_1px)] [background-size:22px_22px]" />
       </div>
       <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col px-4 py-8 sm:px-6">{children}</div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 Backdrop.propTypes = { children: PropTypes.node }
