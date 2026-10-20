@@ -51,6 +51,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import WorkflowStepper from '../../../components/WorkflowStepper.jsx'
 import DartButton from '../../../components/DartButton.jsx'
@@ -58,6 +59,8 @@ import RequirementListPanel from '../../../components/RequirementListPanel.jsx'
 import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
 import DecompositionEvidencePanel from '../../../components/DecompositionEvidencePanel.jsx'
 import TaskValidationEvidencePanel from '../../../components/TaskValidationEvidencePanel.jsx'
+import PassportBadge from '../../../components/PassportBadge.jsx'
+import StagePassCriteriaCard from '../../../components/StagePassCriteriaCard.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
 import { useDartCases } from '../../../hooks/useDart.js'
 import { useQualityResults } from '../../../hooks/useQuality.js'
@@ -533,7 +536,48 @@ function InvestBadges({ investResult }) {
   )
 }
 
-function StoryCard({ reqId, story, readOnly = false }) {
+function StoryInvestImprovementGuidance({ story }) {
+  const result = story.investResult
+  if (!result) return null
+
+  const failedCriteria = INVEST_CRITERIA.filter(({ key }) => !result[key]?.pass)
+  const acceptance = result.acceptanceCriteriaReadiness || {}
+  const weakAcceptanceCriteria = !['Pass', 'Pass with note'].includes(acceptance.result)
+  if (failedCriteria.length === 0 && !weakAcceptanceCriteria) return null
+
+  return (
+    <div className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3">
+      <p className="text-[11px] font-semibold text-foreground mb-2">
+        INVEST improvement guidance for {story.id}
+      </p>
+      <ul className="space-y-1.5 text-[11px] text-muted-foreground leading-relaxed">
+        {failedCriteria.map(({ key, label }) => (
+          <li key={key}>
+            <span className="font-semibold text-foreground">{label}: </span>
+            {investGuidance(key, result[key])}
+          </li>
+        ))}
+        {weakAcceptanceCriteria && (
+          <li>
+            <span className="font-semibold text-foreground">Acceptance criteria: </span>
+            {(acceptance.issues || []).join(' ') || acceptance.suggestion || 'Add criteria that are specific, observable, verifiable, and relevant to this story.'}
+            <span className="ml-1">Revision guide: {acceptance.suggestion || 'For each material behavior, state a measurable pass/fail outcome.'}</span>
+          </li>
+        )}
+      </ul>
+    </div>
+  )
+}
+
+function StoryCard({
+  reqId,
+  story,
+  readOnly = false,
+  onAnalyze,
+  analyzing = false,
+  parentRequirement,
+  coverageEvaluation,
+}) {
   const { updateStoryText, acceptStory, deleteStory, getTaskValidationEvaluation, recordTaskValidation } =
     usePlanningData()
   const updateMutation = useUpdateStory()
@@ -665,10 +709,29 @@ function StoryCard({ reqId, story, readOnly = false }) {
                   : 'Needs Revision'
                 : 'Not Evaluated'}
           </Badge>
+          <PassportBadge
+            storyRef={story.id}
+            storyTitle={story.title}
+            parentRequirement={parentRequirement}
+            story={story}
+            coverageEvaluation={coverageEvaluation}
+            size="xs"
+          />
         </div>
 
         {!readOnly && (
           <div className="flex items-center gap-1.5 ml-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs px-2 cursor-pointer gap-1 text-primary border-primary/30"
+              onClick={() => onAnalyze?.(story)}
+              disabled={analyzing}
+              title="Analyze this story. Unchanged stories reuse their saved results."
+            >
+              <Brain className={`h-3 w-3 ${analyzing ? 'animate-pulse' : ''}`} />
+              {analyzing ? 'Analyzing…' : 'Analyze Story'}
+            </Button>
             {!editing && (
               <Button
                 size="sm"
@@ -746,7 +809,10 @@ function StoryCard({ reqId, story, readOnly = false }) {
 
       {/* INVEST Criterion Chips */}
       {!editing && story.investResult ? (
-        <InvestBadges investResult={story.investResult} />
+        <>
+          <InvestBadges investResult={story.investResult} />
+          <StoryInvestImprovementGuidance story={story} />
+        </>
       ) : (
         !editing && (
           <p className="text-[11px] text-muted-foreground italic my-2">
@@ -1016,7 +1082,7 @@ function investGuidance(criterion, finding) {
     : INVEST_COMPLETION_GUIDE[criterion]
 }
 
-function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
+function CoverageAndInvestSection({ evaluation, onAddGapStory, showAggregateInvestGuidance = false }) {
   if (!evaluation) return null
   const checks = evaluation.coverage?.checks || []
   const elements = evaluation.coverage?.elements || []
@@ -1164,6 +1230,7 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
       )}
 
       {/* INVEST Readiness Matrix */}
+      {showAggregateInvestGuidance && (
       <Card className="p-5">
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -1275,6 +1342,7 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory }) {
           </div>
         )}
       </Card>
+      )}
     </div>
   )
 }
@@ -1443,15 +1511,39 @@ export default function Decomposition() {
   const analyzing = analyzeMutation.isPending
 
   const isDecompFinalized = Boolean(requirement?.decompFinalized)
-  // Readiness is a three-tier, NON-BLOCKING signal (Ready / Ready with
-  // Improvements / Needs Attention) — the student can proceed to effort
-  // estimation once any real analysis has run, regardless of tier. Only
-  // "no analysis has run yet" and "the last run was a system error" withhold
-  // the button; a low score or missing coverage never does.
   const readiness = evaluation?.readiness || null
   const isDecompPassed = readiness === 'Ready'
   const canProceedProvisionally = Boolean(evaluation) && !evaluation.analysisFailed && !evaluation.malformed
   const canRunAnalysis = stories.length > 0 && (!evaluation || evaluation.stale || evaluation.analysisFailed)
+
+  // Decomposition Completeness Gate calculations
+  const missingCoverageElements = (evaluation?.coverage?.elements || []).filter((el) => {
+    const res = (el.coverage_result || el.result || '').toUpperCase()
+    return res === 'MISSING' || res === 'UNCOVERED'
+  })
+
+  const criticalMissingElements = missingCoverageElements.filter((el) => {
+    const type = (el.element_type || '').toLowerCase()
+    return ['exception_behavior', 'error_handling', 'recovery_retry', 'business_rule'].some((t) =>
+      type.includes(t)
+    )
+  })
+
+  const storiesNeedingInvest = stories.filter(
+    (s) => !s.investResult || !s.investResult.overallPass
+  )
+  const storiesWithoutTasks = stories.filter((s) => (s.tasks || []).length === 0)
+
+  const isGateBlocked =
+    !isDecompFinalized &&
+    Boolean(evaluation) &&
+    !evaluation.analysisFailed &&
+    (readiness === 'Needs Attention' ||
+      storiesWithoutTasks.length > 0 ||
+      criticalMissingElements.length > 0 ||
+      (missingCoverageElements.length > 0 && (evaluation?.coverage?.percentage ?? 0) < 75))
+
+  const [gateBlockedDialogOpen, setGateBlockedDialogOpen] = useState(false)
 
   // Task-validation readiness is tracked per story, not per requirement —
   // surface the worst tier across the requirement's stories so the proceed
@@ -1494,7 +1586,7 @@ export default function Decomposition() {
     }
   }
 
-  function runAnalysis() {
+  function runAnalysis(_targetStory = null) {
     if (!requirement || stories.length === 0) return
     const storiesPayload = stories.map((s) => ({
       id: s.id,
@@ -1557,19 +1649,26 @@ export default function Decomposition() {
       })
       navigate(team(`/planning/requirements/estimation?req=${target.id}`))
     } catch (err) {
-      showToast.error('Could not unlock Effort Estimation', {
-        description: err?.message || 'Run a valid decomposition analysis and try again.',
+      const detail =
+        err?.response?.data?.detail ||
+        err?.response?.data?.action_required ||
+        err?.message ||
+        'Run a valid decomposition analysis and try again.'
+      showToast.error('Decomposition Gate Blocked', {
+        description: detail,
       })
     }
   }
 
-  // Ready proceeds immediately; Ready with Improvements / Needs Attention
-  // still proceed — never a hard block — but ask for one explicit
-  // confirmation first so the student has actually seen the warning instead
-  // of clicking past it unnoticed.
+  // Ready proceeds immediately; if Gate Blocked, opens the explanatory dialog;
+  // if Ready with Improvements, asks for explicit confirmation first.
   function handleProceedToEstimation(targetReq) {
     const target = targetReq || requirement
     if (!target) return
+    if (isGateBlocked) {
+      setGateBlockedDialogOpen(true)
+      return
+    }
     if ((readiness && readiness !== 'Ready') || storiesWithCoverageWarning.length > 0) {
       setProvisionalConfirmOpen(true)
       return
@@ -1844,7 +1943,7 @@ export default function Decomposition() {
                         <span>View in Effort Estimation</span>
                         <ArrowRight className="h-3.5 w-3.5" />
                       </Link>
-                    ) : isDecompPassed ? (
+                    ) : isDecompPassed && !isGateBlocked ? (
                       <Button
                         size="sm"
                         onClick={() => handleProceedToEstimation(requirement)}
@@ -1854,20 +1953,25 @@ export default function Decomposition() {
                         <span>Proceed to Effort Estimation</span>
                         <ArrowRight className="h-3.5 w-3.5" />
                       </Button>
+                    ) : isGateBlocked ? (
+                      <Button
+                        size="sm"
+                        onClick={() => setGateBlockedDialogOpen(true)}
+                        className="text-xs font-bold gap-1.5 bg-rose-600 hover:bg-rose-700 text-white cursor-pointer shadow-sm transition-all shrink-0"
+                        title="Decomposition Completeness Gate is blocked. Click to see what is missing and how to unlock."
+                      >
+                        <Lock className="h-3.5 w-3.5" />
+                        <span>Gate Blocked: Needs Coverage</span>
+                        <ArrowRight className="h-3.5 w-3.5 opacity-80" />
+                      </Button>
                     ) : canProceedProvisionally ? (
                       <Button
                         size="sm"
                         onClick={() => handleProceedToEstimation(requirement)}
-                        className={`text-xs font-bold gap-1.5 cursor-pointer shadow-sm transition-all shrink-0 ${
-                          readiness === 'Needs Attention'
-                            ? 'bg-amber-600 hover:bg-amber-700 text-white'
-                            : 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                        }`}
-                        title="Decomposition is not required to be perfect before estimation — review the suggestions, or proceed provisionally."
+                        className="text-xs font-bold gap-1.5 cursor-pointer shadow-sm transition-all shrink-0 bg-amber-600 hover:bg-amber-700 text-white"
+                        title="Decomposition has suggestions — review recommendations, or proceed provisionally."
                       >
-                        <span>
-                          {readiness === 'Needs Attention' ? 'Proceed Anyway' : 'Proceed to Effort Estimation'}
-                        </span>
+                        <span>Proceed with Suggestions</span>
                         <ArrowRight className="h-3.5 w-3.5" />
                       </Button>
                     ) : (
@@ -1929,11 +2033,13 @@ export default function Decomposition() {
                             tone={
                               evaluation.analysisFailed || evaluation.malformed
                                 ? 'danger'
-                                : evaluation.readiness === 'Ready'
-                                  ? 'success'
-                                  : evaluation.readiness === 'Needs Attention'
-                                    ? 'warning'
-                                    : 'primary'
+                                : isGateBlocked
+                                  ? 'danger'
+                                  : evaluation.readiness === 'Ready'
+                                    ? 'success'
+                                    : evaluation.readiness === 'Needs Attention'
+                                      ? 'danger'
+                                      : 'primary'
                             }
                             className="text-xs font-semibold px-2.5 py-0.5"
                           >
@@ -1941,7 +2047,9 @@ export default function Decomposition() {
                               ? 'Analysis Failed'
                               : evaluation.malformed
                                 ? 'Analysis Error'
-                                : `${evaluation.score}/4 · ${evaluation.readiness}`}
+                                : isGateBlocked
+                                  ? `${evaluation.score}/4 · Gate Blocked`
+                                  : `${evaluation.score}/4 · ${evaluation.readiness}`}
                           </Badge>
                         </>
                       ) : (
@@ -2034,7 +2142,18 @@ export default function Decomposition() {
                       {requirement.description || requirement.title}
                     </p>
                   </div>
+
                 </Card>
+
+                {/* Stage 2 Pass Criteria Checklist & Guidance */}
+                <StagePassCriteriaCard
+                  stage="decomposition"
+                  requirement={requirement}
+                  evaluation={evaluation}
+                  stories={stories}
+                  onActionClick={runAnalysis}
+                  actionLoading={analyzing}
+                />
 
                 {/* SECTION 1: User Stories Breakdown & Refinement (shown on 'all' or 'stories') */}
                 {(mainTab === 'all' || mainTab === 'stories') && (
@@ -2070,7 +2189,7 @@ export default function Decomposition() {
                             ? 'Analyzing with Agent…'
                             : evaluation && !canRunAnalysis
                               ? 'Up to Date — Re-run Anyway'
-                              : 'Run Decomposition Analysis'}
+                              : 'Analyze Requirement Decomposition'}
                         </Button>
 
                         {!isDecompFinalized && !showNewStoryForm && (
@@ -2118,6 +2237,10 @@ export default function Decomposition() {
                             reqId={selectedReqId}
                             story={story}
                             readOnly={isDecompFinalized}
+                            onAnalyze={runAnalysis}
+                            analyzing={analyzing}
+                            parentRequirement={requirement}
+                            coverageEvaluation={evaluation}
                           />
                         ))}
                       </div>
@@ -2231,6 +2354,140 @@ export default function Decomposition() {
               </div>
             ))}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Decomposition Gate Blocked Explanatory Dialog */}
+      <Dialog open={gateBlockedDialogOpen} onOpenChange={setGateBlockedDialogOpen}>
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="p-1.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                <Lock className="h-4 w-4" />
+              </span>
+              <DialogTitle className="text-lg font-bold text-foreground">
+                Decomposition Completeness Gate Blocked
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Effort estimation is locked for {requirement?.id} until all critical parent requirement behaviors are decomposed into user stories and acceptance criteria.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3.5 pt-1">
+            {/* Missing Elements Section */}
+            {missingCoverageElements.length > 0 && (
+              <div className="p-3.5 rounded-xl border border-rose-500/30 bg-rose-500/5 space-y-2">
+                <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400 font-bold text-xs uppercase tracking-wider">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>Missing Requirement Capabilities ({missingCoverageElements.length})</span>
+                </div>
+                <p className="text-xs text-foreground/85">
+                  The following capabilities from the parent IEEE 830 specification are currently missing from your stories:
+                </p>
+                <div className="space-y-1.5 pt-1">
+                  {missingCoverageElements.map((el, i) => (
+                    <div
+                      key={i}
+                      className="p-2 rounded-lg bg-background/90 border border-border/80 flex items-start gap-2 text-xs"
+                    >
+                      <span className="text-rose-600 font-bold shrink-0 mt-0.5">•</span>
+                      <div className="flex-1">
+                        <span className="font-semibold text-foreground">{el.description}</span>
+                        {el.element_type && (
+                          <span className="ml-2 text-[10px] px-1.5 py-0.2 rounded bg-muted font-mono uppercase text-muted-foreground">
+                            {el.element_type.replace('_', ' ')}
+                          </span>
+                        )}
+                        {el.evidence && (
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{el.evidence}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {storiesWithoutTasks.length > 0 && (
+              <div className="p-3.5 rounded-xl border border-rose-500/30 bg-rose-500/5 space-y-1.5">
+                <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400 font-bold text-xs uppercase tracking-wider">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>User Stories Missing Tasks ({storiesWithoutTasks.length})</span>
+                </div>
+                <p className="text-xs text-foreground/85">
+                  Every user story needs at least one concrete implementation task before effort estimation can begin.
+                </p>
+                <ul className="space-y-1">
+                  {storiesWithoutTasks.map((story) => (
+                    <li key={story.id} className="text-xs text-foreground/90 flex items-center gap-2">
+                      <span className="font-mono font-semibold text-primary">{story.id}</span>
+                      <span className="text-muted-foreground truncate">{story.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Stories needing INVEST review */}
+            {storiesNeedingInvest.length > 0 && (
+              <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-1.5">
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold text-xs uppercase tracking-wider">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>User Stories Requiring INVEST Revision ({storiesNeedingInvest.length})</span>
+                </div>
+                <ul className="space-y-1">
+                  {storiesNeedingInvest.map((s) => (
+                    <li key={s.id} className="text-xs text-foreground/90 flex items-center justify-between">
+                      <span className="font-mono font-semibold text-primary">{s.id}</span>
+                      <span className="text-muted-foreground truncate max-w-[280px]">{s.title}</span>
+                      <Badge tone="warning" className="text-[10px]">Needs Revision</Badge>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Action Required Box */}
+            <div className="p-3 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-2.5">
+              <Lightbulb className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <div className="text-xs text-foreground space-y-1">
+                <p className="font-bold text-primary">How to Unlock Effort Estimation:</p>
+                <ol className="list-decimal list-inside space-y-0.5 text-muted-foreground">
+                  <li>Add at least one implementation task to every user story.</li>
+                  <li>Edit or add acceptance criteria addressing the missing capabilities above.</li>
+                  <li>Ensure each user story satisfies at least 4 of 6 INVEST criteria.</li>
+                  <li>Click <strong>Re-run Analysis</strong> to re-evaluate and clear the gate.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-between sm:justify-between pt-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setGateBlockedDialogOpen(false)
+                setMainTab('stories')
+              }}
+              className="text-xs font-semibold cursor-pointer"
+            >
+              Go to Story Editor
+            </Button>
+            <Button
+              size="sm"
+              disabled={analyzing}
+              onClick={() => {
+                setGateBlockedDialogOpen(false)
+                runAnalysis()
+              }}
+              className="text-xs font-bold gap-1.5 cursor-pointer bg-primary text-primary-foreground"
+            >
+              <Brain className="h-3.5 w-3.5" />
+              <span>{analyzing ? 'Analyzing...' : 'Re-run Analysis'}</span>
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

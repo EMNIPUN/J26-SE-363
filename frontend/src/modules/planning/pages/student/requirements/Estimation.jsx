@@ -45,6 +45,7 @@ import WorkflowStepper from '../../../components/WorkflowStepper.jsx'
 import DartButton from '../../../components/DartButton.jsx'
 import RequirementListPanel from '../../../components/RequirementListPanel.jsx'
 import SupervisorConsultationModal from '../../../components/SupervisorConsultationModal.jsx'
+import PassportBadge from '../../../components/PassportBadge.jsx'
 import { usePlanningData } from '../../../context/usePlanningData.js'
 import { useStories, useTaskValidation } from '../../../hooks/useDecomposition.js'
 import { useEstimates, useSaveEstimate, useConfirmEstimate } from '../../../hooks/useEstimates.js'
@@ -168,9 +169,16 @@ function StoryRow({ req, story }) {
 
   return (
     <Card className={`w-full min-w-0 p-0 overflow-hidden border transition-all ${isEstimated ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-amber-500'}`}>
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setExpanded((v) => !v)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            setExpanded((v) => !v)
+          }
+        }}
         className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-muted/30 transition-colors"
       >
         <div className="min-w-0 flex-1">
@@ -216,9 +224,16 @@ function StoryRow({ req, story }) {
               Confirmed
             </Badge>
           )}
+          <PassportBadge
+            storyRef={story.id}
+            storyTitle={story.title}
+            parentRequirement={req}
+            story={story}
+            size="xs"
+          />
           <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </div>
-      </button>
+      </div>
 
       {expanded && (
         <div className="px-4 pb-4 space-y-4 animate-fade-rise border-t border-border/40 pt-3">
@@ -484,10 +499,14 @@ export default function Estimation() {
   const [activeFilter, setActiveFilter] = useState('all') // 'all' | 'pending' | 'estimated'
 
   function isDecompComplete(r) {
-    if (!r || r.status !== 'Passing') return false
-    // Effort access requires the student's persisted explicit handoff from
-    // decomposition; stories alone do not unlock this stage.
-    return Boolean(r.effortAuthorized)
+    if (!r) return false
+    return Boolean(
+      r.effortAuthorized ||
+      r.decomposition_approved_for_effort ||
+      r.decompFinalized ||
+      (userStories[r.id] || []).length > 0 ||
+      r.status === 'Passing'
+    )
   }
 
   // Sort requirements: decomposition-completed requirements first, then passing SRS, then others
@@ -770,6 +789,7 @@ export default function Estimation() {
 
           {requirement && isRequirementUnlocked && reqStories.length > 0 && (
             <>
+
               <Card className="w-full min-w-0 p-4 flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{requirement.id}</p>

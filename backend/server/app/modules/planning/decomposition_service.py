@@ -138,6 +138,59 @@ def compute_stories_hash(stories: list[dict[str, Any]]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def compute_story_hash(story: dict[str, Any]) -> str:
+    """Fingerprint one story so an unchanged story can retain its prior AI
+    INVEST/task evaluation when another story is added to the requirement."""
+    return compute_stories_hash([story])
+
+
+def get_cached_story_analysis(
+    assessment: DecompositionAssessment,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Return the prior per-story agent outputs in the orchestration shape.
+
+    Coverage is requirement-wide and intentionally re-evaluated. These values
+    are only the independent INVEST and task evaluations that are safe to
+    reuse when a story's input fingerprint has not changed.
+    """
+    invest_by_story: dict[uuid.UUID, dict[str, Any]] = {}
+    for validation in assessment.invest_validations:
+        criterion = validation.criterion.value
+        invest_by_story.setdefault(validation.user_story_id, {})[criterion] = {
+            "result": validation.result.value,
+            "note": validation.justification or "",
+            "evidence": "",
+        }
+
+    story_results: list[dict[str, Any]] = []
+    for story_assessment in assessment.story_assessments:
+        story = story_assessment.user_story
+        if not story:
+            continue
+        story_results.append(
+            {
+                "story_id": story.story_ref,
+                "story_ready": story_assessment.story_ready,
+                "coverage_percentage": (
+                    float(story_assessment.coverage_percentage)
+                    if story_assessment.coverage_percentage is not None
+                    else 0.0
+                ),
+                **invest_by_story.get(story.id, {}),
+                "acceptance_criteria_readiness": (
+                    (assessment.assessment_evidence or {})
+                    .get("acceptance_criteria", {})
+                    .get(story.story_ref, {})
+                ),
+            }
+        )
+
+    task_summaries = (assessment.assessment_evidence or {}).get(
+        "task_summaries", []
+    )
+    return story_results, [dict(summary) for summary in task_summaries]
+
+
 def compute_tasks_hash(tasks: list[dict[str, Any]]) -> str:
     """Stable hash of the submitted tasks' content (id, title, description),
     independent of submission order — mirrors compute_stories_hash, used to
@@ -328,6 +381,7 @@ def save_assessment(
     stories: list[UserStory] | None = None,
     target_user_id: uuid.UUID | None = None,
     input_hash: str | None = None,
+    story_input_hashes: dict[str, str] | None = None,
 ) -> DecompositionAssessment:
     """Unpack one ``DecompositionResult`` (agent.py schemas.py shape) into the
     normalized tables. ``agent_result`` field names must match
@@ -374,6 +428,7 @@ def save_assessment(
                 item.get("story_id", ""): item.get("acceptance_criteria_readiness") or {}
                 for item in story_results
             },
+            "story_input_hashes": story_input_hashes or {},
         },
         stories_evaluated=len(story_results),
         stories_needing_revision=len(invest_gate.get("failed_stories") or []),

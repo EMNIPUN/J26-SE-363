@@ -193,6 +193,12 @@ class DecompositionOptions(BaseModel):
     # Kept for input-compat only; the two-level mandatory gate below does not
     # use a percentage threshold.
     threshold: int = DEFAULT_DECOMPOSITION_THRESHOLD
+    # Story-level evaluations are immutable until that story changes. The Core
+    # API supplies prior results for the unchanged ids so the agent can assess
+    # only additions/edits while still checking requirement-wide coverage.
+    story_ids_to_analyze: list[str] = Field(default_factory=list)
+    cached_story_results: list[dict] = Field(default_factory=list)
+    cached_task_summaries: list[dict] = Field(default_factory=list)
 
 
 class AnalyzeDecompositionInput(BaseModel):

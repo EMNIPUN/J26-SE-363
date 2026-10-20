@@ -280,3 +280,17 @@ class TaskReadinessStatus(str, enum.Enum):
     VALID = "Valid"
     NEEDS_IMPROVEMENT = "Needs Improvement"
     COVERAGE_WARNING = "Coverage Warning"
+
+
+class ReadyBacklogStatus(str, enum.Enum):
+    """The four statuses of a Backlog Readiness Passport:
+    - READY: All hard gates pass and story points assigned.
+    - READY_WITH_WARNINGS: Hard gates pass, but non-blocking soft improvements exist.
+    - NOT_READY: At least one hard gate fails (quality, coverage, INVEST, or points).
+    - NEEDS_REVIEW: DART could not resolve uncertainty; lecturer review required.
+    """
+
+    READY = "ready"
+    READY_WITH_WARNINGS = "ready_with_warnings"
+    NOT_READY = "not_ready"
+    NEEDS_REVIEW = "needs_review"

@@ -29,6 +29,8 @@ import {
   Calendar,
   ArrowUpRight,
   Check,
+  ShieldCheck,
+  Lock,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -76,11 +78,13 @@ import {
 import WorkflowStepper from "../../components/WorkflowStepper.jsx";
 import DartButton from "../../components/DartButton.jsx";
 import SupervisorConsultationModal from "../../components/SupervisorConsultationModal.jsx";
+import PassportBadge from "../../components/PassportBadge.jsx";
 import { COURSE_INFO } from "../../data/lmsAcademicData.js";
 import { usePlanningData } from "../../context/usePlanningData.js";
 import { useSprintTasks, useUpdateSprintTask } from "../../hooks/useSprint.js";
 import { useStories } from "../../hooks/useDecomposition.js";
 import { useEstimates } from "../../hooks/useEstimates.js";
+import { usePassports } from "../../hooks/usePassport.js";
 import { jiraService } from "../../services/jiraService.js";
 import { mapSprintTasks } from "../../adapters/sprint.js";
 import { mapStoryRows } from "../../adapters/decomposition.js";
@@ -304,6 +308,7 @@ function IssueRow({
   statusTone,
   member,
   isStory,
+  passport,
   jiraKey,
   jiraBaseUrl,
   onClick,
@@ -320,6 +325,14 @@ function IssueRow({
       <span className="text-sm text-foreground truncate flex-1 min-w-0">
         {title}
       </span>
+      {isStory && (
+        <PassportBadge
+          storyRef={id}
+          storyTitle={title}
+          passport={passport}
+          size="xs"
+        />
+      )}
       {jiraKey && (
         <a
           href={jiraBaseUrl ? `${jiraBaseUrl}/browse/${jiraKey}` : "#"}
@@ -775,6 +788,18 @@ function BacklogView({ onRefreshed }) {
     0,
   );
 
+  const { data: passportsList = [] } = usePassports();
+  const passportsMap = {};
+  passportsList.forEach((p) => {
+    if (p.story_ref) passportsMap[p.story_ref] = p;
+  });
+
+  const readyStoriesCount = eligibleBacklogStories.filter((item) => {
+    const p = passportsMap[item.story.id || item.story.story_ref];
+    return p && (p.passport_status === "ready" || p.passport_status === "ready_with_warnings");
+  }).length;
+  const gatedStoriesCount = eligibleBacklogStories.length - readyStoriesCount;
+
   async function handleSyncBacklog(force = false) {
     setSyncingBacklog(true);
     try {
@@ -798,6 +823,11 @@ function BacklogView({ onRefreshed }) {
       showToast.success("Backlog pushed to Jira!", {
         description: `Exported ${data?.stories_synced || 0} stories and ${data?.subtasks_created || 0} subtasks to Jira Backlog.`,
       });
+      if (data?.blocked_stories?.length) {
+        showToast.info(`${data.blocked_stories.length} stor${data.blocked_stories.length === 1 ? 'y' : 'ies'} gated by Readiness Passport`, {
+          description: `${data.blocked_stories[0].story_ref}: ${data.blocked_stories[0].readiness_gap || data.blocked_stories[0].action_required}`,
+        });
+      }
       if (data?.status_warnings?.length) {
         showToast.error("Some new Jira items could not be moved to To Do", {
           description: data.status_warnings[0],
@@ -938,6 +968,16 @@ function BacklogView({ onRefreshed }) {
             <Badge tone="primary" className="text-xs">
               {eligibleTotalSP} SP
             </Badge>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <ShieldCheck className="h-3 w-3" />
+              Ready: {readyStoriesCount} / {eligibleBacklogStories.length}
+            </span>
+            {gatedStoriesCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                <Lock className="h-3 w-3" />
+                Gated: {gatedStoriesCount}
+              </span>
+            )}
             {jiraStatus?.connected && (
               <Badge
                 tone="neutral"
@@ -1006,6 +1046,7 @@ function BacklogView({ onRefreshed }) {
                   statusLabel="Estimated"
                   statusTone="success"
                   isStory
+                  passport={passportsMap[story.id]}
                   jiraKey={story.jira_issue_key || story.jiraKey}
                   jiraBaseUrl={jiraStatus?.base_url}
                   onClick={() =>

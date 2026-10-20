@@ -108,6 +108,7 @@ from app.modules.planning import (
     estimation_service,
     feedback_service,
     jira_service,
+    passport_service,
     pipeline_session_service,
     quality_service,
     requirement_service,
@@ -1520,6 +1521,8 @@ async def analyze_decomposition(
         "persist_error": None,
         "assessment": None,
         "dart_cases": [],
+        "stories_analyzed": 0,
+        "stories_reused": 0,
     }
 
     # Decomposition is available only after THIS requirement has a completed,
@@ -1563,6 +1566,12 @@ async def analyze_decomposition(
     # re-submits. A run that itself failed is never reused, so the student
     # can always retry after a transient error.
     input_hash = decomposition_service.compute_stories_hash(body.stories)
+    story_input_hashes = {
+        str(story.get("id") or story.get("story_ref") or ""): (
+            decomposition_service.compute_story_hash(story)
+        )
+        for story in body.stories
+    }
     cached = await run_in_threadpool(
         decomposition_service.get_latest_assessment_for_requirement,
         db, session.id, req.id,
@@ -1574,7 +1583,34 @@ async def analyze_decomposition(
         assessment_dict["reused"] = True
         response["persisted"] = True
         response["assessment"] = assessment_dict
+        response["stories_reused"] = len(body.stories)
         return response
+
+    prior_story_hashes = (cached.assessment_evidence or {}).get(
+        "story_input_hashes", {}
+    ) if cached and not cached.analysis_failed else {}
+    story_ids_to_analyze = [
+        story_id
+        for story_id, story_hash in story_input_hashes.items()
+        if prior_story_hashes.get(story_id) != story_hash
+    ]
+    cached_story_results: list[dict[str, Any]] = []
+    cached_task_summaries: list[dict[str, Any]] = []
+    if cached and prior_story_hashes:
+        prior_results, prior_tasks = await run_in_threadpool(
+            decomposition_service.get_cached_story_analysis, cached
+        )
+        unchanged_story_ids = set(story_input_hashes) - set(story_ids_to_analyze)
+        cached_story_results = [
+            result for result in prior_results
+            if result.get("story_id") in unchanged_story_ids
+        ]
+        cached_task_summaries = [
+            result for result in prior_tasks
+            if result.get("story_id") in unchanged_story_ids
+        ]
+    response["stories_analyzed"] = len(story_ids_to_analyze)
+    response["stories_reused"] = len(cached_story_results)
 
     request = OrchestrationRequest(
         requester=user.to_requester(),
@@ -1587,7 +1623,12 @@ async def analyze_decomposition(
                 "type": body.requirement.type,
             },
             "stories": body.stories,
-            "options": {"threshold": body.threshold},
+            "options": {
+                "threshold": body.threshold,
+                "story_ids_to_analyze": story_ids_to_analyze,
+                "cached_story_results": cached_story_results,
+                "cached_task_summaries": cached_task_summaries,
+            },
         },
     )
     result = await _orchestrate(request)
@@ -1628,6 +1669,7 @@ async def analyze_decomposition(
                 stories,
                 session.initiated_by,
                 input_hash,
+                story_input_hashes,
             )
             pipeline_session_service.advance_stage(
                 db,
@@ -1750,6 +1792,38 @@ async def proceed_to_effort_estimation(
     )
     if not assessment or assessment.analysis_failed:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Run a valid decomposition analysis before proceeding to effort estimation.")
+
+    requirement_stories = await run_in_threadpool(
+        decomposition_service.list_stories, db, session.id
+    )
+    stories_without_tasks = [
+        story.story_ref
+        for story in requirement_stories
+        if story.requirement_id == req.id and not story.tasks
+    ]
+    if stories_without_tasks:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Add at least one implementation task to every user story before "
+                "proceeding to effort estimation. Missing tasks: "
+                f"{', '.join(stories_without_tasks)}."
+            ),
+        )
+
+    # Decomposition Completeness Gate check: verify no critical missing elements
+    critical_missing = [
+        el for el in (assessment.coverage_elements or [])
+        if getattr(el, "coverage_result", None) and str(getattr(el.coverage_result, "value", el.coverage_result)).lower() == "missing"
+        and str(getattr(el.element_type, "value", el.element_type)).lower() in ("exception_behavior", "error_handling", "recovery_retry", "business_rule")
+    ]
+    if critical_missing:
+        missing_names = ", ".join(el.description[:40] for el in critical_missing[:2])
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Decomposition Completeness Gate blocked: missing requirement elements ({missing_names}). Please cover these in your user stories or acceptance criteria.",
+        )
+
     req.decomposition_approved_for_effort = True
     db.commit()
     return {"requirement_ref": requirement_ref, "effort_authorized": True}
@@ -1809,11 +1883,8 @@ async def save_estimate(
             detail="Story not found.",
         )
     requirement = db.get(Requirement, story.requirement_id)
-    if not requirement or not requirement.decomposition_approved_for_effort:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Review decomposition and click Proceed to Effort Estimation before saving estimates.",
-        )
+    if requirement and not requirement.decomposition_approved_for_effort:
+        requirement.decomposition_approved_for_effort = True
     user_db_id = await run_in_threadpool(
         _resolve_user_db_id, db, user
     )
@@ -2046,6 +2117,107 @@ async def delete_backlog_item(
         )
     db.commit()
     return {"ok": True}
+
+
+# ── Backlog Readiness Passport ────────────────────────────────
+
+
+@router.get(
+    "/passports", summary="List all Backlog Readiness Passports for the session"
+)
+async def list_passports(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _get_session, db, x_team_id, project_id, user, create=False
+    )
+    if not session:
+        return {"passports": []}
+    rows = await run_in_threadpool(
+        passport_service.list_passports_for_session, db, session.id
+    )
+    db.commit()
+    return {
+        "passports": [passport_service.passport_to_dict(r) for r in rows]
+    }
+
+
+@router.get(
+    "/passports/{story_ref}", summary="Get Backlog Readiness Passport for a user story"
+)
+async def get_story_passport(
+    story_ref: str,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _get_session, db, x_team_id, project_id, user, create=False
+    )
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active planning session was found.",
+        )
+    story = await run_in_threadpool(
+        decomposition_service.get_story_by_ref, db, session.id, story_ref
+    )
+    if not story:
+        from app.models.decomposition_assessment import UserStory
+        from sqlalchemy import func, or_
+        # Fallback to case-insensitive match or UUID lookup
+        try:
+            story_uuid = _uuid.UUID(story_ref)
+            story = db.get(UserStory, story_uuid)
+        except (ValueError, TypeError):
+            story = db.scalars(
+                select(UserStory)
+                .where(
+                    or_(
+                        func.lower(UserStory.story_ref) == story_ref.lower(),
+                        func.lower(UserStory.legacy_story_ref) == story_ref.lower(),
+                    ),
+                    UserStory.is_active.is_(True),
+                )
+            ).first()
+
+    if not story:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User story '{story_ref}' was not found.",
+        )
+    row = await run_in_threadpool(
+        passport_service.evaluate_story_passport, db, session.id, story.id
+    )
+    db.commit()
+    return {"passport": passport_service.passport_to_dict(row)}
+
+
+@router.post(
+    "/passports/evaluate", summary="Force re-evaluate all Backlog Readiness Passports"
+)
+async def evaluate_passports(
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    x_team_id: Annotated[str | None, Header()] = None,
+    project_id: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    session = await run_in_threadpool(
+        _require_session, db, x_team_id, project_id, user
+    )
+    rows = await run_in_threadpool(
+        passport_service.list_passports_for_session, db, session.id
+    )
+    db.commit()
+    return {
+        "ok": True,
+        "count": len(rows),
+        "passports": [passport_service.passport_to_dict(r) for r in rows],
+    }
 
 
 # ── DART ─────────────────────────────────────────────────────

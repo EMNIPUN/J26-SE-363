@@ -2,6 +2,7 @@
 which is what Alembic compares against (see alembic/env.py)."""
 
 from app.models.agent_run import AgentRun, AgentRunStatus
+from app.models.backlog_readiness_passport import BacklogReadinessPassport
 from app.models.dart import DartEscalation, DartEvidence, DartIteration, DartSession
 from app.models.decomposition_assessment import (
     CoverageAnalysisResult,
@@ -46,6 +47,7 @@ from app.models.user import User
 __all__ = [
     "AgentRun",
     "AgentRunStatus",
+    "BacklogReadinessPassport",
     "CoverageAnalysisResult",
     "CoverageElementRow",
     "CoverageGateCheckRow",

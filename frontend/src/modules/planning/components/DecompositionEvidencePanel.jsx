@@ -8,15 +8,15 @@ import FeedbackList from './FeedbackList.jsx'
 const READINESS_COPY = {
   Ready: {
     tone: 'success',
-    label: 'Ready for effort estimation',
+    label: 'Gate Passed — ready for effort estimation',
   },
   'Ready with Improvements': {
     tone: 'warning',
-    label: 'Ready, with a few suggested improvements',
+    label: 'Ready, with a few advisory suggestions',
   },
   'Needs Attention': {
-    tone: 'primary',
-    label: 'Needs attention — but you can still proceed provisionally',
+    tone: 'danger',
+    label: 'Gate Blocked — missing parent requirement capabilities',
   },
 }
 
@@ -27,8 +27,8 @@ function ReadinessBanner({ evaluation }) {
       className={`p-3.5 rounded-xl border flex items-center gap-2.5 ${
         copy.tone === 'success'
           ? 'border-emerald-500/30 bg-emerald-500/5'
-          : copy.tone === 'primary'
-            ? 'border-blue-500/30 bg-blue-500/5'
+          : copy.tone === 'danger'
+            ? 'border-rose-500/30 bg-rose-500/5'
             : 'border-amber-500/30 bg-amber-500/5'
       }`}
     >
@@ -37,7 +37,7 @@ function ReadinessBanner({ evaluation }) {
       ) : (
         <AlertTriangle
           className={`h-4 w-4 shrink-0 ${
-            copy.tone === 'primary' ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'
+            copy.tone === 'danger' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
           }`}
         />
       )}
@@ -46,8 +46,8 @@ function ReadinessBanner({ evaluation }) {
           className={`text-xs font-bold ${
             copy.tone === 'success'
               ? 'text-emerald-700 dark:text-emerald-400'
-              : copy.tone === 'primary'
-                ? 'text-blue-700 dark:text-blue-400'
+              : copy.tone === 'danger'
+                ? 'text-rose-700 dark:text-rose-400'
                 : 'text-amber-800 dark:text-amber-300'
           }`}
         >

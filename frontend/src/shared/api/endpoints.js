@@ -61,6 +61,10 @@ export const ENDPOINTS = {
     JIRA_RESET_LINKS: '/planning/jira/reset-links',
     JIRA_FETCH: '/planning/jira/fetch',
     JIRA_TRANSITION: '/planning/jira/transition',
+    // Backlog Readiness Passport
+    PASSPORTS: '/planning/passports',
+    PASSPORT: (ref) => `/planning/passports/${ref}`,
+    PASSPORTS_EVALUATE: '/planning/passports/evaluate',
   },
   TUTOR: {
     SESSIONS: '/tutor/sessions',

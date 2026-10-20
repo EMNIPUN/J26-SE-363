@@ -71,37 +71,81 @@ export default function RequirementListPanel({ requirements, selectedId, onSelec
       </div>
       <ul className="divide-y divide-border/60 overflow-y-auto column-scroll-contain" style={{ maxHeight }}>
         {filtered.length === 0 && <li className="p-4 text-xs text-muted-foreground text-center">No requirements match.</li>}
-        {filtered.map(({ req, meta }) => (
-          <li key={req.id}>
-            <button
-              type="button"
-              disabled={meta.locked}
-              onClick={() => !meta.locked && onSelect(req.id)}
-              className={`w-full text-left p-3 cursor-pointer transition-colors ${
-                meta.locked
-                  ? 'opacity-55 bg-muted/20 cursor-not-allowed'
-                  : 'hover:bg-muted/40'
-              } ${
-                selectedId === req.id ? 'bg-muted/60 ring-1 ring-border/80' : ''
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <span className={`text-xs font-medium ${meta.locked ? 'text-muted-foreground/80' : 'text-muted-foreground'}`}>
-                  {req.id}
-                </span>
-                <StatusIcon tone={meta.tone} locked={meta.locked} finalized={meta.finalized} />
-              </div>
-              <p className={`text-sm line-clamp-2 leading-snug ${meta.locked ? 'text-muted-foreground font-normal' : 'text-foreground'}`}>
-                {req.title}
-              </p>
-              <div className="flex items-center gap-2 mt-2">
-                <Progress value={meta.percent} className={`h-1 flex-1 ${meta.locked ? 'opacity-30' : ''}`} />
-                <span className="text-xs font-medium text-muted-foreground w-9 text-right">{meta.percent}%</span>
-              </div>
-            </button>
-          </li>
-        ))}
+        {filtered.map(({ req, meta }) => {
+          const isSelected = Boolean(
+            selectedId &&
+              req.id &&
+              String(selectedId).trim().toLowerCase() === String(req.id).trim().toLowerCase(),
+          )
+
+          return (
+            <li key={req.id}>
+              <button
+                type="button"
+                disabled={meta.locked}
+                aria-current={isSelected ? 'true' : undefined}
+                onClick={() => !meta.locked && onSelect(req.id)}
+                className={`w-full text-left p-3 cursor-pointer transition-colors outline-none focus-visible:bg-muted ${
+                  meta.locked
+                    ? 'opacity-55 bg-muted/20 cursor-not-allowed'
+                    : isSelected
+                    ? 'bg-accent/80 dark:bg-accent/45'
+                    : 'hover:bg-muted/40'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`font-mono text-xs ${
+                        meta.locked
+                          ? 'text-muted-foreground/60'
+                          : isSelected
+                          ? 'font-bold text-primary'
+                          : 'font-medium text-muted-foreground'
+                      }`}
+                    >
+                      {req.id}
+                    </span>
+                    {isSelected && (
+                      <span className="text-[10px] font-semibold text-primary/90 bg-primary/10 px-1.5 py-0.2 rounded">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <StatusIcon tone={meta.tone} locked={meta.locked} finalized={meta.finalized} />
+                </div>
+
+                <p
+                  className={`text-sm line-clamp-2 leading-snug transition-colors ${
+                    meta.locked
+                      ? 'text-muted-foreground font-normal'
+                      : isSelected
+                      ? 'text-foreground font-semibold'
+                      : 'text-muted-foreground font-normal'
+                  }`}
+                >
+                  {req.title}
+                </p>
+
+                <div className="flex items-center gap-2 mt-2">
+                  <Progress
+                    value={meta.percent}
+                    className={`h-1 flex-1 ${meta.locked ? 'opacity-30' : ''}`}
+                  />
+                  <span
+                    className={`text-xs font-mono w-9 text-right ${
+                      isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {meta.percent}%
+                  </span>
+                </div>
+              </button>
+            </li>
+          )
+        })}
       </ul>
     </Card>
   )
 }
+

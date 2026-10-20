@@ -57,6 +57,11 @@ def save_student_estimate(
         if user_id:
             existing.estimated_by = user_id
         db.flush()
+        try:
+            from app.modules.planning.passport_service import evaluate_story_passport
+            evaluate_story_passport(db, session_id, story_id)
+        except Exception:
+            pass
         return existing
 
     row = StudentEffortEstimate(
@@ -74,6 +79,11 @@ def save_student_estimate(
     db.flush()
     if story:
         row.user_story = story
+    try:
+        from app.modules.planning.passport_service import evaluate_story_passport
+        evaluate_story_passport(db, session_id, story_id)
+    except Exception:
+        pass
     return row
 
 

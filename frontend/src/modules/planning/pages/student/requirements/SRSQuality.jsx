@@ -47,6 +47,7 @@ import { useUploadSrs, useAnalyzeQuality, useQualityResults, useRequirementHisto
 import { mapExtractResult, mapAnalyzeResult, mapPersistedRows, mapQualityResult } from '../../../adapters/quality.js'
 import QualityEvidencePanel from '../../../components/QualityEvidencePanel.jsx'
 import NewRequirementModal from '../../../components/NewRequirementModal.jsx'
+import StagePassCriteriaCard from '../../../components/StagePassCriteriaCard.jsx'
 import { useDartCases } from '../../../hooks/useDart.js'
 import { mapDartCases, getDartCasesForRequirement } from '../../../adapters/dart.js'
 import { COURSE_INFO } from '../../../data/lmsAcademicData.js'
@@ -597,6 +598,15 @@ export default function SRSQuality() {
                     )}
                   </div>
                 </div>
+
+                {/* Stage 1 Pass Criteria Checklist & Guidance */}
+                <StagePassCriteriaCard
+                  stage="srs_quality"
+                  requirement={selected}
+                  onActionClick={() => runQualityCheck(selected.id)}
+                  actionLoading={checkingId === selected.id}
+                  className="mb-4"
+                />
 
                 {/* SECTION 1: Specification & Refinement Editor (shown on 'all' or 'editor') */}
                 {(mainTab === 'all' || mainTab === 'editor') && (

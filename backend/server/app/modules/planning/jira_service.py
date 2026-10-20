@@ -203,22 +203,40 @@ async def sync_backlog_to_jira(
     if force_resync:
         await clear_jira_keys(db, session_id)
 
-    # 1. Fetch user stories and determine which stories belong to the backlog
+    # 1. Fetch user stories and determine candidate stories
     all_stories = decomposition_service.list_stories(db, session_id)
     estimates = estimation_service.list_estimates(db, session_id)
     estimates_by_story_id = {est.user_story_id: est for est in estimates}
 
     if story_refs:
         ref_set = set(story_refs)
-        stories = [s for s in all_stories if s.story_ref in ref_set or str(s.id) in ref_set]
+        candidate_stories = [s for s in all_stories if s.story_ref in ref_set or str(s.id) in ref_set]
     else:
-        # Default: only sync stories that have an estimate, have points, or are confirmed in backlog
-        stories = [
+        # Default: candidate stories that have points, estimates, or are marked for backlog
+        candidate_stories = [
             s for s in all_stories
             if s.id in estimates_by_story_id
             or s.student_story_points is not None
             or (hasattr(s, "status") and s.status in ("in_backlog", "estimated"))
         ]
+
+    # Filter candidates through Backlog Readiness Passport: only ready items can be pushed to Jira
+    from app.modules.planning.passport_service import get_passport_for_story
+    stories = []
+    blocked_stories = []
+    for s in candidate_stories:
+        passport = get_passport_for_story(db, session_id, s.id)
+        status_val = passport.overall_status.value if hasattr(passport.overall_status, "value") else str(passport.overall_status)
+        if status_val in ("ready", "ready_with_warnings"):
+            stories.append(s)
+        else:
+            blocked_stories.append({
+                "story_ref": s.story_ref,
+                "title": s.title,
+                "status": status_val,
+                "readiness_gap": passport.readiness_gap,
+                "student_action_required": passport.student_action_required,
+            })
 
     # 2. Fetch requirements and only create Epics for requirements that have active backlog stories
     all_requirements = requirement_service.list_requirements(db, session_id)
@@ -393,6 +411,7 @@ async def sync_backlog_to_jira(
         "issues": synced_issues,
         "jira_base_url": client.base_url,
         "status_warnings": status_warnings,
+        "blocked_stories": blocked_stories,
     }
 
 
