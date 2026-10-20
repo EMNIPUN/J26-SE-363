@@ -180,6 +180,7 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
     scan_md = ""
     llm_refused = False
 
+    pii = PIIRedactor.from_env()  # one redactor for the whole run: the same placeholders in the report snippets, prompts and questions
     stack = contextlib.AsyncExitStack()
     t0 = time.monotonic()
     try:
@@ -208,7 +209,7 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
                     chosen = [x for x in (tools if tools is not None else default_tools()) if x.name not in skipped]
                     result = await run_all(repo, tools=chosen)
                     detail = f"{len(result.runs)} tool run(s), {len(result.findings)} finding(s)"
-                scan_report = build_report(result, skipped=skipped, source=label, repo=repo)
+                scan_report = build_report(result, skipped=skipped, source=label, repo=repo, pii=pii)
                 scan_report.commit_sha = ref if is_url else scan_report.commit_sha
                 scan_md = render_markdown(scan_report)
                 bad = [r.tool for r in result.runs if r.status.value not in ("succeeded", "not_applicable")]
@@ -219,7 +220,6 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
                 st.record("scan", "failed", f"{type(exc).__name__}: {redact_text(str(exc))[:160]}", t)
 
         # ---- interpret -----------------------------------------------------------------------------------------------------
-        pii = PIIRedactor.from_env()
         if (why := st.blocked_by("interpret")):
             st.skip("interpret", f"needs {why}")
         elif not allow_external_llm:
@@ -311,8 +311,7 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
 
         # ---- one record per finding group -----------------------------------------------------------------------------------------
         findings = _collect(result, idoc, tdoc, risk_doc, qdoc)
-        if plan is not None and plan.pii is not None:
-            plan.pii.save_mapping(out / "pii_mapping.local.json")
+        pii.save_mapping(out / "pii_mapping.local.json")  # local only; written when the report had to replace personal data
     finally:
         await stack.aclose()  # a fetched checkout is deleted here, after everything that needed the code
 

@@ -246,9 +246,9 @@ def render_section(doc: dict) -> str:
     return "\n".join(M) + "\n"
 
 
-def write_outputs(out_dir: Path, result: ScanResult, skipped: list[str], repo: Path | None, doc: dict) -> tuple[Path, Path]:
+def write_outputs(out_dir: Path, result: ScanResult, skipped: list[str], repo: Path | None, doc: dict, pii: PIIRedactor | None = None) -> tuple[Path, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
-    report = build_report(result, skipped=skipped, source=result.repo_path, repo=repo)
+    report = build_report(result, skipped=skipped, source=result.repo_path, repo=repo, pii=pii)
     md = out_dir / "report.md"
     md.write_text(render_markdown(report) + "\n" + render_section(doc), encoding="utf-8")
     js = out_dir / "interpreted.json"
@@ -315,7 +315,7 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None) -
                                                       "retries": args.retries, "max_findings": args.max_findings,
                                                       "only_category": [c.value for c in only] if only else None})
     out = args.out or args.findings.parent
-    js, md = write_outputs(out, result, skipped, args.repo, doc)
+    js, md = write_outputs(out, result, skipped, args.repo, doc, plan.pii)
     mapping = plan.pii.save_mapping(out / "pii_mapping.local.json") if plan.pii is not None else None
     print(render_results_table(outcomes))
     if mapping:

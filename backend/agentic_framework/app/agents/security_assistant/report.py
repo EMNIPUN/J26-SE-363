@@ -12,6 +12,7 @@ from pathlib import Path
 
 from app.agents.security_assistant import guidance as guide
 from app.agents.security_assistant.redaction import redact_text
+from app.agents.security_assistant.pii import PIIRedactor
 from app.agents.security_assistant.schemas import Category, Finding, RunStatus, ScanResult, ToolRun
 
 CATEGORY_NAMES = {
@@ -97,7 +98,7 @@ def coverage(runs: list[ToolRun], skipped: list[str]) -> dict[Category, Category
     return out
 
 
-def _snippet(repo: Path, finding: Finding) -> str | None:
+def _snippet(repo: Path, finding: Finding, pii: PIIRedactor) -> str | None:
     if not finding.file_path or not finding.line:
         return None
     try:
@@ -111,9 +112,12 @@ def _snippet(repo: Path, finding: Finding) -> str | None:
     if not 1 <= finding.line <= len(lines):
         return None
     lo, hi = max(1, finding.line - SNIPPET_RADIUS), min(len(lines), finding.line + SNIPPET_RADIUS)
+    window = lines[lo - 1:hi]
+    safe = pii.redact_code("\n".join(window)).split("\n")  # e-mails, phone numbers, student ids in comments and strings
+    window = safe if len(safe) == len(window) else [pii.redact_code(x) for x in window]
     out = []
     for no in range(lo, hi + 1):
-        text = lines[no - 1]
+        text = window[no - lo]
         if no == finding.line and finding.category is Category.V4:
             text = "<line hidden: it holds the secret>"  # never show the line of a secret finding
         out.append(f"{'>' if no == finding.line else ' '} {no:4d} | {redact_text(text)}")
@@ -121,14 +125,15 @@ def _snippet(repo: Path, finding: Finding) -> str | None:
 
 
 def build_report(result: ScanResult, *, skipped: list[str] | None = None, source: str | None = None,
-                 repo: Path | None = None) -> ScanReport:
+                 repo: Path | None = None, pii: PIIRedactor | None = None) -> ScanReport:
     skipped = sorted(skipped or [])
     snippets: dict[int, str] = {}
+    pii = pii if pii is not None else PIIRedactor.from_env()  # snippets are the student's own code: personal data is replaced here too
     if repo is not None:
         for i, f in enumerate(result.findings):
             if len(snippets) >= MAX_SNIPPETS:
                 break
-            if text := _snippet(Path(repo), f):
+            if text := _snippet(Path(repo), f, pii):
                 snippets[i] = text
     return ScanReport(
         source=source or result.repo_url or result.repo_path, commit_sha=result.commit_sha,

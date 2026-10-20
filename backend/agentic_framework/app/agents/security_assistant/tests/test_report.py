@@ -246,3 +246,24 @@ def test_demo_repos_hide_a_deleted_secret_in_the_git_history(tmp_path):
         log = subprocess.run(["git", "log", "--all", "--oneline", "--", "settings_old.py"], cwd=repo,
                              capture_output=True, text=True, check=True).stdout.strip().splitlines()
         assert len(log) == 2  # added, then removed
+
+
+# ---- regression: personal data in the code snippets of the report -----------------------------------------------------------------
+def test_report_snippets_replace_emails_phones_and_student_ids_in_the_students_code(tmp_path, monkeypatch):
+    """The leak check of the verification phase found e-mail address and student id of a comment verbatim in report.md,
+    although the same redactor already removed them from the LLM prompts."""
+    from app.agents.security_assistant.report import build_report, render_markdown
+    from app.agents.security_assistant.schemas import Category, Finding, ScanResult
+
+    monkeypatch.setenv("SECURITY_ASSISTANT_STUDENT_ID_REGEX", r"S\d{7}")
+    (tmp_path / "app.py").write_text(
+        "def login():\n"
+        "    # Contact priya.natarajan@student.example.edu, phone +1 415 555 0134, student S7654321 if this breaks\n"
+        "    return hashlib.md5(b'x').hexdigest()\n", encoding="utf-8")
+    finding = Finding(category=Category.V3, rule_id="cfg-005", tool="config-scan", file_path="app.py", line=3, message="md5")
+    result = ScanResult(run_id="r", repo_path=str(tmp_path), findings=[finding])
+    md = render_markdown(build_report(result, repo=tmp_path))
+    assert "def login():" in md and "md5" in md  # the code is still shown
+    for personal in ("priya.natarajan", "student.example.edu", "555 0134", "S7654321"):
+        assert personal not in md, personal
+    assert "<EMAIL_1>" in md and "<STUDENT_ID_1>" in md
