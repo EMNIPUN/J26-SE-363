@@ -1,23 +1,25 @@
-"""Semantic similarity utilities (SBERT/MiniLM + cosine).
+"""Semantic similarity utilities (shared embedder + cosine).
 
 - ``cross_req_check``: find near-duplicate requirements across the SRS.
 - ``aspect_coverage``: match extracted requirement aspects against story texts
   for the Decomposition agent's coverage_analyzer tool.
+
+Uses the shared fastembed-based embedder from ``embeddings.py`` so that
+similarity judgments are made with the same model as RAG retrieval.
+
+.. note:: The ``threshold`` defaults (0.78 for cross-req, 0.45 for aspect
+   coverage) were calibrated for MiniLM-L6-v2.  After upgrading to
+   bge-small-en-v1.5 they **must** be re-calibrated on the eval dev split
+   (see ``knowledge/eval/calibrate.py``).
 """
 
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import Any
 
 import numpy as np
 
-
-@lru_cache(maxsize=1)
-def _embedder():
-    from chromadb.utils import embedding_functions
-
-    return embedding_functions.DefaultEmbeddingFunction()
+from app.agents.project_planning.knowledge.embeddings import embed_texts
 
 
 def cross_req_check(
@@ -31,7 +33,7 @@ def cross_req_check(
     if not others:
         return []
 
-    vectors = np.asarray(_embedder()([req_text, *others]), dtype=float)
+    vectors = embed_texts([req_text, *others])
     query = vectors[0]
     rest = vectors[1:]
     query /= np.linalg.norm(query) + 1e-9
@@ -61,7 +63,7 @@ def aspect_coverage(
 
     aspect_docs = [a["label"] for a in aspects]
     all_docs = [*aspect_docs, *story_texts]
-    vectors = np.asarray(_embedder()(all_docs), dtype=float)
+    vectors = embed_texts(all_docs)
     norms = np.linalg.norm(vectors, axis=1, keepdims=True) + 1e-9
     vectors /= norms
 

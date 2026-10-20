@@ -97,12 +97,36 @@ class Smell(BaseModel):
     suggestion: str = ""
 
 
+class RetrievalRunRecord(BaseModel):
+    """A single retrieval-pipeline invocation record (for telemetry / eval)."""
+
+    collection: str = ""
+    query: str = ""
+    decision: str = ""                                # "retrieved" | "abstained"
+    results_count: int = 0
+    top_score: float | None = None
+    candidates_dense: int = 0
+    candidates_bm25: int = 0
+    hybrid: bool = False
+    rerank: bool = False
+    min_score: float = 0.0
+    embed_model: str = ""
+    rerank_model: str | None = None
+    latency_ms: float = 0.0
+
+
 class RetrievalEvidence(BaseModel):
-    """What the RAG/similarity tools retrieved while scoring (for UI transparency)."""
+    """What the RAG/similarity tools retrieved while scoring (for UI transparency).
+
+    The ``retrieval_runs`` list is new — it carries per-query telemetry so the
+    Core API can persist it to ``rqa_retrieval_logs`` and the eval harness can
+    score pipeline quality.  Consumers that don't read it are unaffected.
+    """
 
     standards: list[dict] = Field(default_factory=list)       # IEEE / ISO criteria
     exemplars: list[dict] = Field(default_factory=list)       # graded example requirements
     cross_req_hits: list[dict] = Field(default_factory=list)  # similar other requirements
+    retrieval_runs: list[RetrievalRunRecord] = Field(default_factory=list)
 
 
 class RequirementQualityResult(BaseModel):

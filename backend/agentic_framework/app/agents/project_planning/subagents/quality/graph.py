@@ -28,10 +28,12 @@ from app.agents.project_planning.knowledge import (
     query_standards,
 )
 from app.agents.project_planning.llm import get_llm_client
+from app.agents.project_planning.knowledge.vector_store import pop_retrieval_log
 from app.agents.project_planning.schemas import (
     RequirementInput,
     RequirementQualityResult,
     RetrievalEvidence,
+    RetrievalRunRecord,
 )
 from app.agents.project_planning.subagents.quality.prompts import (
     REFLECT_SYSTEM_PROMPT,
@@ -249,10 +251,13 @@ def finalize(state: QualityState) -> QualityState:
     smells = state.get("smells", [])
     threshold = state.get("threshold", 75)
 
+    # Collect per-query telemetry accumulated during this requirement's scoring.
+    runs = [RetrievalRunRecord(**r) for r in pop_retrieval_log()]
     retrieval = RetrievalEvidence(
         standards=state.get("retrieved_standards") or [],
         exemplars=state.get("retrieved_exemplars") or [],
         cross_req_hits=state.get("cross_req_hits") or [],
+        retrieval_runs=runs,
     )
 
     if state.get("scoring_failed") or not state.get("dimensions_raw"):
