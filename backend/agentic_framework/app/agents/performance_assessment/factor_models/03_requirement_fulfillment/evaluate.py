@@ -42,6 +42,26 @@ def _default_llm():
         raise NotEnoughEvidence(f"no language-model client: {e}") from e
 
 
+class _Traced:
+    """The language-model client, with one event per call (what was asked, how long it took, whether it was refused). It changes nothing about the calls."""
+
+    def __init__(self, inner, emit):
+        self._inner, self._emit = inner, emit
+        self.model = getattr(inner, "model", "")
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+    def chat(self, messages, **kw):
+        reply = self._inner.chat(messages, **kw)
+        tag = kw.get("tag", "")
+        if reply.ok:
+            self._emit("llm_call", f"{tag}: {reply.prompt_tokens}+{reply.completion_tokens} tokens, {reply.latency:.1f}s" + (f", {reply.attempts} attempts" if reply.attempts > 1 else ""), {"tag": tag})
+        else:
+            self._emit("llm_error", f"{tag}: {reply.error_kind or 'error'}: {str(reply.error)[:120]} ({reply.attempts} attempts)", {"tag": tag})
+        return reply
+
+
 def evaluate(payload, context=None):
     from rf_bench.runner import Usage
     from rf_bench.scope import Scope
@@ -65,13 +85,25 @@ def evaluate(payload, context=None):
     llm = ctx.get("llm")
     if judged and llm is None:
         llm = _default_llm()
+    emit = ctx.get("on_event") or (lambda *a, **k: None)
+    if llm is not None:
+        llm = _Traced(llm, emit)
     agent_mod = "experiments.agent_critic" if ctx.get("rf_critic", True) else "experiments.agent"
     agent = importlib.import_module(agent_mod)
     agent = getattr(agent, "AgentCritic" if ctx.get("rf_critic", True) else "Agent")()
-    emit = ctx.get("on_event") or (lambda *a, **k: None)
     values, rows, warnings = {}, [], []
     usage = Usage()
+    no_view = []
     for tid in judged:
+        if ctx.get("cancel") is not None and ctx["cancel"].is_set():
+            warnings.append("stopped before all tasks were judged: out of time")
+            break
+        if not bench.commits:  # none of this student's changed lines is visible: there is nothing to show the model, and a model call would only cost time
+            no_view.append(tid)
+            rows.append({"task": tid, "status": "no_visible_change", "fulfilment": None})
+            warnings.append(f"task {tid}: none of this student's changed lines in the sprint can be shown, so it was not sent to the model")
+            emit("task_skipped", f"task {tid}: no changed lines of this student to judge", {"task": tid})
+            continue
         scope = Scope(bench, bench.sprint, bench.student)
         emit("task_start", f"judging task {tid}", {"task": tid})
         res = agent.assess(bench, tid, scope, llm, usage)
@@ -87,16 +119,21 @@ def evaluate(payload, context=None):
         rows.append({"task": tid, "status": "judged", "fulfilment": round(v, 4), "band": band(v), "verdicts": res["verdicts"], "reasons": res.get("reasons"), "evidence": res.get("evidence"),
                      "coverage": res.get("coverage"), "critic": res.get("critic")})
         emit("task_done", f"task {tid}: fulfilment {v:.2f}", {"task": tid, "verdicts": res["verdicts"]})
+    if not provisional:
+        for tid in no_view:
+            values[tid] = 0.0  # the sprint is over and the task is claimed, but none of the student's changes can be seen
     for tid in skipped:
         values[tid] = 0.0
         rows.append({"task": tid, "status": "not_started" if not provisional else "not_ready", "fulfilment": 0.0 if not provisional else None})
     if provisional:
-        scored = {t: v for t, v in values.items() if t in judged}
+        scored = {t: v for t, v in values.items() if t in judged and t not in no_view}
         if not scored:
             raise NotEnoughEvidence("no task is Done or In Review yet, so nothing can be judged")
         values = scored
         warnings.append("provisional: only tasks that are Done or In Review are judged")
-    if not any(r["status"] == "judged" for r in rows) and judged:
+    if no_view and len(no_view) == len(judged) and provisional:
+        raise NotEnoughEvidence("no changed lines of this student can be shown for the tasks that are Done or In Review, so nothing can be judged yet")
+    if not any(r["status"] == "judged" for r in rows) and judged and len(no_view) < len(judged):
         raise NotEnoughEvidence("the language model could not judge any task: " + "; ".join(warnings)[:300])
     score = sprint_score(list(values.values()))
     spread = 0.34

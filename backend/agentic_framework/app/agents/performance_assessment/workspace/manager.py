@@ -118,16 +118,24 @@ class WorkspaceManager:
         return p.stdout
 
     # ---- mirrors ---------------------------------------------------------------------------------------------------------------------
-    def ensure_mirror(self, repo_url, token=None):
-        """Create the bare, blob-less mirror, or fetch into it. Returns its path."""
+    def ensure_mirror(self, repo_url, token=None, partial=None):
+        """Create the bare mirror, or fetch into it. Returns its path.
+
+        The mirror holds every file of every commit by default. ``partial=True`` (or ASSESSMENT_PARTIAL_CLONE=1) makes a blob-less mirror for very large repositories: it downloads the first
+        clone faster, but git then fetches each file it needs from the server one at a time, which is far slower for blame and diffs. An existing mirror of the other kind is replaced.
+        """
+        if partial is None:
+            partial = os.environ.get("ASSESSMENT_PARTIAL_CLONE", "0") == "1"
         url, path = self.normalize(repo_url), self.mirror_path(repo_url)
         with self._lock(str(path)):
+            if (path / "HEAD").exists() and not partial and "partialclonefilter" in (path / "config").read_text(encoding="utf-8", errors="replace"):
+                rmtree(path)  # a blob-less mirror from an earlier run: replace it by a full one
             if (path / "HEAD").exists():
                 self._run(["fetch", "--prune", "--quiet", "origin", "+refs/heads/*:refs/heads/*", "+refs/pull/*/head:refs/pull/*/head"], cwd=path, token=token)
             else:
                 tmp = Path(tempfile.mkdtemp(dir=self.mirrors, prefix="clone-"))
                 try:
-                    self._run(["clone", "--mirror", "--filter=blob:none", "--quiet", url, str(tmp / "r.git")], token=token)
+                    self._run(["clone", "--mirror", *(["--filter=blob:none"] if partial else []), "--quiet", url, str(tmp / "r.git")], token=token)
                     shutil.move(str(tmp / "r.git"), str(path))
                 finally:
                     rmtree(tmp)

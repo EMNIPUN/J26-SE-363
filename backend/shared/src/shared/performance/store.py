@@ -6,6 +6,7 @@ connection pool; every method returns plain dicts (JSON columns already decoded)
 from __future__ import annotations
 
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -38,7 +39,7 @@ def _j(value: Any) -> Jsonb | None:
 
 
 class PerformanceStore:
-    def __init__(self, dsn: str | None = None, *, max_size: int = 6):
+    def __init__(self, dsn: str | None = None, *, max_size: int = 3):
         self.dsn = dsn or get_dsn()
         if not self.dsn:
             raise RuntimeError("no database URL configured (SERVER_DIRECT_URL / SERVER_DATABASE_URL)")
@@ -124,14 +125,29 @@ class PerformanceStore:
     # ---- events -----------------------------------------------------------------------------------------------------------------------
     def add_event(self, run_id: str, type: str, message: str = "", *, node_path: str = "", level: str = "info", payload: dict | None = None) -> int:
         """Append an event to a run's log and wake listeners (NOTIFY perf_events). Returns its sequence number."""
-        with self.pool().connection() as c:
-            with c.transaction():
-                c.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (f"events:{run_id}",))
-                seq = c.execute("SELECT coalesce(max(seq), 0) + 1 AS n FROM perf_run_events WHERE run_id = %s", (run_id,)).fetchone()["n"]
-                c.execute("INSERT INTO perf_run_events (run_id, seq, node_path, type, level, message, payload) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                          (run_id, seq, node_path, type, level, message, Jsonb(payload or {})))
-                c.execute("SELECT pg_notify('perf_events', %s)", (f"{run_id}:{seq}",))
-            return seq
+        return self.add_events(run_id, [{"type": type, "message": message, "node_path": node_path, "level": level, "payload": payload or {}}])[-1]
+
+    def add_events(self, run_id: str, events: list[dict]) -> list[int]:
+        """Append several events in order with one round trip (the database may be far away: one event per round trip made a run's log slower than its work). Returns their sequence numbers."""
+        if not events:
+            return []
+        rows = [(e.get("node_path", ""), e["type"], e.get("level", "info"), e.get("message", ""), Jsonb(e.get("payload") or {})) for e in events]
+        values = ", ".join(["(%s, %s, %s, %s, %s)"] * len(rows))
+        sql = f"""WITH base AS (SELECT coalesce(max(seq), 0) AS n FROM perf_run_events WHERE run_id = %s),
+                  new AS (SELECT row_number() OVER () AS i, v.* FROM (VALUES {values}) AS v(node_path, type, level, message, payload)),
+                  ins AS (INSERT INTO perf_run_events (run_id, seq, node_path, type, level, message, payload)
+                          SELECT %s, base.n + new.i, new.node_path, new.type, new.level, new.message, new.payload::jsonb FROM new, base RETURNING seq)
+                  SELECT seq, pg_notify('perf_events', %s || ':' || seq) FROM ins ORDER BY seq"""
+        params = [run_id] + [x for r in rows for x in (r[0], r[1], r[2], r[3], r[4])] + [run_id, run_id]
+        for attempt in range(8):  # two writers can pick the same next number: the unique key refuses the second, which then looks again
+            try:
+                with self.pool().connection() as c:
+                    return [r["seq"] for r in c.execute(sql, params).fetchall()]
+            except psycopg.errors.UniqueViolation:
+                if attempt == 7:
+                    raise
+                time.sleep(0.01 * (attempt + 1))
+        return []
 
     def list_events(self, run_id: str, after: int = 0, limit: int = 500, node_path: str | None = None) -> list[dict]:
         return self._all("SELECT seq, ts, node_path, type, level, message, payload FROM perf_run_events WHERE run_id = %s AND seq > %s AND (%s::text IS NULL OR node_path = %s OR node_path LIKE %s) ORDER BY seq LIMIT %s",

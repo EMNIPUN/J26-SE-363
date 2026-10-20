@@ -14,6 +14,8 @@ Every node runs inside ``Events.node(path)`` so the live pipeline view shows it.
 A score only ever comes from a factor package; the agent's own steps (audit, explanation) read results and cannot write them.
 """
 import asyncio
+import os
+import threading
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated, Any, TypedDict
 
@@ -21,7 +23,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 from shared.performance.topology import PASSIVE, RF_NODES, STUDENT_NODES, TEAM_NODES, topology  # noqa: F401
 
-from app.agents.performance_assessment.assessment import audit, factors, justify, quiz_flow
+from app.agents.performance_assessment.assessment import audit, factors, investigate, justify, quiz_flow
 from app.agents.performance_assessment.assessment.events import Events
 from app.agents.performance_assessment.assessment.fusion import fuse
 from app.agents.performance_assessment.assessment.report import build_report
@@ -64,6 +66,17 @@ class StudentState(TypedDict, total=False):
     outcome: dict
 
 
+FACTOR_TIMEOUT = float(os.environ.get("ASSESSMENT_FACTOR_TIMEOUT", 180))     # seconds a factor may take
+RF_TIMEOUT = float(os.environ.get("ASSESSMENT_RF_TIMEOUT", 900))              # Requirement Fulfillment calls a language model for every criterion
+STUDENT_TIMEOUT = float(os.environ.get("ASSESSMENT_STUDENT_TIMEOUT", 1800))   # seconds one student's whole pipeline may take
+
+
+def stopped(name, seconds):
+    """What a factor that ran out of time looks like: a failure the audit and the lecturer can see, never a score."""
+    return {"factor": name, "score": None, "status": "fallback", "interval": None, "warnings": [f"{name} did not finish within {seconds:.0f} s and was stopped"], "versions": {}, "features": {},
+            "provisional": False, "removed": {}, "tasks": None, "model": None}
+
+
 def _safe(payload):
     if not isinstance(payload, dict):
         return {}
@@ -81,7 +94,8 @@ class StudentPipeline:
         self.mode, self.team, self.sprint_id = run["mode"], run["team_ref"], run["sprint_id"]
         self.evidence = self.d.evidence[sid]
         self.provisional = self.mode != "final"
-        self.context = {"llm": sv.llm, "on_event": self._rf_event}
+        self.cancel = threading.Event()  # tells the Requirement Fulfillment thread to stop between tasks when it ran out of time
+        self.context = {"llm": sv.llm, "on_event": self._rf_event, "cancel": self.cancel}
 
     def path(self, node):
         return f"student:{self.sid}/{node}"
@@ -89,15 +103,22 @@ class StudentPipeline:
     def _rf_event(self, type, message, payload=None):  # called from the factor's thread
         self.ev.emit("log", f"{type}: {message}", node_path=self.path("rf_subagent"), payload=_safe(payload))
 
-    def _save(self, name, r):
-        self.sv.store.save_factor_result(self.run["id"], self.sid, name, score=r["score"], status=r["status"], interval=r["interval"], provisional=r["provisional"], features=r["features"],
-                                         warnings=r["warnings"], versions=r["versions"])
+    async def _save(self, name, r):
+        await self.sv.astore.save_factor_result(self.run["id"], self.sid, name, score=r["score"], status=r["status"], interval=r["interval"], provisional=r["provisional"], features=r["features"],
+                                                warnings=r["warnings"], versions=r["versions"])
 
     async def _run_factor(self, name):
-        if name == "requirement_fulfillment":
-            # the sub-agent calls a language model with blocking requests: keep it off the event loop so other students go on
-            return await asyncio.to_thread(lambda: asyncio.run(factors.run_factor(name, self.evidence, patches_ref=str(self.d.patches_path), context=self.context)))
-        return await factors.run_factor(name, self.evidence, context=self.context)
+        limit = RF_TIMEOUT if name == "requirement_fulfillment" else FACTOR_TIMEOUT
+        try:
+            if name == "requirement_fulfillment":
+                # the sub-agent calls a language model with blocking requests: keep it off the event loop so other students go on
+                work = asyncio.to_thread(lambda: asyncio.run(factors.run_factor(name, self.evidence, patches_ref=str(self.d.patches_path), context=self.context)))
+            else:
+                work = factors.run_factor(name, self.evidence, context=self.context)
+            return await asyncio.wait_for(work, limit)
+        except asyncio.TimeoutError:
+            self.cancel.set()
+            return stopped(name, limit)
 
     def _wrap(self, node, fn):
         async def run(state):
@@ -108,7 +129,7 @@ class StudentPipeline:
     def _factor_node(self, name):
         async def fn(state, n):
             r = await self._run_factor(name)
-            self._save(name, r)
+            await self._save(name, r)
             n.tool(name, f"{r['status']}" + (f" {r['score']:.3f}" if r["score"] is not None else ""))
             for w in r["warnings"][:5]:
                 n.log(w, level="warn")
@@ -139,7 +160,7 @@ class StudentPipeline:
             if a["action"] == "retry":
                 n.log(f"re-running {a['factor']} once: {a['reason']}")
                 r = await self._run_factor(a["factor"])
-                self._save(a["factor"], r)
+                await self._save(a["factor"], r)
                 results[a["factor"]] = r
         return {"results": results}
 
@@ -150,7 +171,7 @@ class StudentPipeline:
             quiz = await quiz_flow.issue(self.sv.store, self.sv.ws, self.run["repo_url"], self.d.rev, self.team, self.sprint_id, self.sid, self.evidence, self.run["id"], self.sv.token, self.sv.now())
             r = await quiz_flow.factor_for(self.sv.store, quiz)
             n.log(("quiz issued" if quiz and quiz["status"] == "open" else f"quiz {quiz['status']}" if quiz else "no suitable code for a quiz") + f"; Code Ownership {r['status']}")
-        self._save("code_ownership", r)
+        await self._save("code_ownership", r)
         n.result(status=r["status"])
         return {"results": {**state["results"], "code_ownership": r}}
 
@@ -174,37 +195,66 @@ class StudentPipeline:
         previous = self.d.previous_marks.get(self.sid)
         found = audit.findings(results, self.evidence, previous, fused["mark"])
         summary = {k: {"score": r["score"], "status": r["status"]} for k, r in results.items()}
-        reasoning = await asyncio.to_thread(audit.llm_decide, self.sv.llm, found, self.sv.cards, summary)
+        reasoning = await asyncio.to_thread(investigate.run, self.sv.llm, found, self.sv.cards, results, self.evidence, await self._history(previous))
+        if reasoning is None:  # the investigation gave no usable answer: ask for the decisions directly
+            reasoning = await asyncio.to_thread(audit.llm_decide, self.sv.llm, found, self.sv.cards, summary)
+        for t in (reasoning or {}).get("trace", []):
+            n.tool(t["tool"], t["result"][:140], args=_safe(t["args"]))
+        changed = {}
+        overrides = (reasoning or {}).get("overrides") or {}
+        if overrides:
+            changed = investigate.apply_overrides(results, overrides)
+            results = {**results, **changed}
+            for f, why in overrides.items():
+                n.log(f"{f} left out of the mark by the auditor: {why}", level="warn")
+            state_behavioral = factors.run_behavioral(results, provisional=self.provisional)
+            fused = fuse(results, state_behavioral)
+            n.log(f"mark composed again without it: {fused['mark'] if fused['mark'] is None else round(fused['mark'], 1)}")
+            found = audit.findings(results, self.evidence, previous, fused["mark"])
+        else:
+            state_behavioral = state["behavioral"]
         actions = audit.decide(found, reasoning)
         for a in actions:
             n.log(f"{a['id']}: {a['action']} ({a['reason']})", level="warn" if a["action"] == "escalate" else "info")
-            if a["action"] == "escalate" and not self._review_exists(a["id"]):
-                self.sv.store.create_review(self.run["id"], "audit", f"{a['message']} | {a['reason']}", student_id=self.sid,
+            if a["action"] == "escalate" and not await self._review_exists(a["id"]):
+                await self.sv.astore.create_review(self.run["id"], "audit", f"{a['message']} | {a['reason']}", student_id=self.sid,
                                             evidence={"finding": a["id"], "factor": a["factor"], "mark": fused["mark"], "scores": summary})
         status = "pending_review" if any(a["action"] == "escalate" for a in actions) else ("final" if self.mode == "final" and not fused["pending"] else "provisional")
         just = justify.explain(self.sid, results, fused, self.evidence, self.sv.cards, actions, status)
-        just["audit"] = {"actions": [{k: a[k] for k in ("id", "factor", "severity", "action", "reason")} for a in actions], "summary": (reasoning or {}).get("summary"), "model": (reasoning or {}).get("model")}
+        just["audit"] = {"actions": [{k: a[k] for k in ("id", "factor", "severity", "action", "reason")} for a in actions], "summary": (reasoning or {}).get("summary"), "model": (reasoning or {}).get("model"),
+                         "checked": [{"tool": t["tool"], "result": t["result"][:200]} for t in (reasoning or {}).get("trace", [])], "left_out": overrides}
         if self.sv.llm is not None:
             friendly = await asyncio.to_thread(justify.polish, self.sv.llm, just)
             if friendly:
                 just["friendly_summary"] = friendly
         n.result(status=status, actions=len(actions))
-        return {"actions": actions, "reasoning": reasoning or {}, "justification": just, "status": status}
+        return {"actions": actions, "reasoning": reasoning or {}, "justification": just, "status": status, "results": changed, "fused": fused, "behavioral": state_behavioral}
 
-    def _review_exists(self, finding_id):
-        return any((r.get("evidence") or {}).get("finding") == finding_id and r.get("student_id") == self.sid for r in self.sv.store.list_reviews(None, self.run["id"]))
+    async def _history(self, previous):
+        """What compare_with_history shows the auditor: the student's earlier snapshots of this sprint and the previous result."""
+        rows = await self.sv.astore.trajectory(self.team, self.sprint_id, self.sid)
+        return {"previous_mark": previous, "snapshots": [{"day": str(r["as_of"])[:10], "mark": r["mark"], "sprint_elapsed": round(r["sprint_elapsed"], 2),
+                                                          "scores": {k: v.get("score") for k, v in (r["factors"] or {}).items() if isinstance(v, dict) and "score" in v}} for r in rows[-8:]]}
+
+    async def _review_exists(self, finding_id):
+        return any((r.get("evidence") or {}).get("finding") == finding_id and r.get("student_id") == self.sid for r in await self.sv.astore.list_reviews(None, self.run["id"]))
 
     async def export_step(self, state, n):
         fused, results = state["fused"], state["results"]
         by_factor = {}
         for a in state["actions"]:
             by_factor.setdefault(a["factor"], []).append({"finding": a["id"], "action": a["action"], "reason": a["reason"]})
-        for name, r in results.items():
-            self.sv.store.save_factor_result(self.run["id"], self.sid, name, score=r["score"], status=r["status"], interval=r["interval"], provisional=r["provisional"], features=r["features"],
-                                             warnings=r["warnings"], versions=r["versions"], audit={"decisions": by_factor.get(name, [])})
+        store, rid, sid = self.sv.store, self.run["id"], self.sid
+
+        def save_factors():
+            for name, r in results.items():
+                store.save_factor_result(rid, sid, name, score=r["score"], status=r["status"], interval=r["interval"], provisional=r["provisional"], features=r["features"],
+                                         warnings=r["warnings"], versions=r["versions"], audit={"decisions": by_factor.get(name, [])})
+
+        await asyncio.to_thread(save_factors)
         compact = {k: {"score": r["score"], "status": r["status"], "interval": r["interval"], "provisional": r["provisional"]} for k, r in results.items()}
         compact["behavioral_pattern"] = {"persona": state["behavioral"].get("persona"), "applied": state["behavioral"].get("applied"), "modifier": state["behavioral"].get("modifier")}
-        self.sv.store.save_assessment_result(self.run["id"], self.team, self.sprint_id, self.sid, mark=fused["mark"], mark_interval=fused["mark_interval"], status=state["status"], factors=compact,
+        await self.sv.astore.save_assessment_result(self.run["id"], self.team, self.sprint_id, self.sid, mark=fused["mark"], mark_interval=fused["mark_interval"], status=state["status"], factors=compact,
                                              justification=state["justification"], flags=[a for a in state["justification"]["flags"]])
         n.result(status=state["status"])
         return {"outcome": {"mark": fused["mark"], "interval": fused["mark_interval"], "status": state["status"], "pending": fused["pending"], "factors": compact,
@@ -255,13 +305,15 @@ class TeamGraph:
     # -- nodes ----------------------------------------------------------------------------------------------------------------------
     async def load_run_context(self, state, n, ev):
         sv = self.sv
-        team = sv.store.get_tracked_team(state["team_ref"])
+        team = await sv.astore.get_tracked_team(state["team_ref"])
         if not team:
             raise ValueError(f"team {state['team_ref']!r} is not tracked")
         d = sv.data(state["run_id"])
         cfg = team.get("config") or {}
         d.roster = cfg.get("roster") or []
-        d.previous_marks = {r["student_id"]: r["mark"] for r in sv.store.latest_results(state["team_ref"], state["sprint_id"]) if r.get("mark") is not None}
+        d.simulate_now = cfg.get("simulate_now")  # test aid: take a snapshot as if it were this moment (set directly in the database)
+        d.scrum_data_dir = cfg.get("scrum_data_dir")  # set directly in the database for a board that lives outside the course dataset; the API never accepts it
+        d.previous_marks = {r["student_id"]: r["mark"] for r in await sv.astore.latest_results(state["team_ref"], state["sprint_id"]) if r.get("mark") is not None}
         n.log(f"team {state['team_ref']}: repository {team['repo_url']}, board {team.get('board_ref') or state['team_ref']}, {len(d.roster)} students in the roster, mode {state['mode']}")
         n.result(students=len(d.roster))
         return {"repo_url": team["repo_url"], "board_ref": team.get("board_ref") or state["team_ref"]}
@@ -274,7 +326,7 @@ class TeamGraph:
 
     async def collect_scrum(self, state, n, ev):
         sv, d = self.sv, self.sv.data(state["run_id"])
-        async with sv.scrum() as scrum:
+        async with (sv.scrum(d.scrum_data_dir) if d.scrum_data_dir else sv.scrum()) as scrum:
             det = await scrum.get_sprint_details(state["sprint_id"])
             n.tool("get_sprint_details", state["sprint_id"])
             if det.get("error"):
@@ -296,7 +348,7 @@ class TeamGraph:
         d.tasks_by_student = tasks
         d.as_of = None
         if state["mode"] == "snapshot":
-            now = sv.now()
+            now = datetime.fromisoformat(d.simulate_now) if d.simulate_now else sv.now()
             end = _days(d.sprint["end"])
             d.as_of = now.isoformat() if now.date() < end else None
             if d.as_of is None:
@@ -313,7 +365,10 @@ class TeamGraph:
             d.prs = await sv.github.pulls_bundle(state["repo_url"], since=d.sprint["start"])
             n.tool("pulls_bundle", f"{len(d.prs)} pull requests with reviews and comments")
         except Exception as e:  # rate limit, no access: the rest of the run goes on without the review data
-            n.log(f"GitHub data could not be read ({type(e).__name__}); Collaboration will be 'not available'", level="warn")
+            if type(e).__name__ == "GitHubRateLimited":
+                n.log("GitHub's rate limit was reached (60 requests an hour without a token). Set GITHUB_TOKEN for the worker. Collaboration will be 'not available' in this run", level="warn")
+            else:
+                n.log(f"GitHub data could not be read ({type(e).__name__}); Collaboration will be 'not available'", level="warn")
         return {}
 
     async def build_team_evidence(self, state, n, ev):
@@ -322,7 +377,7 @@ class TeamGraph:
         if d.as_of:
             sprint["end"] = min(_days(sprint["end"]), _days(d.as_of)).isoformat()
         roster = Roster(d.roster)
-        built = await asyncio.to_thread(build_team_evidence, sv.ws, state["repo_url"], roster, sprint, d.tasks_by_student, d.prs, token=sv.token)
+        built = await asyncio.to_thread(lambda: build_team_evidence(sv.ws, state["repo_url"], roster, sprint, d.tasks_by_student, d.prs, token=sv.token, progress=lambda m: n.log(m)))
         d.evidence, d.quality, d.rev, d.patches = built.evidence, built.quality, built.rev, built.patches
         if d.as_of:
             for e in d.evidence.values():
@@ -342,12 +397,12 @@ class TeamGraph:
         if not need:
             n.log("evidence is complete enough to assess" + (f"; {len(q['unmapped_authors'])} unmapped authors are small and are listed in the report" if q["unmapped_authors"] else ""))
             return {"gate": {"passed": True}, "rebuild": False}
-        if not any(r["kind"] == "identity_mapping" for r in sv.store.list_reviews(None, state["run_id"])):
-            sv.store.create_review(state["run_id"], "identity_mapping", f"{q['unmapped_share_of_added_lines']:.0%} of the sprint's added lines are by authors that match no student",
+        if not any(r["kind"] == "identity_mapping" for r in await sv.astore.list_reviews(None, state["run_id"])):
+            await sv.astore.create_review(state["run_id"], "identity_mapping", f"{q['unmapped_share_of_added_lines']:.0%} of the sprint's added lines are by authors that match no student",
                                    evidence={"unmapped_authors": q["unmapped_authors"], "roster": [s["student_id"] for s in d.roster]})
-        sv.store.update_run(state["run_id"], status="waiting_human")
+        await sv.astore.update_run(state["run_id"], status="waiting_human")
         decision = interrupt({"type": "identity_mapping", "unmapped_authors": q["unmapped_authors"], "roster": [s["student_id"] for s in d.roster]})
-        sv.store.update_run(state["run_id"], status="running")
+        await sv.astore.update_run(state["run_id"], status="running")
         mapping = (decision or {}).get("mapping") or []
         if not mapping:
             n.log("the lecturer chose to continue without mapping; the unmapped work is listed in the report")
@@ -359,14 +414,14 @@ class TeamGraph:
                 for key, field in (("email", "emails"), ("login", "logins"), ("name", "names")):
                     if m.get(key):
                         s.setdefault(field, []).append(m[key])
-        team = sv.store.get_tracked_team(state["team_ref"])
-        sv.store.update_tracked_config(state["team_ref"], {**(team.get("config") or {}), "roster": d.roster})
+        team = await sv.astore.get_tracked_team(state["team_ref"])
+        await sv.astore.update_tracked_config(state["team_ref"], {**(team.get("config") or {}), "roster": d.roster})
         n.log(f"{len(mapping)} authors mapped by the lecturer; evidence is built again")
         return {"gate": {"passed": True, "mapped": len(mapping)}, "rebuild": True, "rebuilt": True}
 
     async def dispatch_students(self, state, n, ev):
         sv, d = self.sv, self.sv.data(state["run_id"])
-        run = sv.store.get_run(state["run_id"])
+        run = await sv.astore.get_run(state["run_id"])
         run = {**run, "repo_url": state["repo_url"]}
         sem = asyncio.Semaphore(sv.parallel_students)
         out = {}
@@ -374,7 +429,10 @@ class TeamGraph:
         async def one(sid):
             async with sem:
                 try:
-                    out[sid] = await StudentPipeline(sv, ev, run, sid).execute()
+                    out[sid] = await asyncio.wait_for(StudentPipeline(sv, ev, run, sid).execute(), STUDENT_TIMEOUT)
+                except asyncio.TimeoutError:
+                    ev.emit("node_error", f"the pipeline of {sid} did not finish within {STUDENT_TIMEOUT:.0f} s and was stopped", node_path=f"student:{sid}", level="error")
+                    out[sid] = {"mark": None, "interval": None, "status": "failed", "error": f"timed out after {STUDENT_TIMEOUT:.0f} s", "pending": [], "factors": {}, "flags": 0}
                 except Exception as e:  # one student's failure must not stop the team
                     ev.emit("node_error", f"{type(e).__name__}: {str(e)[:300]}", node_path=f"student:{sid}", level="error")
                     out[sid] = {"mark": None, "interval": None, "status": "failed", "error": f"{type(e).__name__}: {str(e)[:200]}", "pending": [], "factors": {}, "flags": 0}
@@ -406,7 +464,7 @@ class TeamGraph:
         return {"flags": flags}
 
     async def team_report(self, state, n, ev):
-        run = self.sv.store.get_run(state["run_id"])
+        run = await self.sv.astore.get_run(state["run_id"])
         text = build_report(run, state.get("sprint") or {}, state.get("outcomes") or {}, state.get("flags") or [], self.sv.data(state["run_id"]).quality)
         n.log(f"report written ({len(text.splitlines())} lines)")
         return {"report": text}
@@ -421,10 +479,10 @@ class TeamGraph:
         elapsed = 1.0 if not d.as_of else min(1.0, max(0.0, ((as_of.date() - start).days + 1) / days))
         for sid, o in out.items():
             if o["status"] != "failed":
-                sv.store.add_snapshot(state["team_ref"], state["sprint_id"], sid, as_of, elapsed, mark=o["mark"], mark_interval=o["interval"], factors=o["factors"])
+                await sv.astore.add_snapshot(state["team_ref"], state["sprint_id"], sid, as_of, elapsed, mark=o["mark"], mark_interval=o["interval"], factors=o["factors"])
         marks = {s: o["mark"] for s, o in out.items()}
         pending = sorted({s for s, o in out.items() if o.get("pending")})
-        sv.store.update_run(state["run_id"], summary={"students": len(out), "marks": marks, "pending_code_ownership": pending, "flags": state.get("flags", []), "report_markdown": state.get("report", ""),
+        await sv.astore.update_run(state["run_id"], summary={"students": len(out), "marks": marks, "pending_code_ownership": pending, "flags": state.get("flags", []), "report_markdown": state.get("report", ""),
                                                       "sprint_elapsed": elapsed, "quality": {k: d.quality.get(k) for k in ("commits_in_sprint", "unmapped_share_of_added_lines", "bot_commits")}})
         n.log(f"{len(out)} results published, {len(pending)} waiting for a quiz answer")
         return {}

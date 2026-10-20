@@ -8,16 +8,21 @@
 A run's graph state is kept by ``sv.checkpointer`` (``postgres_checkpointer`` in the worker, in memory in tests).
 """
 import asyncio
+import os
 import traceback
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
 from app.agents.performance_assessment.assessment import audit, factors, justify, quiz_flow
+from app.agents.performance_assessment.assessment import events as events_mod
 from app.agents.performance_assessment.assessment.events import Events
 from app.agents.performance_assessment.assessment.fusion import fuse
 from app.agents.performance_assessment.assessment.graph import TeamGraph
 from app.agents.performance_assessment.com_agent.config.settings_loader import settings
+
+
+RUN_TIMEOUT = float(os.environ.get("ASSESSMENT_RUN_TIMEOUT", 7200))  # seconds a whole run may take; a run that is not finished by then is stopped and marked failed
 
 
 def postgres_checkpointer_cm(dsn: str):
@@ -36,28 +41,37 @@ async def run_assessment(sv, run_id: str, resume=None) -> dict:
     graph = TeamGraph(sv).build(sv.checkpointer)
     config = {"configurable": {"thread_id": f"{run['thread_id']}:{run_id}"}}
     ev = Events(store, run_id)
-    store.update_run(run_id, status="running")
+    await asyncio.to_thread(store.update_run, run_id, status="running")
     ev.emit("run_start" if resume is None else "run_resume", f"{run['mode']} run for team {run['team_ref']}, sprint {run['sprint_id']}")
     try:
-        if resume is not None:
-            out = await graph.ainvoke(Command(resume=resume), config)
-        else:
-            out = await graph.ainvoke({"run_id": run_id, "team_ref": run["team_ref"], "sprint_id": run["sprint_id"], "mode": run["mode"]}, config)
-    except asyncio.CancelledError:
-        store.update_run(run_id, status="cancelled")
-        ev.emit("run_end", "cancelled", level="warn")
-        raise
-    except Exception as e:
-        store.update_run(run_id, status="failed", error={"type": type(e).__name__, "message": str(e)[:500], "trace": traceback.format_exc()[-1500:]})
-        ev.emit("run_end", f"failed: {type(e).__name__}: {str(e)[:200]}", level="error")
-        return {"status": "failed", "error": str(e)}
-    if out.get("__interrupt__"):
-        store.update_run(run_id, status="waiting_human")
-        ev.emit("run_waiting", "waiting for the lecturer's identity mapping", level="warn")
-        return {"status": "waiting_human"}
-    store.update_run(run_id, status="succeeded", current_node="")
-    ev.emit("run_end", "succeeded")
-    return {"status": "succeeded"}
+        try:
+            if resume is not None:
+                out = await asyncio.wait_for(graph.ainvoke(Command(resume=resume), config), RUN_TIMEOUT)
+            else:
+                out = await asyncio.wait_for(graph.ainvoke({"run_id": run_id, "team_ref": run["team_ref"], "sprint_id": run["sprint_id"], "mode": run["mode"]}, config), RUN_TIMEOUT)
+        except asyncio.CancelledError:
+            await asyncio.to_thread(store.update_run, run_id, status="cancelled")
+            ev.emit("run_end", "cancelled", level="warn")
+            raise
+        except asyncio.TimeoutError:
+            message = f"the run did not finish within {RUN_TIMEOUT:.0f} s and was stopped"
+            await asyncio.to_thread(store.update_run, run_id, status="failed", error={"type": "Timeout", "message": message})
+            ev.emit("run_end", f"failed: {message}", level="error")
+            return {"status": "failed", "error": message}
+        except Exception as e:
+            await asyncio.to_thread(store.update_run, run_id, status="failed", error={"type": type(e).__name__, "message": str(e)[:500], "trace": traceback.format_exc()[-1500:]})
+            ev.emit("run_end", f"failed: {type(e).__name__}: {str(e)[:200]}", level="error")
+            return {"status": "failed", "error": str(e)}
+        if out.get("__interrupt__"):
+            await asyncio.to_thread(store.update_run, run_id, status="waiting_human")
+            ev.emit("run_waiting", "waiting for the lecturer's identity mapping", level="warn")
+            return {"status": "waiting_human"}
+        await asyncio.to_thread(store.update_run, run_id, status="succeeded", current_node="")
+        ev.emit("run_end", "succeeded")
+        return {"status": "succeeded"}
+    finally:
+        await asyncio.to_thread(events_mod.close, store, run_id)  # write the queued events before the job ends
+        sv._data.pop(run_id, None)  # the evidence of a finished run is not kept in memory; a run that waits for a person loads it from its folder again
 
 
 # ---- later events ---------------------------------------------------------------------------------------------------------------------
@@ -107,6 +121,7 @@ async def refuse_student(sv, team_ref: str, sprint_id: str, student_id: str) -> 
         store.update_run(run["id"], summary=s)
         n.log(f"Code Ownership {r['status']}; mark {fused['mark'] if fused['mark'] is None else round(fused['mark'], 1)} ({status})")
         n.result(status=status)
+    await asyncio.to_thread(events_mod.close, store, run["id"])
     return {"student_id": student_id, "mark": fused["mark"], "status": status}
 
 

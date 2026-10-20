@@ -32,6 +32,9 @@ APP_TABLES = {
     "user_avatars",
     "notifications",
     "notification_preferences",
+    "user_github_accounts",
+    "team_github",
+    "team_github_access",
 }
 
 

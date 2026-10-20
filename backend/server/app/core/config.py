@@ -82,6 +82,20 @@ class Settings(BaseSettings):
     # GitHub Ingestion Settings
     GITHUB_TOKEN: Optional[str] = None
 
+    # The GitHub App that links a team repository and proves who owns a GitHub account
+    # (see docs/GITHUB_APP.md). Leave empty to switch the linking off.
+    GITHUB_APP_ID: str = ""
+    GITHUB_APP_SLUG: str = ""
+    GITHUB_APP_CLIENT_ID: str = ""
+    GITHUB_APP_CLIENT_SECRET: str = ""
+    GITHUB_APP_PRIVATE_KEY: str = ""
+    GITHUB_APP_PRIVATE_KEY_PATH: str = ""
+    # Signs the short-lived state that GitHub hands back to us; defaults to the App's client secret.
+    GITHUB_STATE_SECRET: str = ""
+    # Where GitHub sends the browser back to: the web app's /api prefix (the dev server and the
+    # gateway forward it to this API). Register <this>/github/callback and <this>/github/installed.
+    GITHUB_CALLBACK_BASE: str = "http://localhost:5173/api"
+
     # Agent Job Queue Retention (Clean up finished/failed jobs older than X hours)
     AGENT_JOB_RETENTION_HOURS: int = 24
 

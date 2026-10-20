@@ -36,8 +36,12 @@ def findings(results: dict, evidence: dict | None = None, previous_mark: float |
     e, c, rf, co = score("effort"), score("consistency"), score("requirement_fulfillment"), score("collaboration")
     ev_tasks = (evidence or {}).get("tasks", [])
     done_by_me = [t for t in ev_tasks if t.get("status") == "Done" and t.get("completed_by") in ((evidence or {}).get("student_id"), None, "")]
-    if e == 0.0 and (done_by_me or (evidence or {}).get("pull_requests")):
-        out.append(finding("silent_but_visible", "effort", "warn", "no counted commits, but the board or GitHub shows work (tasks done or pull requests): the commits may be under an unmapped e-mail", "identity_mapping"))
+    commits = (evidence or {}).get("commits") or []
+    if e == 0.0 and commits:
+        out.append(finding("commits_not_counted", "effort", "warn", f"{len(commits)} commits in the sprint changed no counted source line (configuration, documents or generated files only), so Effort cannot see this work: "
+                           "its score of 0 does not mean the student did nothing", None))
+    elif e == 0.0 and (done_by_me or (evidence or {}).get("pull_requests")):
+        out.append(finding("silent_but_visible", "effort", "warn", "no commits in the sprint, but the board or GitHub shows work (tasks done or pull requests): the commits may be under an unmapped e-mail", "identity_mapping"))
     if rf is not None and e is not None and rf >= 0.7 and e <= 0.1:
         out.append(finding("rf_without_effort", "requirement_fulfillment", "critical", f"acceptance criteria look met (RF {rf:.2f}) while almost no code is attributed to the student (Effort {e:.2f})", "escalate_to_human"))
     judged = [t for t in (results.get("requirement_fulfillment") or {}).get("tasks") or [] if t.get("status") == "judged"]
@@ -116,6 +120,6 @@ def decide(found: list[dict], reasoning: dict | None) -> list[dict]:
                 act, why = "accept", "warning noted (default rule, no reasoning model)"
             d = {"action": act, "reason": why}
         if d["action"] == "retry" and f["remedy"] != "retry":
-            d = {"action": "escalate", "reason": f"retry is not an allowed remedy for this finding; {d['reason']}"}
+            d = {"action": "escalate", "reason": f"{d['reason']} (running the factor again cannot fix this, so a person should look)"}
         out.append({**f, **d})
     return out

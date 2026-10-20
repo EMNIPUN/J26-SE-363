@@ -10,6 +10,7 @@ is reported, never dropped silently); GitHub's ``merged_by`` replaces guessing f
 blame is taken at the last commit of the sprint.
 """
 import sys
+import time
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
@@ -83,21 +84,25 @@ def _format_only_commits(commits_evidence) -> set:
 
 
 def build_team_evidence(ws, repo_url, roster: Roster, sprint: dict, tasks_by_student: dict | None = None, github_prs: list | None = None, *, token=None,
-                        run_blame: bool = True, with_reach: bool = True) -> TeamEvidence:
+                        run_blame: bool = True, with_reach: bool = True, progress=None) -> TeamEvidence:
     """sprint: {"id", "start": "YYYY-MM-DD", "end": "YYYY-MM-DD", "days": 14}. tasks_by_student: {student_id: [task dict from the Scrum MCP, with "acceptance_criteria" list]}."""
     common, lines, registry, schema = _fm()
+    say = progress or (lambda message: None)
+    t0 = time.time()
     ko = registry.load_factors(["ko"])["ko"]
     start, end = date.fromisoformat(sprint["start"]), date.fromisoformat(sprint["end"])
     tasks_by_student = tasks_by_student or {}
     quality: dict = {"unmapped_authors": {}, "bot_commits": 0, "commits_in_sprint": 0, "commits_outside_sprint": 0, "github": github_prs is not None, "notes": []}
 
     ws.ensure_mirror(repo_url, token=token)
+    say(f"repository fetched ({time.time() - t0:.0f} s)")
     try:
         rev = ws.resolve(repo_url, None, as_of=f"{sprint['end']}T23:59:59Z", token=token)
     except WorkspaceError:
         rev = None
         quality["notes"].append("the repository has no commit on or before the end of the sprint")
     all_commits = gitlog.fetch_commits(ws, repo_url, token=token)
+    say(f"{len(all_commits)} commits read from the history ({time.time() - t0:.0f} s)")
     owner_of, window, unmapped = {}, [], {}
     for c in all_commits:
         who = roster.author(c["author_name"], c["author_email"])
@@ -123,6 +128,7 @@ def build_team_evidence(ws, repo_url, roster: Roster, sprint: dict, tasks_by_stu
     quality["unmapped_share_of_added_lines"] = round(sum(u["lines"] for u in unmapped.values()) / total_lines, 4) if total_lines else 0.0
 
     patches = gitlog.fetch_patches(ws, repo_url, [c["sha"] for c in window if len(c["parents"]) <= 1], token=token)
+    say(f"{sum(1 for c in window if len(c['parents']) <= 1)} diffs read ({time.time() - t0:.0f} s)")
     by_student: dict[str, list] = {sid: [] for sid in roster.ids}
     for c in window:
         by_student[c["student"]].append(_commit_evidence(c, patches, lines))
@@ -160,6 +166,7 @@ def build_team_evidence(ws, repo_url, roster: Roster, sprint: dict, tasks_by_stu
         except WorkspaceError as e:
             quality["notes"].append(f"dependency reach not computed: {e}")
 
+    say(f"dependency reach computed ({time.time() - t0:.0f} s)")
     # pull requests, reviews, comments
     per_github = _github_parts(github_prs, roster, start, end, owner_of) if github_prs is not None else None
 
@@ -206,6 +213,7 @@ def build_team_evidence(ws, repo_url, roster: Roster, sprint: dict, tasks_by_stu
             own = ko.summarize(per_file, shas, 0, owner_of=owner_of, me=sid)
             own["added_lines"] = added
             ev["ownership"] = own
+            say(f"{sid}: blame of {len(files)} files done ({time.time() - t0:.0f} s)")
         elif run_blame:
             ev["ownership"] = {"added_lines": 0, "surviving_lines": 0, "files": 0, "primary_files": 0, "owned_files": 0}
         schema.validate(ev)

@@ -31,7 +31,14 @@ _clean = _load("effort_cleaning_prod", "cleaning.py")
 
 
 def evaluate(payload, context=None):
-    return _lm.evaluate(CARD, _clean, payload, context, min_days=MIN_DAYS, factor="effort")
+    result = _lm.evaluate(CARD, _clean, payload, context, min_days=MIN_DAYS, factor="effort")
+    if isinstance(payload, dict) and payload.get("schema") == "evidence/1" and result["features"].get("E_CC") == 0:
+        n = sum(1 for c in payload.get("commits", []) if not c.get("is_merge"))
+        if n:
+            # The model measures work on source code. A student whose commits only touched configuration, documents or generated files has done something it cannot see: that is
+            # "cannot be measured", not "no activity" (a score of 0 would also push the behavioural pattern towards 'free rider').
+            raise NotEnoughEvidence(f"{n} commits in the sprint changed only configuration, documents or generated files; Effort measures source code and cannot score this work")
+    return result
 
 
 def _usable(payload):

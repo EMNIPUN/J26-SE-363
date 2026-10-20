@@ -7,6 +7,8 @@ fails if a route ends up without authentication.
 from fastapi import APIRouter, Depends
 
 from app.api.v1.auth import router as auth_router
+from app.api.v1.github import public_router as github_public_router
+from app.api.v1.github import router as github_router
 from app.api.v1.invitations import router as invitations_router
 from app.api.v1.jobs import router as jobs_router
 from app.api.v1.me import router as me_router
@@ -21,7 +23,8 @@ from app.core.security import get_current_user
 
 # Nothing is public today: login happens in Keycloak, not in this API.
 public_router = APIRouter()
-public_router.include_router(performance_public_router)  # GitHub's webhook: signed with a shared secret instead of a token
+public_router.include_router(performance_public_router)
+public_router.include_router(github_public_router)  # GitHub sends the browser back here; the request carries a signed state instead of a token  # GitHub's webhook: signed with a shared secret instead of a token
 
 # Any signed-in user. Routers that need a specific role add require_roles(...) on top.
 protected_router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -34,6 +37,7 @@ protected_router.include_router(terms_router)
 protected_router.include_router(users_router)
 protected_router.include_router(invitations_router)
 protected_router.include_router(performance_router)
+protected_router.include_router(github_router)
 protected_router.include_router(jobs_router)  # additionally admin-only (see jobs.py)
 
 api_router = APIRouter()

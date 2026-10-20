@@ -230,3 +230,5 @@ agentic_framework/app/agents/performance_assessment/com_agent/mock_context/
 **/mock_context/output/
 assessment_result_*.json
 student_feedback_*.json
+# run logs written by agentic_framework/scripts/watch_run.py
+agentic_framework/logs/

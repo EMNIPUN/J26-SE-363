@@ -85,14 +85,15 @@ def covers(card_path, features) -> bool:
     return isinstance(features, dict) and all(n in features for n in names) and (not z or z["column"] in features or z["column"] == "E_CC")
 
 
-def evaluate(card_path, cleaning, payload, context=None, *, min_days=0, factor=None):
+def evaluate(card_path, cleaning, payload, context=None, *, min_days=0, min_fraction=0.0, factor=None):
     card = LinearCard.load(card_path)
     warnings, removed, versions = [], {}, {"model": card.card["version"], "candidate": card.card["candidate"]}
     days, fraction = None, 1.0
     if isinstance(payload, dict) and payload.get("schema") == "evidence/1":
         days, fraction = _elapsed(payload)
-        if days is not None and days < min_days:
-            raise NotEnoughEvidence(f"{card.card['factor']} needs at least {min_days} days of the sprint; {days} have passed")
+        if days is not None and (days < min_days or fraction < min_fraction):
+            need = max(min_days, -(-min_fraction * int(payload["sprint"]["days"]) // 1))
+            raise NotEnoughEvidence(f"{card.card['factor']} needs at least {need:.0f} days of this {payload['sprint']['days']}-day sprint; {days} have passed")
         out = cleaning.featurize(payload)
         features, removed, warnings = dict(out["features"]), out.get("removed", {}), list(out.get("warnings", []))
         versions.update(out.get("versions", {}))

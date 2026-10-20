@@ -49,6 +49,9 @@ class MemoryStore:
             self.events[run_id].append({"seq": seq, "ts": _now(), "node_path": node_path, "type": type, "level": level, "message": message, "payload": payload or {}})
             return seq
 
+    def add_events(self, run_id, events):
+        return [self.add_event(run_id, e["type"], e.get("message", ""), node_path=e.get("node_path", ""), level=e.get("level", "info"), payload=e.get("payload")) for e in events]
+
     def list_events(self, run_id, after=0, limit=500, node_path=None):
         return [e for e in self.events[run_id] if e["seq"] > after and (node_path is None or e["node_path"] == node_path or e["node_path"].startswith(node_path + "/"))][:limit]
 

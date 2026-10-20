@@ -65,6 +65,13 @@ class EffortInvariants(unittest.TestCase):
         base = {"E_CC": 5, "E_LOC_net_capped": 1018, "E_FC": 26, "E_CT": 1}
         return EFFORT.evaluate({"features": {**base, **kw}})["score"]
 
+    def test_commits_that_touch_no_source_line_are_not_measurable_not_zero(self):
+        only_config = evidence([commit("c1", "2026-02-03T10:00:00+05:30", [{**file("k8s/a.yaml", code=0), "added": 40, "deleted": 0}])])
+        with self.assertRaises(EFFORT.NotEnoughEvidence) as e:
+            EFFORT.evaluate(only_config)
+        self.assertIn("cannot score this work", str(e.exception))
+        self.assertEqual(EFFORT.evaluate(evidence([]))["score"], 0.0)  # nothing at all is still a real zero
+
     def test_no_commits_scores_zero(self):
         self.assertEqual(self.score(E_CC=0, E_LOC_net_capped=0, E_FC=0, E_CT=0), 0.0)
 
@@ -87,6 +94,20 @@ class Gates(unittest.TestCase):
             CONSISTENCY.evaluate(active_student(days=range(0, 3), as_of="2026-02-04T12:00:00Z"))
         r = CONSISTENCY.evaluate(active_student(days=range(0, 8), as_of="2026-02-08T12:00:00Z"))
         self.assertTrue(r["provisional"] and r["sprint_elapsed"] < 1.0)
+
+    def test_the_consistency_gate_is_a_part_of_the_sprint_not_a_number_of_days(self):
+        """A 6-day sprint is scored from its third day (5 of 14 days is 36% of the sprint); a 14-day sprint still needs 5 days."""
+        def short(day):
+            cs = [commit(f"c{d}", f"2026-02-{2 + d:02d}T10:00:00+05:30", [file(f"src/f{d}.py", code=60)]) for d in range(day)]
+            return evidence(cs, days=6, as_of=f"2026-02-{2 + day - 1:02d}T12:00:00Z")
+
+        with self.assertRaises(CONSISTENCY.NotEnoughEvidence) as e:
+            CONSISTENCY.evaluate(short(2))
+        self.assertIn("6-day sprint", str(e.exception))
+        r = CONSISTENCY.evaluate(short(3))
+        self.assertTrue(r["provisional"])
+        with self.assertRaises(CONSISTENCY.NotEnoughEvidence):
+            CONSISTENCY.evaluate(active_student(days=range(0, 4), as_of="2026-02-05T12:00:00Z"))
 
     def test_effort_needs_one_day(self):
         with self.assertRaises(EFFORT.NotEnoughEvidence):

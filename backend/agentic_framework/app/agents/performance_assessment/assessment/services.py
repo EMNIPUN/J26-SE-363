@@ -3,6 +3,7 @@
 ``Services`` is created once per worker (``from_environment``) or per test. Nothing in it holds a secret that could reach an event or a result: the GitHub token is passed to the workspace and
 to GitHub's client only, the language-model keys stay inside the client.
 """
+import asyncio
 import json
 import os
 import tempfile
@@ -28,11 +29,12 @@ def load_cards() -> dict:
 class RunData:
     """What one run collects before the students are assessed. Written to the run's folder so a run that waited for a human (identity gate) continues after a restart."""
 
-    FIELDS = ("roster", "sprint", "tasks_by_student", "evidence", "quality", "rev", "previous_marks", "as_of")
+    FIELDS = ("roster", "sprint", "tasks_by_student", "evidence", "quality", "rev", "previous_marks", "as_of", "scrum_data_dir", "simulate_now")
 
     def __init__(self, folder: Path):
         self.folder = Path(folder)
         self.roster, self.sprint, self.tasks_by_student, self.evidence, self.quality, self.rev, self.previous_marks, self.as_of = [], {}, {}, {}, {}, None, {}, None
+        self.scrum_data_dir = self.simulate_now = None
         self.prs = None
         self.patches: dict = {}
 
@@ -55,11 +57,26 @@ class RunData:
         return d
 
 
+class AsyncStore:
+    """The store seen from async code: every call runs in a worker thread, so a database that answers slowly never stops the other students' work."""
+
+    def __init__(self, store):
+        self._s = store
+
+    def __getattr__(self, name):
+        fn = getattr(self._s, name)
+
+        async def call(*a, **k):
+            return await asyncio.to_thread(fn, *a, **k)
+
+        return call
+
+
 @dataclass
 class Services:
     store: Any
     ws: Any
-    scrum: Callable[[], Any]                      # returns an async context manager that yields the Scrum MCP client
+    scrum: Callable[..., Any]                      # returns an async context manager that yields the Scrum MCP client
     github: Any = None                            # object with ``async pulls_bundle(repo_url, since=None, max_prs=...)``, or None when GitHub is not connected
     llm: Any = None                               # rf_bench LLM (chat -> Reply); None: Requirement Fulfillment is not available and the auditor uses its default rules
     token: str | None = None
@@ -69,6 +86,10 @@ class Services:
     now: Callable[[], datetime] = lambda: datetime.now(timezone.utc)
     cards: dict = field(default_factory=load_cards)
     _data: dict = field(default_factory=dict)
+
+    @property
+    def astore(self) -> AsyncStore:
+        return AsyncStore(self.store)
 
     def data(self, run_id: str) -> RunData:
         if run_id not in self._data:
@@ -90,11 +111,14 @@ class Services:
         try:
             sys.path.insert(0, str(FACTOR_MODELS / "03_requirement_fulfillment"))
             from rf_bench.llm import GroqPool
+            # the Groq settings live in performance_assessment/.env (git-ignored); only the GROQ_* lines are read from it
+            os.environ.setdefault("RF_ENV_FILE", str(FACTOR_MODELS.parent / ".env"))
             llm = GroqPool()
         except Exception:  # no keys: the factor says "not available", the rest of the assessment continues
             llm = None
         base = Path(os.environ.get("ASSESSMENT_WORKSPACE") or (Path(tempfile.gettempdir()) / "assessment-workspace"))
-        args = dict(store=store or PerformanceStore(), ws=WorkspaceManager(base / "repos"), scrum=lambda: RealScrumMCPClient(command=sys.executable, args=[str(server)], env={k: os.environ[k] for k in ("SCRUM_DATA_DIR",) if k in os.environ} or None),
-                    github=GitHubREST(token) if token else None, llm=llm, token=token, work_dir=base / "runs")
+        # GitHub works without a token for public repositories, within its 60 requests an hour
+        args = dict(store=store or PerformanceStore(), ws=WorkspaceManager(base / "repos"), scrum=lambda data_dir=None: RealScrumMCPClient(command=sys.executable, args=[str(server)], env=({"SCRUM_DATA_DIR": str(data_dir)} if data_dir else {k: os.environ[k] for k in ("SCRUM_DATA_DIR",) if k in os.environ}) or None),
+                    github=GitHubREST(token), llm=llm, token=token, work_dir=base / "runs")
         args.update(over)
         return cls(**args)

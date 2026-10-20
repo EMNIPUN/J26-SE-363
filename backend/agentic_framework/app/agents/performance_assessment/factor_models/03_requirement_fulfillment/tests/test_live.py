@@ -64,6 +64,80 @@ class Bench(unittest.TestCase):
         self.assertFalse(b.should_judge("T1", provisional=False) is False)
 
 
+class MapsCommits(unittest.TestCase):
+    def test_the_agent_can_pick_a_commit_and_read_its_files(self):
+        """Regression: the first step of the agent reads bench.commits[sha]; a run on real evidence stopped there with 'no attribute commits'."""
+        import json
+        from experiments.agent_critic import AgentCritic
+
+        def responder(messages, tag):
+            if tag.startswith("agent:map"):
+                return json.dumps({"commits": [SHA]})
+            return AgentCritic.dry_responder(messages, tag)
+
+        p = case()
+        self.assertEqual(EvidenceBench(p["evidence"], p["patches"]).commits[SHA]["files"][0]["path"], "src/auth.py")
+        r = E.evaluate(p, {"llm": ScriptedLLM(responder)})
+        self.assertEqual(r["tasks"][0]["status"], "judged")
+        self.assertIsNone(r["tasks"][0].get("error"))
+
+
+class NothingToShow(unittest.TestCase):
+    """A task whose student has no changed lines the model could be shown must not cost a model call or become a made-up verdict."""
+
+    def test_provisional_with_no_visible_change_is_not_available_not_zero(self):
+        p = case(provisional=True)
+        p["evidence"]["commits"] = []
+        llm = scripted()
+        with self.assertRaises(E.NotEnoughEvidence):
+            E.evaluate(p, {"llm": llm})
+        self.assertEqual(llm.n, 0)
+
+    def test_final_with_no_visible_change_counts_zero_without_calling_the_model(self):
+        p = case()
+        p["evidence"]["commits"] = []
+        llm = scripted()
+        r = E.evaluate(p, {"llm": llm})
+        self.assertEqual(llm.n, 0)
+        self.assertEqual(r["tasks"][0]["status"], "no_visible_change")
+        self.assertEqual(r["score"], 0.0)
+        self.assertTrue(any("not sent to the model" in w for w in r["warnings"]))
+
+    def test_configuration_files_are_shown_to_the_model(self):
+        c = commit(SHA, "2026-02-03T10:00:00+05:30", [file("k8s/auth-deployment.yaml", code=12)], subject="deploy auth")
+        ev = evidence([c], tasks=[{"id": "T1", "title": "Deploy", "description": "", "acceptance_criteria": ["The service has a deployment manifest"], "story_points": 3, "subtask_count": 1,
+                                   "assignee": "STU-001", "status": "Done", "completed_by": "STU-001", "commit_ids": [SHA]}])
+        b = EvidenceBench(ev, {SHA: {"k8s/auth-deployment.yaml": "@@ -0,0 +1,2 @@" + chr(10) + "+kind: Deployment" + chr(10) + "+name: auth" + chr(10)}})
+        self.assertEqual(b.commits[SHA]["files"][0]["path"], "k8s/auth-deployment.yaml")
+        self.assertTrue(any("kind: Deployment" in h for h in b.hunk(SHA, "k8s/auth-deployment.yaml")))
+
+    def test_a_cancelled_run_stops_between_tasks(self):
+        import threading
+        stop = threading.Event()
+        stop.set()
+        extra = {"id": "T2", "title": "x", "acceptance_criteria": ["y"], "assignee": "STU-001", "status": "Done", "commit_ids": [SHA]}
+        with self.assertRaises(E.NotEnoughEvidence):
+            E.evaluate(case(extra_tasks=[extra]), {"llm": scripted(), "cancel": stop})
+
+
+class ModelCallsThatTheProviderRefuses(unittest.TestCase):
+    def test_a_call_to_a_tool_that_is_not_offered_costs_a_step_not_the_task(self):
+        """The provider answers HTTP 400 'Tool call validation failed' when the model names a tool that is not offered (in the last step only the verdict is). It happened nine times in a real run."""
+        from experiments import agent as agent_mod
+        from rf_bench.llm import Reply
+        from rf_bench.runner import Usage
+
+        class Refusing:
+            model = "m"
+
+            def chat(self, messages, **kw):
+                return Reply(error="HTTP 400: Tool call validation failed: attempted to call tool read_hunk which was not in request.tools", error_kind="bad_request", attempts=1)
+
+        out = agent_mod._call_action({"usage": Usage(), "llm": Refusing(), "run": 0}, [{"role": "user", "content": "x"}], [], "t")
+        self.assertEqual(out["action"], "invalid")
+        self.assertNotIn("error", out)
+
+
 class Evaluate(unittest.TestCase):
     def test_score_comes_from_verdicts_by_plain_arithmetic(self):
         r = E.evaluate(case(), {"llm": scripted(), "rf_critic": True})
@@ -94,7 +168,8 @@ class Evaluate(unittest.TestCase):
     def test_progress_events_are_reported(self):
         seen = []
         E.evaluate(case(), {"llm": scripted(), "on_event": lambda t, m, p: seen.append(t)})
-        self.assertEqual(seen, ["task_start", "task_done"])
+        self.assertEqual([seen[0], seen[-1]], ["task_start", "task_done"])
+        self.assertTrue(all(k == "llm_call" for k in seen[1:-1]) and len(seen) > 2)  # every model call is reported between them
 
     def test_without_a_language_model_the_score_is_not_available(self):
         old = {k: os.environ.pop(k, None) for k in ("GROQ_API_KEYS", "RF_ENV_FILE")}

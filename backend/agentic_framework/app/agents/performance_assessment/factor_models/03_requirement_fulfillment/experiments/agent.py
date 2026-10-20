@@ -141,7 +141,7 @@ def decide(state, config):
 def _call_action(cfg, messages, tools, tag):
     """One model call that must end in a function call. Returns the action dict, or {"error", "error_kind"} when the call itself failed."""
     reply = cfg["usage"].add(cfg["llm"].chat(messages, max_tokens=ACT_TOKENS, temperature=0.0, tag=tag, seed=cfg["run"], tools=tools))
-    if not reply.ok and reply.error_kind == "bad_request" and ("tool_use_failed" in reply.error or "json_validate_failed" in reply.error):
+    if not reply.ok and reply.error_kind == "bad_request" and any(m in reply.error.lower() for m in ("tool_use_failed", "json_validate_failed", "tool call validation failed")):
         return {"action": "invalid", "raw": "malformed call"}  # a wasted step, not a failure of the task
     if not reply.ok:
         return {"error": reply.error, "error_kind": reply.error_kind}

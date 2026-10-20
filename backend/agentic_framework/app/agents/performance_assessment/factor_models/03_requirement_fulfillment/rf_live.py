@@ -15,6 +15,11 @@ if str(FM) not in sys.path:
 from evidence import lines as _lines  # noqa: E402
 
 
+# What the language model may be shown. Source and test code, and configuration: many tasks (deployment, gateway, pipeline) are done in configuration files, and a judge that cannot see
+# them can only say "not met". Documents, generated files and data are never shown.
+VISIBLE_KINDS = tuple(_lines.SOURCE_KINDS) + ("config",)
+
+
 class EvidenceBench:
     def __init__(self, evidence: dict, patches: dict | None = None):
         self.ev, self.patches = evidence, patches or {}
@@ -26,7 +31,7 @@ class EvidenceBench:
                 continue
             files = []
             for f in c["files"]:
-                if f.get("kind", _lines.classify_path(f["path"])) not in _lines.SOURCE_KINDS:
+                if f.get("kind", _lines.classify_path(f["path"])) not in VISIBLE_KINDS:
                     continue
                 stats = f.get("line_stats") or {}
                 a, d = stats.get("added", {}).get("code", 0), stats.get("deleted", {}).get("code", 0)
@@ -34,6 +39,7 @@ class EvidenceBench:
                     files.append({"path": f["path"], "added": a, "deleted": d, "kind": f.get("kind", "code")})
             if files:
                 self._commits.append({"sha": c["id"], "date": c["authored_at"], "message": c.get("subject", ""), "author": self.student, "files": files})
+        self.commits = {c["sha"]: c for c in self._commits}  # the agent's first step reads the files of the commits it picked from here
         self._tasks = {t["id"]: t for t in evidence.get("tasks", []) if t.get("assignee") == self.student and t.get("acceptance_criteria")}
         self._cache = {}
 

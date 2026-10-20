@@ -41,15 +41,34 @@ from shared.performance import RunAlreadyActive
 from shared.performance.topology import topology
 from starlette.concurrency import run_in_threadpool
 
+from sqlalchemy.orm import Session
+
 from app.api.deps import Account, require_account_role
 from app.core.errors import bad_request, conflict, forbidden, not_found
+from app.database.session import get_db
+from app.models import Group, MemberRole
 from app.modules.performance import service
+from app.services import github_links as links
+from app.services import team_rules as rules
 
 router = APIRouter(prefix="/performance", tags=["Performance assessment"])
 public_router = APIRouter(prefix="/performance", tags=["Performance assessment"])
 
-staff = require_account_role(UserRole.LECTURER, UserRole.ADMIN)
-student_only = require_account_role(UserRole.STUDENT)
+_staff_role = require_account_role(UserRole.LECTURER, UserRole.ADMIN)
+_student_role = require_account_role(UserRole.STUDENT)
+
+
+def staff(account: Annotated[Account, Depends(_staff_role)], session: Annotated[Session, Depends(get_db)]) -> Account:
+    """A lecturer or an administrator, with the database session the access rules below need."""
+    account.session = session
+    return account
+
+
+def student_only(account: Annotated[Account, Depends(_student_role)], session: Annotated[Session, Depends(get_db)]) -> Account:
+    account.session = session
+    return account
+
+
 Staff = Annotated[Account, Depends(staff)]
 StudentAccount = Annotated[Account, Depends(student_only)]
 
@@ -75,10 +94,35 @@ def uid(account: Account) -> str:
     return str(account.user.id)
 
 
+def platform_group(session: Session, ref: str) -> Group | None:
+    return rules.find_team(session, ref)
+
+
+def is_team_lecturer(group: Group, account: Account) -> bool:
+    """Who may see a team's assessment: administrators, and the lecturers who are members of the team. Nobody else, not even other lecturers."""
+    if account.role is UserRole.ADMIN:
+        return True
+    m = rules.membership(group, account.user.id)
+    return bool(m and m.role is MemberRole.LECTURER)
+
+
+async def can_see_team(store, account: Account, team_ref: str) -> bool:
+    group = platform_group(account.session, team_ref)
+    if group is not None:
+        return is_team_lecturer(group, account)
+    return service.can_manage(await db(store.get_tracked_team, team_ref), uid(account), account.role)  # a team that is not a platform team: the lecturer who started it
+
+
 async def own_team(store, account: Account, team_ref: str) -> dict:
-    team = await db(store.get_tracked_team, team_ref)
+    """The tracking record of a team the person may manage. A platform team that has not been assessed yet has none stored: it is described from the team itself."""
+    group = platform_group(account.session, team_ref)
+    team = await db(store.get_tracked_team, group.code if group else team_ref)
+    if group is not None:
+        if not is_team_lecturer(group, account):
+            raise not_found("Team is not tracked")
+        return team or {"team_ref": group.code, "repo_url": group.repo_url or "", "board_ref": group.code, "status": "active", "config": {"source": "platform"}, "created_by": None}
     if team is None or not service.can_manage(team, uid(account), account.role):
-        raise not_found("Team is not tracked")  # same answer for "not yours" and "does not exist"
+        raise not_found("Team is not tracked")  # the same answer for "not yours" and "does not exist"
     return team
 
 
@@ -151,14 +195,39 @@ def tracking_out(team: dict, include_roster: bool = True) -> dict:
             "updated_at": team.get("updated_at")}
 
 
+async def team_card(store, session: Session, group: Group | None, tracked: dict | None) -> dict:
+    """One line of the lecturer's team list: the team, its repository, whether it can be assessed, and its latest run."""
+    ref = group.code if group else tracked["team_ref"]
+    runs = await db(store.list_runs, ref, None, 1)
+    cfg = (tracked or {}).get("config") or {}
+    card = {"team_ref": ref, "name": group.name if group else ref, "source": "platform" if group else "manual", "repo_url": (group.repo_url if group else tracked["repo_url"]) or None,
+            "status": (tracked or {}).get("status", "active"), "sprints": cfg.get("sprints", []), "latest_run": runs[0] if runs else None,
+            "student_count": len(rules.students(group)) if group else len(cfg.get("roster", []))}
+    if group is not None:
+        r = links.readiness(session, group)
+        card["readiness"] = {"ready": r["ready"], "blockers": r["blockers"], "notes": len(r["notes"])}
+    return card
+
+
 @router.get("/teams")
 async def list_teams(account: Staff, store: Store):
-    teams = await db(store.list_tracked_teams, None)
-    return [tracking_out(t, include_roster=False) for t in teams if service.can_manage(t, uid(account), account.role)]
+    cards, seen = [], set()
+    groups = account.session.scalars(__import__("sqlalchemy").select(Group)).all() if account.role is UserRole.ADMIN else [
+        g for g in account.session.scalars(__import__("sqlalchemy").select(Group).join(rules.GroupMember, rules.GroupMember.group_id == Group.id).where(rules.GroupMember.user_id == account.user.id))
+        if is_team_lecturer(g, account)]
+    for g in groups:
+        seen.add(g.code.upper())
+        cards.append(await team_card(store, account.session, g, await db(store.get_tracked_team, g.code)))
+    for t in await db(store.list_tracked_teams, None):
+        if t["team_ref"].upper() not in seen and service.can_manage(t, uid(account), account.role):
+            cards.append(await team_card(store, account.session, None, t))
+    return cards
 
 
 @router.put("/teams/{team_ref}/tracking")
 async def put_tracking(team_ref: str, body: TrackingIn, account: Staff, store: Store):
+    if platform_group(account.session, team_ref) is not None:
+        raise bad_request("platform_team", "This team is a platform team: its repository and members come from GitHub linking. Use the settings route for sprints")
     existing = await db(store.get_tracked_team, team_ref)
     if existing and not service.can_manage(existing, uid(account), account.role):
         raise not_found("Team is not tracked")
@@ -166,6 +235,31 @@ async def put_tracking(team_ref: str, body: TrackingIn, account: Staff, store: S
               "release_to_students": body.release_to_students, **({"last_sync": existing["config"]["last_sync"]} if existing and "last_sync" in (existing.get("config") or {}) else {})}
     team = await db(store.upsert_tracked_team, team_ref, body.repo_url, body.board_ref or team_ref, config, uid(account))
     return tracking_out(team)
+
+
+class SettingsIn(BaseModel):
+    board_ref: str | None = None
+    sprints: list[SprintWindow] = []
+    release_to_students: bool = True
+
+
+@router.put("/teams/{team_ref}/settings")
+async def put_settings(team_ref: str, body: SettingsIn, account: Staff, store: Store):
+    """Sprint dates, the Scrum board id and whether students see their own results. The repository and the roster of a platform team come from GitHub linking, never from here."""
+    team = await own_team(store, account, team_ref)
+    cfg = {**(team.get("config") or {}), "sprints": [{"id": x.id, "start": x.start.isoformat(), "end": x.end.isoformat()} for x in body.sprints], "release_to_students": body.release_to_students}
+    group = platform_group(account.session, team_ref)
+    saved = await db(store.upsert_tracked_team, group.code if group else team_ref, team["repo_url"] or "https://github.com/none/none", body.board_ref or team.get("board_ref") or team_ref, cfg, team.get("created_by") or uid(account))
+    return tracking_out(saved)
+
+
+@router.get("/teams/{team_ref}/readiness")
+async def readiness(team_ref: str, account: Staff, store: Store):
+    await own_team(store, account, team_ref)
+    group = platform_group(account.session, team_ref)
+    if group is None:
+        return {"ready": True, "blockers": [], "notes": [], "members": [], "repo": None}
+    return links.readiness(account.session, group)
 
 
 @router.get("/teams/{team_ref}/tracking")
@@ -198,12 +292,42 @@ async def start_run(store, enqueue, team_ref: str, sprint_id: str, mode: str, re
     return {"run_id": str(run["id"]), "job_id": job, "status": run["status"]}
 
 
+async def prepare_platform_team(store, session: Session, group: Group, sprint_id: str, account: Account) -> None:
+    """Write what the agent is given from the team's verified GitHub facts: the repository, the installation, each student's own id with the verified login and commit addresses."""
+    state = links.readiness(session, group)
+    if not state["ready"]:
+        raise conflict("not_ready", " ".join(state["blockers"]))
+    existing = await db(store.get_tracked_team, group.code)
+    cfg = dict((existing or {}).get("config") or {})
+    if sprint_id not in {x["id"] for x in cfg.get("sprints", [])}:
+        raise bad_request("unknown_sprint", "Add this sprint (its dates) in the team's settings first")
+    row = links.team_link(session, group)
+    cfg.update({"roster": links.agent_roster(session, group), "group_id": str(group.id), "installation_id": row.installation_id, "repo_full_name": row.repo_full_name, "source": "platform"})
+    cfg.setdefault("release_to_students", True)
+    await db(store.upsert_tracked_team, group.code, group.repo_url, (existing or {}).get("board_ref") or group.code, cfg, (existing or {}).get("created_by") or uid(account))
+
+
 @router.post("/teams/{team_ref}/runs", status_code=202)
 async def post_run(team_ref: str, body: RunIn, account: Staff, store: Store, enqueue: Enqueue):
     team = await own_team(store, account, team_ref)
     if team["status"] != "active":
         raise bad_request("tracking_stopped", "Tracking of this team is stopped")
+    group = platform_group(account.session, team_ref)
+    if group is not None:
+        await prepare_platform_team(store, account.session, group, body.sprint_id, account)
+        team_ref = group.code
     return await start_run(store, enqueue, team_ref, body.sprint_id, body.mode, uid(account))
+
+
+@router.post("/runs/{run_id}/rerun", status_code=202)
+async def rerun(run_id: str, account: Staff, store: Store, enqueue: Enqueue):
+    """Evaluate again: a new run for the same team, sprint and kind. The earlier run and its results stay as they were."""
+    run = await own_run(store, account, run_id)
+    group = platform_group(account.session, run["team_ref"])
+    if group is not None:
+        await prepare_platform_team(store, account.session, group, run["sprint_id"], account)
+    out = await start_run(store, enqueue, run["team_ref"], run["sprint_id"], run["mode"], uid(account))
+    return {**out, "previous_run_id": run_id}
 
 
 @router.get("/teams/{team_ref}/runs")
@@ -245,7 +369,7 @@ def _event(e: dict) -> dict:
 
 
 @router.get("/runs/{run_id}/events")
-async def get_events(run_id: str, account: Staff, store: Store, after: int = 0, node: str | None = None, limit: int = Query(500, ge=1, le=2000)):
+async def get_events(run_id: str, account: Staff, store: Store, after: int = 0, node: str | None = None, limit: int = Query(500, ge=1, le=5000)):
     await own_run(store, account, run_id)
     return [_event(e) for e in await db(store.list_events, run_id, after, limit, node)]
 
@@ -305,7 +429,10 @@ async def identity_map(run_id: str, body: IdentityMapIn, account: Staff, store: 
 @router.get("/teams/{team_ref}/sprints/{sprint_id}/results")
 async def team_results(team_ref: str, sprint_id: str, account: Staff, store: Store):
     await own_team(store, account, team_ref)
-    return [service.lecturer_view(r) for r in await db(store.latest_results, team_ref, sprint_id)]
+    group = platform_group(account.session, team_ref)
+    names = {str(m.user_id): {"name": m.user.name, "picture": None} for m in group.members} if group else {}
+    rows = await db(store.latest_results, group.code if group else team_ref, sprint_id)
+    return [{**service.lecturer_view(r), "student": names.get(r["student_id"], {"name": r["student_id"], "picture": None})} for r in rows]
 
 
 @router.get("/teams/{team_ref}/sprints/{sprint_id}/students/{student_id}/trajectory")
@@ -324,7 +451,7 @@ async def list_reviews(account: Staff, store: Store, status: Literal["open", "de
         if run is None:
             continue
         if run["team_ref"] not in teams:
-            teams[run["team_ref"]] = service.can_manage(await db(store.get_tracked_team, run["team_ref"]), uid(account), account.role)
+            teams[run["team_ref"]] = await can_see_team(store, account, run["team_ref"])
         if teams[run["team_ref"]]:
             out.append({**r, "team_ref": run["team_ref"], "sprint_id": run["sprint_id"]})
     return out
@@ -356,7 +483,20 @@ async def decide_review(review_id: str, body: DecisionIn, account: Staff, store:
 # ---- the student's own view ----------------------------------------------------------------------------------------------------------
 
 def _mine(store, account: Account) -> list[dict]:
-    return service.find_student(store, account.user.github_username, account.user.email)
+    """The teams in which this signed-in student is assessed, with their own student id: the account id, never a typed name. A platform team counts only while the person is still a member."""
+    me = str(account.user.id)
+    out = []
+    for team in store.list_tracked_teams(None):
+        cfg = team.get("config") or {}
+        if me not in {s["student_id"] for s in cfg.get("roster", [])}:
+            continue
+        if cfg.get("source") == "platform":
+            group = platform_group(account.session, team["team_ref"])
+            m = rules.membership(group, account.user.id) if group else None
+            if m is None or m.role is not MemberRole.MEMBER:
+                continue
+        out.append({"team_ref": team["team_ref"], "student_id": me, "release": cfg.get("release_to_students", True)})
+    return out
 
 
 @router.get("/me/results")

@@ -10,6 +10,7 @@ from shared.performance.memory_store import MemoryStore
 
 from app.api.v1.performance import get_enqueue, get_store
 from app.main import app
+from app.services.accounts import CONSENT_VERSION
 from tests.test_teams_api import lecturer, student
 
 REPO = "https://github.com/acme/project-x"
@@ -42,8 +43,8 @@ def track(api, team="T9", **extra):
     return r.json()
 
 
-def result(store, run_id, student, mark=70.0, status="final", **kw):
-    return store.save_assessment_result(run_id, "T9", SPRINT, student, mark=mark, status=status, mark_interval=[mark - 10, mark + 10],
+def result(store, run_id, student, mark=70.0, status="final", team="T9", **kw):
+    return store.save_assessment_result(run_id, team, SPRINT, student, mark=mark, status=status, mark_interval=[mark - 10, mark + 10],
                                         factors={"effort": {"score": 0.6, "status": "completed"}}, justification={"summary": "because", "factors": {}, "caveats": ["c"], "flags": []}, flags=[])
 
 
@@ -53,7 +54,8 @@ def test_lecturer_tracks_a_team_and_only_the_owner_sees_it(perf):
     assert out["status"] == "active" and out["config"]["roster"][0]["student_id"] == "STU-1"
     assert perf.get("/performance/teams/T9/tracking").json()["repo_url"] == REPO
     listed = perf.get("/performance/teams").json()
-    assert [t["team_ref"] for t in listed] == ["T9"] and "roster" not in listed[0]["config"]  # the list carries no student details
+    assert [t["team_ref"] for t in listed] == ["T9"] and listed[0]["source"] == "manual" and listed[0]["student_count"] == 2
+    assert "roster" not in json.dumps(listed)  # the list carries no student details
     lecturer(perf, "bob")
     assert perf.get("/performance/teams/T9/tracking").status_code == 404
     assert perf.get("/performance/teams").json() == []
@@ -180,42 +182,79 @@ def test_report_is_available_when_the_run_has_one(perf):
     assert "report_markdown" not in perf.get(f"/performance/runs/{run_id}").json()["summary"]
 
 
+def me(perf, sub):
+    """Sign in as an existing person and return their account id (the student id the agent uses)."""
+    perf.sign_in(sub, email=f"{sub}@example.com", name=sub.title())
+    return perf.get("/me").json()["id"]
+
+
+def track_with_ids(perf, ann, ben, **extra):
+    roster = [{"student_id": ann, "logins": ["gh-ann"]}, {"student_id": ben, "logins": ["gh-ben"]}]
+    body = {"repo_url": REPO, "roster": roster, "sprints": [{"id": SPRINT, "start": "2026-03-01", "end": "2026-03-14"}], **extra}
+    assert perf.request("PUT", "/performance/teams/T9/tracking", json=body).status_code == 200
+
+
 def test_a_student_sees_only_their_own_released_result(perf):
+    student(perf, "ann")
+    student(perf, "ben")
+    student(perf, "cy")
     lecturer(perf, "ada")
-    track(perf)
+    ann, ben = me(perf, "ann"), me(perf, "ben")
+    perf.sign_in("ada", email="ada@example.com", name="Ada")
+    track_with_ids(perf, ann, ben)
     run_id = perf.post("/performance/teams/T9/runs", {"sprint_id": SPRINT}).json()["run_id"]
-    result(perf.store, run_id, "STU-1", 72.0)
-    result(perf.store, run_id, "STU-2", 31.0, status="pending_review")
-    student(perf, "ann")  # github login gh-ann is STU-1
+    result(perf.store, run_id, ann, 72.0)
+    result(perf.store, run_id, ben, 31.0, status="pending_review")
+    me(perf, "ann")
     mine = perf.get("/performance/me/results").json()
-    assert [r["student_id"] for r in mine] == ["STU-1"] and mine[0]["mark"] == 72.0 and mine[0]["justification"]["summary"] == "because"
-    student(perf, "ben")  # STU-2 is under review: the mark is not shown yet
+    assert [r["student_id"] for r in mine] == [ann] and mine[0]["mark"] == 72.0 and mine[0]["justification"]["summary"] == "because"
+    assert str(ben) not in json.dumps(mine)  # nothing about a teammate
+    me(perf, "ben")  # under review: the mark is not shown yet
     mine = perf.get("/performance/me/results").json()
     assert mine[0]["status"] == "under_review" and "mark" not in mine[0]
-    student(perf, "cy")
+    me(perf, "cy")
     assert perf.get("/performance/me/results").json() == []
     # the lecturer can hold results back
     perf.sign_in("ada", email="ada@example.com", name="Ada")
-    track(perf, release_to_students=False)
-    perf.sign_in("ann", email="ann@example.com", name="Ann")
+    track_with_ids(perf, ann, ben, release_to_students=False)
+    me(perf, "ann")
     assert perf.get("/performance/me/results").json() == []
 
 
-def test_a_student_answers_their_own_quiz_once(perf):
-    lecturer(perf, "ada")
-    track(perf)
-    perf.store.create_quiz("T9", SPRINT, "STU-1", question="What does a2 do?", snippet="def a2(): ...", file_path="a.py", line_range=[1, 9], meta={"facts": {"secret": 1}},
-                           deadline_at=datetime.now(timezone.utc) + timedelta(hours=48))
-    student(perf, "ben")
-    assert perf.get("/performance/me/quizzes").json() == []
-    quiz_id = next(iter(perf.store.quizzes.values()))["id"]
-    assert perf.post(f"/performance/me/quizzes/{quiz_id}/answer", {"answer": "mine"}).status_code == 404
+def test_a_typed_github_name_or_email_does_not_open_anyone_elses_results(perf):
+    """Students type their GitHub username at registration. Matching on it would let a student read a classmate's results; results belong to the account id."""
     student(perf, "ann")
+    lecturer(perf, "ada")
+    ann = me(perf, "ann")
+    perf.sign_in("ada", email="ada@example.com", name="Ada")
+    track_with_ids(perf, ann, "someone-else-entirely")
+    run_id = perf.post("/performance/teams/T9/runs", {"sprint_id": SPRINT}).json()["run_id"]
+    result(perf.store, run_id, "someone-else-entirely", 55.0)
+    perf.sign_in("mallory", email="ann@x.org", name="Mallory")  # the roster lists the e-mail ann@x.org and the login gh-ann for the other entry
+    perf.post("/me/onboarding", {"account_type": "student", "display_name": "Mallory", "accept_terms": True, "consent_version": CONSENT_VERSION, "github_username": "gh-ben"})
+    assert perf.get("/performance/me/results").json() == []
+    assert perf.get("/performance/me/quizzes").json() == []
+
+
+def test_a_student_answers_their_own_quiz_once(perf):
+    student(perf, "ann")
+    student(perf, "ben")
+    lecturer(perf, "ada")
+    ann, ben = me(perf, "ann"), me(perf, "ben")
+    perf.sign_in("ada", email="ada@example.com", name="Ada")
+    track_with_ids(perf, ann, ben)
+    perf.store.create_quiz("T9", SPRINT, ann, question="What does a2 do?", snippet="def a2(): ...", file_path="a.py", line_range=[1, 9], meta={"facts": {"secret": 1}},
+                           deadline_at=datetime.now(timezone.utc) + timedelta(hours=48))
+    quiz_id = next(iter(perf.store.quizzes.values()))["id"]
+    me(perf, "ben")
+    assert perf.get("/performance/me/quizzes").json() == []
+    assert perf.post(f"/performance/me/quizzes/{quiz_id}/answer", {"answer": "mine"}).status_code == 404
+    me(perf, "ann")
     shown = perf.get("/performance/me/quizzes").json()
     assert shown[0]["question"] == "What does a2 do?" and "meta" not in shown[0] and "answer" not in shown[0]  # the reference facts never leave the server
     r = perf.post(f"/performance/me/quizzes/{quiz_id}/answer", {"answer": "It adds two numbers and returns them."})
     assert r.status_code == 202 and r.json()["accepted"] and not r.json()["in_second_window"]
-    assert perf.jobs.sent[-1]["task"] == "performance.refuse_student" and perf.jobs.sent[-1]["payload"]["student_id"] == "STU-1"
+    assert perf.jobs.sent[-1]["task"] == "performance.refuse_student" and perf.jobs.sent[-1]["payload"]["student_id"] == ann
     assert perf.post(f"/performance/me/quizzes/{quiz_id}/answer", {"answer": "again"}).status_code == 409
     assert perf.post(f"/performance/me/quizzes/{quiz_id}/answer", {"answer": ""}).status_code == 422
 

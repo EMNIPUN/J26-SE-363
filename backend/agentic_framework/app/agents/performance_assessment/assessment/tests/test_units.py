@@ -116,7 +116,7 @@ def test_reasoning_cannot_retry_without_an_allowed_remedy_and_cannot_accept_crit
     found = audit.findings(r, {})
     gid = [f for f in found if f["code"] == "ghostwriter"][0]["id"]
     out = audit.decide(found, {"decisions": {gid: {"action": "retry", "reason": "try again please"}}})
-    assert out[0]["action"] == "escalate" and "not an allowed remedy" in out[0]["reason"]
+    assert out[0]["action"] == "escalate" and "cannot fix this" in out[0]["reason"]
     out = audit.decide(found, {"decisions": {gid: {"action": "accept", "reason": "ok"}}})
     assert out[0]["action"] == "escalate"
     out = audit.decide(found, {"decisions": {gid: {"action": "accept", "reason": "The quiz was on a helper function the student barely touched, so the low rating is expected."}}})

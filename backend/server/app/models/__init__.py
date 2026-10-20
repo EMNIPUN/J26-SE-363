@@ -2,6 +2,7 @@
 which is what Alembic compares against (see alembic/env.py)."""
 
 from app.models.agent_run import AgentRun, AgentRunStatus
+from app.models.github import TeamGithub, TeamGithubAccess, UserGithubAccount
 from app.models.group import Group, GroupMember, MemberRole, TeamStatus
 from app.models.notification import Notification
 from app.models.notification_preference import NotificationPreference
@@ -18,6 +19,9 @@ __all__ = [
     "GroupMember",
     "InvitationStatus",
     "MemberRole",
+    "TeamGithub",
+    "TeamGithubAccess",
+    "UserGithubAccount",
     "Notification",
     "NotificationPreference",
     "Project",

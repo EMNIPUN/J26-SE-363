@@ -17,7 +17,7 @@ from evidence import linear_model as _lm  # noqa: E402
 
 NotEnoughEvidence = _lm.NotEnoughEvidence
 CARD = HERE / "model" / "consistency_model.json"
-MIN_DAYS = 5  # days of the sprint that must have passed before a provisional score is given
+MIN_FRACTION = 5 / 14  # the part of the sprint that must have passed before a provisional score is given (the model was fitted on 14-day sprints: 5 days)
 
 
 def _load(name, file):
@@ -31,7 +31,7 @@ _clean = _load("consistency_cleaning_prod", "cleaning.py")
 
 
 def evaluate(payload, context=None):
-    return _lm.evaluate(CARD, _clean, payload, context, min_days=MIN_DAYS, factor="consistency")
+    return _lm.evaluate(CARD, _clean, payload, context, min_fraction=MIN_FRACTION, factor="consistency")
 
 
 def _usable(payload):

@@ -7,6 +7,7 @@
 The student answers through the API (``submit_answer``); the answer, an expired window or a lecturer's decision re-fuses that one student (runner.refuse_student). Until then the student's mark
 is provisional and Code Ownership is listed as pending, so a student who is slow to answer never holds up a team run.
 """
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 from app.agents.performance_assessment.assessment.factors import _as_result
@@ -49,20 +50,20 @@ def student_files(ws, repo_url, rev, evidence, token=None):
 
 async def issue(store, ws, repo_url, rev, team_ref, sprint_id, student_id, evidence, run_id, token=None, now=None):
     """The student's quiz for this sprint: the existing one, or a new one. ``None`` when no file has code worth asking about."""
-    existing = store.get_quiz(team_ref, sprint_id, student_id)
+    existing = await asyncio.to_thread(store.get_quiz, team_ref, sprint_id, student_id)
     if existing:
         return existing
     if not rev:
         return None
-    files = student_files(ws, repo_url, rev, evidence, token)
+    files = await asyncio.to_thread(student_files, ws, repo_url, rev, evidence, token)
     quiz = await factor_bridge.generate_quiz_via_bridge({"files": files, "student_id": student_id, "sprint_id": sprint_id}) if files else None
     if not quiz:
         return None
     cfg = settings.quiz_timeout
     meta = {**(quiz.get("ast_metadata") or {}), "question_type": quiz.get("question_type"), "reference_criteria": quiz.get("reference_criteria"), "facts": quiz.get("facts"), "warnings": quiz.get("warnings", []),
             "quiz_version": quiz.get("version")}
-    return store.create_quiz(team_ref, sprint_id, student_id, question=quiz["question"], snippet=quiz["code_snippet"], file_path=quiz["file_path"], line_range=quiz["line_range"], meta=meta,
-                             deadline_at=(now or _now()) + timedelta(hours=cfg.time_window_hours), run_id=run_id)
+    return await asyncio.to_thread(store.create_quiz, team_ref, sprint_id, student_id, question=quiz["question"], snippet=quiz["code_snippet"], file_path=quiz["file_path"], line_range=quiz["line_range"],
+                                   meta=meta, deadline_at=(now or _now()) + timedelta(hours=cfg.time_window_hours), run_id=run_id)
 
 
 async def score_answer(quiz: dict) -> dict:
@@ -86,7 +87,7 @@ async def factor_for(store, quiz: dict | None) -> dict:
         return not_available("no function worth asking about was found in the student's code, or the code is not available")
     if quiz["status"] == "answered":
         if not quiz.get("result"):
-            quiz = store.set_quiz_result(quiz["id"], await score_answer(quiz)) or quiz
+            quiz = await asyncio.to_thread(store.set_quiz_result, quiz["id"], await score_answer(quiz)) or quiz
         return quiz["result"]
     if quiz["status"] == "expired":
         return {**pending(""), "factor": "code_ownership", "score": 0.0, "status": "completed", "interval": [0.0, 0.0], "provisional": False,
