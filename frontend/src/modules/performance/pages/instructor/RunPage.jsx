@@ -11,6 +11,7 @@ import { assessmentApi, assessmentKeys } from '../../assessment/assessmentApi.js
 import { duration, when } from '../../assessment/format.js'
 import IdentityMapForm from '../../assessment/IdentityMapForm.jsx'
 import PipelineFlow from '../../assessment/PipelineFlow.jsx'
+import { useFillHeight } from '../../assessment/useFillHeight.js'
 import { useRunEvents } from '../../assessment/useRunEvents.js'
 import { RunPill } from '../../assessment/visuals.jsx'
 
@@ -30,7 +31,7 @@ function Drawer({ path, events, names, onClose }) {
         <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
       </div>
       {mine.length === 0 && <p className="text-xs text-muted-foreground">Nothing has happened in this step yet.</p>}
-      <ol className="max-h-[28rem] space-y-1.5 overflow-auto pr-1 font-mono text-[11px] leading-relaxed">
+      <ol className="max-h-[28rem] space-y-1.5 overflow-auto pr-1 font-mono text-[11px] leading-relaxed xl:max-h-none xl:overflow-visible">
         {mine.map((e) => (
           <li key={e.seq} className="flex gap-2">
             <span className="shrink-0 text-muted-foreground">{String(e.ts).slice(11, 19)}</span>
@@ -62,13 +63,15 @@ export default function RunPage() {
   const [replayAt, setReplayAt] = useState(null) // null: show everything; a number: show the first n events
   const [playing, setPlaying] = useState(false)
   const timer = useRef(null)
+  const root = useRef(null)
+  const fixed = useFillHeight(root) // on a wide screen the page is one fixed screen: the pipeline and the logs scroll on their own
 
   const current = status || run.data?.status
   const active = ACTIVE.includes(current)
   const names = useMemo(() => Object.fromEntries((results.data || []).map((r) => [r.student_id, r.student?.name])), [results.data])
   const shown = replayAt == null ? events : events.slice(0, replayAt)
   const identityReview = (reviews.data || []).find((r) => r.run_id === runId && r.kind === 'identity_mapping')
-  const sprintUrl = `/teams/${teamId}/performance/assessment?sprint=${encodeURIComponent(run.data?.sprint_id || '')}`
+  const sprintUrl = `/teams/${teamId}/performance/team/results?sprint=${encodeURIComponent(run.data?.sprint_id || '')}`
 
   useEffect(() => {
     if (!playing) return undefined
@@ -106,8 +109,8 @@ export default function RunPage() {
   const took = run.data?.started_at && run.data?.finished_at ? (new Date(run.data.finished_at) - new Date(run.data.started_at)) / 1000 : null
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div ref={root} style={fixed ? { height: fixed } : undefined} className={fixed ? 'flex flex-col gap-4 overflow-hidden' : 'space-y-5'}>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild aria-label="Back to the assessment"><Link to={sprintUrl}><ArrowLeft className="h-4 w-4" /></Link></Button>
           <div>
@@ -132,7 +135,7 @@ export default function RunPage() {
       {current === 'failed' && run.data?.error && <p className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900 dark:bg-rose-950/30 dark:text-rose-200">The run failed: {run.data.error.message}</p>}
 
       {!active && events.length > 0 && (
-        <Card className="flex-row flex-wrap items-center gap-3 p-3">
+        <Card className="shrink-0 flex-row flex-wrap items-center gap-3 p-3">
           <Button size="sm" variant={playing ? 'secondary' : 'outline'} onClick={() => { if (!playing && replayAt == null) setReplayAt(0); setPlaying(!playing) }}>{playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}{playing ? 'Pause' : 'Replay'}</Button>
           <input type="range" min="0" max={events.length} value={replayAt ?? events.length} onChange={(e) => { setPlaying(false); setReplayAt(Number(e.target.value) >= events.length ? null : Number(e.target.value)) }} className="min-w-48 flex-1 accent-primary" aria-label="Replay position" />
           <span className="w-28 text-right text-xs tabular-nums text-muted-foreground">{replayAt == null ? 'final state' : `event ${replayAt} of ${events.length}`}</span>
@@ -141,13 +144,13 @@ export default function RunPage() {
       )}
 
       {graph.data ? (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="max-w-3xl"><PipelineFlow topology={graph.data} events={shown} student={student} onStudent={setStudent} selected={selected} onSelect={setSelected} names={names} /></div>
-          <div className="space-y-4 xl:sticky xl:top-4 xl:self-start">
+        <div className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px] xl:grid-rows-[minmax(0,1fr)]">
+          <div className="min-h-0 max-w-3xl xl:overflow-y-auto xl:pr-2"><PipelineFlow topology={graph.data} events={shown} student={student} onStudent={setStudent} selected={selected} onSelect={setSelected} names={names} /></div>
+          <div className="min-h-0 space-y-4 xl:overflow-y-auto xl:pr-1">
             {selected ? <Drawer path={selected} events={shown} names={names} onClose={() => setSelected(null)} /> : <Card className="p-4 text-sm text-muted-foreground">Choose a step to read what it did, line by line.</Card>}
             <Card className="gap-2 p-4">
               <h3 className="text-sm font-semibold">Latest</h3>
-              <ol className="max-h-72 space-y-1 overflow-auto font-mono text-[11px]">
+              <ol className="max-h-72 space-y-1 overflow-auto font-mono text-[11px] xl:max-h-none xl:overflow-visible">
                 {shown.filter((e) => e.type === 'log').slice(-12).reverse().map((e) => <li key={e.seq} className="flex gap-2"><span className="shrink-0 text-muted-foreground">{e.node_path.split('/').pop().replace(/_/g, ' ')}</span><span className={`min-w-0 break-words ${LEVEL[e.level] || ''}`}>{e.message}</span></li>)}
               </ol>
             </Card>

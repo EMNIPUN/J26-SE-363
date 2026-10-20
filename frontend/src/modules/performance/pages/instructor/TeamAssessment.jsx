@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, AlertTriangle, ArrowRight, Flag, Play, RefreshCw, Settings2, TrendingUp, Users, Workflow } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { showToast } from '@/shared/utils/toast.jsx'
 import { assessmentApi, assessmentKeys } from '../../assessment/assessmentApi.js'
 import { when } from '../../assessment/format.js'
 import { RunPill } from '../../assessment/visuals.jsx'
+import SprintSelect from '../../assessment/SprintSelect.jsx'
 import ResultsTab from './team/ResultsTab.jsx'
 import { DevelopmentTab, ReviewsTab, RunsTab, SetupTab } from './team/OtherTabs.jsx'
 
@@ -22,10 +23,18 @@ const TABS = [
   { id: 'setup', label: 'Setup', icon: Settings2 },
 ]
 const ACTIVE = ['queued', 'running', 'waiting_human']
+const TAB_HELP = {
+  results: 'Individual contribution of every student, with the evidence behind each mark.',
+  development: 'How each student\'s predicted mark moved while the sprint ran.',
+  runs: 'Every assessment run, with its pipeline and report.',
+  reviews: 'What the agent could not settle and left to a person.',
+  setup: 'The repository, the sprint dates and who is who.',
+}
 
 /** The lecturer's page for one team: results first, then how they developed, the runs behind them, what needs a decision, and the setup. */
 export default function TeamAssessment() {
-  const { teamId } = useParams()
+  const { teamId, tab: tabParam } = useParams()
+  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const qc = useQueryClient()
   const confirm = useConfirm()
@@ -36,7 +45,7 @@ export default function TeamAssessment() {
   const sprints = useMemo(() => tracking.data?.config?.sprints ?? [], [tracking.data])
   const [chosen, setChosen] = useState('')
   const sprint = chosen || params.get('sprint') || sprints[sprints.length - 1]?.id || ''
-  const tab = TABS.some((t) => t.id === params.get('tab')) ? params.get('tab') : 'results'
+  const tab = TABS.some((t) => t.id === tabParam) ? tabParam : 'results'
   const runs = useQuery({ queryKey: assessmentKeys.runs(teamId, sprint), queryFn: () => assessmentApi.runs(teamId, sprint), enabled: Boolean(sprint), refetchInterval: 6000 })
   const results = useQuery({ queryKey: assessmentKeys.results(teamId, sprint), queryFn: () => assessmentApi.results(teamId, sprint), enabled: Boolean(sprint), refetchInterval: 15000 })
   const [busy, setBusy] = useState(false)
@@ -44,6 +53,7 @@ export default function TeamAssessment() {
 
   useEffect(() => { if (!params.get('sprint') && sprint) setParams((p) => { const n = new URLSearchParams(p); n.set('sprint', sprint); return n }, { replace: true }) }, [sprint, params, setParams])
   const go = (next) => setParams((p) => { const n = new URLSearchParams(p); Object.entries(next).forEach(([k, v]) => n.set(k, v)); return n })
+  const openTab = (id) => navigate(`${base}/team/${id}${sprint ? `?sprint=${encodeURIComponent(sprint)}` : ''}`)
 
   const latest = runs.data?.[0]
   const active = runs.data?.find((r) => ACTIVE.includes(r.status))
@@ -85,19 +95,16 @@ export default function TeamAssessment() {
   }
 
   if (team.isPending) return <Skeleton className="h-64 w-full" aria-busy="true" />
-  const reviewCount = 0
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Assessment"
-        description={`${team.data?.name ?? code}. Individual contribution of every student, with the evidence behind each mark.`}
+        title={`Team · ${TABS.find((t) => t.id === tab).label}`}
+        description={`${team.data?.name ?? code}. ${TAB_HELP[tab]}`}
         actions={
           <>
             {sprints.length > 0 && (
-              <select className="h-9 rounded-md border bg-background px-3 text-sm" value={sprint} onChange={(e) => { setChosen(e.target.value); go({ sprint: e.target.value }) }} aria-label="Sprint">
-                {sprints.map((s) => <option key={s.id} value={s.id}>Sprint {s.id}</option>)}
-              </select>
+              <SprintSelect sprints={sprints} value={sprint} onChange={(id) => { setChosen(id); go({ sprint: id }) }} />
             )}
             <Button variant="outline" disabled={busy || !ready || !sprint || Boolean(active)} onClick={() => start('snapshot')} title="Where the team is right now. Marks are provisional."><Activity className="h-4 w-4" />Snapshot</Button>
             <Button disabled={busy || !ready || !sprint || Boolean(active)} onClick={() => start('final')} title="For a finished sprint. Also asks each student a question about their code."><Play className="h-4 w-4" />Final assessment</Button>
@@ -110,7 +117,7 @@ export default function TeamAssessment() {
         <div className="rounded-xl border border-dashed p-5 text-sm">
           <p className="font-medium">Add the sprint dates first</p>
           <p className="mt-1 text-muted-foreground">The agent reads one sprint at a time. Enter the sprint id (as on the Scrum board) and its dates under Setup.</p>
-          <Button size="sm" className="mt-3" onClick={() => go({ tab: 'setup' })}>Open Setup</Button>
+          <Button size="sm" className="mt-3" onClick={() => openTab('setup')}>Open Setup</Button>
         </div>
       )}
       {sprints.length > 0 && !ready && (
@@ -126,16 +133,7 @@ export default function TeamAssessment() {
         </div>
       )}
 
-      <div role="tablist" aria-label="Assessment sections" className="flex gap-1 overflow-x-auto border-b">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => go({ tab: t.id })}
-            className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${tab === t.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-            <t.icon className="h-4 w-4" aria-hidden="true" />{t.label}{t.id === 'reviews' && reviewCount > 0 && <span className="rounded-full bg-amber-500 px-1.5 text-xs text-white">{reviewCount}</span>}
-          </button>
-        ))}
-      </div>
-
-      <div role="tabpanel">
+      <div>
         {tab === 'results' && <ResultsTab rows={results.data} loading={results.isPending && Boolean(sprint)} sprint={sprint} base={base} />}
         {tab === 'development' && <DevelopmentTab team={teamId} sprint={sprint} rows={results.data} />}
         {tab === 'runs' && <RunsTab runs={runs.data} loading={runs.isPending && Boolean(sprint)} base={base} onRerun={rerun} onReport={report} busy={busy} />}

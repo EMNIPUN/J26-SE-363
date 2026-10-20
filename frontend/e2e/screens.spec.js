@@ -30,11 +30,49 @@ for (const tab of ['development', 'runs', 'reviews', 'setup']) {
   })
 }
 
-test('a student for the lecturer', async ({ page }) => {
+const scrollUntilVisible = (page, locator) => expect(async () => {
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+  await expect(locator).toBeVisible({ timeout: 1500 })
+}).toPass({ timeout: 15000 })
+
+test('a student for the lecturer: separate sections, parts that come in one by one, a way into the questions', async ({ page }) => {
   await open(page, `/teams/MC01/performance/students/${STUDENTS[1].id}?sprint=MC01-S3`)
-  await expect(page.getByText('Points to check')).toBeVisible()
-  await expect(page.getByText('The code question')).toBeVisible()
+  for (const title of ['Points to check', 'How the mark is made', 'Why this mark', 'The factors']) await expect(page.getByRole('heading', { name: title })).toBeVisible()
+  await expect(page.getByText('Effort added the most').or(page.getByText(/added the most/)).first()).toBeVisible()
+  // the arrow on a factor card opens its explanation
+  await page.getByRole('button', { name: 'Show the explanation of Effort' }).click()
+  await expect(page.getByText('In short').first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Hide the explanation of Effort' })).toHaveAttribute('aria-expanded', 'true')
+  // later parts appear when they are about to be seen
+  await scrollUntilVisible(page, page.getByRole('heading', { name: 'The code questions' }))
+  await expect(page.getByText('Open all 10 questions')).toBeVisible()
+  await expect(page.getByText('The code question', { exact: true })).toHaveCount(0)
+  await scrollUntilVisible(page, page.getByRole('heading', { name: 'Day by day' }))
   await shot(page, 'student-lecturer')
+})
+
+test('the code questions have a page of their own, with ten or more of them', async ({ page }) => {
+  await open(page, `/teams/MC01/performance/students/${STUDENTS[1].id}/questions?sprint=MC01-S3`)
+  await expect(page.getByRole('heading', { name: 'Code questions' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: /All\s*10/ })).toBeVisible()
+  await expect(page.getByRole('tab', { name: /Answered\s*8/ })).toBeVisible()
+  await page.getByRole('tab', { name: /Not answered/ }).click()
+  await expect(page.getByRole('button', { name: /How many times does wait_for_db try/ })).toBeVisible()
+  await page.getByRole('tab', { name: /All/ }).click()
+  await page.getByRole('button', { name: /In your own words, what does build_report do/ }).click()
+  await expect(page.getByText('It adds up the rows above the threshold')).toBeVisible()
+  await shot(page, 'student-questions')
+})
+
+test('the sprint picker is a styled menu, not the browser list', async ({ page }) => {
+  await open(page, '/teams/MC01/performance/team/results?sprint=MC01-S3')
+  await expect(page.locator('select')).toHaveCount(0)
+  await page.getByRole('combobox', { name: 'Sprint' }).click()
+  await expect(page.getByRole('option', { name: /MC01-S4/ })).toBeVisible()
+  await expect(page.getByText('Apr 16 to Apr 21')).toBeVisible()
+  await shot(page, 'sprint-picker')
+  await page.getByRole('option', { name: /MC01-S4/ }).click()
+  await expect(page.getByRole('combobox', { name: 'Sprint' })).toContainText('MC01-S4')
 })
 
 test('the pipeline of a finished run, and its replay', async ({ page }) => {
@@ -167,4 +205,17 @@ test('demo mode shows sample data on the student side', async ({ page }) => {
   await expect(page.getByText(/Sample data/)).toBeVisible()
   await expect(page.getByText(/Eric Devon/)).toHaveCount(0) // a student sees only their own result
   await shot(page, 'demo-student')
+})
+
+test('the run page is one fixed screen: the pipeline and the logs scroll on their own', async ({ page }) => {
+  await open(page, '/teams/MC01/performance/runs/run-done')
+  await expect(page.getByText('Choose a step to read what it did, line by line.')).toBeVisible()
+  await page.waitForTimeout(400)
+  const m = await page.evaluate(() => {
+    const scrollers = [...document.querySelectorAll('div')].filter((d) => getComputedStyle(d).overflowY === 'auto' && d.scrollHeight > d.clientHeight + 4)
+    return { page: document.documentElement.scrollHeight - window.innerHeight, scrollers: scrollers.length }
+  })
+  expect(m.page).toBeLessThanOrEqual(1) // the page itself does not scroll
+  expect(m.scrollers).toBeGreaterThanOrEqual(1) // a column inside does
+  await shot(page, 'run-fixed-screen')
 })

@@ -89,6 +89,33 @@ export const liveEvents = () => {
   return all.slice(0, cut)
 }
 
+// Ten code questions about one student's functions, in every state, as the final assessment can produce.
+const CODE = [
+  ['report.py', [1, 9], 'build_report', 'In your own words, what does build_report do, and what do rows and threshold control?', 'It adds up the rows above the threshold and returns the total with the doubled values.', 4.2],
+  ['gateway/auth.py', [12, 31], 'verify_token', 'What happens when verify_token receives an expired token, and why is that check done before the role lookup?', 'It raises an unauthorized error. The role lookup costs a database call, so it is skipped for a token that is already invalid.', 4.6],
+  ['gateway/routes.py', [40, 58], 'create_visit', 'Which input does create_visit reject, and what does the caller get back in that case?', 'It rejects a visit with no patient id and returns a 422 with the field name.', 3.8],
+  ['scheduler/slots.py', [5, 27], 'free_slots', 'Why does free_slots sort the booked intervals before it walks through them?', 'Sorting lets it find gaps in one pass; without it two overlapping bookings could hide a gap.', 4.4],
+  ['scheduler/slots.py', [30, 44], 'merge_intervals', 'What would merge_intervals return for [(1, 3), (2, 6), (8, 10)]?', '(1, 6) and (8, 10), because the first two overlap.', 5],
+  ['records/store.py', [3, 22], 'save_record', 'What does save_record do if the same record id is saved twice?', 'It updates the existing row instead of adding a second one.', 3.2],
+  ['records/store.py', [25, 39], 'archive_old', 'What is the risk in how archive_old chooses which records to remove?', 'It compares dates as text, so a record from a different year could be removed by mistake.', 2.6],
+  ['notify/mailer.py', [8, 30], 'send_reminder', 'Why is the mail sent from a background task and not inside the request?', 'Sending takes seconds and could fail, so the visitor should not wait for it.', 4.0],
+  ['deploy/health.py', [2, 15], 'check_ready', 'What does check_ready test, and what status does it give while the database is down?', null, null],
+  ['deploy/health.py', [18, 33], 'wait_for_db', 'How many times does wait_for_db try, and what happens after the last try?', null, null],
+]
+const QUESTIONS = CODE.map(([file, range, fn, question, answer, rating], i) => ({
+  n: i + 1,
+  status: answer ? 'answered' : i === 8 ? 'open' : 'expired',
+  file_path: file,
+  line_range: range,
+  snippet: `def ${fn}(items, limit=10):\n    result = []\n    for item in items:\n        if item.ok and len(result) < limit:\n            result.append(item)\n    return result`,
+  question,
+  answer,
+  answered_at: answer ? '2026-04-14T10:00:00Z' : null,
+  in_second_window: i === 5,
+  rating,
+  warnings: i === 6 ? ['The answer scorer was not sure about this one.'] : [],
+}))
+
 const GATE = {
   ok: { state: 'ok' },
   repo_not_linked: { state: 'repo_not_linked', is_leader: false, installed: false, repo: null },
@@ -111,7 +138,7 @@ export function respond(p, m, { role = 'instructor', live = false, gate = 'ok' }
     if (/^\/performance\/teams\/MC01\/runs$/.test(p)) return json(runsList(live ? 'live' : 'done'))
     if (/\/sprints\/[^/]+\/results$/.test(p)) return json(STUDENTS.map((_, i) => result(i)))
     if (/\/trajectory$/.test(p)) return json([2, 3, 4, 5].map((d, k) => ({ as_of: `2026-04-${10 + d}T20:00:00Z`, sprint_elapsed: d / 6, mark: 30 + k * 15, mark_interval: [20 + k * 12, 45 + k * 17], factors: { effort: { score: 0.3 + k * 0.15 }, consistency: { score: 0.5 } } })))
-    if (/\/quiz$/.test(p)) return json({ status: 'answered', question: 'In your own words, what does build_report do, and what do rows and threshold control?', snippet: 'def build_report(rows, threshold):\n    total = 0\n    result = []\n    for row in rows:\n        if row > threshold:\n            total += row\n            result.append(row * 2)\n    return total, result', file_path: 'report.py', line_range: [1, 9], answer: 'It adds up the rows above the threshold and returns the total with the doubled values.', answered_at: '2026-04-14T10:00:00Z', in_second_window: false, rating: 4.2, warnings: [] })
+    if (/\/quiz$/.test(p)) return json({ ...QUESTIONS[0], questions: QUESTIONS })
     if (p === '/performance/graph') return json(topology)
     if (/^\/performance\/runs\/[^/]+\/events$/.test(p)) return json(live ? liveEvents() : events())
     if (/^\/performance\/runs\/[^/]+\/stream$/.test(p)) return { status: 404, body: '' }

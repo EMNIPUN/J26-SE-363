@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { band, contributions, duration, factorState, initials, markBand, markText, rangeText, summarize } from './format.js'
+import { band, contributions, duration, explainFactor, explainMark, factorState, initials, markBand, markText, questionsOf, quizSummary, rangeText, summarize } from './format.js'
 
 describe('bands and text', () => {
   it('cuts scores at the same points as the justification', () => {
@@ -57,5 +57,56 @@ describe('summarize', () => {
     ]
     expect(summarize(rows)).toMatchObject({ students: 3, mean: 60, lowest: 40, highest: 80, needReview: 1, provisional: 1, waitingForAnswer: 1, flags: 2 })
     expect(summarize([]).mean).toBeNull()
+  })
+})
+
+describe('why this mark', () => {
+  const weights = { effort: 0.2, consistency: 0.15, requirement_fulfillment: 0.25, collaboration: 0.15, task_complexity: 0.1, code_ownership: 0.15 }
+  const result = {
+    mark: 61, effective_mark: 61, mark_interval: [45, 76],
+    factors: {
+      effort: { status: 'completed', score: 0.82, provisional: true }, consistency: { status: 'completed', score: 0.3, provisional: true }, requirement_fulfillment: { status: 'completed', score: 0.6, provisional: true },
+      collaboration: { status: 'not_available', score: null }, task_complexity: { status: 'completed', score: 0.5 }, code_ownership: { status: 'pending', score: null },
+      behavioral_pattern: { persona: 'Burst worker', applied: true, modifier: 0.94 },
+    },
+    justification: { flags: [{ message: 'x' }], factors: { collaboration: { reasons: ['Nobody reviewed anything in this sprint.'] } } },
+  }
+
+  it('names what added the most, what held the mark back and what was left out', () => {
+    const { headline, lines } = explainMark(result, weights)
+    expect(headline).toBe('61 out of 100: a moderate contribution')
+    const text = lines.map((l) => l.text).join(' | ')
+    expect(text).toContain('Effort added the most')
+    expect(text).toContain('Consistency held the mark back most: a score of 30, which is low')
+    expect(text).toContain('Collaboration is not part of the mark: Nobody reviewed anything in this sprint.')
+    expect(text).toContain('Code Ownership is not part of the mark: waiting for the answer')
+    expect(text).toContain('adjusted the total by a factor of 0.94')
+    expect(text).toContain('The likely range is 45 to 76')
+    expect(text).toContain('still running')
+    expect(text).toContain('1 point need a person')
+  })
+
+  it('says nothing about a student who has no result', () => {
+    expect(explainMark(null, weights)).toEqual({ headline: '', lines: [] })
+  })
+
+  it('explains one factor card in a sentence', () => {
+    const part = contributions(result.factors, weights).find((p) => p.id === 'effort')
+    expect(explainFactor({}, result.factors.effort, part)).toMatch(/Scored 82 out of 100, which is high\. It counts for \d+% of the mark and added [\d.]+ points\./)
+    expect(explainFactor({}, result.factors.collaboration)).toContain('left out of the mark')
+    expect(explainFactor({}, result.factors.code_ownership)).toContain('Waiting for')
+  })
+})
+
+describe('the code questions', () => {
+  it('turns one question or many into a list', () => {
+    expect(questionsOf(null)).toEqual([])
+    expect(questionsOf({ question: 'a' })).toHaveLength(1)
+    expect(questionsOf({ questions: [{ question: 'a' }, { question: 'b' }] }).map((q) => q.n)).toEqual([1, 2])
+  })
+  it('counts how it went', () => {
+    const s = quizSummary([{ status: 'answered', rating: 4 }, { status: 'answered', rating: 2 }, { status: 'open' }, { status: 'expired' }])
+    expect(s).toEqual({ total: 4, answered: 2, open: 1, expired: 1, average: 3 })
+    expect(quizSummary([]).average).toBeNull()
   })
 })

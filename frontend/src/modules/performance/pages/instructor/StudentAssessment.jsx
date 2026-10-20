@@ -1,17 +1,17 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
 import EmptyState from '@/shared/components/EmptyState.jsx'
 import { useConfirm } from '@/shared/utils/useConfirm.js'
 import { showToast } from '@/shared/utils/toast.jsx'
 import { assessmentApi, assessmentKeys } from '../../assessment/assessmentApi.js'
 import { markText } from '../../assessment/format.js'
 import ResultView from '../../assessment/ResultView.jsx'
+import { PanelSkeleton } from '../../assessment/Reveal.jsx'
 import { Avatar } from '../../assessment/visuals.jsx'
 
 function MarkDialog({ open, onClose, result, onSave }) {
@@ -47,14 +47,17 @@ export default function StudentAssessment() {
   const qc = useQueryClient()
   const confirm = useConfirm()
   const [dialog, setDialog] = useState(false)
+  // The day by day view and the code questions are only asked for when their part of the page is about to be seen.
+  const [seen, setSeen] = useState({})
+  const onSeen = useCallback((name) => { if (name) setSeen((s) => (s[name] ? s : { ...s, [name]: true })) }, [])
   const results = useQuery({ queryKey: assessmentKeys.results(teamId, sprint), queryFn: () => assessmentApi.results(teamId, sprint), enabled: Boolean(sprint) })
   const result = results.data?.find((r) => r.student_id === studentId)
-  const traj = useQuery({ queryKey: assessmentKeys.trajectory(teamId, sprint, studentId), queryFn: () => assessmentApi.trajectory(teamId, sprint, studentId), enabled: Boolean(result) })
-  const quiz = useQuery({ queryKey: assessmentKeys.quiz(teamId, sprint, studentId), queryFn: () => assessmentApi.quiz(teamId, sprint, studentId), enabled: Boolean(result) })
+  const traj = useQuery({ queryKey: assessmentKeys.trajectory(teamId, sprint, studentId), queryFn: () => assessmentApi.trajectory(teamId, sprint, studentId), enabled: Boolean(result) && Boolean(seen.trajectory) })
+  const quiz = useQuery({ queryKey: assessmentKeys.quiz(teamId, sprint, studentId), queryFn: () => assessmentApi.quiz(teamId, sprint, studentId), enabled: Boolean(result) && Boolean(seen.quiz) })
   const runs = useQuery({ queryKey: assessmentKeys.runs(teamId, sprint), queryFn: () => assessmentApi.runs(teamId, sprint), enabled: Boolean(sprint) })
   const weights = runs.data?.find((r) => r.summary?.method)?.summary.method.weights
   const latest = runs.data?.[0]
-  const back = `/teams/${teamId}/performance/assessment?sprint=${encodeURIComponent(sprint)}`
+  const back = `/teams/${teamId}/performance/team/results?sprint=${encodeURIComponent(sprint)}`
 
   const save = async (mark, reason) => {
     try {
@@ -78,7 +81,16 @@ export default function StudentAssessment() {
     }
   }
 
-  if (results.isPending) return <Skeleton className="h-96 w-full" aria-busy="true" />
+  if (results.isPending) {
+    return (
+      <div className="space-y-8" aria-busy="true">
+        <div className="flex items-center gap-4"><span className="h-12 w-12 animate-pulse rounded-full bg-muted" /><span className="h-5 w-48 animate-pulse rounded bg-muted" /></div>
+        <PanelSkeleton height={200} title={false} />
+        <PanelSkeleton height={160} />
+        <PanelSkeleton height={220} />
+      </div>
+    )
+  }
   if (!result) return <EmptyState title="No result for this student" description="There is no result for this student in this sprint yet." actionLabel="Back to the team" onAction={() => window.history.back()} />
 
   return (
@@ -94,7 +106,7 @@ export default function StudentAssessment() {
         </div>
         {latest && !['queued', 'running', 'waiting_human'].includes(latest.status) && <Button variant="outline" onClick={evaluateAgain}><RefreshCw className="h-4 w-4" />Re-evaluate</Button>}
       </div>
-      <ResultView result={result} weights={weights} mode="lecturer" trajectory={traj.data} quiz={quiz.data} onSetMark={() => setDialog(true)} />
+      <ResultView result={result} weights={weights} mode="lecturer" trajectory={traj.data} quiz={quiz.data} quizLoading={quiz.isPending} questionsHref={`/teams/${teamId}/performance/students/${studentId}/questions?sprint=${encodeURIComponent(sprint)}`} onSetMark={() => setDialog(true)} onSeen={onSeen} />
       {dialog && <MarkDialog open onClose={() => setDialog(false)} result={result} onSave={save} />}
     </div>
   )

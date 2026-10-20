@@ -103,3 +103,82 @@ export function summarize(rows) {
     flags: rows.reduce((a, r) => a + (r.justification?.flags?.length || 0), 0),
   }
 }
+
+const WORD = { high: 'a strong contribution', medium: 'a moderate contribution', low: 'a weak contribution' }
+
+/**
+ * In words, why this student got this mark: what added the most, what held it back, what was left out, what the working pattern did, and how sure the prediction is.
+ * Everything comes from the result itself; nothing is guessed. Returns a headline and a list of `{ kind, text }` lines.
+ */
+export function explainMark(result, weights) {
+  if (!result) return { headline: '', lines: [] }
+  const j = result.justification || {}
+  const mark = result.effective_mark ?? result.mark
+  const parts = contributions(result.factors, weights)
+  const total = parts.reduce((a, p) => a + p.points, 0)
+  const lines = []
+
+  const top = [...parts].sort((a, b) => b.points - a.points)[0]
+  if (top) lines.push({ kind: 'strong', text: `${top.label} added the most: ${Math.round(top.points)} of ${Math.round(total)} points, from a score of ${score100(top.score)}.` })
+  const weakest = [...parts].sort((a, b) => a.score - b.score)[0]
+  if (weakest && parts.length > 1 && weakest.score < 0.67) lines.push({ kind: 'weak', text: `${weakest.label} held the mark back most: a score of ${score100(weakest.score)}, which is ${weakest.score < 0.34 ? 'low' : 'middling'}.` })
+
+  const scoredIds = new Set(parts.map((p) => p.id))
+  for (const f of FACTORS) {
+    if (scoredIds.has(f.id)) continue
+    const why = (j.factors?.[f.id]?.reasons || []).filter(Boolean)[0] || factorState(result.factors?.[f.id]).label.toLowerCase()
+    const said = /weight/i.test(why) // some reasons already say where the weight went
+    lines.push({ kind: 'out', text: `${f.label} is not part of the mark: ${why.replace(/\.$/, '')}.${said ? '' : ' Its weight was shared among the factors that could be measured.'}` })
+  }
+
+  const pattern = result.factors?.behavioral_pattern
+  if (pattern?.persona) {
+    if (pattern.applied && pattern.modifier != null && pattern.modifier !== 1) lines.push({ kind: 'pattern', text: `The working pattern "${pattern.persona}" adjusted the total by a factor of ${Number(pattern.modifier).toFixed(2)}.` })
+    else lines.push({ kind: 'pattern', text: `The working pattern "${pattern.persona}" is shown as a tendency. It changes the mark only once the sprint is final.` })
+  }
+
+  if (result.override?.mark != null) lines.push({ kind: 'override', text: `The lecturer set the mark to ${markText(result.override.mark)}; the agent predicted ${markText(result.mark)}.` })
+
+  const interval = result.mark_interval
+  if (interval) {
+    const wide = interval[1] - interval[0] >= 30
+    lines.push({ kind: 'range', text: `The likely range is ${rangeText(interval)}. ${wide ? 'It is wide because some evidence is missing or the sprint is not over.' : 'It is fairly narrow: the evidence is steady.'}` })
+  }
+  if (parts.some((p) => result.factors[p.id]?.provisional)) lines.push({ kind: 'range', text: 'The sprint is still running, so every score is to date and the mark can still move.' })
+  const flags = (j.flags || []).length
+  if (flags) lines.push({ kind: 'flag', text: `${flags} point${flags === 1 ? '' : 's'} need a person to check them (see Points to check).` })
+
+  return { headline: mark == null ? 'No mark yet' : `${markText(mark)} out of 100: ${WORD[markBand(mark)] || ''}`.trim(), lines }
+}
+
+/** One sentence for a factor card: what its score means and what it did to the mark. */
+export function explainFactor(meta, result, part) {
+  const state = factorState(result)
+  if (state.kind === 'scored') {
+    const b = band(result.score)
+    const base = `Scored ${score100(result.score)} out of 100, which is ${b}.`
+    return part ? `${base} It counts for ${Math.round(part.weight * 100)}% of the mark and added ${part.points.toFixed(1)} points.` : base
+  }
+  if (state.kind === 'pending') return 'Waiting for the student\'s answer. The mark is provisional until it arrives.'
+  return `${state.label}. It is left out of the mark, and its weight is shared among the other factors.`
+}
+
+/** The questions of a student's code check as a list, whether the API sent one question or several. */
+export function questionsOf(quiz) {
+  if (!quiz) return []
+  const list = Array.isArray(quiz.questions) ? quiz.questions : [quiz]
+  return list.map((q, i) => ({ ...q, n: q.n ?? i + 1 }))
+}
+
+/** How the code check went, in numbers. */
+export function quizSummary(questions) {
+  const answered = questions.filter((q) => q.status === 'answered')
+  const rated = answered.filter((q) => q.rating != null)
+  return {
+    total: questions.length,
+    answered: answered.length,
+    open: questions.filter((q) => q.status === 'open' || q.status === 'extended').length,
+    expired: questions.filter((q) => q.status === 'expired').length,
+    average: rated.length ? rated.reduce((a, q) => a + Number(q.rating), 0) / rated.length : null,
+  }
+}

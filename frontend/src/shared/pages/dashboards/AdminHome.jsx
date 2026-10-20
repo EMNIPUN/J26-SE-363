@@ -15,7 +15,7 @@ import {
 
 const quickLinks = [
   { ...getModule('planning'), to: '/planning/dashboard' },
-  { ...getModule('performance'), to: '/performance/assessment' },
+  { ...getModule('performance'), to: '/performance/team/results' },
   { ...getModule('tutor'), to: '/tutor/landing' },
   { ...getModule('security'), to: '/security/dashboard' },
 ]
