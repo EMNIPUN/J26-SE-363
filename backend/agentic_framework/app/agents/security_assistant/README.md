@@ -4,20 +4,160 @@ Owner: Security Assistant team member. All security analysis logic lives in this
 Orchestrator name: `AgentName.SECURITY_ASSISTANT` (`security_assistant`); actions use the
 `security.` prefix (e.g. `security.scan_repository`).
 
+## Overview
+
+The Security Assistant checks a student project for five kinds of weakness (V1 access control, V2 injection, V3 login and
+session, V4 secrets, V5 dependencies and CI/CD) in Python, Java (Spring Boot) and JavaScript/TypeScript. It is built in two
+layers: **deterministic scanners** find candidate problems, then an **LLM** judges each one using a small, redacted piece of the
+student's code. Everything after that (links to commits and requirements, a risk ranking, fix advice, a question for the
+student) is built on those judged findings.
+
+```
+fetch -> scan -> interpret (LLM) -> trace -> risk -> guidance -> questions (mock Tutor) -> report.json + report.md
+```
+
+| Stage | What it does | Module | Needs the LLM |
+|---|---|---|---|
+| fetch | Clones a public https://github.com repo safely (or takes a local folder); deleted afterwards | `pipeline.py` | no |
+| scan | Runs the scanners (CodeQL, config checks, Gitleaks, TruffleHog, OSV, npm audit, pip-audit, actionlint, zizmor) and records which ran | `tools/`, `scan.py` | no |
+| interpret | Per finding: confirmed, dismissed or uncertain, with evidence ids and a short reason | `interpret.py`, `interpreter/` | yes |
+| trace | Finds the commit that introduced the line; links it to a story and a sprint task | `trace.py`, `traceability.py` | only for link proposals |
+| risk | Rule-based ranking with a score breakdown | `risk.py` | no |
+| guidance | Standard "how to fix" advice per type of issue | `guidance.py` | no |
+| questions | One probe question per confirmed finding from the student's own code; a mock Tutor scores it | `questions.py` | no |
+
+Run all of it with one command (`assess.py`, below). Every stage can also be run on its own.
+
+## Quick start
+
+From `backend/agentic_framework` (uv sets up the environment, see "Local setup with uv"). The scanners themselves run in the
+Docker image (see "How to run it"); with `--reuse-scan` you do not need them.
+
+```powershell
+# the whole pipeline on a saved scan, no scanner needed (needs the Groq key in .env because of --allow-external-llm)
+uv run python -m app.agents.security_assistant.tools.tests.demo_repos scan_output/demo_repos
+uv run python -m app.agents.security_assistant.assess scan_output/demo_repos/vuln_py_repo `
+    --reuse-scan app/agents/security_assistant/tests/saved/python_full.json `
+    --requirements app/agents/security_assistant/traceability_samples/requirements.json `
+    --tasks app/agents/security_assistant/traceability_samples/tasks.json `
+    --allow-external-llm --delay 6 --out scan_output/demo
+
+# a real scan (CodeQL takes minutes; --skip makes the gap visible and the run incomplete)
+uv run python -m app.agents.security_assistant.assess https://github.com/owner/repo --skip codeql --allow-external-llm
+```
+
+`assess` writes one `report.json` and one `report.md` (plus local-only mapping files that are git-ignored). Its exit code is 0 for
+a complete run, 2 incomplete, 3 usage error, 4 when the LLM stages were refused because `--allow-external-llm` was not given.
+The same pipeline is available as `assess.run_pipeline(repo_url, requirements_file=None, sprint_tasks_file=None, skip=[],
+reuse_scan=None, ...)`. (Not to be confused with `pipeline.run_pipeline`, which only fetches and scans and is used by the webhook.)
+
+**A run is incomplete, never clean, when anything is missing.** Each stage is recorded as completed, partial, failed or skipped.
+A skipped tool, a scanner that failed, a failed LLM call, a bad requirements file or a stage that raised makes the run
+INCOMPLETE; the report starts with a banner that says why. Without `--allow-external-llm` nothing is sent to any LLM: the
+interpret stage and the stages that need its result are skipped.
+
+### Other commands
+
+| Command (`python -m app.agents.security_assistant.<module>`) | Purpose |
+|---|---|
+| `scan <folder or url>` | scanners only, `findings.json` and a readable report |
+| `interpret <findings.json> <repo>` | the LLM stage alone (`--dry-run` shows exactly what would be sent) |
+| `trace <interpreted.json> <repo>` | commit and requirement links |
+| `risk <interpreted.json> [repo]` | risk ranking |
+| `questions <interpreted.json> <repo>` | probe questions with the mock Tutor |
+| `rq1 --repo NAME=findings.json,interpreted.json` | the scanner-only versus scanner+LLM comparison (CSV) |
+| `replay_webhook` | replay a recorded GitHub webhook locally |
+
+## Probe questions and the mock Tutor (`questions.py`)
+
+For every confirmed finding the student gets one question that makes them reason about their own code, for example "Suppose
+two customers A and B are logged in and A types B's identifier into the address. Walk through the code: what does it return, and
+which line tells A apart from B?" The question is built from the function that contains the flagged line (Python `ast`; a simple
+text search for Java and JS/TS; a window of lines for other files), with secrets and personal data replaced first. It **never states the fix**:
+the wording comes from fixed templates and a guard (`leaks_fix`) rejects any template that would name the answer.
+
+The Tutor is an interface, `TutorChannel`. The only implementation is **`MockTutor`**, labelled "MOCK TUTOR (simulated; no student
+answered and nothing was graded)" in `questions.json` and in the report. It returns a simulated comprehension score (deterministic
+per finding, between 0.30 and 0.95). A finding is **closed only at or above the threshold** (default 0.7, `--threshold` or
+`SECURITY_ASSISTANT_COMPREHENSION_THRESHOLD`), otherwise it stays **open**. Closed means "the student showed they understand the
+problem", not "the code was fixed". Score, threshold and decision are logged for every finding.
+
+## RQ1: scanner only versus scanner + LLM (`rq1.py`)
+
+`rq1` reads `tools/tests/fixtures/PLANTED_BUGS.md` as ground truth and writes `rq1_comparison.csv` (precision, false-positive
+counts, planted bugs found, true findings the LLM dismissed), `rq1_findings.csv` and `rq1_cases.csv`. It uses saved scans and
+saved LLM runs only, never calls an LLM, and leaves a cell empty rather than invent a number. It also includes the 10 deliberate
+cases of `interpreter/seeded/` (5 real problems, 5 look-alikes that are safe) once a live run has been saved with
+`interpreter.evaluate_seeded --live --save`. `rq1_results/` holds the one recorded measurement (Python demo repo) with how it was
+produced and how to read it.
+
+## What is real and what is mocked
+
+| Part | Status |
+|---|---|
+| Scanners, normalisation, coverage, failure recording | **Real** (run in the Docker image; the default tests use recorded outputs) |
+| Safe fetch of public GitHub repos, webhook signature check, push/PR handling | **Real** logic, tested against local repos and recorded payloads; not exposed to a public URL |
+| LLM interpretation (Groq, `openai/gpt-oss-120b`, temperature 0) | **Real**: run live on the Python demo repo, including stability runs. Tests use a mocked LLM |
+| LLM link proposals (`trace --propose-links`) | Implemented and tested with a mocked LLM; **never run live** |
+| Redaction of secrets and personal data | **Real**, tested; the secret mapping stays in local git-ignored files |
+| Introducing-commit lookup, pseudonymous contributors, link rules | **Real** (read-only `git log`), tested on temporary git repositories |
+| Requirements and sprint tasks | **Stand-in**: local JSON files in a documented format; the samples are made up. The Requirements agent does not exist yet |
+| Risk score | **Real** rule engine; the weights are developer choices, not calibrated |
+| Fix guidance | **Real** static text written by the team (links checked when written) |
+| Probe questions | **Real**, built from the student's code |
+| Tutor and the comprehension score | **MOCK**. No student answers anything; the score is simulated |
+| Orchestrator wiring (`agent.py`, registry), database persistence | **Not built**: the agent is only usable from the command line |
+| RQ1 numbers | One recorded run on one repository (scanner only for the rest); no LLM numbers for the deliberate false positives yet |
+
+## Demo script (to show the panel, about 10 minutes)
+
+Prepare once: build the Docker image if you want to show a live scan; otherwise use the saved scan. Put the Groq key and model in
+`backend/agentic_framework/.env` (`.env.example` lists the names). Never show the `.env` file.
+
+1. **The problem and the layers.** Show the diagram above. One sentence: scanners find candidates, the LLM judges them, the rest explains and prioritises.
+2. **Scanner output and honesty about coverage.** `scan --from-json app/agents/security_assistant/tests/saved/python_full.json scan_output/demo_repos/vuln_py_repo`. Point at the
+   "Coverage by category" table: a category is FULL, REDUCED or NONE, and 0 findings only means something when coverage is FULL.
+3. **What the LLM would be sent.** `interpret ... --dry-run` on the same file: show that secrets are `[REDACTED ...]`, names and e-mails are placeholders, and
+   only a few lines of code per finding are included. Run the same command without `--allow-external-llm` to show it refuses.
+4. **The end-to-end run** (the `assess` command in "Quick start", a few minutes with `--delay 6`). While it runs, name the stages as they print.
+5. **Read `scan_output/demo/report.md` top to bottom:** the stage table; the *Findings overview* (rank, status, evidence ids, commit, links, risk, probe result); one
+   finding's LLM reason and evidence id; *Traceability* (introducing commit as a pseudonymous id, "verified" links versus "candidate"; the CI finding with no story);
+   *Risk prioritisation* (the breakdown adds up to the score; dismissed findings are not ranked); *Probe questions* (built from the student's code, no fix in the question,
+   the MOCK TUTOR label, one open and one closed finding); *Limitations*.
+6. **Show an incomplete run.** Run `assess` with `--skip codeql` (or without `--allow-external-llm`) and open the banner: "INCOMPLETE RUN" with the reasons. Say: a failed or skipped step never turns into "clean".
+7. **RQ1.** Open `rq1_results/rq1_comparison.csv`; read the Python row and the note that the ground truth cannot judge the 15 dismissed dependency advisories. Say what is missing (JS and Java rows, the LLM column of the deliberate false positives).
+8. **Close** with "What is mocked" from the table above, in particular the Tutor.
+
+## Known limitations
+
+- **Mock Tutor.** No real comprehension measurement exists yet; probe questions are real, scores and the closed/open decision are simulated.
+- **Scanners find candidates, the LLM gives an opinion.** "Dismissed" is an argument for a false positive, not proof, and the model can be wrong in both directions.
+  Nothing is run, so no finding is confirmed by an exploit.
+- **Coverage.** CodeQL queries for V1 are heuristics. Java CodeQL runs without a build, so data flow through library calls can be missed. Gradle dependencies are read only from
+  `gradle.lockfile`; Maven transitive dependencies need the registry to be reachable. A vulnerable dependency's reachability is not analysed.
+- **Requirements agent and sprint tasks** are local files. A "verified" link only means a simple rule supports it (the commit message or task names the id, or a file/endpoint
+  appears in exactly one story or task). The introducing commit shows where code came from, not who is at fault.
+- **Risk score** weights are starting values. It does not use whether the finding is reachable from outside beyond a per-type default.
+- **Probe questions** use simple code extraction and can choose the wrong function in unusual code; Java and JS/TS use a text search, not a parser.
+- **Reused scans** (`--reuse-scan`) keep the line numbers and commit ids of the earlier scan; if the fetched copy differs, history lookups find nothing and say so.
+- **Not built:** orchestrator wiring, database persistence, a public webhook endpoint, per-organisation consent and quota for sending student code to an external LLM
+  (the `--allow-external-llm` gate is the only control), fix versions from pip-audit and npm audit (only OSV's are read), a `seed` on LLM calls.
+- **Unverified:** live link proposals; the full pipeline on the JS and Java demo repositories; RQ1 beyond the Python demo repository.
+
 ## Languages in scope
 
 Python, Java and JavaScript/TypeScript are all in scope; none is optional. Java is supported for
 **Spring Boot** projects (Maven or Gradle) with Spring-aware V1 and V3 checks, details and limits in
 [tools/README.md](tools/README.md#java-spring-boot-what-is-covered-and-the-limits).
 
-## What is built so far: the detection tools layer
+## The detection tools layer
 
 You give it a folder containing a student project. It runs 9 existing security scanners on that
 folder and turns all their different outputs into one common list of findings (category V1-V5,
 file, line, CWE, rule, tool and version). It also records whether each scanner worked, failed,
 timed out or was not installed, so a broken scanner never looks like a clean project.
-No LLM is involved, and the agent is **not yet connected** to the orchestrator
-(`agent.py` is empty, nothing is registered in `app/agents/registry.py`).
+No LLM is involved in this layer. The agent as a whole is **not yet connected** to the orchestrator
+(`agent.py` is empty, nothing is registered in `app/agents/registry.py`); use the commands above.
 
 | File or folder | What it is |
 |---|---|
