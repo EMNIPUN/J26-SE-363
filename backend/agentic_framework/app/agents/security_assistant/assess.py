@@ -27,6 +27,7 @@ from pathlib import Path
 
 from app.agents.security_assistant import guidance as guide
 from app.agents.security_assistant import interpret as interp
+from app.agents.security_assistant import manifest
 from app.agents.security_assistant import questions as qs
 from app.agents.security_assistant import risk as rk
 from app.agents.security_assistant import trace as tr
@@ -213,10 +214,11 @@ def _usage(idoc, link_usage: dict) -> dict:
             "seed": next((c.get("seed") for c in calls if c.get("seed") is not None), None)}
 
 
-def _collect(result, idoc, tdoc, risk_doc, qdoc) -> list[dict]:
+def _collect(result, idoc, tdoc, risk_doc, qdoc, scan_report=None) -> list[dict]:
     """One record per finding group with everything the stages produced for it."""
     if result is None:
         return []
+    by_key = {finding_key(f): (f, scan_report.snippets.get(i) if scan_report else None) for i, f in enumerate(result.findings)}
     traces = {t["group_id"]: t for t in (tdoc["traces"] if tdoc else [])}
     ranked = {e["group_id"]: e for e in (risk_doc["ranked"] if risk_doc else [])}
     probes = {i["question"]["group_id"]: i for i in (qdoc["questions"] if qdoc else [])}
@@ -228,6 +230,8 @@ def _collect(result, idoc, tdoc, risk_doc, qdoc) -> list[dict]:
     for gid, kind, package, rep, members, res in source:
         g = guide.by_id(rep.get("fix_pattern"))
         t, r, p = traces.get(gid), ranked.get(gid), probes.get(gid)
+        source_finding, snippet = by_key.get(rep.get("finding_key"), (None, None))
+        example = guide.example_for(g, source_finding) if g and source_finding else None
         out.append({
             "group_id": gid, "kind": kind, "package": package, "category": rep["category"], "rule_id": rep["rule_id"],
             "tool": rep["tool"], "file_path": rep["file_path"], "line": rep["line"], "severity_tool": rep["severity_tool"],
@@ -239,8 +243,13 @@ def _collect(result, idoc, tdoc, risk_doc, qdoc) -> list[dict]:
             "introducing_commit": t["introducing_commit"] if t else None, "links": t["links"] if t else [],
             "rejected_links": t["rejected_links"] if t else [], "trace_notes": t["notes"] if t else [],
             "risk": {"rank": r["rank"], "score": r["score"], "breakdown": r["factors"]} if r else None,
-            "fix_guidance": {"id": g.id, "title": g.title, "steps": list(g.steps)} if g else None,
+            "cwe": rep.get("cwe"), "message": rep.get("message"), "snippet": snippet,  # the snippet is the masked one of the scan report
+            "original_status": res.get("original_status") if res else None, "downgrade_reason": res.get("downgrade_reason") if res else None,
+            "fix_guidance": {"id": g.id, "title": g.title, "steps": list(g.steps),
+                             "example": {"language": example[0], "code": example[1]} if example else None,
+                             "references": guide.references(g, source_finding) if source_finding else ([g.reference] if g.reference else [])} if g else None,
             "probe": {"question": p["question"]["text"], "code": p["question"]["code"], "decision": p["decision"],
+                      "attempt_log": [{k: a.get(k) for k in ("attempt", "hint_level", "text", "score", "result")} for a in p["attempts"]],
                       "attempts": len(p["attempts"]), "scores": [a["score"] for a in p["attempts"]],
                       "escalation_reason": p.get("escalation_reason"),
                       "threshold": p["threshold"], "tutor": p["tutor_result"]} if p else None,
@@ -265,6 +274,7 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None, t
     ap.add_argument("--delay", type=float, default=0.0)
     ap.add_argument("--retries", type=int, default=2)
     ap.add_argument("--out", type=Path)
+    ap.add_argument("--trigger", choices=manifest.TRIGGERS, default="manual", help="how this run was started, recorded in run.json (default manual)")
     args = ap.parse_args(argv)
     if not args.allow_external_llm:
         print("note: --allow-external-llm not given: the LLM stages (interpret, trace, risk, questions) will be skipped and "
@@ -278,6 +288,7 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None, t
         print(exc, file=sys.stderr)
         return 3
     out = args.out or Path("scan_output") / f"assessment_{_label(args.source, args.source.startswith('http'))}"
+    manifest.set_trigger(out, args.trigger)
     if report["llm_usage"]["total_tokens"]:
         print(f"LLM tokens used: {report['llm_usage']['total_tokens']}")
     print(("COMPLETE" if report["run"]["complete"] else "INCOMPLETE") + f" - wrote {out / 'report.json'} and {out / 'report.md'}")

@@ -97,6 +97,7 @@ def build_assess_graph(ctx: RunContext):
     from app.agents.security_assistant import governance as gv
     from app.agents.security_assistant import guidance as guide
     from app.agents.security_assistant import interpret as interp
+    from app.agents.security_assistant import manifest
     from app.agents.security_assistant import orchestrator as orch
     from app.agents.security_assistant import questions as qs
     from app.agents.security_assistant import risk as rk
@@ -319,7 +320,7 @@ def build_assess_graph(ctx: RunContext):
                 st.skip(name, f"needs {why}" if why else "not reached")
         result, scan_report, idoc, tdoc, risk_doc, qdoc = (state.get(k) for k in ("result", "scan_report", "idoc", "tdoc", "risk_doc", "qdoc"))
         skipped, reused, trails = list(state.get("skipped", ctx.skip)), state.get("reused", False), dict(state.get("trails") or {})
-        findings = A._collect(result, idoc, tdoc, risk_doc, qdoc)
+        findings = A._collect(result, idoc, tdoc, risk_doc, qdoc, scan_report)
         pii.save_mapping(out / "pii_mapping.local.json")  # local only; written when the report had to replace personal data
         guidance_used = state.get("guidance_used") or {}
         stages = [st.items[n] for n in A.STAGES]
@@ -345,7 +346,8 @@ def build_assess_graph(ctx: RunContext):
         doc = {
             "report_version": A.REPORT_VERSION,
             "meta": {"source": ctx.label, "commit_sha": ctx.ref if ctx.is_url else None, "threshold": ctx.threshold,
-                     "llm_model": idoc["meta"]["model"] if idoc else None, "interpreter_prompt": interp.PROMPT_VERSION,
+                     "llm_model": idoc["meta"]["model"] if idoc else None, "temperature": idoc["meta"].get("temperature") if idoc else None,
+                     "interpreter_prompt": interp.PROMPT_VERSION,
                      "trace_prompt": tr.TRACE_PROMPT_VERSION, "risk_version": rk.RISK_VERSION,
                      "requirements_file": Path(ctx.requirements_file).name if ctx.requirements_file else None,
                      "tasks_file": Path(ctx.sprint_tasks_file).name if ctx.sprint_tasks_file else None},
@@ -368,14 +370,16 @@ def build_assess_graph(ctx: RunContext):
             return json.dumps(doc, indent=2, ensure_ascii=False), A.render(doc, state.get("scan_md", ""), idoc, tdoc, risk_doc, qdoc, findings)
 
         js_text, md_text = texts()
-        leaks = gov.count_leaks(js_text) + gov.count_leaks(md_text)
+        leaks = gov.count_leaks_json(doc) + gov.count_leaks(md_text)  # the JSON is checked string by string: an escape such as \n is not text
         if leaks:  # a known secret or personal value reached the report: it is removed below, and the run says so
             gov.scrubbed = leaks
             reasons.append(f"governance removed {leaks} secret or personal value(s) that had reached the report")
             doc["run"].update(complete=False, incomplete_reasons=reasons)
             js_text, md_text = texts()
-        (out / "report.json").write_text(gov.scrub(js_text, "report.json"), encoding="utf-8")
+        (out / "report.json").write_text(gov.scrub_json(js_text, "report.json"), encoding="utf-8")
         (out / "report.md").write_text(gov.scrub(md_text, "report.md"), encoding="utf-8")
+        manifest.write(out, manifest.build(report=doc, is_url=ctx.is_url, label=ctx.label, repo_url=str(ctx.repo_url) if ctx.is_url else None,
+                                           commit_sha=scan_report.commit_sha if scan_report else None, seconds=time.monotonic() - ctx.t0))
         gov.end(complete=doc["run"]["complete"], reasons=len(reasons))
         return {"stages": st.items, "report": doc}
 
