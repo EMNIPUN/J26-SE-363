@@ -37,7 +37,7 @@ PERFORMANCE_EVIDENCE = [
     {
         "id": "evidence-003",
         "courseId": "course-101",
-        "conceptId": "concept-102",
+        "conceptId": "concept-101",
         "sourceType": "ASSESSMENT_ANSWER",
         "sourceId": "submission-003",
         "maxScore": 10,

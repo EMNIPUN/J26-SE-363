@@ -78,17 +78,55 @@ class RequiredConcept(TutorModel):
 
 
 class IdentifyRequiredKnowledgeInput(TutorModel):
-    """Validated ``AgentRequest.input`` for ``tutor.identify_required_knowledge``."""
+    """Validated ``AgentRequest.input`` for ``tutor.identify_required_knowledge``.
 
-    course_id: str = Field(min_length=1)
+    ``course_id`` may be omitted when the sprint snapshot already carries one.
+    """
+
+    course_id: str | None = None
 
     @field_validator("course_id")
     @classmethod
-    def course_id_must_not_be_blank(cls, value: str) -> str:
+    def course_id_must_not_be_blank(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         stripped = value.strip()
         if not stripped:
             raise ValueError("course_id must not be empty")
         return stripped
+
+
+class EstimateCompetencyInput(TutorModel):
+    """Validated ``AgentRequest.input`` for ``tutor.estimate_competency``.
+
+    ``course_id`` may be omitted when the sprint project carries one.
+    ``concept_ids`` may be omitted to derive concepts from required-knowledge first.
+    ``performance_evidence`` allows offline/fixture records (MCP is used when omitted).
+    """
+
+    course_id: str | None = None
+    concept_ids: list[str] = Field(default_factory=list)
+    performance_evidence: list[dict[str, Any]] = Field(default_factory=list)
+
+    @field_validator("course_id")
+    @classmethod
+    def course_id_must_not_be_blank(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("course_id must not be empty")
+        return stripped
+
+    @field_validator("concept_ids")
+    @classmethod
+    def concept_ids_must_not_be_blank(cls, value: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        for item in value:
+            if not isinstance(item, str) or not item.strip():
+                raise ValueError("concept_ids entries must be non-empty strings")
+            cleaned.append(item.strip())
+        return cleaned
 
 
 class SelectedRequiredConcept(TutorModel):
@@ -147,6 +185,28 @@ class CompetencyEstimate(TutorModel):
     )
     confidence: float = Field(ge=0.0, le=1.0)
     evidence_count: int = Field(ge=0)
+    explanation: str = Field(min_length=1)
+
+
+class BktParameters(TutorModel):
+    """Fixed baseline BKT parameters (not trained or optimized)."""
+
+    p_l0: float = Field(default=0.2, gt=0.0, lt=1.0)
+    p_t: float = Field(default=0.1, gt=0.0, lt=1.0)
+    p_g: float = Field(default=0.2, gt=0.0, lt=0.5)
+    p_s: float = Field(default=0.1, gt=0.0, lt=0.5)
+
+
+class BktCompetencyEstimate(TutorModel):
+    """Mastery probability for one student/course/concept from classic BKT."""
+
+    student_id: str = Field(min_length=1)
+    course_id: str = Field(min_length=1)
+    concept_id: str = Field(min_length=1)
+    mastery_probability: float | None = Field(default=None, ge=0.0, le=1.0)
+    observation_count: int = Field(ge=0)
+    model: str = Field(default="BKT", min_length=1)
+    parameters: BktParameters
     explanation: str = Field(min_length=1)
 
 
@@ -229,6 +289,7 @@ class ProjectInfo(TutorModel):
 
     project_id: str = Field(min_length=1)
     project_name: str = Field(min_length=1)
+    course_id: str | None = None
     description: str | None = None
     technology_stack: list[str] = Field(default_factory=list)
 
@@ -283,6 +344,7 @@ class SprintSnapshot(TutorModel):
     project_id: str = Field(min_length=1)
     project_title: str | None = None
     project_description: str | None = None
+    course_id: str | None = None
     technology_stack: list[str] = Field(default_factory=list)
     sprint_id: str = Field(min_length=1)
     sprint_name: str | None = None
@@ -302,6 +364,7 @@ class SprintSnapshot(TutorModel):
             project_id=dataset.project.project_id,
             project_title=dataset.project.project_name,
             project_description=dataset.project.description,
+            course_id=dataset.project.course_id,
             technology_stack=list(dataset.project.technology_stack),
             sprint_id=sprint_id,
             sprint_name=dataset.sprint.name,
@@ -324,6 +387,7 @@ class StudentProjectContext(TutorModel):
     project_id: str = Field(min_length=1)
     project_title: str | None = None
     project_description: str | None = None
+    course_id: str | None = None
     technology_stack: list[str] = Field(default_factory=list)
     group_id: str | None = None
     sprint_id: str = Field(min_length=1)

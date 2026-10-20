@@ -1,6 +1,7 @@
 """Mock nested sprint datasets for Student & Project Context tests.
 
 Replaceable later by a shared database or Project Planning provider.
+IDs below are aligned with a live SLAP student + Aura course used for MCP/BKT smoke.
 """
 
 from datetime import date
@@ -16,11 +17,18 @@ from app.agents.adaptive_tutor.schemas import (
 
 PROJECT_ID = "P-CAMPUS"
 SPRINT_ID = "sprint-02"
+# Verified Course.id from the current Aura seed graph (used by live smoke).
+COURSE_ID = "b55fea72-3a5b-4809-99f6-75f0505c501f"
+# Live SLAP Student.id linked via ExternalIdentity for MCP tutor tokens.
+STUDENT_ID = "36841e50-ac3f-4bf2-952e-08eb4315becd"
+# Second fixture student (peer assignee only; not used for live MCP smoke).
+PEER_STUDENT_ID = "STU-002"
 
 CAMPUS_SPRINT_DATASET = SprintDataset(
     project=ProjectInfo(
         project_id=PROJECT_ID,
         project_name="SELVIA Campus Portal",
+        course_id=COURSE_ID,
         description="A campus portal for student services",
         technology_stack=["Python", "FastAPI", "React", "PostgreSQL"],
     ),
@@ -33,8 +41,8 @@ CAMPUS_SPRINT_DATASET = SprintDataset(
         status="active",
     ),
     students=[
-        FixtureStudent(student_id="STU-001", name="Student One"),
-        FixtureStudent(student_id="STU-002", name="Student Two"),
+        FixtureStudent(student_id=STUDENT_ID, name="Live SLAP Student"),
+        FixtureStudent(student_id=PEER_STUDENT_ID, name="Student Two"),
     ],
     tasks=[
         SprintTask(
@@ -45,7 +53,7 @@ CAMPUS_SPRINT_DATASET = SprintDataset(
             ),
             status="in_progress",
             priority="high",
-            assignee_ids=["STU-001"],
+            assignee_ids=[STUDENT_ID],
             acceptance_criteria=[
                 "Valid credentials produce an access token",
                 "Protected endpoints validate tokens",
@@ -62,7 +70,7 @@ CAMPUS_SPRINT_DATASET = SprintDataset(
             ),
             status="todo",
             priority="medium",
-            assignee_ids=["STU-001"],
+            assignee_ids=[STUDENT_ID],
             acceptance_criteria=[
                 "Students can retrieve their own profiles",
                 "Students can update permitted profile fields",
@@ -79,7 +87,7 @@ CAMPUS_SPRINT_DATASET = SprintDataset(
             ),
             status="todo",
             priority="medium",
-            assignee_ids=["STU-002"],
+            assignee_ids=[PEER_STUDENT_ID],
             acceptance_criteria=[
                 "Return the authenticated student's tasks",
                 "Include task completion status",

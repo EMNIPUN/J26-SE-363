@@ -23,20 +23,21 @@ from shared.contracts import AgentRequest, ResultStatus
 
 from app.agents.adaptive_tutor.agent import AdaptiveTutorAgent
 from app.agents.adaptive_tutor.tests.fixtures.sprint_data import (
+    COURSE_ID,
     PROJECT_ID,
     SPRINT_ID,
+    STUDENT_ID,
     make_fixture_sprint_provider,
 )
 from app.core.config import settings
-
-# Verified Course.id from the current Aura seed graph.
-DEFAULT_COURSE_ID = "b55fea72-3a5b-4809-99f6-75f0505c501f"
 
 
 async def main() -> int:
     print("neo4j_configured:", settings.neo4j_configured)
     print("openai_configured:", settings.openai_configured)
     print("openai_model:", settings.OPENAI_MODEL)
+    print("course_id (from sprint fixture):", COURSE_ID)
+    print("student_id (from sprint fixture):", STUDENT_ID)
 
     if not settings.neo4j_configured:
         print("FAIL: Neo4j settings missing in .env")
@@ -46,12 +47,13 @@ async def main() -> int:
         return 2
 
     agent = AdaptiveTutorAgent(sprint_provider=make_fixture_sprint_provider())
+    # course_id is resolved from the mock sprint project's course_id.
     request = AgentRequest(
         action="tutor.identify_required_knowledge",
-        student_id="STU-001",
+        student_id=STUDENT_ID,
         project_id=PROJECT_ID,
         sprint_id=SPRINT_ID,
-        input={"course_id": DEFAULT_COURSE_ID},
+        input={},
     )
 
     response = await agent.handle(request)

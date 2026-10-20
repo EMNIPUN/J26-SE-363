@@ -3,6 +3,7 @@
 Supports:
 - ``tutor.chat``: MCP evidence/activity retrieval (no adaptive decision yet)
 - ``tutor.identify_required_knowledge``: map assigned tasks to Neo4j course concepts
+- ``tutor.estimate_competency``: BKT mastery from required concepts + performance evidence
 """
 
 from __future__ import annotations
@@ -18,6 +19,10 @@ from shared.contracts import (
     ResultStatus,
 )
 
+from app.agents.adaptive_tutor.competency.pipeline import (
+    CompetencyPipelineError,
+    estimate_competency_for_request,
+)
 from app.agents.adaptive_tutor.context import (
     ContextBuildError,
     SprintDataProvider,
@@ -34,7 +39,7 @@ from app.agents.adaptive_tutor.knowledge import (
     OpenAIConceptSelector,
     identify_required_knowledge,
 )
-from app.agents.adaptive_tutor.schemas import TutorChatInput
+from app.agents.adaptive_tutor.schemas import EstimateCompetencyInput, TutorChatInput
 from app.core.config import settings
 from app.core.tutor_token_context import RequestScopedTutorTokenProvider
 from app.integrations.selvia_tutor_mcp import (
@@ -57,6 +62,7 @@ from app.knowledge_graph import (
 
 SUPPORTED_CHAT_ACTION = "tutor.chat"
 SUPPORTED_KNOWLEDGE_ACTION = "tutor.identify_required_knowledge"
+SUPPORTED_COMPETENCY_ACTION = "tutor.estimate_competency"
 
 
 class AdaptiveTutorAgent:
@@ -96,6 +102,8 @@ class AdaptiveTutorAgent:
     async def handle(self, request: AgentRequest) -> AgentResponse:
         if request.action == SUPPORTED_KNOWLEDGE_ACTION:
             return await self._handle_identify_required_knowledge(request)
+        if request.action == SUPPORTED_COMPETENCY_ACTION:
+            return await self._handle_estimate_competency(request)
         if request.action != SUPPORTED_CHAT_ACTION:
             return self._response(
                 request,
@@ -209,6 +217,178 @@ class AdaptiveTutorAgent:
         if self._concept_selector is not None:
             return self._concept_selector
         return OpenAIConceptSelector()
+
+    async def _handle_estimate_competency(self, request: AgentRequest) -> AgentResponse:
+        if self._sprint_provider is None:
+            return self._response(
+                request,
+                status=ResultStatus.UNAVAILABLE,
+                result={
+                    "detail": "Sprint data provider is not configured for competency estimation."
+                },
+                error=ErrorInfo(
+                    code="sprint_provider_not_configured",
+                    message="Sprint data provider is not configured.",
+                ),
+            )
+
+        try:
+            payload = EstimateCompetencyInput.model_validate(request.input)
+        except ValidationError:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(
+                    code="invalid_input",
+                    message="tutor.estimate_competency input is invalid.",
+                ),
+            )
+
+        try:
+            if payload.performance_evidence:
+                performance_records: list[Any] = list(payload.performance_evidence)
+            else:
+                performance_records = await self._load_mcp_performance_evidence(
+                    course_id=payload.course_id
+                )
+        except SelviaMcpAuthError:
+            return self._response(
+                request,
+                status=ResultStatus.UNAVAILABLE,
+                result={"detail": "Tutor MCP authentication failed"},
+                error=ErrorInfo(
+                    code="mcp_auth_error",
+                    message="Tutor MCP authentication failed",
+                ),
+            )
+        except SelviaMcpTransportError:
+            return self._response(
+                request,
+                status=ResultStatus.UNAVAILABLE,
+                result={"detail": "Tutor MCP is temporarily unavailable"},
+                error=ErrorInfo(
+                    code="mcp_transport_error",
+                    message="Tutor MCP transport failed",
+                    retryable=True,
+                ),
+            )
+        except SelviaMcpError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(
+                    code=getattr(exc, "code", "mcp_error"),
+                    message="Tutor MCP request failed",
+                ),
+            )
+        except RuntimeError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.UNAVAILABLE,
+                result={"detail": str(exc)},
+                error=ErrorInfo(code="mcp_not_configured", message=str(exc)),
+            )
+
+        try:
+            course_repository = self._resolve_course_repository()
+            concept_selector = self._resolve_concept_selector()
+            estimates, knowledge_result = await estimate_competency_for_request(
+                request,
+                sprint_provider=self._sprint_provider,
+                course_repository=course_repository,
+                concept_selector=concept_selector,
+                performance_records=performance_records,
+            )
+        except CompetencyPipelineError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(code=exc.code, message=str(exc)),
+            )
+        except ContextBuildError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(code=exc.code, message=str(exc)),
+            )
+        except SprintDataProviderError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(code=exc.code, message=str(exc)),
+            )
+        except UnknownCourseError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(code=exc.code, message=str(exc)),
+            )
+        except KnowledgeGraphConfigError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.UNAVAILABLE,
+                result={"detail": str(exc)},
+                error=ErrorInfo(code=exc.code, message=str(exc), retryable=False),
+            )
+        except KnowledgeGraphQueryError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(code=exc.code, message=str(exc), retryable=True),
+            )
+        except KnowledgeGraphError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(code=exc.code, message=str(exc)),
+            )
+        except KnowledgeLlmError as exc:
+            status = (
+                ResultStatus.UNAVAILABLE
+                if exc.code == "openai_not_configured"
+                else ResultStatus.FAILED
+            )
+            return self._response(
+                request,
+                status=status,
+                result={"detail": str(exc)},
+                error=ErrorInfo(
+                    code=exc.code,
+                    message=str(exc),
+                    retryable=exc.code == "openai_selection_failed",
+                ),
+            )
+        except KnowledgeIdentificationError as exc:
+            return self._response(
+                request,
+                status=ResultStatus.FAILED,
+                error=ErrorInfo(code=exc.code, message=str(exc)),
+            )
+
+        result: dict[str, Any] = {
+            "student_id": request.student_id,
+            "project_id": request.project_id,
+            "sprint_id": request.sprint_id,
+            "estimates": [item.model_dump(mode="json") for item in estimates],
+            "performance_evidence_count": len(performance_records),
+        }
+        if knowledge_result is not None:
+            result["required_knowledge"] = knowledge_result.model_dump(mode="json")
+        return self._response(request, status=ResultStatus.COMPLETED, result=result)
+
+    async def _load_mcp_performance_evidence(
+        self,
+        *,
+        course_id: str | None,
+    ) -> list[Any]:
+        if self._mcp_client is None:
+            raise RuntimeError(
+                "Tutor MCP is not configured and no performance_evidence was provided."
+            )
+        await self._require_request_token()
+        if course_id:
+            return await self._mcp_client.get_current_evidence(course_id=course_id)
+        return await self._mcp_client.get_current_evidence()
 
     async def _handle_chat(self, request: AgentRequest) -> AgentResponse:
         try:

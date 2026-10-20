@@ -17,8 +17,11 @@ from app.agents.adaptive_tutor.context.provider import SprintDataProviderError
 from app.agents.adaptive_tutor.tests.fixtures.sprint_data import (
     CAMPUS_SPRINT_DATASET,
     CAMPUS_SPRINT_SNAPSHOT,
+    COURSE_ID,
+    PEER_STUDENT_ID,
     PROJECT_ID,
     SPRINT_ID,
+    STUDENT_ID,
     make_fixture_sprint_provider,
 )
 
@@ -26,7 +29,7 @@ from app.agents.adaptive_tutor.tests.fixtures.sprint_data import (
 def _request(**overrides) -> AgentRequest:
     fields = {
         "action": "tutor.sprint_guidance",
-        "student_id": "STU-001",
+        "student_id": STUDENT_ID,
         "project_id": PROJECT_ID,
         "sprint_id": SPRINT_ID,
     }
@@ -37,7 +40,7 @@ def _request(**overrides) -> AgentRequest:
 def test_stu001_receives_two_assigned_tasks():
     context = build_student_project_context(_request(), CAMPUS_SPRINT_SNAPSHOT)
 
-    assert context.student_id == "STU-001"
+    assert context.student_id == STUDENT_ID
     assert context.project_id == PROJECT_ID
     assert context.sprint_id == SPRINT_ID
     assert [task.task_id for task in context.assigned_tasks] == [
@@ -54,16 +57,18 @@ def test_stu002_tasks_are_excluded_for_stu001():
 
 def test_nested_dataset_exposes_project_sprint_and_students():
     assert CAMPUS_SPRINT_DATASET.project.project_id == PROJECT_ID
+    assert CAMPUS_SPRINT_DATASET.project.course_id == COURSE_ID
     assert CAMPUS_SPRINT_DATASET.project.technology_stack == [
         "Python",
         "FastAPI",
         "React",
         "PostgreSQL",
     ]
+    assert CAMPUS_SPRINT_SNAPSHOT.course_id == CAMPUS_SPRINT_DATASET.project.course_id
     assert CAMPUS_SPRINT_DATASET.sprint.goal is not None
     assert [student.student_id for student in CAMPUS_SPRINT_DATASET.students] == [
-        "STU-001",
-        "STU-002",
+        STUDENT_ID,
+        PEER_STUDENT_ID,
     ]
 
 
@@ -111,7 +116,7 @@ def test_conflicting_nested_context_ids_are_rejected_by_shared_rules():
     with pytest.raises(ValidationError, match="student_id"):
         AgentRequest(
             action="tutor.sprint_guidance",
-            student_id="STU-001",
+            student_id=STUDENT_ID,
             project_id=PROJECT_ID,
             sprint_id=SPRINT_ID,
             context=SelviaContext(student=StudentContext(student_id="STU-002")),
@@ -122,7 +127,7 @@ def test_conflicting_nested_task_id_is_rejected_by_shared_rules():
     with pytest.raises(ValidationError, match="task_id"):
         AgentRequest(
             action="tutor.sprint_guidance",
-            student_id="STU-001",
+            student_id=STUDENT_ID,
             project_id=PROJECT_ID,
             sprint_id=SPRINT_ID,
             task_id="task-jwt",
@@ -164,7 +169,7 @@ def test_optional_snapshot_metadata_is_not_fabricated():
     context = build_student_project_context(
         _request(
             context=SelviaContext(
-                student=StudentContext(student_id="STU-001"),
+                student=StudentContext(student_id=STUDENT_ID),
                 project=ProjectContext(
                     project_id=PROJECT_ID,
                     title="SELVIA Campus Portal",

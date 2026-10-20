@@ -82,15 +82,24 @@ Project task -> required knowledge -> evidence -> competency and gaps -> decisio
 ## Status
 
 Implemented so far: `schemas.py`, `context/` (Student & Project Context), `evidence/` (normalizer
-and fixtures), `knowledge/` (Required Knowledge Identification via Neo4j + OpenAI), `agent.py`
-(`tutor.chat` + `tutor.identify_required_knowledge`), and unit tests for those pieces.
+and fixtures), `knowledge/` (Required Knowledge Identification via Neo4j + OpenAI), `competency/`
+(classic BKT mastery from chronological performance evidence; baseline params, not trained),
+`agent.py` (`tutor.chat` + `tutor.identify_required_knowledge`), and unit tests for those pieces.
 
-`tutor.identify_required_knowledge` expects `input.course_id` (no project→course mapping exists yet),
-loads assigned tasks from the sprint provider, retrieves course-scoped concepts from the shared
-`app/knowledge_graph` Neo4j layer, selects baseline lexical candidates (not vector RAG), and asks
-OpenAI to choose Neo4j concept IDs only from those candidates.
+`tutor.identify_required_knowledge` resolves `course_id` from request input or the sprint project's
+`course_id`, loads assigned tasks from the sprint provider, retrieves course-scoped concepts from
+the shared `app/knowledge_graph` Neo4j layer, selects baseline lexical candidates (not vector RAG),
+and asks OpenAI to choose Neo4j concept IDs only from those candidates.
 
-Competency, decision, intervention, assessment, and adaptation modules remain unimplemented.
+`competency.estimate_concept_mastery_bkt` consumes normalized performance evidence (fixtures or MCP
+records) plus a trusted `student_id`. Missing usable evidence returns `mastery_probability=None`
+(not zero). Learning-behaviour activities are excluded from BKT.
+
+`tutor.estimate_competency` integrates required-knowledge (when `concept_ids` omitted), MCP or
+inline `performance_evidence`, and BKT. Sprint fixtures use the live SLAP student/course IDs for
+end-to-end smoke (`scripts/smoke_tutor_pipeline.py`).
+
+Decision, intervention, assessment, and adaptation modules remain unimplemented.
 The Core API public tutor route stays fail-closed until end-to-end readiness is reviewed separately.
 
 External learning-platform MCP access belongs in

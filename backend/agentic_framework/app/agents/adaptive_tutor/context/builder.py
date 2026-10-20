@@ -39,6 +39,7 @@ def build_student_project_context(
         project_id=project_id,
         project_title=snapshot.project_title,
         project_description=snapshot.project_description,
+        course_id=snapshot.course_id,
         technology_stack=list(snapshot.technology_stack),
         group_id=request.group_id,
         sprint_id=sprint_id,

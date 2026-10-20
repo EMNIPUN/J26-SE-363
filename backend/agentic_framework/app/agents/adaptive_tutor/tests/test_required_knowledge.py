@@ -26,10 +26,12 @@ from app.agents.adaptive_tutor.tests.fixtures.course_knowledge import (
     make_course_bundle,
     make_empty_course_bundle,
 )
+from app.agents.adaptive_tutor.context.provider import FixtureSprintDataProvider
 from app.agents.adaptive_tutor.tests.fixtures.sprint_data import (
     CAMPUS_SPRINT_SNAPSHOT,
     PROJECT_ID,
     SPRINT_ID,
+    STUDENT_ID,
     make_fixture_sprint_provider,
 )
 from app.knowledge_graph import InMemoryCourseKnowledgeRepository, UnknownCourseError
@@ -39,7 +41,7 @@ def _request(**overrides) -> AgentRequest:
     fields = {
         "request_id": str(uuid4()),
         "action": "tutor.identify_required_knowledge",
-        "student_id": "STU-001",
+        "student_id": STUDENT_ID,
         "project_id": PROJECT_ID,
         "sprint_id": SPRINT_ID,
         "input": {"course_id": COURSE_ID},
@@ -350,14 +352,44 @@ async def test_agent_identify_required_knowledge_success_path():
     response = await agent.handle(_request())
     assert response.status is ResultStatus.COMPLETED
     assert response.result["course_id"] == COURSE_ID
-    assert response.result["student_id"] == "STU-001"
+    assert response.result["student_id"] == STUDENT_ID
     assert response.result["tasks"][0]["required_concepts"][0]["concept_id"] == JWT_CONCEPT_ID
 
 
 @pytest.mark.asyncio
+async def test_course_id_resolved_from_sprint_project_when_input_omitted():
+    """When input has no course_id, use the sprint project's course_id."""
+    snapshot = CAMPUS_SPRINT_SNAPSHOT.model_copy(update={"course_id": COURSE_ID})
+    provider = FixtureSprintDataProvider({(PROJECT_ID, SPRINT_ID): snapshot})
+    selector = StaticConceptSelector(
+        {
+            "task-jwt": [
+                {
+                    "concept_id": JWT_CONCEPT_ID,
+                    "selection_role": "directly_required",
+                    "reason": "JWT authentication task.",
+                }
+            ],
+            "task-profile": [],
+        }
+    )
+    result = await identify_required_knowledge(
+        _request(input={}),
+        sprint_provider=provider,
+        course_repository=_repo(),
+        concept_selector=selector,
+    )
+    assert result.course_id == COURSE_ID
+    assert result.tasks[0].required_concepts[0].concept_id == JWT_CONCEPT_ID
+
+
+@pytest.mark.asyncio
 async def test_missing_course_id_fails():
+    """Fails when neither input nor the sprint project provide a course_id."""
+    snapshot = CAMPUS_SPRINT_SNAPSHOT.model_copy(update={"course_id": None})
+    provider = FixtureSprintDataProvider({(PROJECT_ID, SPRINT_ID): snapshot})
     agent = AdaptiveTutorAgent(
-        sprint_provider=make_fixture_sprint_provider(),
+        sprint_provider=provider,
         course_repository=_repo(),
         concept_selector=StaticConceptSelector({}),
     )

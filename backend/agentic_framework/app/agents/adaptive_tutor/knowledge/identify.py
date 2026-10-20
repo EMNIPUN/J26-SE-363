@@ -49,7 +49,8 @@ async def identify_required_knowledge(
         knowledge_input = IdentifyRequiredKnowledgeInput.model_validate(request.input)
     except ValidationError as exc:
         raise MissingCourseIdError(
-            "tutor.identify_required_knowledge requires a non-empty course_id in input."
+            "tutor.identify_required_knowledge requires a non-empty course_id "
+            "in input or on the sprint project."
         ) from exc
 
     try:
@@ -63,8 +64,10 @@ async def identify_required_knowledge(
     except SprintDataProviderError:
         raise
 
+    course_id = _resolve_course_id(knowledge_input.course_id, context.course_id)
+
     try:
-        bundle = course_repository.get_course_knowledge(knowledge_input.course_id)
+        bundle = course_repository.get_course_knowledge(course_id)
     except UnknownCourseError:
         raise
     except KnowledgeGraphConfigError:
@@ -118,6 +121,21 @@ async def identify_required_knowledge(
         course_code=bundle.course_code,
         course_title=bundle.course_title,
         tasks=task_results,
+    )
+
+
+def _resolve_course_id(
+    input_course_id: str | None,
+    snapshot_course_id: str | None,
+) -> str:
+    """Prefer explicit request input; fall back to the sprint project's course_id."""
+    if isinstance(input_course_id, str) and input_course_id.strip():
+        return input_course_id.strip()
+    if isinstance(snapshot_course_id, str) and snapshot_course_id.strip():
+        return snapshot_course_id.strip()
+    raise MissingCourseIdError(
+        "tutor.identify_required_knowledge requires a non-empty course_id "
+        "in input or on the sprint project."
     )
 
 
