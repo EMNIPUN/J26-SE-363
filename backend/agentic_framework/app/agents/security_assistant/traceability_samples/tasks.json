@@ -1,0 +1,9 @@
+{
+  "tasks": [
+    {"id": "T-101", "title": "Implement login and the orders list in app.py", "sprint": "Sprint 1", "story_id": "US-01", "commits": []},
+    {"id": "T-102", "title": "Show a customer their orders", "sprint": "Sprint 1", "story_id": "US-02", "commits": []},
+    {"id": "T-103", "title": "Configure the S3 settings for image upload", "sprint": "Sprint 2", "story_id": "US-03", "commits": []},
+    {"id": "T-104", "title": "Pin the Python dependencies", "sprint": "Sprint 2", "story_id": "US-01", "commits": []},
+    {"id": "T-105", "title": "Add the GitHub Actions build workflow", "sprint": "Sprint 2", "story_id": null, "commits": []}
+  ]
+}

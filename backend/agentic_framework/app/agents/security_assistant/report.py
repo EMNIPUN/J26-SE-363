@@ -303,6 +303,28 @@ def render_markdown(rep: ScanReport) -> str:
     return "\n".join(M) + "\n"
 
 
+def upsert_section(md_path: Path, marker: str, text: str) -> None:
+    """Put `text` (which starts with `marker`, an HTML comment on its own line) into report.md: replace the section with
+    that marker, or append it. A section runs until the next line that starts with another `<!-- ... -->` marker."""
+    md_path = Path(md_path)
+    current = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
+    lines, out, skipping, done = current.splitlines(), [], False, False
+    for line in lines:
+        if line.strip() == marker:
+            skipping = True
+            if not done:
+                out += text.rstrip("\n").splitlines()
+                done = True
+            continue
+        if skipping and line.startswith("<!-- "):
+            skipping = False
+        if not skipping:
+            out.append(line)
+    if not done:
+        out += ([""] if out else []) + text.rstrip("\n").splitlines()
+    md_path.write_text("\n".join(out) + "\n", encoding="utf-8")
+
+
 def write_report(rep: ScanReport, out_dir: Path) -> tuple[Path, Path]:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

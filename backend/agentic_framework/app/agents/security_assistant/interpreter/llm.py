@@ -84,8 +84,8 @@ class GroqClient:
         self.temperature = TEMPERATURE
         self.last_call: CallRecord | None = None
 
-    def _body(self, system: str, user: str, schema_mode: bool) -> dict:
-        response_format = ({"type": "json_schema", "json_schema": {"name": "verdict", "strict": True, "schema": VERDICT_SCHEMA}}
+    def _body(self, system: str, user: str, schema_mode: bool, schema: dict | None = None, name: str = "verdict") -> dict:
+        response_format = ({"type": "json_schema", "json_schema": {"name": name, "strict": True, "schema": schema or VERDICT_SCHEMA}}
                            if schema_mode else {"type": "json_object"})
         return {"model": self.model, "temperature": self.temperature, "max_completion_tokens": self._max_tokens,
                 "response_format": response_format,
@@ -94,7 +94,8 @@ class GroqClient:
     def _scrub(self, text: str) -> str:
         return text.replace(self._key, "<key>")
 
-    async def complete(self, system: str, user: str) -> str:
+    async def complete(self, system: str, user: str, schema: dict | None = None, schema_name: str = "verdict") -> str:
+        """`schema` and `schema_name` pick the strict JSON schema for models that support it (default: the verdict)."""
         schema_mode = self.model in STRICT_SCHEMA_MODELS
         record = self.last_call = CallRecord(model=self.model, temperature=self.temperature,
                                              response_format="json_schema (strict)" if schema_mode else "json_object")
@@ -103,7 +104,7 @@ class GroqClient:
             for attempt in range(self._retries + 1):
                 record.attempts = attempt + 1
                 try:
-                    resp = await http.post(GROQ_URL, json=self._body(system, user, schema_mode),
+                    resp = await http.post(GROQ_URL, json=self._body(system, user, schema_mode, schema, schema_name),
                                            headers={"Authorization": f"Bearer {self._key}"})
                 except httpx.HTTPError as exc:
                     last, wait = type(exc).__name__, None

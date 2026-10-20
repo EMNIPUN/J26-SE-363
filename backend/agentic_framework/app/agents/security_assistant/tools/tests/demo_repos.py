@@ -30,15 +30,19 @@ def make_demo_repos(dest: Path) -> list[Path]:
             shutil.rmtree(repo)
         shutil.copytree(fixture, repo)
         _git(repo, "init", "-q")
-        _git(repo, "add", "-A")
-        _git(repo, "commit", "-q", "-m", "seeded fixture")
+        # commit messages carry task ids (see traceability_samples/tasks.json) so the trace command has something to match
+        _git(repo, "add", "-A", "--", ".", ":!.github")
+        _git(repo, "commit", "-q", "-m", "T-101 US-01: login and orders")
+        if (repo / ".github").exists():
+            _git(repo, "add", "-A")
+            _git(repo, "commit", "-q", "-m", "T-105: add CI workflow")
         (repo / "settings_old.py").write_text(
             f'AWS_ACCESS_KEY_ID = "{FAKE_AWS_KEY}"\nAWS_SECRET_ACCESS_KEY = "{FAKE_AWS_SECRET}"\n')
         _git(repo, "add", "-A")
-        _git(repo, "commit", "-q", "-m", "add old settings")
+        _git(repo, "commit", "-q", "-m", "T-103: add old settings")
         (repo / "settings_old.py").unlink()
         _git(repo, "add", "-A")
-        _git(repo, "commit", "-q", "-m", "remove old settings")
+        _git(repo, "commit", "-q", "-m", "T-103: remove old settings")
         made.append(repo)
     return made
 

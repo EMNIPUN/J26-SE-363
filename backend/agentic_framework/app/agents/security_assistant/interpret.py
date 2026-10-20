@@ -33,6 +33,7 @@ from app.agents.security_assistant.interpreter.models import (
     EvidenceBundle, EvidenceItem, InterpretationResult, finding_key,
 )
 from app.agents.security_assistant.interpreter.prompts import PROMPT_VERSION, build_prompt
+from app.agents.security_assistant.interpreter.redaction import redact_text
 from app.agents.security_assistant.pii import PIIRedactor
 from app.agents.security_assistant.report import build_report, from_json, render_markdown
 from app.agents.security_assistant.schemas import Category, ScanResult
@@ -155,9 +156,11 @@ async def run_calls(plan: Plan, client: LLMClient, delay: float = 0.0, say=print
 
 
 def _brief(f) -> dict:
+    """What later stages (trace, risk) need to know about a finding, read from interpreted.json."""
     return {"finding_key": finding_key(f), "category": f.category.value, "tool": f.tool, "rule_id": f.rule_id,
-            "file_path": f.file_path, "line": f.line,
-            "fix_pattern": guide.guidance_for(f).id}
+            "file_path": f.file_path, "line": f.line, "fix_pattern": guide.guidance_for(f).id,
+            "severity_tool": f.severity_tool, "cwe": f.cwe, "source": f.source, "sink": f.sink,
+            "function_or_endpoint": f.function_or_endpoint, "message": redact_text(f.message or "")[:300]}
 
 
 def summarize(plan: Plan, outcomes: list[Outcome]) -> dict:

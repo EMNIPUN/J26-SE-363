@@ -187,6 +187,40 @@ Every finding comes with advice on how to fix it, from two sources:
 To add or change advice, edit the table in `guidance.py` (the tests check that every rule the tools can produce has
 specific advice, that examples are short and hold no secret, and that the links are the ones that were checked).
 
+## Traceability: from a finding to its commit, story and task (`trace.py`)
+
+```
+python -m app.agents.security_assistant.trace <interpreted.json> <repo> [--requirements F] [--tasks F]
+        [--propose-links --allow-external-llm [--dry-run] [--delay S] [--retries N]] [--out DIR]
+```
+
+It traces the **confirmed** findings of `interpreted.json` and writes `traced.json` plus a "Traceability" section in
+`report.md` (replaced on every run, the rest of the report is kept).
+
+- **Introducing commit** = the commit that added the line, found read-only with `git log -L<line>,<line>:<file>` (the oldest
+  entry). For a secret that was deleted (history only) the search starts at the commit the scanner reported. A dependency
+  without a line uses the first commit that added the package name to the file (`git log -S`). If nothing is found the
+  output says "no introducing commit found". The wording is deliberately "introducing commit", never "blame".
+- **Contributors** appear only as `C-xxxxxxxx`, a keyed hash of the author's email. The real name and email are only in
+  `trace_mapping.local.json` (git-ignored, next to the outputs, never in a prompt, report or JSON). Reuse the output folder or set
+  `SECURITY_ASSISTANT_PSEUDONYM_SALT` to keep ids stable between runs. Commit subjects go through the PII redactor and the
+  author's name is removed from them too.
+- **Input files** (local JSON, the working contract with the future Requirements agent; samples in `traceability_samples/`):
+  `requirements.json` = `{"stories": [{"id", "title", "acceptance_criteria": []}]}`,
+  `tasks.json` = `{"tasks": [{"id", "title", "sprint", "story_id", "commits": [sha]}]}`. Both are optional; a wrong format
+  stops the run (exit 3). Without a requirements file the report says so and findings are linked to commits only.
+- **Verified or candidate.** A link is `verified` only when a rule supports it: the introducing commit's message names the
+  story/task id (0.95), the task lists the commit (0.95), the task's story (0.90), or the file/endpoint appears in exactly one
+  story or one task (0.70; if several mention it the match is too vague and stays unverified). Anything else is a `candidate`.
+  Ids that do not exist are rejected and listed. Each link records its methods, evidence and confidence.
+- **LLM proposals** (`--propose-links`): per confirmed finding the model proposes one candidate story and task, citing evidence
+  ids (E1 finding, E2 introducing commit without author, E3 stories, E4 tasks). Same safety rules as `interpret`: labelled
+  bundle, secrets and personal data redacted, strict schema, fake evidence ids or malformed output = no link, a failed call =
+  no link (exit 2), a story/task id not in the files = rejected. It needs `--allow-external-llm`; `--dry-run` shows what would
+  be sent.
+
+Exit codes: 0 ok, 2 some proposals failed, 3 usage error, 4 refused (no `--allow-external-llm`).
+
 ## Personal data (PII) redaction (`pii.py`)
 
 Before anything is sent to the LLM, `PIIRedactor` (next to `redaction.py`, which handles secrets) replaces personal data
