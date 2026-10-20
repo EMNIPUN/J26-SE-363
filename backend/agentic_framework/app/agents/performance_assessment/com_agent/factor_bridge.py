@@ -160,6 +160,10 @@ async def evaluate_factor(
         for k in ["procrastination_detected", "substantiveness_rating", "structural_impact_level", "traceability_rate"]:
             if k in raw_res:
                 merged_features[k] = raw_res[k]
+        # What a production factor reports besides the score (band, warnings, versions, what was removed, per-task detail); the graph's audit and explanation read it from here
+        meta = {k: raw_res[k] for k in ("interval", "warnings", "versions", "removed", "provisional", "sprint_elapsed", "model", "tasks", "usage") if k in raw_res}
+        if meta:
+            merged_features["_result"] = meta
 
         evidence_traces = raw_res.get("evidence_traces", [])
         if not evidence_traces:
@@ -175,8 +179,12 @@ async def evaluate_factor(
         )
 
     except Exception as e:
-        logger.error(f"Error evaluating factor '{factor_name}' via bridge: {e}")
-        return get_fallback_for_factor(factor_name, str(e))
+        # "not available" (the factor says it cannot be scored) is not the same as a failure: the graph and the lecturer see the difference
+        kind = "not_available" if type(e).__name__ == "NotEnoughEvidence" else "error"
+        (logger.info if kind == "not_available" else logger.error)(f"Factor '{factor_name}' via bridge: {kind}: {e}")
+        out = get_fallback_for_factor(factor_name, str(e))
+        out.features = {"failure_kind": kind}
+        return out
 
 
 async def generate_quiz_via_bridge(

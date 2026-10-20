@@ -29,6 +29,7 @@ SECURITY_TABLES = {"users", "groups", "group_members", "projects", "project_docu
 APP_TABLES = SECURITY_TABLES | {"team_invitations", "terms", "user_avatars", "notifications", "notification_preferences"}
 INITIAL_REVISION = "c9da91ebdddb"
 SECURITY_REVISION = "4f6d2a9c8e1b"
+PERFORMANCE_TABLES = ("perf_tracked_teams", "perf_runs", "perf_run_events", "perf_factor_results", "perf_assessment_results", "perf_snapshots", "perf_reviews", "perf_quizzes")
 SECURED_TABLES = SECURITY_TABLES | {"alembic_version"}
 BROWSER_ROLES = ("anon", "authenticated", "service_role")
 # Fake targets: `.invalid` never resolves, and create_engine is replaced in these tests anyway.
@@ -151,7 +152,10 @@ def test_postgres_downgrade_sql_drops_only_application_tables():
 
     for table in APP_TABLES:
         assert f"DROP TABLE {table};" in sql
-    assert sql.count("DROP TABLE") == len(APP_TABLES)
+    # the performance tables are plain SQL (shared/performance/schema.sql), not models, and are dropped with IF EXISTS
+    for table in PERFORMANCE_TABLES:
+        assert f"DROP TABLE IF EXISTS {table} CASCADE;" in sql
+    assert sql.count("DROP TABLE") == len(APP_TABLES) + len(PERFORMANCE_TABLES)
     assert "procrastinate" not in sql
     assert "DROP DATABASE" not in sql and "DROP SCHEMA" not in sql
 

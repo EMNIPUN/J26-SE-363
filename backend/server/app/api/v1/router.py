@@ -11,6 +11,8 @@ from app.api.v1.invitations import router as invitations_router
 from app.api.v1.jobs import router as jobs_router
 from app.api.v1.me import router as me_router
 from app.api.v1.notifications import router as notifications_router
+from app.api.v1.performance import public_router as performance_public_router
+from app.api.v1.performance import router as performance_router
 from app.api.v1.students import router as students_router
 from app.api.v1.teams import router as teams_router
 from app.api.v1.terms import router as terms_router
@@ -19,6 +21,7 @@ from app.core.security import get_current_user
 
 # Nothing is public today: login happens in Keycloak, not in this API.
 public_router = APIRouter()
+public_router.include_router(performance_public_router)  # GitHub's webhook: signed with a shared secret instead of a token
 
 # Any signed-in user. Routers that need a specific role add require_roles(...) on top.
 protected_router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -30,6 +33,7 @@ protected_router.include_router(teams_router)
 protected_router.include_router(terms_router)
 protected_router.include_router(users_router)
 protected_router.include_router(invitations_router)
+protected_router.include_router(performance_router)
 protected_router.include_router(jobs_router)  # additionally admin-only (see jobs.py)
 
 api_router = APIRouter()

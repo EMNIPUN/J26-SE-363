@@ -15,6 +15,7 @@ Task names:
 import logging
 from typing import Any
 
+from procrastinate.exceptions import AlreadyEnqueued
 from shared.queue import app
 
 logger = logging.getLogger(__name__)
@@ -109,3 +110,134 @@ async def ingest_git_commits(payload: dict[str, Any]) -> dict[str, Any]:
         "lines_deleted": 512,
         "commit_regularity_score": 92.0,
     }
+
+
+# ======================================================================================================================================
+# Assessment agent jobs (see app/agents/performance_assessment/assessment/ and plan.md).
+# The Core API creates the run row and defers these; the worker does the work. A run is one team and one sprint; students are assessed inside it.
+# ======================================================================================================================================
+
+import hashlib
+from datetime import date, datetime, timedelta, timezone
+
+SNAPSHOT_WINDOW_SECONDS = 3 * 3600  # nightly snapshots are spread over this long so 250 students' teams do not start at the same minute
+
+_services = None
+
+
+def _get_services():
+    global _services
+    if _services is None:
+        # Heavy imports stay inside the function so the server process never loads them
+        from app.agents.performance_assessment.assessment.services import Services
+
+        _services = Services.from_environment()
+    return _services
+
+
+async def _with_checkpointer(sv, fn):
+    """Run ``fn()`` with LangGraph's PostgreSQL checkpointer attached (tables are created on first use)."""
+    from shared.queue import get_dsn
+
+    from app.agents.performance_assessment.assessment.runner import postgres_checkpointer_cm
+
+    async with postgres_checkpointer_cm(get_dsn()) as saver:
+        await saver.setup()
+        previous, sv.checkpointer = sv.checkpointer, saver
+        try:
+            return await fn()
+        finally:
+            sv.checkpointer = previous
+
+
+@app.task(name="performance.assess_team", queue="performance")
+async def assess_team(payload: dict[str, Any]) -> dict[str, Any]:
+    """Run the team graph for one run row (snapshot or final). payload: {run_id}."""
+    from app.agents.performance_assessment.assessment.runner import run_assessment
+
+    sv = _get_services()
+    return await _with_checkpointer(sv, lambda: run_assessment(sv, payload["run_id"]))
+
+
+@app.task(name="performance.resume_run", queue="performance")
+async def resume_run(payload: dict[str, Any]) -> dict[str, Any]:
+    """Continue a run that waited for the lecturer's identity mapping. payload: {run_id, resume}."""
+    from app.agents.performance_assessment.assessment.runner import run_assessment
+
+    sv = _get_services()
+    return await _with_checkpointer(sv, lambda: run_assessment(sv, payload["run_id"], resume=payload.get("resume") or {}))
+
+
+@app.task(name="performance.refuse_student", queue="performance")
+async def refuse_student_task(payload: dict[str, Any]) -> dict[str, Any]:
+    """A quiz answer arrived: compose that student's mark again. payload: {team_ref, sprint_id, student_id}."""
+    from app.agents.performance_assessment.assessment.runner import refuse_student
+
+    out = await refuse_student(_get_services(), payload["team_ref"], payload["sprint_id"], payload["student_id"])
+    return out or {}
+
+
+@app.task(name="performance.sync_team", queue="performance", pass_context=False)
+async def sync_team(payload: dict[str, Any]) -> dict[str, Any]:
+    """Cheap evidence sync (no language model): fetch the repository into the read-only mirror. payload: {team_ref}."""
+    import asyncio
+
+    sv = _get_services()
+    team = sv.store.get_tracked_team(payload["team_ref"])
+    if not team or team["status"] != "active":
+        return {"skipped": True}
+    await asyncio.to_thread(sv.ws.ensure_mirror, team["repo_url"], token=sv.token)
+    heads = await asyncio.to_thread(sv.ws.read, team["repo_url"], "rev-list", "--all", "--count", token=sv.token)
+    sv.store.update_tracked_config(team["team_ref"], {**(team.get("config") or {}), "last_sync": {"at": datetime.now(timezone.utc).isoformat(), "commits": int(heads.strip() or 0)}})
+    return {"team_ref": team["team_ref"], "commits": int(heads.strip() or 0)}
+
+
+def _active_sprints(team: dict, today: date) -> list[dict]:
+    return [s for s in (team.get("config") or {}).get("sprints", []) if date.fromisoformat(s["start"]) <= today <= date.fromisoformat(s["end"])]
+
+
+@app.periodic(cron="0 */2 * * *")
+@app.task(name="performance.sync_all", queue="performance")
+async def sync_all(timestamp: int) -> dict[str, Any]:
+    """Every two hours: sync each active team that has a sprint in progress (the webhook does the same on a push)."""
+    sv = _get_services()
+    today = datetime.now(timezone.utc).date()
+    n = 0
+    for team in sv.store.list_tracked_teams("active"):
+        if _active_sprints(team, today):
+            try:
+                await sync_team.configure(queueing_lock=f"sync:{team['team_ref']}").defer_async(payload={"team_ref": team["team_ref"]})
+                n += 1
+            except AlreadyEnqueued:  # a sync of this team is already waiting
+                pass
+    return {"teams": n}
+
+
+@app.periodic(cron="30 19 * * *")  # 19:30 UTC = 01:00 in Sri Lanka
+@app.task(name="performance.snapshot_all", queue="performance")
+async def snapshot_all(timestamp: int) -> dict[str, Any]:
+    """Nightly: a provisional snapshot of every team whose sprint is in progress, each started at its own offset inside the window."""
+    from shared.performance import RunAlreadyActive
+
+    sv = _get_services()
+    today = datetime.now(timezone.utc).date()
+    started = 0
+    for team in sv.store.list_tracked_teams("active"):
+        for sprint in _active_sprints(team, today):
+            offset = int(hashlib.sha256(team["team_ref"].encode()).hexdigest(), 16) % SNAPSHOT_WINDOW_SECONDS
+            try:
+                run = sv.store.create_run(team["team_ref"], sprint["id"], "snapshot", requested_by="schedule")
+            except RunAlreadyActive:
+                continue
+            await assess_team.configure(lock=team["team_ref"], schedule_in={"seconds": offset}).defer_async(payload={"run_id": str(run["id"])})
+            started += 1
+    return {"started": started}
+
+
+@app.periodic(cron="5 * * * *")
+@app.task(name="performance.quiz_sweep", queue="performance")
+async def quiz_sweep(timestamp: int) -> dict[str, Any]:
+    """Hourly: quizzes whose window has passed move to their second window or expire (a missed second window counts as 0)."""
+    from app.agents.performance_assessment.assessment.runner import sweep_quizzes
+
+    return await sweep_quizzes(_get_services())

@@ -1,0 +1,20 @@
+{
+  "factor": "behavioral_pattern",
+  "title": "Behavioral Pattern",
+  "measures": "Which contributor pattern the student's sprint fits (Consistent deep contributor, Last-minute rusher, Reviewer or coordinator, Burst worker, Free rider, or none) and the multiplier that goes with it.",
+  "inputs": ["the Effort, Consistency and Collaboration scores", "the Consistency package's bimodal-activity flag"],
+  "computation": "Five rules from the proposal with fixed cut points (thresholds.json): modifiers inside the pattern's range, scaled by how far past the cut points the student is, capped to 0.80-1.20. A missing score is never replaced by 0: Collaboration not available means the Reviewer and full Free-rider rules cannot fire; a Free rider can still be decided from Effort and Consistency alone, with a milder modifier.",
+  "output_scale": "A multiplier on the fused score, 0.80 to 1.20; 1.00 means no adjustment.",
+  "gates": ["Applied only when its inputs are final; during a sprint it is shown as a tendency, without a modifier.", "Effort or Consistency missing: Unclassified, modifier 1.00."],
+  "validation": "No instructor judgements exist. Against assistant-written labels (a pipeline check): accuracy 0.45, kappa 0.35 on 299 records; precision 0.72-0.88 when a rule fires, but Last-minute rusher never fires and Burst worker finds 4 of 65. Sensitivity to the cut points: 12-14% of patterns change for a shift of 0.05.",
+  "limits": ["The cut points are cohort quantiles of one course.", "Effort-only Free rider applies a 5-10% reduction to students with almost no activity when their team did not review; a lecturer should look at these first."],
+  "warnings": {
+    "Collaboration not available": "The Reviewer and full Free-rider rules could not be tested.",
+    "more than one pattern matched": "The milder modifier was used.",
+    "effort alone": "Free rider decided without a Collaboration score."
+  },
+  "typical_problems": [
+    {"symptom": "Free rider for a student who works outside Git", "likely_cause": "work not visible in the repository", "remedy": "escalate_to_human"}
+  ],
+  "allowed_remedies": ["escalate_to_human", "mark_not_available"]
+}

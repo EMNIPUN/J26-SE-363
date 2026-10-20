@@ -1,0 +1,21 @@
+{
+  "factor": "collaboration",
+  "title": "Collaboration",
+  "measures": "How much the student engaged with teammates' work: substantive code-review and discussion comments, replies and mentions, pull requests reviewed or merged for others, and how their own pull requests were resolved.",
+  "inputs": ["reviews and comments the student wrote on other people's pull requests (text)", "their own pull requests", "the number of reviews and comments by anyone in the team (the gate)"],
+  "computation": "Equal-weight mean of six measures, each 0-1: review comment substance, issue comment substance, meaningful mentions and replies (cap 3), reviewed pull requests (cap 3), authored comments (cap 5), resolution rate of own pull requests. Approvals, one-word texts, quoted or pasted text and padding count as nothing. Measures with no evidence are left out, not counted as 0. Not a fitted model: the weights and caps are design assumptions.",
+  "output_scale": "0 = no engagement, 1 = substantive engagement on all six measures.",
+  "gates": ["If nobody in the team reviewed or commented in the sprint the score is NOT AVAILABLE (never 0): a student must not lose marks for something the team never did; fusion redistributes the weight.", "Without GitHub data the team activity is unknown: a student with no activity is also not available."],
+  "validation": "No human collaboration ratings exist. Unit tests of the invariants pass. A comment-substance scorer trained on public review data (OpenDev) did not transfer (AUC 0.56 on an outside set), so the rule-based substance score is used. On the real data only 8 of 144 student-sprints can be scored at all. Sensitivity to the weights is not met for the simulated students (minimum Spearman 0.08).",
+  "limits": ["The resolution-rate measure gives 0.25 to anyone who merely merged their own pull requests, so many scores tie at 0.25.", "Comment quality is judged by text rules, not understanding.", "Reviews that happen outside GitHub (chat, in person) are invisible."],
+  "warnings": {
+    "not available": "Nobody in the team reviewed; the factor is dropped and its weight shared.",
+    "not supplied": "The team's review activity was not given; the score assumes the team reviews."
+  },
+  "typical_problems": [
+    {"symptom": "not available for all students of a team", "likely_cause": "the team does not use pull-request reviews", "remedy": "mark_not_available"},
+    {"symptom": "score 0.25 for everyone", "likely_cause": "only own-PR resolution contributes", "remedy": "none"},
+    {"symptom": "reviews exist on GitHub but are not counted", "likely_cause": "reviewer login not mapped to the student", "remedy": "identity_mapping"}
+  ],
+  "allowed_remedies": ["identity_mapping", "refetch_evidence", "mark_not_available", "escalate_to_human"]
+}

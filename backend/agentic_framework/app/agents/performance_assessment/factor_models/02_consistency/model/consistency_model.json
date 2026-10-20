@@ -1,0 +1,62 @@
+{
+ "factor": "consistency",
+ "version": "consistency-linear/1",
+ "model": "ridge (median imputation, standardised, penalty by leave-one-out)",
+ "candidate": "active days + first active day",
+ "features": [
+  {
+   "name": "C_AWR",
+   "transform": "raw"
+  },
+  {
+   "name": "C_first_active_day",
+   "transform": "raw"
+  }
+ ],
+ "medians": [
+  0.1429,
+  4.0
+ ],
+ "mean": [
+  0.16766250000000008,
+  4.541666666666667
+ ],
+ "scale": [
+  0.16459439071505785,
+  3.16639253199389
+ ],
+ "coef": [
+  0.19530146920319974,
+  -0.06167893745982197
+ ],
+ "intercept": 0.2322048611111111,
+ "alpha": 0.01,
+ "guard": null,
+ "zero_rule": {
+  "column": "C_no_activity",
+  "equals": 1
+ },
+ "residual_quantiles": [
+  -0.07983748978194326,
+  0.1240927157822169
+ ],
+ "cv": {
+  "MAE": 0.057513701478667065,
+  "Pearson": 0.922879552418548,
+  "Spearman": 0.9356071051863861,
+  "band_within_1": 1.0,
+  "baseline": "active days (linear)",
+  "baseline_MAE": 0.07841849008724917,
+  "gain_over_baseline": 0.02090478860858211,
+  "gain_95": [
+   0.014052648807193905,
+   0.02727769782300502
+  ],
+  "beats_baseline": true,
+  "mean_predictor_MAE": 0.20592206790123457,
+  "n": 144,
+  "folds": "5 student-disjoint groups A-E"
+ },
+ "trained_on": "144 real student-sprints rated on the project rubric by the assistant (not human ratings)",
+ "seed": 20261018
+}
