@@ -127,7 +127,7 @@ def test_a_known_secret_value_in_the_prompt_blocks_the_call_and_the_finding_beco
     assert result.status == "uncertain" and result.governance_blocked == "secret_value_in_prompt" and not result.error
     assert "blocked the call before it was sent" in result.rationale and SECRET not in result.rationale
     events = [json.loads(x) for x in (tmp_path / "audit.jsonl").read_text(encoding="utf-8").splitlines()]
-    assert [e["event"] for e in events] == ["pre_send_check", "llm_result"]
+    assert [e["event"] for e in events if e["event"] != "agent_decision"] == ["pre_send_check", "llm_result"]  # decisions are logged too
     assert events[0]["decision"] == "blocked" and events[0]["secret_check"] == "fail" and gov.blocked == 1
 
 

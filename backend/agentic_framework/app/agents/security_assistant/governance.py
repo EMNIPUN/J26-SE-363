@@ -20,21 +20,34 @@ What it does, and what it deliberately does not:
 - **Report scan.** Before report.json and report.md are written, the known secret values and personal values are removed from them if
   any got through, and the removal is counted and logged.
 
-Governance never changes a verdict and never removes a finding. It only stops a call, records, or scrubs outgoing text.
+- **Stateful scrutiny.** Governance keeps a history for the run: a score that goes up with every injection indicator found in the
+  repository (+1 per distinct source and pattern), every outgoing prompt that contains one (+1), every blocked call (+2), every call
+  sent in warn-only mode despite a failed check (+1). At `elevated_at` (default 3) the scrutiny level becomes "elevated" and every
+  later call gets a SECOND, stricter check (text folded to NFKC without invisible characters, spaces and punctuation removed, so a
+  secret or name split by a zero-width character is still found). At `high_at` (default 6) governance ESCALATES: the run is flagged for
+  human review of audit.jsonl and is incomplete. The level only goes up within a run. Every call and every change of level is a
+  decision of the governance agent: chosen from a fixed list that the code validates (allow_call, allow_after_second_check, block_call,
+  allow_call_warn_only, raise_scrutiny, escalate_to_reviewer), recorded in audit.jsonl and in the report's decision trail.
+
+Governance never changes a verdict and never removes a finding. It only stops a call, records, raises its own scrutiny, or scrubs outgoing text.
 """
 
 import hashlib
 import json
+import os
 import re
+import unicodedata
 from collections import Counter
 from pathlib import Path
 
-from app.agents.security_assistant.interpreter.evidence import _git_read, _safe_file
+from app.agents.security_assistant.agent_loop import Action, DecisionTrail, Policy, RulePolicy, select
 from app.agents.security_assistant.pii import PIIRedactor
 from app.agents.security_assistant.redaction import find_secret_values, redact_text
 from app.agents.security_assistant.schemas import Category
 
 AUDIT_FILE = "audit.jsonl"
+LEVELS = ("normal", "elevated", "high")
+POINTS = {"repo_indicator": 1, "prompt_indicator": 1, "blocked_call": 2, "second_check_blocked": 2, "violation_allowed": 1}
 ALLOWED_TOOLS = frozenset({"config-scan", "gitleaks", "trufflehog", "osv-scanner", "npm-audit", "pip-audit", "actionlint", "zizmor", "codeql"})
 MIN_SECRET_LEN = 6
 MAX_SECRET_VALUES = 300
@@ -56,6 +69,22 @@ _HARNESS = re.compile(r'<evidence id="E\d+" kind="\w+" label="[^"]*">|</evidence
 _README = re.compile(r"(?i)^(?:readme|contributing|changelog)[^/\\]*$|^[^/\\]+\.md$")
 _REASON_CODES = (("cited evidence ids", "unknown_evidence_id"), ("a confirmed or dismissed verdict must cite", "no_evidence_id"),
                  ("the model dismissed a secret finding", "v4_dismissal_unsupported"))
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return max(1, int(os.environ[name])) if os.environ.get(name) else default
+    except ValueError:
+        return default
+
+
+def _fold(text: str) -> str:
+    """NFKC, no invisible format characters, lower case: the form in which an obfuscated value looks like itself again."""
+    return "".join(c for c in unicodedata.normalize("NFKC", text or "") if unicodedata.category(c) != "Cf").lower()
+
+
+def _squeeze(text: str) -> str:
+    return "".join(c for c in _fold(text) if c.isalnum())
 
 
 class GovernanceBlock(Exception):
@@ -84,6 +113,8 @@ def prompt_hash(system: str, user: str) -> str:
 def known_secret_values(repo: Path | None, findings) -> set[str]:
     """The literal secret values of the V4 findings, read from the files (and, for a secret only in the history, from the commit the
     scanner named). Held in memory for the pre-send check; never written anywhere."""
+    from app.agents.security_assistant.interpreter.evidence import _git_read, _safe_file  # lazy: the interpreter package imports this module
+
     out: set[str] = set()
     if repo is None:
         return out
@@ -149,7 +180,8 @@ class AuditLog:
 
 class Governance:
     def __init__(self, out_dir: Path | None = None, *, warn_only: bool = False, pii: PIIRedactor | None = None,
-                 secret_values: set[str] | None = None):
+                 secret_values: set[str] | None = None, elevated_at: int | None = None, high_at: int | None = None,
+                 policy: Policy | None = None):
         self.audit = AuditLog(Path(out_dir) / AUDIT_FILE if out_dir else None)
         self.warn_only = warn_only
         self.pii = pii
@@ -161,6 +193,15 @@ class Governance:
         self.indicators: list[dict] = []
         self.prompt_indicators: Counter = Counter()
         self.repo_files_scanned = 0
+        # the state the governance agent keeps for the run
+        self.elevated_at = elevated_at or _env_int("SECURITY_ASSISTANT_GOVERNANCE_ELEVATED_AT", 3)
+        self.high_at = max(self.elevated_at + 1, high_at or _env_int("SECURITY_ASSISTANT_GOVERNANCE_HIGH_AT", 6))
+        self.level, self.score, self.history = "normal", 0, []
+        self.repo_indicator_count = self.prompt_with_indicators = self.second_checks = self.second_check_blocks = 0
+        self.escalated, self.escalation_reason = False, None
+        self.policy, self._rules = policy or RulePolicy(), RulePolicy()
+        self.trail = DecisionTrail("governance", self.audit)
+        self._step = 0
 
     # ---- set up -------------------------------------------------------------------------------------------------------------------
     def set_secret_values(self, values: set[str]) -> None:
@@ -169,6 +210,63 @@ class Governance:
 
     def start(self, **fields) -> None:
         self.audit.record("run_start", governance="warn-only" if self.warn_only else "enforce", warn_only=self.warn_only, **fields)
+
+    # ---- state: score, scrutiny level, escalation --------------------------------------------------------------------------------
+    def state(self) -> dict:
+        return {"level": self.level, "score": self.score, "elevated_at": self.elevated_at, "high_at": self.high_at,
+                "calls_checked": self.checked, "calls_blocked": self.blocked, "repo_indicators": self.repo_indicator_count,
+                "prompts_with_indicators": self.prompt_with_indicators, "second_checks": self.second_checks}
+
+    def _decide(self, subject: str, options: list[Action]):
+        state = self.state()
+        action, reason, rejected = select(self.policy, self._rules, state, options)
+        self._step += 1
+        entry = self.trail.record(self._step, self.policy.name if rejected is None else f"{self.policy.name} -> rules", state, options,
+                                  action, reason, rejected, subject=subject)
+        return action, entry
+
+    def _score(self, kind: str, count: int = 1, subject: str = "run") -> None:
+        points = POINTS[kind] * count
+        self.score += points
+        self.history.append({"event": kind, "points": points, "score": self.score, "level": self.level})
+        self._maybe_raise(subject)
+
+    def _maybe_raise(self, subject: str) -> None:
+        """Scrutiny only goes up. Reaching a threshold is a decision with one valid option, recorded like every other."""
+        for target, at in (("elevated", self.elevated_at), ("high", self.high_at)):
+            if LEVELS.index(self.level) < LEVELS.index(target) and self.score >= at:
+                why = (f"score {self.score} reached {at}: {self.repo_indicator_count} indicator(s) in the repository, "
+                       f"{self.prompt_with_indicators} prompt(s) with indicators, {self.blocked} blocked call(s)")
+                action, entry = self._decide(subject, [Action("raise_scrutiny", target, why)])
+                previous, self.level = self.level, target
+                self.history.append({"event": "scrutiny_raised", "from": previous, "to": target, "score": self.score})
+                self.audit.record("scrutiny_change", from_level=previous, to_level=target, score=self.score, threshold=at)
+                self.trail.outcome(entry, f"{previous} -> {target}" + ("; every later call gets a second, stricter check" if target == "elevated"
+                                                                       else "; escalating to human review"))
+                if target == "high" and not self.escalated:
+                    reason = f"score {self.score}: repeated injection indicators or blocked calls in this run"
+                    _a, e2 = self._decide(subject, [Action("escalate_to_reviewer", None, reason)])
+                    self.escalated, self.escalation_reason = True, reason
+                    self.audit.record("escalation", level="high", score=self.score, reason=reason)
+                    self.trail.outcome(e2, "the run is flagged: a person should review audit.jsonl before relying on it")
+
+    def _strict_violations(self, system: str, user: str) -> list[tuple[str, str]]:
+        """The second check, run at elevated scrutiny: the same questions asked of the folded text (see _fold)."""
+        out: list[tuple[str, str]] = []
+        text = system + "\n" + user
+        folded, squeezed = _fold(text), _squeeze(text)
+        if any((_squeeze(s) in squeezed) if len(s) >= 12 else (s.lower() in folded) for s in self.secrets):
+            out.append(("second_check_secret", "a secret value, hidden by invisible characters, spacing or look-alike characters, is in the outgoing text"))
+        if self.pii is not None:
+            evidence = user[user.index("<evidence"):] if "<evidence" in user else user
+            f_evidence, s_evidence = _fold(evidence), _squeeze(evidence)
+            for original in self.pii.originals():
+                hit = (_squeeze(original) in s_evidence) if len(original) >= 8 else bool(
+                    re.search(rf"(?<![a-z0-9]){re.escape(_fold(original))}(?![a-z0-9])", f_evidence))
+                if hit:
+                    out.append(("second_check_personal", "a personal value, hidden by invisible characters or spacing, is in the outgoing evidence"))
+                    break
+        return out
 
     # ---- tool allow-list --------------------------------------------------------------------------------------------------------
     def check_tools(self, names, source: str) -> list[str]:
@@ -182,6 +280,8 @@ class Governance:
     # ---- the repository: injection indicators in files that are not sent ------------------------------------------------------
     def scan_repo(self, repo: Path | None) -> list[dict]:
         """README-like files and commit messages, scanned locally. Hits are findings about the repository, not about its code."""
+        from app.agents.security_assistant.interpreter.evidence import _git_read, _safe_file  # lazy, see known_secret_values
+
         hits: list[dict] = []
         if repo is None:
             return hits
@@ -205,10 +305,14 @@ class Governance:
                     hits.append({"kind": "commit message", "source": f"commit {sha[:7]}", "pattern": pid, "count": n})
         self.repo_files_scanned += scanned
         self.indicators.extend(hits)
+        distinct = len({(h["source"], h["pattern"]) for h in hits})
+        self.repo_indicator_count += distinct
         self.audit.record("repo_scan", sources_scanned=scanned, indicators=len(hits))
         for h in hits:
             self.audit.record("injection_indicator", kind=h["kind"], source=h["source"], pattern=h["pattern"], count=h["count"],
                               effect="logged only; nothing was blocked or changed")
+        if distinct:
+            self._score("repo_indicator", distinct)  # repeated indicators raise the scrutiny of every later call
         return hits
 
     # ---- before a call ------------------------------------------------------------------------------------------------------------
@@ -232,28 +336,53 @@ class Governance:
 
     def pre_send(self, kind: str, *, finding_key: str, category: str, rule_id: str, system: str, user: str, offered_ids,
                  model: str | None = None, prompt_version: str | None = None, seed: int | None = None) -> str:
-        """Check one outgoing prompt. Returns its hash. Raises GovernanceBlock when a check fails (unless warn-only)."""
+        """Check one outgoing prompt and decide what to do with it. Returns the prompt's hash. Raises GovernanceBlock when the decision is
+        to block it. The decision is chosen from the options the checks leave valid: with a failed check there is no 'allow' option."""
         digest = prompt_hash(system, user)
-        violations = self._violations(system, user)
         indicators = injection_indicators(_HARNESS.sub("", user))
         self.prompt_indicators.update(indicators.keys())
         self.checked += 1
-        decision = "send"
-        if violations:
-            decision = "send-warn-only" if self.warn_only else "blocked"
+        if indicators:
+            self.prompt_with_indicators += 1
+            self._score("prompt_indicator", subject=finding_key)  # may raise the level, which then applies to this very call
+        first = self._violations(system, user)
+        second_required = self.level != "normal"
+        second: list[tuple[str, str]] = []
+        if second_required:
+            self.second_checks += 1
+            second = self._strict_violations(system, user)
+        violations = first + [v for v in second if v[0] not in {c for c, _ in first}]
+        if not violations:
+            options = [Action("allow_after_second_check" if second_required else "allow_call",
+                              why="no check failed" + (" (first check and second check)" if second_required else ""))]
+        else:
+            why = "; ".join(m for _c, m in violations)
+            options = [Action("block_call", why=why)]
+            if self.warn_only:
+                options.insert(0, Action("allow_call_warn_only", why=f"--governance-warn-only: recorded, not blocked. {why}"))
+        action, entry = self._decide(finding_key, options)
+        decision = {"allow_call": "send", "allow_after_second_check": "send", "allow_call_warn_only": "send-warn-only", "block_call": "blocked"}[action.name]
         self.audit.record("pre_send_check", call=kind, finding_key=finding_key, category=category, rule_id=rule_id,
                           prompt_sha256=digest, prompt_chars=len(system) + len(user), evidence_ids_offered=sorted(offered_ids),
                           model=model, prompt_version=prompt_version, seed=seed,
-                          secret_check="fail" if any(c.startswith("secret") for c, _ in violations) else "pass",
-                          personal_data_check="fail" if any(c.startswith("personal") for c, _ in violations) else "pass",
+                          secret_check="fail" if any("secret" in c for c, _ in violations) else "pass",
+                          personal_data_check="fail" if any("personal" in c for c, _ in violations) else "pass",
+                          scrutiny=self.level, second_check=("fail" if second else "pass") if second_required else "not required",
                           violations=[c for c, _ in violations], injection_indicators=indicators, decision=decision)
-        if violations:
-            if self.warn_only:
-                self.allowed += 1
-            else:
-                self.blocked += 1
-                code, message = violations[0]
-                raise GovernanceBlock(code, f"governance blocked the call before it was sent: {message}")
+        if action.name == "block_call":
+            self.blocked += 1
+            by_second = bool(second) and not first
+            self.second_check_blocks += by_second
+            self.trail.outcome(entry, "blocked; nothing was sent")
+            self._score("second_check_blocked" if by_second else "blocked_call", subject=finding_key)
+            code, message = violations[0]
+            raise GovernanceBlock(code, f"governance blocked the call before it was sent: {message}")
+        if action.name == "allow_call_warn_only":
+            self.allowed += 1
+            self.trail.outcome(entry, "sent although a check failed (warn-only)")
+            self._score("violation_allowed", subject=finding_key)
+        else:
+            self.trail.outcome(entry, "sent")
         return digest
 
     # ---- after a call ----------------------------------------------------------------------------------------------------------------
@@ -282,33 +411,61 @@ class Governance:
             full = {v for v in self.pii.mapping.values() if len(v) >= 3} | {v for v in self.pii._names.values() if len(v) >= 3}
         return sorted(self.secrets | full, key=len, reverse=True)
 
+    def _patterns(self):
+        """E-mail, phone and student-id patterns of the personal-data redactor: values the run never saw (one the model made up) are caught too."""
+        if self.pii is None:
+            return []
+        from app.agents.security_assistant.pii import _EMAIL, _PHONE
+
+        return [(_EMAIL, None), (self.pii.student_id, None), (_PHONE, 9)]  # (pattern, minimum number of digits or None)
+
+    @staticmethod
+    def _hit(match, digits) -> bool:
+        return digits is None or sum(c.isdigit() for c in match.group(0)) >= digits
+
     def count_leaks(self, text: str) -> int:
-        """How many known secret or personal values `text` contains (changes nothing, logs nothing)."""
+        """How many known secret or personal values, or personal-data patterns, `text` contains (changes nothing, logs nothing)."""
         n = 0
         for value in self._report_values():
             n += len(re.findall(rf"(?<![A-Za-z0-9]){re.escape(value)}(?![A-Za-z0-9])", text, flags=re.I))
+        for pattern, digits in self._patterns():
+            n += sum(self._hit(m, digits) for m in pattern.finditer(text))
         return n
 
     def scrub(self, text: str, label: str) -> str:
-        """Remove known secret values and full personal values from a report before it is written, and log how many."""
+        """Remove known secret values, full personal values and personal-data patterns from a report before it is written, and log how many."""
         removed = 0
         for value in self._report_values():
             text, n = re.subn(rf"(?<![A-Za-z0-9]){re.escape(value)}(?![A-Za-z0-9])", "[removed by governance]", text, flags=re.I)
             removed += n
+        for pattern, digits in self._patterns():
+            count = [0]
+
+            def repl(m, digits=digits, count=count):
+                if self._hit(m, digits):
+                    count[0] += 1
+                    return "[removed by governance]"
+                return m.group(0)
+
+            text = pattern.sub(repl, text)
+            removed += count[0]
         self.audit.record("report_scan", file=label, items_removed=removed, decision="scrubbed" if removed else "clean")
         return text
 
     def end(self, *, complete: bool, reasons: int) -> None:
         self.audit.record("run_end", calls_checked=self.checked, calls_blocked=self.blocked, violations_allowed_in_warn_only=self.allowed,
                           injection_indicators_in_repo=len(self.indicators), report_items_removed=self.scrubbed,
-                          run_complete=complete, incomplete_reasons=reasons)
+                          scrutiny=self.level, score=self.score, escalated=self.escalated, run_complete=complete, incomplete_reasons=reasons)
 
     def summary(self) -> dict:
         return {"mode": "warn-only" if self.warn_only else "enforce", "audit_file": AUDIT_FILE, "audit_lines": self.audit.seq,
                 "calls_checked": self.checked, "calls_blocked": self.blocked, "violations_allowed_in_warn_only": self.allowed,
                 "tool_check": self.tool_check, "injection_indicators": self.indicators, "repo_sources_scanned": self.repo_files_scanned,
                 "prompt_indicator_patterns": dict(self.prompt_indicators), "report_items_removed": self.scrubbed,
-                "pattern_ids": [pid for pid, _ in INJECTION_PATTERNS]}
+                "pattern_ids": [pid for pid, _ in INJECTION_PATTERNS],
+                "scrutiny": {"level": self.level, "score": self.score, "elevated_at": self.elevated_at, "high_at": self.high_at,
+                             "second_checks": self.second_checks, "second_check_blocks": self.second_check_blocks,
+                             "escalated": self.escalated, "escalation_reason": self.escalation_reason, "history": self.history}}
 
 
 def render_section(summary: dict) -> str:
@@ -319,13 +476,22 @@ def render_section(summary: dict) -> str:
     if s["mode"] == "warn-only":
         M += [f"> **WARN-ONLY MODE (`--governance-warn-only`).** A failed secret or personal-data check did not stop the call; "
               f"{s['violations_allowed_in_warn_only']} call(s) were sent although a check failed (see {s['audit_file']}).", ""]
+    sc = s.get("scrutiny")
+    if sc and sc["escalated"]:
+        M += [f"> **ESCALATED FOR HUMAN REVIEW.** {sc['escalation_reason']}. A person should read `{s['audit_file']}` before relying on this run; "
+              "the run is marked incomplete.", ""]
     M += [f"- **Mode:** {s['mode']}; **audit log:** `{s['audit_file']}` ({s['audit_lines']} lines: hashes, counts and reason codes only, never prompt text).",
           f"- **LLM calls checked before sending:** {s['calls_checked']}; **blocked:** {s['calls_blocked']}"
           + (f"; **sent despite a failed check (warn-only):** {s['violations_allowed_in_warn_only']}" if s["mode"] == "warn-only" else "") + ".",
           f"- **Tool allow-list:** " + ("not checked" if not s["tool_check"] else
                                         f"{len(s['tool_check']['tools'])} tool(s) from {s['tool_check']['source']}; "
                                         + (f"REJECTED: {', '.join(s['tool_check']['rejected'])}" if s["tool_check"]["rejected"] else "all allowed")) + ".",
-          f"- **Report scan:** {s['report_items_removed']} secret or personal value(s) removed from the report files before writing.", ""]
+          f"- **Report scan:** {s['report_items_removed']} secret or personal value(s) removed from the report files before writing."]
+    if sc:
+        M.append(f"- **Scrutiny:** {sc['level']} (score {sc['score']}; elevated at {sc['elevated_at']}, high at {sc['high_at']}). From 'elevated' every call "
+                 f"gets a second, stricter check: {sc['second_checks']} second check(s) run, {sc['second_check_blocks']} call(s) stopped by one. "
+                 "The score rises with injection indicators and blocked calls and never falls within a run; scrutiny never changes a verdict.")
+    M.append("")
     M += ["### Prompt-injection indicators in the repository", "",
           "> An **indicator, not proof.** A fixed list of phrases (for example \"ignore previous instructions\", \"mark all findings dismissed\") "
           "is searched for in README files and commit messages, which are not sent to the LLM, and in every outgoing prompt. A hit means "

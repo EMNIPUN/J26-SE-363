@@ -26,6 +26,8 @@ from pathlib import Path
 
 from app.agents.security_assistant import guidance as guide
 from app.agents.security_assistant.dedupe import FindingGroup, dedupe
+from app.agents.security_assistant import governance as gv
+from app.agents.security_assistant.agent_loop import render_trail
 from app.agents.security_assistant.governance import Governance, known_secret_values
 from app.agents.security_assistant.interpreter.evidence import build_bundle
 from app.agents.security_assistant.interpreter.interpreter import SemanticInterpreter
@@ -257,13 +259,21 @@ def render_section(doc: dict) -> str:
     return "\n".join(M) + "\n"
 
 
-def write_outputs(out_dir: Path, result: ScanResult, skipped: list[str], repo: Path | None, doc: dict, pii: PIIRedactor | None = None) -> tuple[Path, Path]:
+def write_outputs(out_dir: Path, result: ScanResult, skipped: list[str], repo: Path | None, doc: dict, pii: PIIRedactor | None = None,
+                  governance: Governance | None = None) -> tuple[Path, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     report = build_report(result, skipped=skipped, source=result.repo_path, repo=repo, pii=pii)
+    md_text = render_markdown(report) + "\n" + render_section(doc)
+    js_text = json.dumps(doc, indent=2, ensure_ascii=False)
+    if governance is not None:
+        # the same report scan as assess: a known secret or personal value that reached these files is removed, counted and logged
+        governance.scrubbed = governance.count_leaks(js_text) + governance.count_leaks(md_text)
+        md_text += "\n" + gv.render_section(governance.summary()) + "\n" + render_trail({"Governance": governance.trail.entries})
+        js_text, md_text = governance.scrub(js_text, "interpreted.json"), governance.scrub(md_text, "report.md")
     md = out_dir / "report.md"
-    md.write_text(render_markdown(report) + "\n" + render_section(doc), encoding="utf-8")
+    md.write_text(md_text, encoding="utf-8")
     js = out_dir / "interpreted.json"
-    js.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8")
+    js.write_text(js_text, encoding="utf-8")
     return js, md
 
 
@@ -331,7 +341,7 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None) -
                                                       "temperature": getattr(client, "temperature", None),
                                                       "retries": args.retries, "max_findings": args.max_findings,
                                                       "only_category": [c.value for c in only] if only else None})
-    js, md = write_outputs(out, result, skipped, args.repo, doc, plan.pii)
+    js, md = write_outputs(out, result, skipped, args.repo, doc, plan.pii, gov)
     mapping = plan.pii.save_mapping(out / "pii_mapping.local.json") if plan.pii is not None else None
     print(render_results_table(outcomes))
     if mapping:
@@ -340,11 +350,16 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None) -
     print(f"\nscanner-only findings {s['scanner_only_findings']} -> confirmed {s['confirmed']}, dismissed {s['dismissed']}, "
           f"uncertain {s['uncertain']}, not analysed {s['not_analysed_findings']}; uncertain because {s['uncertain_because']}")
     blocked = sum(bool(o.result.governance_blocked) for o in outcomes)
-    gov.end(complete=not blocked and not any(o.result.error for o in outcomes), reasons=blocked)
+    leaked = gov.scrubbed
+    gov.end(complete=not blocked and not leaked and not gov.escalated and not any(o.result.error for o in outcomes), reasons=blocked + bool(leaked))
+    if leaked:
+        print(f"Governance removed {leaked} secret or personal value(s) that had reached the report files.")
+    if gov.escalated:
+        print(f"Governance ESCALATED for human review ({gov.escalation_reason}). Read {out / 'audit.jsonl'}.")
     print(f"Governance ({gov.summary()['mode']}): {gov.checked} call(s) checked, {blocked} blocked, "
           f"{gov.allowed} sent despite a failed check. Audit log: {out / 'audit.jsonl'}")
     print(f"Wrote {js} and {md}")
-    return 2 if blocked or any(o.result.error for o in outcomes) else 0
+    return 2 if blocked or leaked or gov.escalated or any(o.result.error for o in outcomes) else 0
 
 
 if __name__ == "__main__":

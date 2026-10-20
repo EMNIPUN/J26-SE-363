@@ -368,6 +368,8 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
             st.skip(name, "not reached")
     stages = [st.items[n] for n in STAGES]
     reasons = [f"stage {s['stage']} {s['status']}: {s['detail']}" for s in stages if s["status"] not in OK]
+    if gov.escalated:
+        reasons.append(f"governance escalated for human review ({gov.escalation_reason}); read audit.jsonl")
     if gov.allowed:
         reasons.append(f"governance warn-only: {gov.allowed} call(s) were sent although a secret or personal-data check failed")
     if result is not None:
@@ -405,6 +407,7 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
     report["meta"]["governance"] = "warn-only" if gov.warn_only else "enforce"
 
     def _texts() -> tuple[str, str]:
+        trails["Governance"] = gov.trail.entries
         report["governance"] = gov.summary()
         return (json.dumps(report, indent=2, ensure_ascii=False),
                 render(report, scan_md, idoc, tdoc, risk_doc, qdoc, findings))
