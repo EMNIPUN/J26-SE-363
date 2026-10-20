@@ -179,6 +179,10 @@ Every finding comes with advice on how to fix it, from two sources:
    enforces it: a note that contains a version number, 40-character SHA or URL that appears nowhere in the evidence, the
    finding or the standard advice is not kept (`recommendation_dropped` says why) and the report falls back to the standard
    advice. The standard dependency examples therefore use placeholders such as `<fixed version>`.
+   OSV-Scanner reports the versions that fix each advisory; they are read from the affected package's own ecosystem ranges
+   (SEMVER or ECOSYSTEM, same name and ecosystem; GIT ranges list commit hashes and are ignored), stored in
+   `Finding.fixed_versions`, shown in `report.md` ("Fixed in") and given to the LLM as evidence, so its upgrade advice can
+   name a real version and the guard above accepts it.
 
 To add or change advice, edit the table in `guidance.py` (the tests check that every rule the tools can produce has
 specific advice, that examples are short and hold no secret, and that the links are the ones that were checked).

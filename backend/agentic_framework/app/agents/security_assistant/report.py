@@ -290,6 +290,8 @@ def render_markdown(rep: ScanReport) -> str:
                   f"- **Where:** {_cell(_location(f))}" + (f" in `{f.function_or_endpoint}`" if f.function_or_endpoint else ""),
                   f"- **Message:** {_cell(redact_text(f.message)) or '-'}"]
             M.append(f"- **How to fix:** {guide.guidance_for(f).title} (see \"How to fix\" below)")
+            if f.fixed_versions:
+                M.append(f"- **Fixed in:** {', '.join(f.fixed_versions)} (from the advisory)")
             if f.source or f.sink:
                 M.append(f"- **Source -> sink:** {_cell(redact_text(f.source or '-'))} -> {_cell(redact_text(f.sink or '-'))}")
             if f.masked_snippet:

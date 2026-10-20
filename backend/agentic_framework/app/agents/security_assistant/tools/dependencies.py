@@ -5,6 +5,7 @@ built or resolved by running a package manager's build step.
 """
 
 import json
+import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +28,33 @@ def _first_cwe(ids) -> str | None:
 
 
 # --- OSV-Scanner ---------------------------------------------------------------------------
+_HASH = re.compile(r"^[0-9a-f]{40}$")
+
+
+def _version_key(v: str) -> list:
+    return [(0, int(p)) if p.isdigit() else (1, p) for p in re.split(r"[.\-+]", v)]
+
+
+def fixed_versions_for(vuln: dict, info: dict) -> list[str]:
+    """Versions that fix an advisory, read from the affected entry of THIS package only: same name and ecosystem, and only
+    ECOSYSTEM or SEMVER ranges. GIT ranges list commit hashes, which are not versions, and entries for other packages
+    belong to other packages."""
+    name, eco = (info.get("name") or "").lower(), (info.get("ecosystem") or "").lower()
+    found: set[str] = set()
+    for affected in vuln.get("affected") or []:
+        pkg = affected.get("package") or {}
+        if (pkg.get("name") or "").lower() != name or (pkg.get("ecosystem") or "").lower().split(":")[0] != eco.split(":")[0]:
+            continue
+        for rng in affected.get("ranges") or []:
+            if str(rng.get("type", "")).upper() not in ("ECOSYSTEM", "SEMVER"):
+                continue
+            for event in rng.get("events") or []:
+                fixed = event.get("fixed")
+                if isinstance(fixed, str) and fixed and not _HASH.match(fixed):
+                    found.add(fixed)
+    return sorted(found, key=_version_key)
+
+
 def parse_osv(doc: dict, repo: Path) -> list[Finding]:
     findings = []
     for result in doc.get("results") or []:
@@ -45,6 +73,7 @@ def parse_osv(doc: dict, repo: Path) -> list[Finding]:
                         sink=where,
                         rule_id=vuln.get("id", "unknown"),
                         severity_tool=str(db["severity"]) if db.get("severity") else None,
+                        fixed_versions=fixed_versions_for(vuln, info),
                         message=f"{cve + ': ' if cve else ''}{vuln.get('summary', '')}".strip(),
                     )
                 )

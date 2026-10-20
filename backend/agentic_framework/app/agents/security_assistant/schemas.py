@@ -36,6 +36,7 @@ class Finding(BaseModel):
     tool: str = ""
     tool_version: str | None = None
     severity_tool: str | None = None  # severity as reported by the tool, unmapped
+    fixed_versions: list[str] = Field(default_factory=list)  # versions that fix it, when the tool reports them (OSV-Scanner)
     message: str = ""
     masked_snippet: str | None = None
     raw_output_ref: str | None = None

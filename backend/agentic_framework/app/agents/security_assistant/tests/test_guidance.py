@@ -300,3 +300,81 @@ def test_the_report_says_when_the_note_was_not_kept(tmp_path):
                   client=Mock(recommendation="Use flask>=9.9.9 which does not exist in the evidence.")))
     md = (out / "report.md").read_text(encoding="utf-8")
     assert "The model's note was not kept: the note named '9.9.9'" in md and "Use the standard advice." in md
+
+
+# ---- OSV fix versions (parsed from OSV's own output, ecosystem ranges of the affected package only) --------------------------
+OSV_RAW = {"results": [{"source": {"path": "/repo/requirements.txt"}, "packages": [{
+    "package": {"name": "flask", "version": "1.0", "ecosystem": "PyPI"},
+    "vulnerabilities": [{
+        "id": "GHSA-m2qf-hxjv-5gpq", "aliases": ["CVE-2023-30861"], "summary": "cookie set on cached responses",
+        "affected": [
+            {"package": {"name": "flask", "ecosystem": "PyPI"}, "ranges": [
+                {"type": "GIT", "repo": "https://github.com/pallets/flask",
+                 "events": [{"introduced": "0"}, {"fixed": "70f906c51ce49c485f1d355703e9cc3386b1cc2b"}]},
+                {"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "2.2.5"}]},
+                {"type": "ECOSYSTEM", "events": [{"introduced": "2.3.0"}, {"fixed": "2.3.2"}]}]},
+            {"package": {"name": "some-other-package", "ecosystem": "PyPI"},
+             "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "9.9.9"}]}]},
+            {"package": {"name": "flask", "ecosystem": "npm"},
+             "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "7.7.7"}]}]},
+        ]}, {
+        "id": "GHSA-no-fix", "summary": "no fix yet",
+        "affected": [{"package": {"name": "flask", "ecosystem": "PyPI"},
+                      "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}]}]}]}]}]}]}
+
+
+def test_osv_fixed_versions_use_only_the_package_own_ecosystem_ranges():
+    from app.agents.security_assistant.tools.dependencies import parse_osv
+    found = {x.rule_id: x for x in parse_osv(OSV_RAW, Path("/repo"))}
+    assert found["GHSA-m2qf-hxjv-5gpq"].fixed_versions == ["2.2.5", "2.3.2"]  # no hash, no other package, no other ecosystem
+    assert found["GHSA-no-fix"].fixed_versions == []
+
+
+@pytest.mark.parametrize("versions,expected", [
+    (["2.10.0", "2.9.1", "2.2.5"], ["2.2.5", "2.9.1", "2.10.0"]),  # numeric order, not text order
+    (["1.0", "1.0.1"], ["1.0", "1.0.1"]),
+])
+def test_fixed_versions_are_sorted_as_versions(versions, expected):
+    from app.agents.security_assistant.tools.dependencies import fixed_versions_for
+    vuln = {"affected": [{"package": {"name": "p", "ecosystem": "PyPI"},
+                          "ranges": [{"type": "ECOSYSTEM", "events": [{"fixed": v} for v in versions]}]}]}
+    assert fixed_versions_for(vuln, {"name": "P", "ecosystem": "PyPI"}) == expected
+
+
+def test_a_maven_package_matches_by_its_full_name():
+    from app.agents.security_assistant.tools.dependencies import fixed_versions_for
+    vuln = {"affected": [{"package": {"name": "org.apache.logging.log4j:log4j-core", "ecosystem": "Maven"},
+                          "ranges": [{"type": "ECOSYSTEM", "events": [{"fixed": "2.15.0"}]}]}]}
+    info = {"name": "org.apache.logging.log4j:log4j-core", "ecosystem": "Maven"}
+    assert fixed_versions_for(vuln, info) == ["2.15.0"]
+    assert fixed_versions_for(vuln, {"name": "other:artifact", "ecosystem": "Maven"}) == []
+
+
+def test_fixed_versions_reach_the_evidence_so_the_model_may_name_them():
+    from app.agents.security_assistant.interpreter.evidence import build_bundle
+    from app.agents.security_assistant.tools.dependencies import parse_osv
+    finding = parse_osv(OSV_RAW, Path("/repo"))[0]
+    bundle = build_bundle(finding)
+    assert "fixed_versions: 2.2.5, 2.3.2" in bundle.items[0].content
+    # the model may therefore name 2.2.5 (it is in the evidence) but not an invented version
+    client = Mock(recommendation="Upgrade Flask to 2.3.2 or 2.2.5 in requirements.txt.")
+    ok = run(SemanticInterpreter(client).interpret(finding, bundle))
+    assert ok.recommendation and ok.recommendation_dropped is None
+    bad = run(SemanticInterpreter(Mock(recommendation="Upgrade Flask to 2.0.0.")).interpret(finding, bundle))
+    assert bad.recommendation == "" and "'2.0.0'" in bad.recommendation_dropped
+
+
+def test_the_package_group_advisory_list_and_the_report_show_the_fixed_versions(tmp_path):
+    from app.agents.security_assistant.dedupe import dedupe
+    from app.agents.security_assistant.tools.dependencies import parse_osv
+    findings = parse_osv(OSV_RAW, Path("/repo"))
+    for x in findings:
+        x.tool = "osv-scanner"  # the adapter base class stamps this after parsing
+    groups, _ = dedupe(findings)
+    assert groups[0].advisories[0]["fixed_versions"] == ["2.2.5", "2.3.2"]
+    item = flow._advisory_item(groups[0])
+    assert "GHSA-m2qf-hxjv-5gpq" in item.content and "fixed in 2.2.5, 2.3.2" in item.content
+    from app.agents.security_assistant.schemas import ScanResult
+    rep = build_report(ScanResult(run_id="x", repo_path="r", findings=findings), source="demo")
+    assert "- **Fixed in:** 2.2.5, 2.3.2 (from the advisory)" in render_markdown(rep)
+    assert json.loads(to_json(rep))["findings"][0]["fixed_versions"] == ["2.2.5", "2.3.2"]

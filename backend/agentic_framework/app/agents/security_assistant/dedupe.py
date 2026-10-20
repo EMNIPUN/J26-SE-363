@@ -93,7 +93,8 @@ def dedupe(findings: list[Finding]) -> tuple[list[FindingGroup], list[dict]]:
                             "advisory": c[0].rule_id, "kept": _label(c[0]), "merged": [_label(x) for x in c[1:]]})
         # 2. one group per package
         advisories = [{"id": c[0].rule_id, "severity": c[0].severity_tool, "message": (c[0].message or "")[:140],
-                       "tools": [x.tool for x in c]} for c in clusters]
+                       "tools": [x.tool for x in c],
+                       "fixed_versions": sorted({v for x in c for v in x.fixed_versions})} for c in clusters]
         rep = max(kept, key=_severity)  # highest severity; ties keep the first
         versions = sorted({package_of(m)[1] for m in members})
         log.append({"type": "grouped per package", "package": name, "versions_seen": versions,

@@ -79,6 +79,7 @@ def _advisory_item(group: FindingGroup) -> EvidenceItem | None:
     if group.kind != "package" or not group.advisories:
         return None
     lines = [f"{a['id']} | severity {a['severity'] or '-'} | reported by {', '.join(a['tools'])} | {a['message']}"
+             + (f" | fixed in {', '.join(a['fixed_versions'])}" if a.get("fixed_versions") else "")
              for a in group.advisories[:12]]
     if len(group.advisories) > 12:
         lines.append(f"... and {len(group.advisories) - 12} more advisories for this package")

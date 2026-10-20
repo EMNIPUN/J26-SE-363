@@ -57,6 +57,7 @@ def finding_item(f: Finding, id_: str = "E1", pii: PIIRedactor | None = None) ->
         "category": f.category.value, "rule_id": f.rule_id, "tool": f.tool, "cwe": f.cwe,
         "file_path": f.file_path, "line": f.line, "function_or_endpoint": f.function_or_endpoint,
         "source": f.source, "sink": f.sink, "severity_from_tool": f.severity_tool, "message": f.message,
+        "fixed_versions": ", ".join(f.fixed_versions) or None,
     }
     if pii is not None:  # the path keeps its shape; a person's name inside it gets a placeholder
         parts["file_path"] = pii.redact_path(f.file_path)
