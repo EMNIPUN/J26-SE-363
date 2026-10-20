@@ -32,14 +32,15 @@ from app.agents.security_assistant.interpreter.models import (
     EvidenceBundle, EvidenceItem, InterpretationResult, finding_key,
 )
 from app.agents.security_assistant.interpreter.prompts import PROMPT_VERSION, build_prompt
+from app.agents.security_assistant.pii import PIIRedactor
 from app.agents.security_assistant.report import build_report, from_json, render_markdown
 from app.agents.security_assistant.schemas import Category, ScanResult
 
 NOTICE = (
     "NOTICE: this sends data to an external LLM (Google Gemini). Per call: the finding (rule, tool, CWE, file path, "
     "line, message), about 17 lines of code around it and up to 3 short snippets of related code from the project; "
-    "secrets are masked, personal data is NOT masked yet. Not sent: the rest of the repository, the git history, "
-    "other findings."
+    "secrets are masked and personal data is replaced by placeholders (names only on labelled lines, so not "
+    "complete). Not sent: the rest of the repository, the git history, other findings."
 )
 SECTION_MARK = "<!-- llm-interpretation -->"
 
@@ -60,6 +61,7 @@ class Plan:
     selected_findings: int  # after --only-category
     groups_total: int  # after merging and grouping
     groups_cut: int  # left out by --max-findings
+    pii: PIIRedactor | None = None  # placeholders used in the prompts; the mapping stays local
 
 
 def parse_categories(values: list[str] | None) -> list[Category] | None:
@@ -84,7 +86,8 @@ def _advisory_item(group: FindingGroup) -> EvidenceItem | None:
 
 
 def make_plan(result: ScanResult, repo: Path | None, *, only: list[Category] | None = None,
-              max_findings: int | None = None) -> Plan:
+              max_findings: int | None = None, pii: PIIRedactor | None = None) -> Plan:
+    pii = pii if pii is not None else PIIRedactor.from_env()  # one redactor per run: stable placeholders
     selected = [f for f in result.findings if not only or f.category in only]
     groups, log = dedupe(selected)
     cut = max(0, len(groups) - max_findings) if max_findings is not None else 0
@@ -92,10 +95,10 @@ def make_plan(result: ScanResult, repo: Path | None, *, only: list[Category] | N
     calls = []
     for g in chosen:
         extra = [i for i in (_advisory_item(g),) if i]
-        bundle = build_bundle(g.representative, repo, extra=extra)
-        system, user = build_prompt(g.representative, bundle)
+        bundle = build_bundle(g.representative, repo, extra=extra, pii=pii)
+        system, user = build_prompt(g.representative, bundle, pii)
         calls.append(Call(g, bundle, system, user))
-    return Plan(calls, log, len(result.findings), len(selected), len(groups), cut)
+    return Plan(calls, log, len(result.findings), len(selected), len(groups), cut, pii)
 
 
 def _where(f) -> str:
@@ -118,10 +121,13 @@ def render_dry_run(plan: Plan, model: str) -> str:
     L += ["=" * 100, "SYSTEM PROMPT (identical in every call)", "=" * 100, system, ""]
     for n, c in enumerate(plan.calls, 1):
         f = c.group.representative
-        L += ["=" * 100, f"CALL {n}/{len(plan.calls)}  {c.group.id}  {f.category.value}  {f.rule_id}  {_where(f)}"
-              f"  ({len(c.group.members)} finding(s) covered)", "=" * 100, c.user, ""]
+        where = plan.pii.redact_path(_where(f)) if plan.pii is not None else _where(f)  # the header is what is sent too
+        L += ["=" * 100, f"CALL {n}/{len(plan.calls)}  {c.group.id}  {f.category.value}  {f.rule_id}  {where}"
+              f"  ({len(c.group.members)} finding(s) covered, finding {finding_key(f)})", "=" * 100, c.user, ""]
     chars = sum(len(c.system) + len(c.user) for c in plan.calls)
     L.append(f"TOTAL: {len(plan.calls)} call(s), {chars} characters (about {chars // 4} tokens) would be sent.")
+    if plan.pii is not None:
+        L.append(f"Personal-data placeholders used in the prompts above: {len(plan.pii.mapping)} (the mapping is never printed or sent).")
     return "\n".join(L)
 
 
@@ -133,7 +139,7 @@ class Outcome:
 
 
 async def run_calls(plan: Plan, client: LLMClient, delay: float = 0.0, say=print) -> list[Outcome]:
-    interpreter = SemanticInterpreter(client)
+    interpreter = SemanticInterpreter(client, plan.pii)
     outcomes: list[Outcome] = []
     for n, call in enumerate(plan.calls, 1):
         result = await interpreter.interpret(call.group.representative, call.bundle)
@@ -289,7 +295,10 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None) -
                                                       "only_category": [c.value for c in only] if only else None})
     out = args.out or args.findings.parent
     js, md = write_outputs(out, result, skipped, args.repo, doc)
+    mapping = plan.pii.save_mapping(out / "pii_mapping.local.json") if plan.pii is not None else None
     print(render_results_table(outcomes))
+    if mapping:
+        print(f"\nLOCAL ONLY: {mapping} maps the personal-data placeholders back to the originals. Do not share or commit it.")
     s = doc["summary"]
     print(f"\nscanner-only findings {s['scanner_only_findings']} -> confirmed {s['confirmed']}, dismissed {s['dismissed']}, "
           f"uncertain {s['uncertain']}, not analysed {s['not_analysed_findings']}; uncertain because {s['uncertain_because']}")

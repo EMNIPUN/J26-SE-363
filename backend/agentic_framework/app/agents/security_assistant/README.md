@@ -160,6 +160,35 @@ The LLM cannot add findings: output with extra fields is rejected, a failed call
 (with the reason), and a cited evidence id that is not in the bundle downgrades the answer to `uncertain`.
 Exit codes: 0 ok, 2 some calls failed, 3 usage error, 4 refused (no `--allow-external-llm`).
 
+## Personal data (PII) redaction (`pii.py`)
+
+Before anything is sent to the LLM, `PIIRedactor` (next to `redaction.py`, which handles secrets) replaces personal data
+with stable placeholders in every evidence item, at the same place as the secret redaction (when the bundle is built, and
+once more when the prompt is built, so a hand-made bundle is covered too). `interpret --dry-run` shows the redacted text.
+
+| What | How | Placeholder |
+|---|---|---|
+| email addresses | pattern | `<EMAIL_1>`, `<EMAIL_2>`, ... |
+| phone numbers | pattern with a separator or `+` country code, or 0 + 9 digits (not plain digit strings, versions or IPs) | `<PHONE_n>` |
+| student IDs | regex, default `\bIT\d{8}\b`; set `SECURITY_ASSISTANT_STUDENT_ID_REGEX` for another format | `<STUDENT_ID_n>` |
+| names | only on labelled lines: `Author:`, `@author`, `Copyright`, `Maintainer`, `Contact`, `Written/Created/Developed by`, `Signed-off-by`, ...; afterwards the same name (and a first or last name of 4+ letters) is redacted wherever it appears in comments, strings and messages; `SECURITY_ASSISTANT_PII_KNOWN_NAMES` adds names | `<NAME_n>` |
+| git metadata | author, email and message, when a caller adds them to a bundle (`redact_git_metadata`); the bundle builder does not add commit data by itself | same |
+| file paths | kept as they are, except a known name, email or student ID inside the path (for example `submissions/kasun_perera/app.py` becomes `submissions/<NAME_1>/app.py`) | same |
+
+In source code only comments and string literals are changed; identifiers and code structure never are. The mapping
+(placeholder to original, and redacted path to real path) stays in memory and, after a real run, in
+`pii_mapping.local.json` next to `interpreted.json` (git-ignored). It is never in a prompt and never in `interpreted.json`
+or `report.md`. Do not share that file. `findings.json`, `report.md` and the scan output still contain the original
+code, paths and names, so treat them like the repository itself.
+
+**Read this before using real student code:**
+- **Name detection is label based and incomplete.** A name in a sentence, a variable value, a chat log or a README
+  paragraph ("thanks to Priya for the idea") is not found unless it was also seen on a labelled line, in git author data or in
+  the known names. Phone and ID patterns can miss unusual formats and can match other numbers. Secret and PII redaction
+  reduce the risk; they do not remove it. Always read the `--dry-run` output.
+- **Real student code still needs the students' consent and ethics approval before it is used with an external LLM**
+  (Google Gemini here). This tool does not replace that approval. Use the synthetic demo repositories until it exists.
+
 ## Local setup with uv (the project package manager)
 
 The Python side is managed with [uv](https://docs.astral.sh/uv/) from `backend/agentic_framework/`

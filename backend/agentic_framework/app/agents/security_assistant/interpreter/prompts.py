@@ -1,7 +1,9 @@
 """Prompts of the Semantic Interpreter. One shared system prompt plus one task per category."""
 
+from app.agents.security_assistant.interpreter.evidence import redact_bundle
 from app.agents.security_assistant.interpreter.models import EvidenceBundle
 from app.agents.security_assistant.interpreter.redaction import redact_text
+from app.agents.security_assistant.pii import PIIRedactor
 from app.agents.security_assistant.schemas import Category, Finding
 
 PROMPT_VERSION = "interpreter-v1"
@@ -66,8 +68,10 @@ def _neutralise(text: str) -> str:
     return text.replace("</evidence", "<\\/evidence").replace("<evidence", "<\\evidence")
 
 
-def build_prompt(finding: Finding, bundle: EvidenceBundle) -> tuple[str, str]:
-    """(system prompt, user prompt). All evidence is redacted again here as a last line of defence."""
+def build_prompt(finding: Finding, bundle: EvidenceBundle, pii: PIIRedactor | None = None) -> tuple[str, str]:
+    """(system prompt, user prompt). Personal data and secrets are removed from all evidence once more here, so a
+    bundle that was built by hand is covered too. Pass the run's PIIRedactor to keep placeholders stable."""
+    bundle = redact_bundle(bundle, pii if pii is not None else PIIRedactor.from_env())
     blocks = []
     for item in bundle.items:
         body = _neutralise(redact_text(item.content))

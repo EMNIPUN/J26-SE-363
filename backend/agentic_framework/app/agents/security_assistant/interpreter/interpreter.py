@@ -21,6 +21,7 @@ from app.agents.security_assistant.interpreter.models import (
 )
 from app.agents.security_assistant.interpreter.prompts import PROMPT_VERSION, build_prompt
 from app.agents.security_assistant.interpreter.redaction import redact_text
+from app.agents.security_assistant.pii import PIIRedactor
 from app.agents.security_assistant.schemas import Finding
 
 
@@ -42,8 +43,9 @@ def parse_verdict(text: str) -> Verdict:
 
 
 class SemanticInterpreter:
-    def __init__(self, client: LLMClient):
+    def __init__(self, client: LLMClient, pii: PIIRedactor | None = None):
         self._client = client
+        self.pii = pii if pii is not None else PIIRedactor.from_env()  # its mapping stays local, never in a prompt
 
     async def interpret(self, finding: Finding, bundle: EvidenceBundle) -> InterpretationResult:
         if not isinstance(finding, Finding) or not finding.rule_id:
@@ -51,7 +53,7 @@ class SemanticInterpreter:
         base = dict(finding_key=finding_key(finding), category=finding.category, rule_id=finding.rule_id,
                     model=getattr(self._client, "model", None), prompt_version=PROMPT_VERSION)
 
-        system, user = build_prompt(finding, bundle)  # redacts again
+        system, user = build_prompt(finding, bundle, self.pii)  # redacts again
         governance_hook("pre_llm", {"finding_key": base["finding_key"], "system": system, "user": user})
 
         try:
