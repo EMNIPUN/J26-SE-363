@@ -299,3 +299,16 @@ def test_when_the_app_is_not_set_up_nobody_is_locked_out(api):
 def test_the_gate_names_the_leader_so_a_waiting_member_knows_who_to_ask(gh):
     make_team(gh)
     assert gate(gh, "kim")["leader_name"] == "Sam"
+
+
+def test_an_installation_that_github_sends_to_the_sign_in_address_is_accepted(gh):
+    """With "request user authorization during installation" on, GitHub sends the install to the callback address with a code."""
+    code = make_team(gh)
+    as_user(gh, "sam")
+    url = gh.post(f"/teams/{code}/github/install").json()["url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    gh.sign_out()
+    r = gh.get("/github/callback", params={"code": "unused", "installation_id": 7, "setup_action": "update", "state": state}, follow_redirects=False)
+    assert r.status_code in (302, 307) and "/teams/TEAM-ALPHA/members?github=installed" in r.headers["location"]
+    as_user(gh, "sam")
+    assert [x["full_name"] for x in gh.get(f"/teams/{code}/github/repos").json()] == ["acme/app", "acme/docs"]

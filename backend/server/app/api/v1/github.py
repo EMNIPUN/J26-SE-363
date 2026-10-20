@@ -99,9 +99,8 @@ def start_install(team: str, account: Onboarded, db: Db, app: App) -> UrlOut:
     return UrlOut(url=f"{app.install_url}?state={state}")
 
 
-@public_router.get("/github/installed", include_in_schema=True)
-def finish_install(db: Db, app: App, installation_id: int = Query(...), state: str = Query(...), setup_action: str | None = None):
-    """GitHub sends the browser here after the leader installed the App. The signed state says who started it and for which team."""
+def _finish_install(db: Db, app: App, installation_id: int, state: str) -> RedirectResponse:
+    """The leader installed the App. The signed state says who started it and for which team."""
     try:
         data = read_state(app.config.state_secret, state)
         if data.get("purpose") != "install":
@@ -118,6 +117,12 @@ def finish_install(db: Db, app: App, installation_id: int = Query(...), state: s
     except (GitHubAppError, ValueError):
         return RedirectResponse(f"{settings.APP_BASE_URL.rstrip('/')}/?github=error")
     return RedirectResponse(f"{settings.APP_BASE_URL.rstrip('/')}/teams/{group.code}/members?github=installed")
+
+
+@public_router.get("/github/installed", include_in_schema=True)
+def finish_install(db: Db, app: App, installation_id: int = Query(...), state: str = Query(...), setup_action: str | None = None):
+    """GitHub sends the browser here after the leader installed the App (the Setup URL)."""
+    return _finish_install(db, app, installation_id, state)
 
 
 @router.get("/teams/{team}/github/repos")
@@ -188,9 +193,12 @@ def start_connect(account: Onboarded, db: Db, app: App, team: Annotated[str, Que
 
 
 @public_router.get("/github/callback")
-def finish_connect(db: Db, app: App, code: str | None = None, state: str | None = None, error: str | None = None):
-    """GitHub sends the browser here after the person signed in to GitHub."""
+def finish_connect(db: Db, app: App, code: str | None = None, state: str | None = None, error: str | None = None, installation_id: int | None = None):
+    """GitHub sends the browser here after the person signed in to GitHub. While "request user authorization during installation" is on, GitHub also sends an
+    installation here (with the install state) instead of to the Setup URL; that is accepted too, and the code it carries is not needed."""
     base = settings.APP_BASE_URL.rstrip("/")
+    if installation_id is not None and state:
+        return _finish_install(db, app, installation_id, state)
     if error or not code or not state:
         return RedirectResponse(f"{base}/?github=error")
     back = "/"
