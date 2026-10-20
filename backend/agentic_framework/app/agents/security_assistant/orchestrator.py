@@ -39,6 +39,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.agents.security_assistant.agent_loop import Action, DecisionTrail, LoopConfig, Policy, RulePolicy, select
+from app.agents.security_assistant.graphs.orchestrator_graph import build_orchestrator_graph, recursion_limit
 from app.agents.security_assistant.report import coverage
 from app.agents.security_assistant.schemas import Finding, RunStatus, ScanResult, ToolRun
 from app.agents.security_assistant.tools.base import BaseTool, ScanContext
@@ -300,26 +301,11 @@ class Orchestrator:
                           findings=findings, runs=runs, coverage_gaps=list(self.gaps))
 
     async def run(self) -> OrchestrationResult:
-        while True:
-            options = self.options()
-            state = self.state_summary()
-            action, reason, rejected = select(self.policy, self.rules, state, options)
-            entry = self.trail.record(self.step + 1, self.policy.name if rejected is None else f"{self.policy.name} -> rules", state, options,
-                                      action, reason, rejected, subject=action.target)
-            if action.name != "stop":
-                try:
-                    outcome = await self.execute(action)
-                except Exception as exc:  # an action that raises is recorded, never silent, and counts as a step
-                    outcome = f"action failed: {type(exc).__name__}: {str(exc)[:120]}"
-                    if action.name == "run_tools":
-                        self.passed = True  # do not run the first pass again and again; the budget would end it, but say so once
-                self.step += 1
-                self.trail.outcome(entry, outcome)
-                continue
-            self.step += 1
-            self.trail.outcome(entry, f"stopped after {self.step} step(s); coverage {self._levels()}")
-            return OrchestrationResult(self.result(), self.trail.entries, self.step, reason, self.goal_met(),
-                                       list(self.recorded_gaps), dict(self.acknowledged))
+        """Run the loop as a LangGraph graph (graphs/orchestrator_graph.py): plan -> execute_action -> update_state -> ... -> stop. The graph
+        is the control flow; options, validation, budgets, the trail and the audit log stay in this class and in agent_loop."""
+        final = await build_orchestrator_graph(self).ainvoke({}, {"recursion_limit": recursion_limit(self.cfg.max_steps)})
+        return OrchestrationResult(self.result(), self.trail.entries, self.step, final["stop_reason"], final["goal_met"],
+                                   list(self.recorded_gaps), dict(self.acknowledged))
 
 
 async def orchestrate(repo: Path, tools: list[BaseTool] | None = None, *, policy: Policy | None = None, config: LoopConfig | None = None,
