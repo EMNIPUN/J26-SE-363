@@ -17,6 +17,7 @@ from app.agents.security_assistant.tools.base import BaseTool, ScanContext
 from app.agents.security_assistant.tools.codeql import CodeQLTool
 from app.agents.security_assistant.tools.config_scan import ConfigScanTool
 from app.agents.security_assistant.tools.dependencies import NpmAuditTool, OsvScannerTool, PipAuditTool
+from app.agents.security_assistant.tools.coverage_gaps import DEPENDENCY_TOOLS, find_dependency_gaps
 from app.agents.security_assistant.tools.languages import detect_languages
 from app.agents.security_assistant.tools.secret_scanners import GitleaksTool, TruffleHogTool
 from app.agents.security_assistant.tools.workflow_lint import ActionlintTool, ZizmorTool
@@ -74,7 +75,9 @@ async def run_all(
 
     findings: list[Finding] = [f for fs, _ in outcomes for f in fs]
     runs: list[ToolRun] = [r for _, r in outcomes]
-    return ScanResult(run_id=run_id, repo_path=str(repo), languages=sorted(languages), findings=findings, runs=runs)
+    chosen = tools or default_tools()
+    gaps = find_dependency_gaps(repo) if any(t.name in DEPENDENCY_TOOLS for t in chosen) else []  # a secrets-only scan has none
+    return ScanResult(run_id=run_id, repo_path=str(repo), languages=sorted(languages), findings=findings, runs=runs, coverage_gaps=gaps)
 
 
 def summarize(result: ScanResult) -> str:

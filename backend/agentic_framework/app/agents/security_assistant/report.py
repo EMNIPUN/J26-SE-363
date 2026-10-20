@@ -65,6 +65,7 @@ class ScanReport:
     complete: bool
     coverage: dict[Category, CategoryCoverage]
     snippets: dict[int, str] = field(default_factory=dict)  # finding index -> masked code snippet
+    coverage_gaps: list[str] = field(default_factory=list)  # declared dependencies no scanner could check
 
 
 def _state(tool: str, runs: dict[str, ToolRun], skipped: set[str]) -> str:
@@ -139,7 +140,8 @@ def build_report(result: ScanResult, *, skipped: list[str] | None = None, source
         source=source or result.repo_url or result.repo_path, commit_sha=result.commit_sha,
         started_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"), languages=result.languages,
         runs=result.runs, findings=result.findings, skipped=skipped, warnings=result.warnings,
-        complete=result.complete, coverage=coverage(result.runs, skipped), snippets=snippets,
+        complete=result.complete and not result.coverage_gaps, coverage=coverage(result.runs, skipped), snippets=snippets,
+        coverage_gaps=list(result.coverage_gaps),
     )
 
 
@@ -190,8 +192,13 @@ def render_console(rep: ScanReport, max_rows: int = 60, out_dir: Path | None = N
     if failed:
         L.append("RESULT: INCOMPLETE - " + ", ".join(f"{r.tool} ({r.status.value})" for r in failed)
                  + " did not finish. Missing findings from those tools do NOT mean the project is clean.")
+    elif rep.coverage_gaps:
+        L.append(f"RESULT: INCOMPLETE - {len(rep.coverage_gaps)} dependency coverage gap(s): a declared dependency that no scanner could "
+                 "check. No finding for it does NOT mean it is safe.")
     else:
         L.append("RESULT: COMPLETE for the tools that ran" + (" (no tool failed)." if not rep.skipped else "."))
+    for g in rep.coverage_gaps:
+        L.append(f"COVERAGE GAP: {g}")
     if rep.skipped:
         weak = [f"{c.value} {cov.level}" for c, cov in rep.coverage.items() if cov.level in ("NONE", "REDUCED")]
         L.append(f"SKIPPED with --skip: {', '.join(rep.skipped)}. Categories affected: {', '.join(weak) or 'none'}.")
@@ -215,7 +222,7 @@ def to_json(rep: ScanReport) -> str:
     doc = {
         "scan": {"source": rep.source, "commit_sha": rep.commit_sha, "started_at": rep.started_at,
                  "languages": rep.languages, "complete": rep.complete, "skipped_tools": rep.skipped,
-                 "warnings": rep.warnings},
+                 "warnings": rep.warnings, "coverage_gaps": rep.coverage_gaps},
         "coverage": {c.value: {"level": v.level, "note": v.note, "tools": v.tools} for c, v in rep.coverage.items()},
         "runs": [r.model_dump(mode="json") for r in rep.runs],
         "findings": [masked(f) for f in rep.findings],
@@ -229,7 +236,8 @@ def from_json(text: str) -> tuple[ScanResult, list[str]]:
     meta = doc["scan"]
     result = ScanResult(run_id="saved", repo_path=meta.get("source", ""), languages=meta.get("languages", []),
                         findings=[Finding.model_validate(f) for f in doc["findings"]],
-                        runs=[ToolRun.model_validate(r) for r in doc["runs"]], commit_sha=meta.get("commit_sha"))
+                        runs=[ToolRun.model_validate(r) for r in doc["runs"]], commit_sha=meta.get("commit_sha"),
+                        coverage_gaps=list(meta.get("coverage_gaps", [])))
     return result, meta.get("skipped_tools", [])
 
 
@@ -265,8 +273,12 @@ def render_markdown(rep: ScanReport) -> str:
     if failed:
         M.append("- **Result: INCOMPLETE** - " + ", ".join(f"{r.tool} ({r.status.value})" for r in failed)
                  + " did not finish; missing findings from them do not mean the project is clean.")
+    elif rep.coverage_gaps:
+        M.append(f"- **Result: INCOMPLETE** - {len(rep.coverage_gaps)} dependency coverage gap(s) (below): a declared dependency that no scanner "
+                 "could check. No finding for it does not mean it is safe.")
     else:
         M.append("- **Result:** every tool that ran finished" + ("; some were skipped, see coverage." if rep.skipped else "."))
+    M += [f"- **Coverage gap:** {_cell(g)}" for g in rep.coverage_gaps]
     if rep.skipped:
         M.append(f"- **Skipped with --skip:** {', '.join(rep.skipped)}")
     M += [f"- **Warning:** {_cell(w)}" for w in rep.warnings]

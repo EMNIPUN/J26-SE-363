@@ -41,6 +41,7 @@ from app.agents.security_assistant.report import (
     build_report, from_json, render_markdown,
 )
 from app.agents.security_assistant.scan import parse_skip
+from app.agents.security_assistant.tools.coverage_gaps import find_dependency_gaps
 from app.agents.security_assistant.tools.runner import InvalidRepoPath, default_tools, run_all
 from app.agents.security_assistant.traceability import FormatError, Pseudonymizer, load_stories, load_tasks
 
@@ -225,6 +226,8 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
                 if reused and (rejected := gov.check_tools([r.tool for r in result.runs] + [f.tool for f in result.findings],
                                                            "the reused findings.json")):
                     raise gv.ToolNotAllowed(f"governance rejected the reused findings.json: tool(s) not on the allow-list: {', '.join(rejected)}")
+                if reused and not result.coverage_gaps and "coverage_gaps" not in json.loads(Path(reuse_scan).read_text(encoding="utf-8"))["scan"]:
+                    result.coverage_gaps = find_dependency_gaps(repo)  # a findings.json from before this check: look at the repo now
                 scan_report = build_report(result, skipped=skipped, source=label, repo=repo, pii=pii)
                 scan_report.commit_sha = ref if is_url else scan_report.commit_sha
                 scan_md = render_markdown(scan_report)
@@ -354,13 +357,16 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
     reasons = [f"stage {s['stage']} {s['status']}: {s['detail']}" for s in stages if s["status"] not in OK]
     if gov.allowed:
         reasons.append(f"governance warn-only: {gov.allowed} call(s) were sent although a secret or personal-data check failed")
+    if result is not None:
+        reasons += [f"dependency coverage gap: {g}" for g in result.coverage_gaps]
     if skipped:
         reasons.append(f"tools skipped: {', '.join(skipped)}")
     if scan_report is not None:
         reasons += [f"coverage {c.value}: {v.level} - {v.note}" for c, v in scan_report.coverage.items()
                     if v.level in ("NONE", "REDUCED")]
-    scan_info = {"languages": result.languages if result else [], "complete": bool(result and result.complete and not skipped),
+    scan_info = {"languages": result.languages if result else [], "complete": bool(result and result.complete and not skipped and not result.coverage_gaps),
                  "skipped_tools": skipped, "warnings": result.warnings if result else [], "reused": reused,
+                 "coverage_gaps": list(result.coverage_gaps) if result else [],
                  "tool_runs": [{"tool": r.tool, "status": r.status.value, "reason": r.reason, "tool_version": r.tool_version,
                                 "duration_s": r.duration_s, "findings_count": r.findings_count} for r in (result.runs if result else [])],
                  "coverage": {c.value: {"level": v.level, "note": v.note, "tools": v.tools}

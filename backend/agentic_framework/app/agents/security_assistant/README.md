@@ -411,6 +411,25 @@ id, so the order never depends on the input order. Outputs: `risk.json` (weights
 and a ranked table with the breakdown in `report.md`. The weights are a starting point for the team to review, not a
 measured probability.
 
+## Coverage gaps in the dependency check (`tools/coverage_gaps.py`)
+
+The dependency scanners read lockfiles and pinned lists; they never install anything. A dependency that a manifest **declares** but that no
+lockfile or pin lists is therefore never looked at, and "no finding" for it means nothing. Every scan that includes a dependency tool now compares
+declared and locked and records one sentence per gap in `ScanResult.coverage_gaps`. A gap makes the result **INCOMPLETE** (console `RESULT:` line
+and `COVERAGE GAP:` lines, `report.md`, `findings.json`, and as an incomplete reason of an `assess` run: `dependency coverage gap: ...`).
+
+| Manifest | Gap when |
+|---|---|
+| `package.json` | a dependency (also dev and optional; `file:`, `link:` and `workspace:` ones are ignored) is not in `package-lock.json` / `npm-shrinkwrap.json`, is not mentioned in `yarn.lock` / `pnpm-lock.yaml`, or there is no lockfile at all |
+| `requirements*.txt` | an entry has no exact version (`==` or `===`; `>=`, `~=`, `==1.*` and bare names count as loose) |
+| `pyproject.toml` | a dependency is in no `poetry.lock`, `uv.lock`, `pdm.lock`, `Pipfile.lock` and not pinned in a requirements file next to it |
+| `pom.xml` | a dependency has no version and the pom has no `<parent>` or `<dependencyManagement>` to supply one (or its `${property}` is not defined) |
+| `build.gradle(.kts)` | there is no `gradle.lockfile`, or a declared dependency is not in it |
+
+On the demo repositories only the JS one has a gap: `package.json` declares express, `package-lock.json` lists lodash alone. An older `findings.json`
+without gap information is checked against the repository when it is reused with `assess`. The check reads files only and does not resolve
+anything, so a transitive dependency of a locked package is out of its scope (the scanners cover those when the lockfile has them).
+
 ## Governance (`governance.py`)
 
 Narrow, deterministic checks around the stages that send data to an LLM (no LLM is involved in them). They run in `assess` (the stage

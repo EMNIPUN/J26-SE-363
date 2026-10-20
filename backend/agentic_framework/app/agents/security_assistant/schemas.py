@@ -74,6 +74,8 @@ class ScanResult(BaseModel):
     languages: list[str] = Field(default_factory=list)
     findings: list[Finding] = Field(default_factory=list)
     runs: list[ToolRun] = Field(default_factory=list)
+    # dependencies a manifest declares but no scanner could look at (not in the lockfile, not pinned): see tools/coverage_gaps.py
+    coverage_gaps: list[str] = Field(default_factory=list)
 
     @property
     def complete(self) -> bool:
