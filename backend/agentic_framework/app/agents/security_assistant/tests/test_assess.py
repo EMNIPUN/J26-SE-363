@@ -81,7 +81,7 @@ def test_full_run_on_saved_findings_produces_one_json_and_one_markdown(demo, tmp
     one = next(x for x in f if x["category"] == "V1" or x["category"] == "V2")
     assert one["evidence_ids"] == ["E1"] and one["risk"]["rank"] >= 1
     assert round(sum(b["contribution"] for b in one["risk"]["breakdown"]), 2) == one["risk"]["score"]
-    assert one["fix_guidance"]["steps"] and one["probe"]["tutor"]["mock"] is True and one["probe"]["decision"] in ("open", "closed")
+    assert one["fix_guidance"]["steps"] and one["probe"]["tutor"]["mock"] is True and one["probe"]["decision"] in ("closed", "escalated") and one["probe"]["attempts"] >= 1
     assert one["introducing_commit"] is None or one["introducing_commit"]["contributor"].startswith("C-")
     assert [x["risk"]["rank"] for x in sorted(f, key=lambda x: x["risk"]["rank"])] == list(range(1, len(f) + 1))
     assert report["scan"]["tool_runs"] and report["scan"]["coverage"]["V1"]["level"]
@@ -212,3 +212,14 @@ def test_the_report_counts_the_tokens_of_interpretation_and_link_proposals(demo,
 def test_a_run_without_the_llm_reports_zero_tokens(demo, tmp_path):
     report = go(demo, tmp_path, allow_external_llm=False, client=Forbidden())
     assert report["llm_usage"]["total_tokens"] == 0 and "LLM usage:" not in (tmp_path / "report.md").read_text(encoding="utf-8")
+
+
+def test_the_decision_trail_of_the_question_agent_is_in_the_run(demo, tmp_path):
+    report = go(demo, tmp_path, tutor=qs.MockTutor(scores={}, default=0.2))  # nothing ever reaches the threshold
+    trail = report["decision_trail"]["Question Generation"]
+    assert trail and {e["chosen"].split(":")[0] for e in trail} == {"ask_question", "ask_followup", "escalate_to_lecturer"}
+    assert all(f["probe"]["decision"] == "escalated" and f["probe"]["attempts"] == 3 for f in report["findings"] if f["probe"])
+    md = (tmp_path / "report.md").read_text(encoding="utf-8")
+    assert "### Question Generation" in md and "escalated to lecturer review" in md
+    lines = [json.loads(x) for x in (tmp_path / "audit.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert sum(1 for e in lines if e["event"] == "agent_decision" and e["component"] == "question agent") == len(trail)

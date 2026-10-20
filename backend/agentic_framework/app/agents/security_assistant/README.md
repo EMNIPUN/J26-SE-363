@@ -79,9 +79,18 @@ the wording comes from fixed templates and a guard (`leaks_fix`) rejects any tem
 
 The Tutor is an interface, `TutorChannel`. The only implementation is **`MockTutor`**, labelled "MOCK TUTOR (simulated; no student
 answered and nothing was graded)" in `questions.json` and in the report. It returns a simulated comprehension score (deterministic
-per finding, between 0.30 and 0.95). A finding is **closed only at or above the threshold** (default 0.7, `--threshold` or
-`SECURITY_ASSISTANT_COMPREHENSION_THRESHOLD`), otherwise it stays **open**. Closed means "the student showed they understand the
-problem", not "the code was fixed". Score, threshold and decision are logged for every finding.
+per finding and attempt, between 0.30 and 0.95, a little higher with every hint level). A finding is **closed only at or above the
+threshold** (default 0.7, `--threshold` or `SECURITY_ASSISTANT_COMPREHENSION_THRESHOLD`). Closed means "the student showed they understand
+the problem", not "the code was fixed". Score, threshold and decision are logged for every attempt.
+
+**The question agent is a bounded loop** (see "Agent loops"). Goal: a finding closed by the Tutor's score. State per finding: its attempts and scores.
+Actions, fixed and validated in code: `ask_question`, `ask_followup`, `close_finding` (valid only at or above the threshold), `escalate_to_lecturer`.
+A score below the threshold leads to a **follow-up from a different angle with a higher hint level**: level 1 narrows what to look at (the data
+and the line), level 2 asks for the answer in three parts, level 3 asks to follow one concrete value through the code. No level states the fix; the
+same `leaks_fix` guard checks every template at every level (a test runs all of them). After the limit (`SECURITY_ASSISTANT_QUESTION_MAX_RETRIES`,
+default 2 follow-ups, so 3 attempts) the finding is **escalated to lecturer review**, with the reason; so is a finding the step budget
+(`SECURITY_ASSISTANT_QUESTION_MAX_STEPS`, default 200) did not reach. The attempts, scores and every decision are in `questions.json`, the
+report's decision trail and `audit.jsonl`.
 
 ## RQ1: scanner only versus scanner + LLM (`rq1.py`)
 

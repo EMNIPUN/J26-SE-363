@@ -139,14 +139,15 @@ def test_the_mock_tutor_is_labelled_everywhere(repo, tmp_path):
     assert q.MockTutor.mock is True
 
 
-def test_below_threshold_stays_open_and_at_or_above_closes(repo):
+def test_below_threshold_is_followed_up_then_escalated_and_at_or_above_closes(repo):
     doc = {"groups": [group("G01", "app.py", 10, "sql-injection"), group("G02", "app.py", 7, "ownership-check", "V1"),
                       group("G03", "app.py", 10, "sql-injection", status="dismissed")]}
     tutor = q.MockTutor(scores={"keyG01": 0.69, "keyG02": 0.70})
     out = run(q.generate(doc, repo, tutor, 0.7, PIIRedactor()))
-    assert [(i["question"]["group_id"], i["decision"]) for i in out["questions"]] == [("G01", "open"), ("G02", "closed")]
-    assert out["summary"] == {"questions": 2, "closed": 1, "open": 1}  # the dismissed finding got no question
-    for i in out["questions"]:  # score and decision are logged
+    assert [(i["question"]["group_id"], i["decision"]) for i in out["questions"]] == [("G01", "escalated"), ("G02", "closed")]
+    assert out["summary"]["questions"] == 2 and out["summary"]["closed"] == 1 and out["summary"]["escalated"] == 1  # none for the dismissed one
+    assert [len(i["attempts"]) for i in out["questions"]] == [3, 1]  # G01: the question and two follow-ups; G02 closed at once
+    for i in out["questions"]:  # score, threshold and decision are logged for every attempt
         assert {"score", "mock", "label"} <= set(i["tutor_result"]) and i["threshold"] == 0.7
     assert q.decide(0.7, 0.7) == "closed" and q.decide(0.6999, 0.7) == "open"
 

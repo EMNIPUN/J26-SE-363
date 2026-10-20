@@ -125,7 +125,8 @@ def _overview(findings: list[dict]) -> str:
         c = f["introducing_commit"]
         links = ", ".join(f"{l['id']} ({l['status']})" for l in f["links"]) or "-"
         q = f["probe"]
-        probe = f"{q['decision']} (score {q['tutor']['score']:.2f}, MOCK)" if q else "-"
+        probe = (f"{q['decision']} after {q['attempts']} question(s) (last score {q['tutor']['score']:.2f}, MOCK)"
+                 if q and q["attempts"] else f"{q['decision']} (not asked)") if q else "-"
         M.append(f"| {f['risk']['rank'] if f['risk'] else '-'} | {f['group_id']} | {f['category']} {cell(f['rule_id'])} | {cell(where)} | "
                  f"**{f['status']}** | {f['confidence'] if f['confidence'] is not None else '-'} | {cell(', '.join(f['evidence_ids']) or '-')} | "
                  f"{('`' + c['sha'][:7] + '` ' + c['contributor']) if c else '-'} | {cell(links)} | "
@@ -171,7 +172,7 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
                        out_dir: Path | str | None = None, allow_external_llm: bool = False, client: LLMClient | None = None,
                        tutor: qs.TutorChannel | None = None, threshold: float | None = None, ref: str | None = None,
                        tools=None, max_findings: int | None = None, delay: float = 0.0, retries: int = 2,
-                       governance_warn_only: bool = False, fetch_options: dict | None = None, agent_config=None, orchestrator_policy=None, say=lambda text: None) -> dict:
+                       governance_warn_only: bool = False, fetch_options: dict | None = None, agent_config=None, orchestrator_policy=None, question_config=None, question_policy=None, say=lambda text: None) -> dict:
     """Run every stage and write report.json and report.md into `out_dir`. Returns the report (a dict).
     Raises ValueError for unusable arguments (an unknown tool in `skip`, a threshold outside 0..1)."""
     skipped = parse_skip(skip)
@@ -347,10 +348,12 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
         else:
             t = time.monotonic()
             try:
-                qdoc = await qs.generate(idoc, repo, tutor or qs.MockTutor(), threshold, plan.pii if plan else pii)
+                qdoc = await qs.generate(idoc, repo, tutor or qs.MockTutor(), threshold, plan.pii if plan else pii, audit=gov.audit,
+                                         config=question_config, policy=question_policy)
+                trails["Question Generation"] = qdoc["decision_trail"]
                 s = qdoc["summary"]
-                st.record("questions", "completed", f"{s['questions']} question(s), {s['closed']} closed, {s['open']} open "
-                          f"({qdoc['meta']['tutor_label'].split(' (')[0]})", t)
+                st.record("questions", "completed", f"{s['questions']} finding(s): {s['closed']} closed, {s['escalated']} escalated to lecturer "
+                          f"review, {s['attempts']} question(s) asked ({qdoc['meta']['tutor_label'].split(' (')[0]})", t)
             except Exception as exc:
                 st.record("questions", "failed", f"{type(exc).__name__}: {redact_text(str(exc))[:160]}", t)
 
@@ -459,6 +462,8 @@ def _collect(result, idoc, tdoc, risk_doc, qdoc) -> list[dict]:
             "risk": {"rank": r["rank"], "score": r["score"], "breakdown": r["factors"]} if r else None,
             "fix_guidance": {"id": g.id, "title": g.title, "steps": list(g.steps)} if g else None,
             "probe": {"question": p["question"]["text"], "code": p["question"]["code"], "decision": p["decision"],
+                      "attempts": len(p["attempts"]), "scores": [a["score"] for a in p["attempts"]],
+                      "escalation_reason": p.get("escalation_reason"),
                       "threshold": p["threshold"], "tutor": p["tutor_result"]} if p else None,
         })
     return out
