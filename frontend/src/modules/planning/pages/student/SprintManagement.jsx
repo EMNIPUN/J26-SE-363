@@ -312,12 +312,23 @@ function IssueRow({
   jiraKey,
   jiraBaseUrl,
   onClick,
+  expanded,
 }) {
   return (
     <div
       onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-expanded={expanded}
+      onKeyDown={(event) => {
+        if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          onClick?.();
+        }
+      }}
       className="flex items-center gap-3 px-3 py-2 hover:bg-muted/40 transition-colors cursor-pointer"
     >
+      {expanded !== undefined && <ChevronRight className={`h-3 w-3 shrink-0 text-muted-foreground transition-transform ${expanded ? "rotate-90" : ""}`} />}
       <IssueTypeIcon isStory={isStory} />
       <span className="text-xs text-muted-foreground font-medium w-20 shrink-0 truncate">
         {id}
@@ -754,6 +765,8 @@ function BacklogView({ onRefreshed }) {
   const [fetchingJira, setFetchingJira] = useState(false);
   const [resettingJira, setResettingJira] = useState(false);
   const [jiraStatus, setJiraStatus] = useState(null);
+  const [backlogList, setBacklogList] = useState("available");
+  const [expandedBacklogStories, setExpandedBacklogStories] = useState({});
 
   useEffect(() => {
     jiraService
@@ -787,6 +800,15 @@ function BacklogView({ onRefreshed }) {
     (sum, item) => sum + (Number(item.points) || 0),
     0,
   );
+  const backlogLists = { available: [], ongoing: [], completed: [] };
+  for (const item of eligibleBacklogStories) {
+    const state = item.story.jira_sprint_state;
+    const list = state === "closed" || state === "completed"
+      ? "completed"
+      : item.story.jira_sprint_id ? "ongoing" : "available";
+    backlogLists[list].push(item);
+  }
+  const visibleBacklogStories = backlogLists[backlogList];
 
   const { data: passportsList = [] } = usePassports();
   const passportsMap = {};
@@ -1026,16 +1048,34 @@ function BacklogView({ onRefreshed }) {
             </Button>
           </div>
         </div>
-        {eligibleBacklogStories.length === 0 ? (
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border flex-wrap" role="tablist" aria-label="Backlog lists">
+          {[
+            ["available", "Available Backlog"],
+            ["ongoing", "Ongoing Jira Sprints"],
+            ["completed", "Completed Sprints"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={backlogList === key}
+              onClick={() => setBacklogList(key)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer ${backlogList === key ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/50"}`}
+            >
+              {label} ({backlogLists[key].length})
+            </button>
+          ))}
+        </div>
+        {visibleBacklogStories.length === 0 ? (
           <EmptyState
-            title="Product backlog is empty"
-            description="Stories appear here after they pass planning and receive effort estimates."
+            title={backlogList === "completed" ? "No completed sprint stories" : backlogList === "ongoing" ? "No ongoing sprint stories" : "Available backlog is empty"}
+            description={backlogList === "available" ? "Estimated stories without a Jira sprint appear here." : "Fetch latest Jira data to update sprint membership and completion history."}
             actionLabel="Go to Effort Estimation"
             onAction={() => navigate(team("/planning/requirements/estimation"))}
           />
         ) : (
           <div className="divide-y divide-border">
-            {eligibleBacklogStories.map(({ story, requirementId, points }) => (
+            {visibleBacklogStories.map(({ story, requirementId, points }) => (
               <div key={story.id}>
                 <IssueRow
                   id={story.id}
@@ -1043,19 +1083,14 @@ function BacklogView({ onRefreshed }) {
                   requirementId={requirementId}
                   requirements={requirements}
                   points={points}
-                  statusLabel="Estimated"
+                  statusLabel={story.jira_status || "Estimated"}
                   statusTone="success"
                   isStory
                   passport={passportsMap[story.id]}
+                  expanded={Boolean(expandedBacklogStories[story.id])}
                   jiraKey={story.jira_issue_key || story.jiraKey}
                   jiraBaseUrl={jiraStatus?.base_url}
-                  onClick={() =>
-                    navigate(
-                      team(
-                        `/planning/requirements/estimation?req=${requirementId}`,
-                      ),
-                    )
-                  }
+                  onClick={() => setExpandedBacklogStories((previous) => ({ ...previous, [story.id]: !previous[story.id] }))}
                 />
                 {story.jira_issue_key && (
                   <div className="ml-10 mr-4 -mt-1 mb-2 text-[11px] text-muted-foreground">
@@ -1067,7 +1102,9 @@ function BacklogView({ onRefreshed }) {
                     </span>
                   </div>
                 )}
+                {expandedBacklogStories[story.id] && (
                 <div className="ml-10 mr-4 mb-3 rounded-lg border border-border/60 bg-muted/20 divide-y divide-border/60">
+                  <div className="px-3 py-2 text-xs font-medium">Tasks ({(story.tasks || []).length})</div>
                   {(story.tasks || []).length === 0 ? (
                     <p className="px-3 py-2 text-[11px] text-muted-foreground italic">
                       No decomposition tasks added.
@@ -1100,6 +1137,9 @@ function BacklogView({ onRefreshed }) {
                         <Badge tone="neutral" className="text-[10px]">
                           {task.priority || "medium"}
                         </Badge>
+                        <Badge tone="neutral" className="text-[10px]">
+                          {task.jira_status || task.status || "To Do"}
+                        </Badge>
                         <Badge
                           tone={task.jira_sprint_id ? "primary" : "neutral"}
                           className="text-[10px]"
@@ -1114,6 +1154,7 @@ function BacklogView({ onRefreshed }) {
                     ))
                   )}
                 </div>
+                )}
               </div>
             ))}
           </div>
@@ -1442,7 +1483,7 @@ function SprintSyncView({ onRefreshed }) {
   const [loading, setLoading] = useState(false);
   const [transitioningKey, setTransitioningKey] = useState(null);
   const [viewMode, setViewMode] = useState("kanban"); // "kanban" | "table"
-  const [entityType, setEntityType] = useState("stories"); // "stories" | "tasks"
+  const [entityType, setEntityType] = useState("tasks"); // "stories" | "tasks"
   const [selectedSprintId, setSelectedSprintId] = useState("auto"); // "auto" | "all" | "backlog" | sprintId
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -1529,7 +1570,7 @@ function SprintSyncView({ onRefreshed }) {
     } catch (err) {
       showToast.error(`Could not move ${issueKey}`, {
         description:
-          err?.response?.data?.detail ||
+          err?.response?.data?.detail?.message || err?.response?.data?.detail ||
           err?.message ||
           `Failed to transition issue to "${targetStatus}". Check Jira workflow permissions.`,
       });
@@ -1626,8 +1667,9 @@ function SprintSyncView({ onRefreshed }) {
     done: [],
   };
 
-  const itemsToGroup =
-    entityType === "stories" ? displayedStories : displayedTasks;
+  // The sprint board represents implementation work; stories retain their
+  // separate review/completion controls in the table and backlog.
+  const itemsToGroup = displayedTasks;
   itemsToGroup.forEach((item) => {
     const colKey = normalizeKanbanColumn(item.jira_status || item.status);
     if (kanbanData[colKey]) {
@@ -1716,7 +1758,7 @@ function SprintSyncView({ onRefreshed }) {
               <div className="inline-flex rounded-lg border border-border p-0.5 bg-muted/40">
                 <button
                   type="button"
-                  onClick={() => setEntityType("stories")}
+                  onClick={() => { setEntityType("stories"); setViewMode("table"); }}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
                     entityType === "stories"
                       ? "bg-card text-foreground shadow-sm"
@@ -1734,7 +1776,7 @@ function SprintSyncView({ onRefreshed }) {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Sub-tasks ({displayedTasks.length})
+                  Tasks ({displayedTasks.length})
                 </button>
               </div>
             </div>
@@ -1745,7 +1787,7 @@ function SprintSyncView({ onRefreshed }) {
             <div className="inline-flex rounded-lg border border-border p-0.5 bg-muted/40 mr-1">
               <button
                 type="button"
-                onClick={() => setViewMode("kanban")}
+                onClick={() => { setEntityType("tasks"); setViewMode("kanban"); }}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
                   viewMode === "kanban"
                     ? "bg-card text-foreground shadow-sm"
@@ -1940,17 +1982,23 @@ function SprintSyncView({ onRefreshed }) {
           {KANBAN_COLUMNS_CONFIG.map((col) => {
             const ColumnIcon = col.icon;
             const items = kanbanData[col.key] || [];
-            const colTotalPoints =
-              entityType === "stories"
-                ? items.reduce(
-                    (s, it) => s + (Number(it.student_story_points) || 0),
-                    0,
-                  )
-                : null;
+            const colTotalPoints = null;
 
             return (
               <div
                 key={col.key}
+                onDragOver={(event) => {
+                  if (!loading && !transitioningKey) event.preventDefault();
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const key = event.dataTransfer.getData("application/x-selvia-jira-task");
+                  const task = displayedTasks.find((item) => item.jira_subtask_key === key);
+                  if (!task || loading || transitioningKey) return;
+                  if (normalizeKanbanColumn(task.jira_status || task.status) === col.key) return;
+                  const target = { todo: "To Do", in_progress: "In Progress", in_review: "In Review", done: "Done" }[col.key];
+                  void handleTransition(key, target);
+                }}
                 className={`flex flex-col rounded-xl border border-border bg-card/50 overflow-hidden ${col.bgClass}`}
               >
                 {/* Column Header */}
@@ -1986,7 +2034,7 @@ function SprintSyncView({ onRefreshed }) {
                     </div>
                   ) : (
                     items.map((item) => {
-                      const isStory = entityType === "stories";
+                      const isStory = false;
                       const issueKey = isStory
                         ? item.jira_issue_key
                         : item.jira_subtask_key;
@@ -2008,6 +2056,11 @@ function SprintSyncView({ onRefreshed }) {
                       return (
                         <div
                           key={item.id}
+                          draggable={Boolean(issueKey) && !loading && !transitioningKey}
+                          onDragStart={(event) => {
+                            event.dataTransfer.setData("application/x-selvia-jira-task", issueKey);
+                            event.dataTransfer.effectAllowed = "move";
+                          }}
                           className="group relative rounded-xl border border-border/80 bg-card p-3 shadow-xs hover:border-primary/40 hover:shadow-md transition-all space-y-2.5"
                         >
                           {/* Card Header: Req pill, Jira key, Story points */}
@@ -2059,6 +2112,11 @@ function SprintSyncView({ onRefreshed }) {
                           <h5 className="text-xs font-medium text-foreground leading-snug line-clamp-2">
                             {item.title}
                           </h5>
+                          <div className="text-[10px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                            <span className="font-mono" title={item.id}>Task: {item.jira_subtask_key || item.id}</span>
+                            <span>Parent: <span className="font-mono text-primary">{item.story?.id || item.story_ref}</span></span>
+                            <Badge tone="neutral" className="text-[9px] px-1 py-0">{item.jira_status || item.status || "To Do"}</Badge>
+                          </div>
 
                           {/* Subtasks Progress (for Stories) */}
                           {isStory && tasks.length > 0 && (

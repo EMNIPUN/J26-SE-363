@@ -625,17 +625,7 @@ class JiraClient:
         for t in transitions:
             t_name = str(t.get("name", "")).strip().lower().replace(" ", "").replace("_", "")
             to_status = str(t.get("to", {}).get("name", "")).strip().lower().replace(" ", "").replace("_", "")
-            cat = str(t.get("to", {}).get("statusCategory", {}).get("key", "")).strip().lower()
             if target_norm in (t_name, to_status):
-                selected = t
-                break
-            if target_norm == "done" and cat == "done":
-                selected = t
-                break
-            if target_norm in ("inprogress", "doing", "inreview") and cat == "indeterminate":
-                selected = t
-                break
-            if target_norm in ("todo", "backlog", "new") and cat == "new":
                 selected = t
                 break
 

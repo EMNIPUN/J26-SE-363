@@ -169,6 +169,7 @@ export function mapStoryRows(rows) {
       jira_status: row.jira_status ?? base.jira_status,
       jira_assignee_display_name: row.jira_assignee_display_name ?? base.jira_assignee_display_name,
       jira_sprint_id: row.jira_sprint_id ?? base.jira_sprint_id,
+      jira_sprint_state: row.jira_sprint_state ?? base.jira_sprint_state ?? null,
       jira_updated_at: row.jira_updated_at ?? base.jira_updated_at,
       jira_last_synced_at: row.jira_last_synced_at ?? base.jira_last_synced_at,
       tasks: row.tasks || base.tasks || [],

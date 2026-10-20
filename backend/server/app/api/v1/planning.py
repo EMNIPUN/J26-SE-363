@@ -1140,10 +1140,17 @@ async def list_stories(
     task_validations = await run_in_threadpool(
         decomposition_service.get_latest_task_validations, db, [row.id for row in rows]
     )
+    from app.models.sprint import Sprint
+
+    sprint_rows = await run_in_threadpool(
+        lambda: list(db.scalars(select(Sprint).where(Sprint.project_id == session.project_id)).all())
+    )
+    sprint_states = {sprint.jira_sprint_id: sprint.jira_state for sprint in sprint_rows if sprint.jira_sprint_id}
     stories = []
     for row in rows:
         story = decomposition_service.story_to_dict(row, task_validations.get(row.id))
         story["requirement_ref"] = requirement_refs.get(row.requirement_id, str(row.requirement_id))
+        story["jira_sprint_state"] = sprint_states.get(row.jira_sprint_id)
         stories.append(story)
     return {
         "project_id": str(session.project_id),

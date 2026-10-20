@@ -917,7 +917,7 @@ function StoryCard({
               </div>
             )}
 
-            <BugSection reqId={reqId} storyId={story.id} bugs={story.bugs || []} readOnly={readOnly} />
+        
 
             {!readOnly && canAccept && (
               <div className="flex justify-end pt-1">
@@ -1088,10 +1088,16 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory, showAggregateInve
   if (!evaluation) return null
   const checks = evaluation.coverage?.checks || []
   const elements = evaluation.coverage?.elements || []
-  const coveragePercent = Math.round(evaluation.coverage?.percentage || 0)
+  const rawCoveragePercent = Math.round(evaluation.coverage?.percentage || 0)
+  const totalChecks = checks.length || 10
+  const passedChecks = checks.filter((c) => c.result === 'Pass').length
+  const checkPercent = checks.length > 0 ? Math.round((passedChecks / checks.length) * 100) : 0
+  const filledCoveragePercent = checks.length > 0
+    ? Math.min(rawCoveragePercent, checkPercent)
+    : rawCoveragePercent
+
   const missingElements = elements.filter((e) => e.coverage_result === 'Missing')
   const investStories = Object.entries(evaluation.investResults || {})
-  const passedChecks = checks.filter((c) => c.result === 'Pass').length
   const analysisFailed = Boolean(evaluation.analysisFailed)
   const analysisSkipped = Boolean(evaluation.analysisSkipped)
   const [selectedInvestGuide, setSelectedInvestGuide] = useState(null)
@@ -1123,20 +1129,38 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory, showAggregateInve
             </p>
           </div>
           <Badge
-            tone={passedChecks === 10 && checks.length === 10 ? 'success' : analysisFailed ? 'danger' : 'warning'}
+            tone={
+              analysisFailed
+                ? 'danger'
+                : passedChecks === totalChecks && filledCoveragePercent >= 80
+                ? 'success'
+                : filledCoveragePercent >= 60
+                ? 'warning'
+                : 'danger'
+            }
             className="text-xs font-bold px-2.5 py-1"
           >
-            {analysisFailed ? 'Analysis Failed' : `${passedChecks}/10 Checks Passing · ${coveragePercent}% Coverage`}
+            {analysisFailed ? 'Analysis Failed' : `${passedChecks}/${totalChecks} Checks Passing · ${filledCoveragePercent}% Coverage`}
           </Badge>
         </div>
 
-        <div className="mb-4 mt-2">
+        <div className="mb-4 mt-2 space-y-1.5">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-muted-foreground font-medium">Coverage Gate Fulfillment</span>
+            <span className="font-mono font-bold text-foreground">
+              {passedChecks} of {totalChecks} checks passed ({filledCoveragePercent}%)
+            </span>
+          </div>
           <div className="h-2 rounded-full bg-muted overflow-hidden">
             <div
               className={`h-full transition-all duration-700 ease-out rounded-full ${
-                coveragePercent >= 80 ? 'bg-emerald-500' : 'bg-amber-500'
+                filledCoveragePercent >= 80
+                  ? 'bg-emerald-500'
+                  : filledCoveragePercent >= 60
+                  ? 'bg-amber-500'
+                  : 'bg-rose-500'
               }`}
-              style={{ width: `${coveragePercent}%` }}
+              style={{ width: `${Math.max(filledCoveragePercent, 0)}%` }}
             />
           </div>
         </div>
@@ -1576,6 +1600,17 @@ export default function Decomposition() {
         locked: true,
         finalized: false,
         passed: false,
+      }
+    }
+    const rStories = getStories(r.id) || []
+    if (rStories.length === 0) {
+      return {
+        percent: 0,
+        tone: 'neutral',
+        locked: false,
+        finalized: false,
+        passed: false,
+        stageLabel: null,
       }
     }
     const eval_ = getDecompositionEvaluation(r.id)
@@ -2029,7 +2064,11 @@ export default function Decomposition() {
                           {scoreTrend > 0 ? '↑ +' : '↓ '}{scoreTrend}% Delta
                         </span>
                       )}
-                      {evaluation ? (
+                      {stories.length === 0 ? (
+                        <Badge tone="neutral" className="text-xs font-semibold px-2.5 py-0.5">
+                          Not Started
+                        </Badge>
+                      ) : evaluation ? (
                         <>
                           {evaluation.stale && !evaluation.analysisFailed && (
                             <Badge tone="warning" className="text-[10px] gap-1">
@@ -2060,7 +2099,9 @@ export default function Decomposition() {
                           </Badge>
                         </>
                       ) : (
-                        <Badge tone="neutral" className="text-xs">Not Evaluated</Badge>
+                        <Badge tone="neutral" className="text-xs font-semibold px-2.5 py-0.5">
+                          Not Started
+                        </Badge>
                       )}
 
                       {/* Single Visible Button: Readiness Passport */}

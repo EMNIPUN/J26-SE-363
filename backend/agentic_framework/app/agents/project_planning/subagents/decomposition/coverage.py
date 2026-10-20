@@ -259,6 +259,14 @@ async def analyze_coverage(
 
     gate_passed = all(c.result == CheckResult.PASS for c in checks.values())
 
+    if checks:
+        passed_count = sum(1 for c in checks.values() if c.result == CheckResult.PASS)
+        check_percentage = round((passed_count / len(checks)) * 100, 2)
+        if required_elements:
+            coverage_percentage = round(min(coverage_percentage, check_percentage), 2)
+        else:
+            coverage_percentage = check_percentage
+
     return CoverageAnalysis(
         elements=elements,
         coverage_percentage=coverage_percentage,

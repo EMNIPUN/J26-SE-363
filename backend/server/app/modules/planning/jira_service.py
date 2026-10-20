@@ -533,11 +533,15 @@ async def fetch_linked_jira_execution(
     sprint_membership: dict[str, int] = {}
     sprint_payloads: list[dict[str, Any]] = []
     membership_loaded = False
+    local_sprint_by_jira_id: dict[int, Sprint] = {}
     try:
         # Student-created Jira sprints are discovered from the Scrum board, not
         # from a local "create sprint" action. Jira is therefore authoritative
         # when a linked story is moved from a sprint back to the backlog.
         remote_sprints = await client.list_board_sprints()
+        # Closed sprints retain historical issue membership. Prefer the
+        # current active sprint when an issue appears in multiple sprints.
+        remote_sprints.sort(key=lambda item: {"closed": 0, "future": 1, "active": 2}.get(item.get("state"), 0))
         membership_loaded = True
         for remote_sprint in remote_sprints:
             remote_id = remote_sprint.get("id")
@@ -570,7 +574,6 @@ async def fetch_linked_jira_execution(
                     "last_synced_at": now.isoformat(),
                 })
 
-        local_sprint_by_jira_id: dict[int, Sprint] = {}
         if session:
             local_sprints = db.query(Sprint).filter(Sprint.project_id == session.project_id).all()
             remote_by_id = {item["jira_sprint_id"]: item for item in sprint_payloads}
@@ -580,6 +583,7 @@ async def fetch_linked_jira_execution(
                     remote = remote_by_id.get(local_sprint.jira_sprint_id)
                     if remote:
                         local_sprint.jira_state = remote["state"]
+                        local_sprint.status = {"active": "active", "closed": "completed"}.get(remote["state"], "planning")
                         local_sprint.jira_goal = remote["goal"]
                         local_sprint.jira_last_synced_at = now
 
@@ -616,11 +620,14 @@ async def fetch_linked_jira_execution(
     stories_updated = 0
     tasks_updated = 0
     for story in linked_stories:
+        previous_sprint_id = story.jira_sprint_id
         issue = await resolve_issue(story.jira_issue_key)
         if issue:
             _apply_jira_execution_fields(story, issue, now)
-            if membership_loaded:
+            if membership_loaded or story.jira_issue_key in sprint_membership:
                 story.jira_sprint_id = sprint_membership.get(story.jira_issue_key)
+            elif story.jira_sprint_id is None:
+                story.jira_sprint_id = previous_sprint_id
 
             # Sync with SprintBacklogItem so Kanban board and local queries reflect Jira
             backlog_item = db.query(SprintBacklogItem).filter(
@@ -632,6 +639,8 @@ async def fetch_linked_jira_execution(
                 backlog_item.status = _jira_task_status(fields)
                 if story.jira_sprint_id and story.jira_sprint_id in local_sprint_by_jira_id:
                     backlog_item.sprint_id = local_sprint_by_jira_id[story.jira_sprint_id].id
+                elif membership_loaded and not story.jira_sprint_id:
+                    backlog_item.sprint_id = None
 
             stories_updated += 1
 
@@ -639,11 +648,10 @@ async def fetch_linked_jira_execution(
         issue = await resolve_issue(task.jira_subtask_key)
         if issue:
             _apply_jira_execution_fields(task, issue, now)
-            if membership_loaded:
-                task.jira_sprint_id = sprint_membership.get(
-                    task.jira_subtask_key,
-                    task.user_story.jira_sprint_id,
-                )
+            # Jira subtasks inherit their parent's sprint even when the board
+            # issue query omits subtasks. Keep the existing parent relation.
+            parent = next(story for story in stories if story.id == task.user_story_id)
+            task.jira_sprint_id = parent.jira_sprint_id
             tasks_updated += 1
 
     # A partial Jira failure must keep previously mirrored values intact. Only
@@ -698,7 +706,13 @@ async def transition_jira_issue(
     if not story:
         task = db.query(UserStoryTask).filter(
             UserStoryTask.jira_subtask_key == issue_key,
+            UserStoryTask.user_story_id.in_(
+                db.query(UserStory.id).filter(UserStory.pipeline_session_id == session_id)
+            ),
         ).first()
+
+    if not story and not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Jira issue is not linked to this planning session.")
 
     requested_status = _jira_task_status({"status": {"name": target_status}})
     if story and requested_status == TaskStatus.DONE:
@@ -737,6 +751,8 @@ async def transition_jira_issue(
             )
 
     res = await client.transition_issue_by_status_name(issue_key, target_status)
+    if not res.get("ok"):
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Jira rejected the status change. Local status was not updated.")
     now = datetime.now(UTC)
 
     to_name = res.get("to_status") or target_status

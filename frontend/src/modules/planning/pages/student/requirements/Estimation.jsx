@@ -19,6 +19,8 @@ import {
   Clock,
   RotateCcw,
   FileCheck,
+  ShieldCheck,
+  FileText,
 } from 'lucide-react'
 import { useTeamPath } from '@/shared/hooks/useTeamPath.js'
 import Card from '../../../../../shared/components/Card.jsx'
@@ -170,7 +172,7 @@ function StoryRow({ req, story }) {
   }
 
   return (
-    <Card className={`w-full min-w-0 p-0 overflow-hidden border transition-all ${isEstimated ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-amber-500'}`}>
+    <Card className="group w-full min-w-0 p-0 overflow-hidden border border-border/80 hover:border-primary/40 bg-card/90 hover:bg-card transition-all duration-200 rounded-xl shadow-2xs hover:shadow-xs">
       <div
         role="button"
         tabIndex={0}
@@ -181,51 +183,111 @@ function StoryRow({ req, story }) {
             setExpanded((v) => !v)
           }
         }}
-        className="w-full flex items-center justify-between gap-3 p-4 text-left cursor-pointer hover:bg-muted/30 transition-colors"
+        className="w-full flex items-center justify-between gap-3 p-3.5 sm:p-4 text-left cursor-pointer hover:bg-muted/20 transition-colors"
       >
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className="font-mono text-xs font-bold text-primary">{story.id}</span>
-            <span className="text-xs text-muted-foreground">·</span>
-            <span className="text-xs text-muted-foreground font-medium">{req.id}</span>
-            <span className="text-xs text-muted-foreground">·</span>
-            <span className="text-xs text-muted-foreground">{taskList.length} task(s)</span>
-            <span className="text-xs text-muted-foreground">·</span>
-            <span className="text-xs text-muted-foreground">{criteriaList.length} criteria</span>
-            {taskEvaluation && !taskEvaluation.analysisFailed && !taskEvaluation.malformed && (
-              <Badge
-                tone={TASK_READINESS_TONE[taskEvaluation.readiness] || 'neutral'}
-                className="text-[9px] px-1.5 py-0"
-                title={taskEvaluation.readinessReason}
-              >
-                Tasks: {taskEvaluation.readiness}
-              </Badge>
+        <div className="flex items-start gap-3 min-w-0 flex-1">
+          {/* Professional Status Indicator Glyph */}
+          <div
+            className={`mt-0.5 h-8 w-8 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
+              isConfirmed
+                ? 'bg-primary/10 text-primary border-primary/25 shadow-xs'
+                : isEstimated
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 shadow-xs'
+                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25'
+            }`}
+            title={
+              isConfirmed
+                ? 'Effort Confirmed to Sprint Backlog'
+                : isEstimated
+                ? `Estimated: ${savedPoints} Story Points`
+                : 'Awaiting Student Story Point Estimate'
+            }
+          >
+            {isConfirmed ? (
+              <ShieldCheck className="h-4 w-4" />
+            ) : isEstimated ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : (
+              <Clock className="h-4 w-4 animate-pulse" />
             )}
           </div>
-          <p className="text-sm font-semibold text-foreground truncate">{story.title}</p>
-        </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="text-right">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Points</p>
-            <p className="text-sm font-bold text-foreground">
-              {savedPoints != null ? `${savedPoints} SP` : '—'}
+          <div className="min-w-0 flex-1 space-y-1">
+            {/* Academic & LMS Metadata Header */}
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap text-xs">
+              <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 shrink-0">
+                {story.id}
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-muted/60 text-muted-foreground border border-border/60 shrink-0">
+                <BookOpen className="h-3 w-3 text-muted-foreground/80" />
+                <span>{req.id}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted/30">
+                <ListTodo className="h-3 w-3 text-muted-foreground/70" />
+                <span>{taskList.length} {taskList.length === 1 ? 'task' : 'tasks'}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted/30">
+                <CheckSquare className="h-3 w-3 text-muted-foreground/70" />
+                <span>{criteriaList.length} criteria</span>
+              </span>
+
+              {taskEvaluation && !taskEvaluation.analysisFailed && !taskEvaluation.malformed && (
+                <Badge
+                  tone={TASK_READINESS_TONE[taskEvaluation.readiness] || 'neutral'}
+                  className="text-[9px] px-1.5 py-0 font-medium"
+                  title={taskEvaluation.readinessReason}
+                >
+                  Tasks: {taskEvaluation.readiness}
+                </Badge>
+              )}
+
+              {savedReason && (
+                <span className="hidden md:inline-flex items-center gap-1 text-[10px] text-muted-foreground/90 bg-muted/40 px-1.5 py-0.5 rounded border border-border/50">
+                  <FileText className="h-2.5 w-2.5 text-primary" /> Rationale Attached
+                </span>
+              )}
+            </div>
+
+            {/* Story Title / Statement */}
+            <p className="text-xs sm:text-sm font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors pr-2">
+              {story.title}
             </p>
           </div>
+        </div>
+
+        {/* Right Action & Status Group */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Dedicated Points Capsule */}
+          <div
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border text-xs font-semibold shrink-0 transition-colors ${
+              isEstimated
+                ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-800 dark:text-emerald-300'
+                : 'bg-amber-500/10 border-amber-500/25 text-amber-800 dark:text-amber-300'
+            }`}
+          >
+            <span className="text-[10px] uppercase font-mono tracking-wider opacity-70 hidden sm:inline">Points</span>
+            <span className="font-mono text-xs sm:text-sm font-bold">
+              {savedPoints != null ? `${savedPoints} SP` : '—'}
+            </span>
+          </div>
+
+          {/* Sizing Status Badge */}
           {isEstimated ? (
-            <Badge tone="success" className="gap-1 text-xs">
+            <Badge tone="success" className="gap-1 text-[11px] font-semibold hidden md:inline-flex px-2 py-0.5">
               <CheckCircle2 className="h-3 w-3" /> Estimated
             </Badge>
           ) : (
-            <Badge tone="warning" className="gap-1 text-xs">
+            <Badge tone="warning" className="gap-1 text-[11px] font-semibold hidden md:inline-flex px-2 py-0.5">
               <Clock className="h-3 w-3" /> Pending
             </Badge>
           )}
+
           {isConfirmed && (
-            <Badge tone="primary" className="text-xs">
+            <Badge tone="primary" className="text-[11px] font-semibold px-2 py-0.5">
               Confirmed
             </Badge>
           )}
+
           <PassportBadge
             storyRef={story.id}
             storyTitle={story.title}
@@ -233,7 +295,10 @@ function StoryRow({ req, story }) {
             story={story}
             size="xs"
           />
-          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
+
+          <div className="p-1 rounded-md text-muted-foreground group-hover:text-foreground group-hover:bg-muted/50 transition-all">
+            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
+          </div>
         </div>
       </div>
 
@@ -395,10 +460,12 @@ function StoryRow({ req, story }) {
 
               {/* Fibonacci Quick Buttons */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">Select Story Points</p>
-                <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Select Story Points (Fibonacci Scale)</p>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                   {FIBONACCI_SCALE.map((p) => {
                     const isSel = selectedPoints === p
+                    const tierLabel =
+                      p === 1 ? 'Trivial' : p === 2 ? 'Small' : p === 3 ? 'Medium' : p === 5 ? 'Complex' : p === 8 ? 'High' : 'Epic'
                     return (
                       <button
                         key={p}
@@ -407,13 +474,16 @@ function StoryRow({ req, story }) {
                           setSelectedPoints(p)
                           setEstimation(story.id, { studentPoints: p, finalPoints: p })
                         }}
-                        className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
                           isSel
-                            ? 'bg-primary text-primary-foreground shadow-sm ring-2 ring-primary ring-offset-1 scale-105'
-                            : 'bg-muted/70 hover:bg-muted text-foreground border border-border/80'
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm ring-2 ring-primary ring-offset-1 scale-[1.03]'
+                            : 'bg-muted/30 hover:bg-muted/70 text-foreground border-border/80 hover:border-border'
                         }`}
                       >
-                        {p} SP
+                        <span className="font-mono font-bold text-sm">{p} SP</span>
+                        <span className={`text-[10px] tracking-tight mt-0.5 ${isSel ? 'text-primary-foreground/90' : 'text-muted-foreground'}`}>
+                          {tierLabel}
+                        </span>
                       </button>
                     )
                   })}
@@ -796,57 +866,77 @@ export default function Estimation() {
           {requirement && isRequirementUnlocked && reqStories.length > 0 && (
             <>
 
-              <Card className="w-full min-w-0 p-4 flex items-center justify-between gap-3 flex-wrap">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{requirement.id}</p>
-                  <h3 className="truncate text-sm font-semibold text-foreground">{requirement.title}</h3>
-                </div>
-                <div className="flex items-center gap-3">
-                  {/* Single Visible Button: Readiness Passport */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setPassportModalOpen(true)}
-                    className="text-xs font-semibold gap-1.5 border-primary/30 text-primary hover:bg-primary/5 hover:border-primary/50 cursor-pointer shadow-2xs h-8 px-3 shrink-0"
-                    title="View Backlog Readiness Passport for this requirement in 1 click"
-                  >
-                    <FileCheck className="h-3.5 w-3.5" />
-                    <span>Readiness Passport</span>
-                  </Button>
-
-                  {/* Filter tabs */}
-                  <div className="flex items-center rounded-lg border border-border p-0.5 bg-muted/40 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setActiveFilter('all')}
-                      className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
-                        activeFilter === 'all' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      All ({reqStories.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveFilter('pending')}
-                      className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
-                        activeFilter === 'pending' ? 'bg-background text-amber-600 dark:text-amber-400 shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Pending ({reqPending.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveFilter('estimated')}
-                      className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
-                        activeFilter === 'estimated' ? 'bg-background text-emerald-600 dark:text-emerald-400 shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Estimated ({reqEstimated.length})
-                    </button>
+              <Card className="w-full min-w-0 p-4 border border-border/80 bg-card/80 backdrop-blur-xs rounded-xl shadow-2xs">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+                        {requirement.id}
+                      </span>
+                      <span className="text-xs text-muted-foreground font-semibold">
+                        Requirement Specification
+                      </span>
+                      <span className="text-border">·</span>
+                      <Badge
+                        tone={reqPending.length === 0 ? 'success' : 'warning'}
+                        className="text-[10px] font-semibold px-2 py-0.5"
+                      >
+                        {reqPending.length === 0
+                          ? `All ${reqStories.length} Stories Sized`
+                          : `${reqEstimated.length}/${reqStories.length} Stories Sized`}
+                      </Badge>
+                    </div>
+                    <h3 className="truncate text-sm font-semibold text-foreground">{requirement.title}</h3>
                   </div>
-                  <Link to={team('/planning/sprint-management')} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline shrink-0">
-                    Sprint Backlog <ArrowRight className="h-3 w-3" />
-                  </Link>
+
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    {/* Single Visible Button: Readiness Passport */}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPassportModalOpen(true)}
+                      className="text-xs font-semibold gap-1.5 border-primary/30 text-primary hover:bg-primary/5 hover:border-primary/50 cursor-pointer shadow-2xs h-8 px-3 shrink-0"
+                      title="View Backlog Readiness Passport for this requirement in 1 click"
+                    >
+                      <FileCheck className="h-3.5 w-3.5" />
+                      <span>Readiness Passport</span>
+                    </Button>
+
+                    {/* Filter tabs */}
+                    <div className="flex items-center rounded-lg border border-border p-0.5 bg-muted/40 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setActiveFilter('all')}
+                        className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                          activeFilter === 'all' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        All ({reqStories.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveFilter('pending')}
+                        className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                          activeFilter === 'pending' ? 'bg-background text-amber-600 dark:text-amber-400 shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Pending ({reqPending.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveFilter('estimated')}
+                        className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                          activeFilter === 'estimated' ? 'bg-background text-emerald-600 dark:text-emerald-400 shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Estimated ({reqEstimated.length})
+                      </button>
+                    </div>
+
+                    <Link to={team('/planning/sprint-management')} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline shrink-0">
+                      Sprint Backlog <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
                 </div>
               </Card>
 

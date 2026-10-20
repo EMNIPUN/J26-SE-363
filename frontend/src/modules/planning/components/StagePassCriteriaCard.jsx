@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Brain,
   Info,
+  Circle,
 } from 'lucide-react'
 import Card from '../../../shared/components/Card.jsx'
 import Badge from '../../../shared/components/Badge.jsx'
@@ -161,6 +162,9 @@ export default function StagePassCriteriaCard({
     })
 
     const totalStories = stories.length
+    const hasAnalysis = Boolean(evaluation && !evaluation.analysisFailed)
+    const isNotStarted = totalStories === 0
+
     const passingInvestCount = stories.filter(
       (s) => s.investResult && s.investResult.overallPass,
     ).length
@@ -175,96 +179,121 @@ export default function StagePassCriteriaCard({
       (s) => !Array.isArray(s.tasks) || s.tasks.length === 0,
     )
 
-    const isCoveragePassed = coveragePct >= 75
-    const isZeroCritical = criticalMissing.length === 0
+    const isCoveragePassed = totalStories > 0 && hasAnalysis && coveragePct >= 75
+    const isZeroCritical = totalStories > 0 && hasAnalysis && criticalMissing.length === 0
     const isInvestPassed = totalStories > 0 && passingInvestCount === totalStories
     const isACPresent = totalStories > 0 && storiesWithAC === totalStories
-    const isReady = evaluation?.readiness === 'Ready'
+    const isTasksPresent = totalStories > 0 && storiesWithTasks === totalStories
+    const isReady = totalStories > 0 && evaluation?.readiness === 'Ready'
 
     criteriaList = [
       {
         id: 'coverage_pct',
         title: 'Parent Requirement Coverage ≥ 75%',
-        current: `${coveragePct}%`,
+        current: isNotStarted ? '0%' : `${coveragePct}%`,
         target: '≥ 75%',
         passed: isCoveragePassed,
-        severity: isCoveragePassed ? 'success' : 'danger',
-        feedback: isCoveragePassed
+        severity: isNotStarted ? 'neutral' : isCoveragePassed ? 'success' : 'danger',
+        feedback: isNotStarted
+          ? 'Decomposition has not started yet. Write user stories covering the parent requirement capabilities.'
+          : isCoveragePassed
           ? 'Child user stories cover the required operational scope of the parent specification.'
           : `Decomposition coverage is ${coveragePct}%. You need +${75 - coveragePct}% to unlock Effort Estimation.`,
-        action: isCoveragePassed
+        action: isNotStarted
+          ? 'Click "Write Story" below to add atomic user stories.'
+          : isCoveragePassed
           ? 'Coverage threshold cleared.'
           : 'Add user stories or acceptance criteria representing missing capabilities.',
       },
       {
         id: 'zero_critical',
         title: 'Zero Critical Missing Parent Capabilities (0 Missing)',
-        current: `${criticalMissing.length} critical missing`,
+        current: isNotStarted ? 'Not Evaluated' : `${criticalMissing.length} critical missing`,
         target: '0 Missing',
         passed: isZeroCritical,
-        severity: isZeroCritical ? 'success' : 'danger',
-        feedback: isZeroCritical
+        severity: isNotStarted ? 'neutral' : isZeroCritical ? 'success' : 'danger',
+        feedback: isNotStarted
+          ? 'Coverage gap analysis will evaluate exception behaviors, error handling, and business rules once stories are analyzed.'
+          : isZeroCritical
           ? 'All parent business rules, constraints, and exception behaviors are addressed.'
           : `Gated: ${criticalMissing.length} critical parent requirement capability is unrepresented in your stories.`,
-        missingPills: criticalMissing.map((el) => el.description),
-        action: isZeroCritical
+        missingPills: isNotStarted ? [] : criticalMissing.map((el) => el.description),
+        action: isNotStarted
+          ? 'Ensure your stories account for both standard usage and error/edge conditions.'
+          : isZeroCritical
           ? 'No critical gaps.'
           : `Add explicit acceptance criteria covering: ${criticalMissing.map((el) => `"${el.description}"`).join(', ')}.`,
       },
       {
         id: 'invest_compliance',
         title: 'INVEST Compliance on All Stories (≥ 4/6 criteria)',
-        current: `${passingInvestCount}/${totalStories} stories passing`,
-        target: `${totalStories}/${totalStories} passed`,
+        current: isNotStarted ? '0 stories' : `${passingInvestCount}/${totalStories} stories passing`,
+        target: isNotStarted ? 'All stories pass INVEST' : `${totalStories}/${totalStories} passed`,
         passed: isInvestPassed,
-        severity: isInvestPassed ? 'success' : 'warning',
-        feedback: isInvestPassed
+        severity: isNotStarted ? 'neutral' : isInvestPassed ? 'success' : 'warning',
+        feedback: isNotStarted
+          ? 'The agent evaluates Independent, Negotiable, Valuable, Estimable, Small, and Testable criteria on each story.'
+          : isInvestPassed
           ? 'All decomposed user stories pass the 6 INVEST agile criteria.'
           : `${totalStories - passingInvestCount} stor${totalStories - passingInvestCount === 1 ? 'y needs' : 'ies need'} revision (failed valuable, estimable, or testable).`,
-        action: isInvestPassed
+        action: isNotStarted
+          ? 'Write stories following: "As a [persona], I want [capability] so that [benefit]".'
+          : isInvestPassed
           ? 'Stories are well-formed.'
           : 'Refine the story statement to follow: "As a [persona], I want [capability] so that [benefit]".',
       },
       {
         id: 'acceptance_criteria',
         title: 'Verifiable Acceptance Criteria Attached to Each Story',
-        current: `${storiesWithAC}/${totalStories} stories ready`,
+        current: isNotStarted ? '0 stories' : `${storiesWithAC}/${totalStories} stories ready`,
         target: 'All stories',
         passed: isACPresent,
-        severity: isACPresent ? 'success' : 'warning',
-        feedback: isACPresent
+        severity: isNotStarted ? 'neutral' : isACPresent ? 'success' : 'warning',
+        feedback: isNotStarted
+          ? 'Every user story requires clear, verifiable acceptance criteria before passing the gate.'
+          : isACPresent
           ? 'Every user story has clear, observable acceptance criteria.'
           : 'One or more user stories are missing acceptance criteria.',
-        action: isACPresent
+        action: isNotStarted
+          ? 'Add Given-When-Then or bulleted test conditions to each story.'
+          : isACPresent
           ? 'Acceptance criteria defined.'
           : 'Add bulleted or Given-When-Then criteria defining how to test each story.',
       },
       {
         id: 'implementation_tasks',
         title: 'At Least One Implementation Task Attached to Each Story',
-        current: `${storiesWithTasks}/${totalStories} stories with tasks`,
+        current: isNotStarted ? '0 stories' : `${storiesWithTasks}/${totalStories} stories with tasks`,
         target: 'All stories',
-        passed: totalStories > 0 && storiesWithTasks === totalStories,
-        severity: storiesWithTasks === totalStories && totalStories > 0 ? 'success' : 'danger',
-        feedback: storiesWithTasks === totalStories && totalStories > 0
+        passed: isTasksPresent,
+        severity: isNotStarted ? 'neutral' : isTasksPresent ? 'success' : 'danger',
+        feedback: isNotStarted
+          ? 'Engineering tasks must be attached to each story before proceeding to effort estimation.'
+          : isTasksPresent
           ? 'Every user story has at least one concrete implementation task.'
           : `${storiesWithoutTasks.length} stor${storiesWithoutTasks.length === 1 ? 'y is' : 'ies are'} missing an implementation task.`,
-        missingPills: storiesWithoutTasks.map((story) => story.id || story.story_ref || story.title),
-        action: storiesWithTasks === totalStories && totalStories > 0
+        missingPills: isNotStarted ? [] : storiesWithoutTasks.map((story) => story.id || story.story_ref || story.title),
+        action: isNotStarted
+          ? 'Break stories down into actionable development tasks once created.'
+          : isTasksPresent
           ? 'Task breakdown complete.'
           : 'Open each listed story and add at least one concrete development task before proceeding to effort estimation.',
       },
       {
         id: 'quality_band',
         title: 'Decomposition Quality Band: Ready (Score ≥ 3.0/4.0)',
-        current: `${evaluation?.score ?? 0}/4 · ${evaluation?.readiness || 'Needs Attention'}`,
+        current: isNotStarted ? 'Not Started' : `${evaluation?.score ?? 0}/4 · ${evaluation?.readiness || 'Needs Attention'}`,
         target: 'Ready (≥ 3.0/4)',
         passed: isReady,
-        severity: isReady ? 'success' : 'danger',
-        feedback: isReady
+        severity: isNotStarted ? 'neutral' : isReady ? 'success' : 'danger',
+        feedback: isNotStarted
+          ? 'Overall readiness score (0–4) is computed when you click "Analyze Requirement Decomposition".'
+          : isReady
           ? 'Decomposition has passed all automated quality gates and is approved for Effort Estimation.'
           : 'Gate is blocked until coverage gaps and story revisions are resolved.',
-        action: isReady
+        action: isNotStarted
+          ? 'Write user stories below, then click "Analyze Requirement Decomposition".'
+          : isReady
           ? 'Proceed to Effort Estimation.'
           : 'Make the improvements outlined above, then click Re-run Analysis.',
       },
@@ -329,11 +358,18 @@ export default function StagePassCriteriaCard({
     ]
   }
 
+  const isDecompNotStarted = stage === 'decomposition' && stories.length === 0
+
   // Calculate overall progress percentage
   const totalCriteria = criteriaList.length
-  const passedCriteria = criteriaList.filter((c) => c.passed).length
-  const progressPercent = totalCriteria > 0 ? Math.round((passedCriteria / totalCriteria) * 100) : 0
-  const allAchieved = passedCriteria === totalCriteria
+  const passedCriteria = isDecompNotStarted ? 0 : criteriaList.filter((c) => c.passed).length
+  const progressPercent =
+    isDecompNotStarted
+      ? 0
+      : totalCriteria > 0
+      ? Math.round((passedCriteria / totalCriteria) * 100)
+      : 0
+  const allAchieved = !isDecompNotStarted && passedCriteria === totalCriteria
 
   return (
     <Card className={`p-4 border-border/80 bg-card/60 backdrop-blur-xs transition-all ${className}`}>
@@ -345,6 +381,8 @@ export default function StagePassCriteriaCard({
               className={`p-1 rounded-md text-xs font-bold border ${
                 allAchieved
                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                  : isDecompNotStarted
+                  ? 'bg-muted text-muted-foreground border-border/80'
                   : 'bg-primary/10 text-primary border-primary/20'
               }`}
             >
@@ -352,10 +390,20 @@ export default function StagePassCriteriaCard({
             </span>
             <h4 className="text-sm font-bold text-foreground tracking-tight">{meta.title}</h4>
             <Badge
-              tone={allAchieved ? 'success' : passedCriteria > 0 ? 'warning' : 'danger'}
+              tone={
+                isDecompNotStarted
+                  ? 'neutral'
+                  : allAchieved
+                  ? 'success'
+                  : passedCriteria > 0
+                  ? 'warning'
+                  : 'danger'
+              }
               className="text-[11px] font-bold px-2 py-0.5"
             >
-              {allAchieved
+              {isDecompNotStarted
+                ? 'Not Started (0/6 Criteria)'
+                : allAchieved
                 ? 'All Gate Criteria Achieved'
                 : `${passedCriteria}/${totalCriteria} Criteria Achieved (${progressPercent}%)`}
             </Badge>
@@ -393,17 +441,38 @@ export default function StagePassCriteriaCard({
         <div className="flex items-center justify-between text-[11px]">
           <span className="text-muted-foreground font-medium">Gate Qualification Progress</span>
           <span className="font-mono font-bold text-foreground">
-            {passedCriteria} of {totalCriteria} items satisfied ({progressPercent}%)
+            {isDecompNotStarted
+              ? 'Not Started (0 of 6 items satisfied · 0%)'
+              : `${passedCriteria} of ${totalCriteria} items satisfied (${progressPercent}%)`}
           </span>
         </div>
         <Progress
           value={progressPercent}
           className="h-1.5"
           indicatorClassName={
-            allAchieved ? 'bg-emerald-500' : progressPercent >= 60 ? 'bg-amber-500' : 'bg-rose-500'
+            isDecompNotStarted
+              ? 'bg-muted-foreground/30'
+              : allAchieved
+              ? 'bg-emerald-500'
+              : progressPercent >= 60
+              ? 'bg-amber-500'
+              : 'bg-rose-500'
           }
         />
       </div>
+
+      {/* Not Started Friendly Guide Banner */}
+      {isDecompNotStarted && (
+        <div className="mt-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5">
+          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+          <div className="min-w-0 flex-1">
+            <span className="font-semibold text-foreground">Stage Unlocked — Decomposition Not Started Yet</span>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+              This requirement passed the SRS Quality Gate and is unlocked for decomposition. Write user stories covering the parent requirement, attach acceptance criteria and tasks, then click <strong>Analyze Requirement Decomposition</strong> to evaluate your gate pass criteria.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Expandable Criteria List */}
       {expanded && (
@@ -414,15 +483,19 @@ export default function StagePassCriteriaCard({
               className={`p-3 rounded-xl border transition-all text-xs ${
                 item.passed
                   ? 'bg-emerald-500/5 border-emerald-500/20 text-foreground'
+                  : item.severity === 'neutral'
+                  ? 'bg-muted/20 border-border/70 text-foreground'
                   : item.severity === 'danger'
-                    ? 'bg-rose-500/5 border-rose-500/25 text-foreground'
-                    : 'bg-amber-500/5 border-amber-500/25 text-foreground'
+                  ? 'bg-rose-500/5 border-rose-500/25 text-foreground'
+                  : 'bg-amber-500/5 border-amber-500/25 text-foreground'
               }`}
             >
               <div className="flex items-start justify-between gap-2.5 flex-wrap">
                 <div className="flex items-start gap-2 min-w-0 flex-1">
                   {item.passed ? (
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  ) : item.severity === 'neutral' ? (
+                    <Circle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                   ) : item.severity === 'danger' ? (
                     <XCircle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                   ) : (
@@ -476,10 +549,12 @@ export default function StagePassCriteriaCard({
                     className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                       item.passed
                         ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                        : item.severity === 'neutral'
+                        ? 'bg-muted text-muted-foreground border border-border/80'
                         : 'bg-rose-500/20 text-rose-700 dark:text-rose-300'
                     }`}
                   >
-                    {item.passed ? 'Achieved ✓' : 'Needs Action ✗'}
+                    {item.passed ? 'Achieved ✓' : item.severity === 'neutral' ? 'Not Started ○' : 'Needs Action ✗'}
                   </span>
                 </div>
               </div>

@@ -12,6 +12,79 @@ from app.modules.planning.jira_client import (
 from app.modules.planning import jira_service
 
 
+@pytest.mark.asyncio
+async def test_task_inherits_parent_sprint_without_being_returned_by_board():
+    import uuid
+    from unittest.mock import MagicMock
+    from app.models.decomposition_assessment import UserStory, UserStoryTask
+    from app.models.enums import Priority, TaskStatus
+
+    story = UserStory(id=uuid.uuid4(), story_ref="SCRUM-1", title="Parent", jira_issue_key="SEL-1", priority=Priority.MEDIUM)
+    task = UserStoryTask(id=uuid.uuid4(), user_story_id=story.id, title="Build API", jira_subtask_key="SEL-2", priority=Priority.HIGH, status=TaskStatus.TODO)
+    story.tasks = [task]
+    db = MagicMock()
+    db.get.return_value = None
+    db.query.return_value.filter.return_value.first.return_value = None
+    client = AsyncMock()
+    client.base_url = "https://test.atlassian.net"
+    client.list_board_sprints.return_value = [
+        {"id": 20, "state": "active"}, {"id": 10, "state": "closed"},
+    ]
+    client.list_sprint_issues.return_value = [{"key": "SEL-1", "fields": {"status": {"name": "To Do"}}}]
+    client.get_issue.return_value = {"key": "SEL-2", "fields": {"status": {"name": "In Progress"}}}
+    with patch.object(jira_service.decomposition_service, "list_stories", return_value=[story]):
+        result = await jira_service.fetch_linked_jira_execution(db, uuid.uuid4(), client)
+    assert story.jira_sprint_id == 20
+    assert task.jira_sprint_id == 20
+    assert task.status == TaskStatus.IN_PROGRESS
+    assert task.priority == Priority.HIGH
+    assert result["tasks"][0]["story_ref"] == "SCRUM-1"
+    assert story.jira_status == "To Do"  # Task status never completes its parent.
+
+
+@pytest.mark.asyncio
+async def test_task_status_is_saved_only_after_jira_accepts_transition():
+    import uuid
+    from unittest.mock import MagicMock
+    from fastapi import HTTPException
+    from app.models.decomposition_assessment import UserStoryTask
+    from app.models.enums import TaskStatus
+
+    task = UserStoryTask(status=TaskStatus.TODO, jira_status="To Do")
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.side_effect = [None, task]
+    client = AsyncMock()
+    client.transition_issue_by_status_name.return_value = {"ok": False}
+    with pytest.raises(HTTPException) as error:
+        await jira_service.transition_jira_issue(db, uuid.uuid4(), client, "SEL-2", "Done")
+    assert error.value.status_code == 502
+    assert task.status == TaskStatus.TODO
+    db.commit.assert_not_called()
+
+    db.query.return_value.filter.return_value.first.side_effect = [None, task]
+    client.transition_issue_by_status_name.return_value = {"ok": True, "to_status": "Done"}
+    await jira_service.transition_jira_issue(db, uuid.uuid4(), client, "SEL-2", "Done")
+    assert task.status == TaskStatus.DONE
+    assert task.jira_status == "Done"
+    db.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_review_transition_uses_exact_status_and_rejects_missing_column():
+    client = JiraClient("https://test.atlassian.net", "student@example.com", "dummy")
+    with patch.object(client, "get_issue_transitions", new_callable=AsyncMock) as get, patch.object(client, "transition_issue", new_callable=AsyncMock) as move:
+        get.return_value = [
+            {"id": "1", "name": "Start", "to": {"name": "In Progress", "statusCategory": {"key": "indeterminate"}}},
+            {"id": "2", "name": "Review", "to": {"name": "In Review", "statusCategory": {"key": "indeterminate"}}},
+        ]
+        move.return_value = True
+        result = await client.transition_issue_by_status_name("SEL-2", "In Review")
+        assert result["transition_id"] == "2"
+        get.return_value = get.return_value[:1]
+        with pytest.raises(ValueError):
+            await client.transition_issue_by_status_name("SEL-2", "In Review")
+
+
 def test_text_to_adf_valid_structure():
     doc = text_to_adf("First line\nSecond line")
     assert doc["version"] == 1
