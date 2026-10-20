@@ -286,7 +286,7 @@ export function FixGuidance({ finding: f }) {
       )}
       <div data-slot="tailored-note" className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
         <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tailored note for this code</p>
-        {f.recommendation ? f.recommendation : <span className="text-muted-foreground">None: the LLM returned no note for this finding (or did not run).</span>}
+        {f.recommendation ? f.recommendation : <span className="text-muted-foreground">Tailored note not generated in this run</span>}
       </div>
     </Section>
   )

@@ -65,9 +65,9 @@ describe('the finding card on the sample run', () => {
     expect(markup).toMatch(/target="_blank" rel="noopener noreferrer"/)
   })
 
-  it('says so when the model gave no tailored note', () => {
+  it('says so, in those words, when no tailored note was generated', () => {
     expect(markup).toContain('data-slot="tailored-note"')
-    expect(markup).toContain('None: the LLM returned no note')
+    expect(markup).toContain('Tailored note not generated in this run')
   })
 
   it('shows the probe question with hint levels, simulated scores and the MOCK label', () => {
