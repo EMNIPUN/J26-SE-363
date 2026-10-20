@@ -8,6 +8,7 @@ import { isDemoMode } from '../config.js'
 import { canPickStudent, useViewerRole } from '../hooks/useViewerRole.js'
 import { useRunOverview, useRuns, useSelection, useStudents } from '../hooks/useSecurityAssistant.js'
 import { DemoBanner, HowToRead } from './common.jsx'
+import AssistantNav from './AssistantNav.jsx'
 import RunBar from './RunBar.jsx'
 
 export const NO_SCAN_REASON =
@@ -41,6 +42,7 @@ export default function AssistantFrame({ title, description, howToRead, children
     <div className="space-y-4 animate-fade-rise">
       <PageHeader title={title} description={description} actions={<StartScanControl />} />
       <DemoBanner active={demo} />
+      <AssistantNav />
       <HowToRead>{howToRead}</HowToRead>
       <QueryBoundary query={runsQuery} variant="card" count={2}>
         {() =>

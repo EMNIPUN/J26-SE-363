@@ -128,3 +128,76 @@ export function llmFacts(llm) {
 export function runLabel(run) {
   return `${formatWhen(run.started_at)} · ${triggerLabel(run.trigger)} · ${run.repo ?? 'unknown repository'}${run.complete ? '' : ' · incomplete'}`
 }
+
+// The run shown when none is chosen: the newest complete run, else the newest run. `runs` is newest first (as the API lists them).
+export function defaultRunId(runs) {
+  const list = runs ?? []
+  return (list.find((r) => r.complete) ?? list[0])?.run_id ?? null
+}
+
+export const SECRET_LINE_NOTE = 'Code line hidden for secrets'
+
+// Findings of one vulnerability type, optionally one status, optionally only the viewer's ("mine").
+export function filterFindings(findings, { category, status, mine } = {}) {
+  return (findings ?? []).filter((f) => (!category || f.category === category) && (!status || f.status === status) && (!mine || f.mine))
+}
+
+// {V1: {confirmed, dismissed, uncertain, 'not interpreted'}, ...} for a list of findings (used for the "mine" counts).
+export function countByCategory(findings) {
+  const out = Object.fromEntries(CATEGORIES.map((c) => [c.id, { confirmed: 0, dismissed: 0, uncertain: 0, 'not interpreted': 0 }]))
+  for (const f of findings ?? []) {
+    const row = (out[f.category] ??= { confirmed: 0, dismissed: 0, uncertain: 0, 'not interpreted': 0 })
+    row[f.status in row ? f.status : 'uncertain'] += 1
+  }
+  return out
+}
+
+export function whereLabel(f) {
+  if (f.file_path) return f.line ? `${f.file_path}:${f.line}` : f.file_path
+  return f.package ?? 'not located'
+}
+
+// The factors of a risk score add up to the score: this is the sum the page shows next to it.
+export function riskTotal(breakdown) {
+  return Math.round((breakdown ?? []).reduce((sum, b) => sum + (Number(b.contribution) || 0), 0) * 10) / 10
+}
+
+export function referenceLabel(url) {
+  if (/cheatsheetseries\.owasp\.org/.test(url)) return 'OWASP Cheat Sheet'
+  const cwe = /cwe\.mitre\.org\/data\/definitions\/(\d+)/.exec(url)
+  if (cwe) return `CWE-${cwe[1]}`
+  return url.replace(/^https?:\/\//, '').split('/')[0]
+}
+
+export const LINK_STATUS_NOTE = {
+  verified: 'Verified: a simple rule supports it (commit message names it, or the file appears in one story or task).',
+  candidate: 'Candidate: proposed, not verified. Treat it as a suggestion.',
+}
+
+export function linkTone(status) {
+  return status === 'verified' ? 'success' : 'warning'
+}
+
+// What "request review" copies: enough for a lecturer to find the finding again. No code, no names.
+export function reviewRequestText({ team, run, finding }) {
+  return [
+    `Review request: Security Assistant finding ${finding.group_id}`,
+    `Team: ${team}`,
+    `Run: ${run}`,
+    `Type: ${finding.category}, ${finding.rule_id} (${finding.tool})`,
+    `Where: ${whereLabel(finding)}`,
+    `Status in the run: ${finding.status}`,
+    'Please look at my understanding of this finding.',
+  ].join('\n')
+}
+
+export function probeSummary(probe) {
+  if (!probe) return 'No probe question was made for this finding.'
+  if (!probe.attempts) return `Not asked (${probe.decision}).`
+  return `${probe.decision} after ${probe.attempts} question${probe.attempts === 1 ? '' : 's'}`
+}
+
+// The tab to open when none is in the address: the first type that has findings, else V1.
+export function firstCategoryWithFindings(counts) {
+  return CATEGORIES.find((c) => totalOf(counts?.[c.id]) > 0)?.id ?? 'V1'
+}

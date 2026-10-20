@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { securityAssistantService } from '../services/securityAssistantService.js'
 import { isDemoMode } from '../config.js'
+import { defaultRunId } from '../lib/format.js'
 
 const key = (...parts) => ['security-assistant', isDemoMode() ? 'demo' : 'live', ...parts]
 
@@ -23,10 +24,10 @@ export function useRunOverview(team, run, student) {
 }
 
 // Which run and which student the page shows lives in the URL (?run=...&student=...), so a link reproduces the view.
-// With no ?run= the newest run is shown.
+// With no ?run= the newest complete run is shown (the picker still lists the incomplete ones, marked).
 export function useSelection(runs) {
   const [params, setParams] = useSearchParams()
-  const run = params.get('run') || runs?.[0]?.run_id || null
+  const run = params.get('run') || defaultRunId(runs)
   const student = params.get('student') || null
   const set = useMemo(
     () => (name, value) =>
@@ -39,4 +40,20 @@ export function useSelection(runs) {
     [setParams],
   )
   return { run, student, setRun: (value) => set('run', value), setStudent: (value) => set('student', value) }
+}
+
+export function useFindings(team, run, student) {
+  return useQuery({
+    queryKey: key('findings', team, run, student ?? null),
+    queryFn: () => securityAssistantService.findings(team, run, { student }),
+    enabled: Boolean(team && run),
+  })
+}
+
+export function useFinding(team, run, groupId, student) {
+  return useQuery({
+    queryKey: key('finding', team, run, groupId, student ?? null),
+    queryFn: () => securityAssistantService.finding(team, run, groupId, { student }),
+    enabled: Boolean(team && run && groupId),
+  })
 }

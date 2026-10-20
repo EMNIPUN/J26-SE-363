@@ -24,6 +24,17 @@ export const securityAssistantService = {
     isDemoMode()
       ? demoBundle.overview[run] ? demo(demoBundle.overview[run]) : missing('This run')
       : apiClient.get(E.RUN(team, run), { params: student ? { student } : undefined }),
+
+  // Every finding of a run (summaries, newest risk first); the pages filter by type, status and "mine" themselves.
+  findings: (team, run, { student } = {}) =>
+    isDemoMode()
+      ? demoBundle.findings[run] ? demo(demoBundle.findings[run]) : missing('This run')
+      : apiClient.get(E.FINDINGS(team, run), { params: student ? { student } : undefined }),
+
+  finding: (team, run, groupId, { student } = {}) =>
+    isDemoMode()
+      ? demoBundle.finding[run]?.[groupId] ? demo(demoBundle.finding[run][groupId]) : missing('This finding')
+      : apiClient.get(E.FINDING(team, run, groupId), { params: student ? { student } : undefined }),
 }
 
 export default securityAssistantService

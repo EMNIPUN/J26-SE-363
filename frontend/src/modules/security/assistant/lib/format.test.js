@@ -113,3 +113,60 @@ describe('run facts', () => {
     expect(llmFacts(undefined)).toEqual([])
   })
 })
+
+describe('findings helpers', () => {
+  const f = (over) => ({ group_id: 'G', category: 'V2', status: 'confirmed', mine: false, ...over })
+
+  it('opens the newest complete run, else the newest run', async () => {
+    const { defaultRunId } = await import('./format.js')
+    expect(defaultRunId([{ run_id: 'new-incomplete', complete: false }, { run_id: 'old-complete', complete: true }, { run_id: 'older', complete: true }])).toBe('old-complete')
+    expect(defaultRunId([{ run_id: 'a', complete: false }, { run_id: 'b', complete: false }])).toBe('a')
+    expect(defaultRunId([])).toBeNull()
+    expect(defaultRunId(undefined)).toBeNull()
+  })
+
+  it('filters by type, status and mine', async () => {
+    const { filterFindings } = await import('./format.js')
+    const list = [f({ group_id: 'A' }), f({ group_id: 'B', status: 'dismissed', mine: true }), f({ group_id: 'C', category: 'V4', mine: true })]
+    expect(filterFindings(list, { category: 'V2' }).map((x) => x.group_id)).toEqual(['A', 'B'])
+    expect(filterFindings(list, { category: 'V2', status: 'dismissed' }).map((x) => x.group_id)).toEqual(['B'])
+    expect(filterFindings(list, { mine: true }).map((x) => x.group_id)).toEqual(['B', 'C'])
+    expect(filterFindings(undefined, {})).toEqual([])
+  })
+
+  it('counts findings by type and status, putting unknown statuses under uncertain', async () => {
+    const { countByCategory } = await import('./format.js')
+    const c = countByCategory([f(), f({ status: 'weird' }), f({ category: 'V5', status: 'not interpreted' })])
+    expect(c.V2).toEqual({ confirmed: 1, dismissed: 0, uncertain: 1, 'not interpreted': 0 })
+    expect(c.V5['not interpreted']).toBe(1)
+    expect(Object.keys(c)).toEqual(['V1', 'V2', 'V3', 'V4', 'V5'])
+  })
+
+  it('picks the first type that has findings', async () => {
+    const { firstCategoryWithFindings } = await import('./format.js')
+    expect(firstCategoryWithFindings({ V1: { confirmed: 0 }, V3: { confirmed: 2 } })).toBe('V3')
+    expect(firstCategoryWithFindings({})).toBe('V1')
+  })
+
+  it('words places, references, risk totals and the review request without code or names', async () => {
+    const m = await import('./format.js')
+    expect(m.whereLabel({ file_path: 'a.py', line: 3 })).toBe('a.py:3')
+    expect(m.whereLabel({ file_path: 'a.py' })).toBe('a.py')
+    expect(m.whereLabel({ package: 'lodash' })).toBe('lodash')
+    expect(m.whereLabel({})).toBe('not located')
+    expect(m.referenceLabel('https://cwe.mitre.org/data/definitions/89.html')).toBe('CWE-89')
+    expect(m.referenceLabel('https://cheatsheetseries.owasp.org/cheatsheets/X.html')).toBe('OWASP Cheat Sheet')
+    expect(m.referenceLabel('https://example.org/x')).toBe('example.org')
+    expect(m.riskTotal([{ contribution: 24 }, { contribution: 15.5 }, { contribution: 0.1 }])).toBe(39.6)
+    expect(m.riskTotal(undefined)).toBe(0)
+    const text = m.reviewRequestText({ team: 'T', run: 'R', finding: { group_id: 'G1', category: 'V2', rule_id: 'r', tool: 't', file_path: 'a.py', line: 2, status: 'confirmed', snippet: 'SECRET CODE' } })
+    expect(text).toContain('G1')
+    expect(text).toContain('a.py:2')
+    expect(text).not.toContain('SECRET CODE')
+    expect(m.probeSummary(null)).toMatch(/No probe/)
+    expect(m.probeSummary({ attempts: 0, decision: 'skipped' })).toBe('Not asked (skipped).')
+    expect(m.probeSummary({ attempts: 2, decision: 'closed' })).toBe('closed after 2 questions')
+    expect(m.linkTone('verified')).toBe('success')
+    expect(m.linkTone('candidate')).toBe('warning')
+  })
+})
