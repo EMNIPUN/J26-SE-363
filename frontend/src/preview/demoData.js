@@ -2,6 +2,10 @@
 // The graph of the agent, handed in by respond() (the app imports it, the Playwright tests read it from disk).
 let topology = { nodes: [], edges: [] }
 
+// Small drawn portraits, so the sample data shows profile photos without loading anything from outside.
+const portrait = (bg, skin, hair) => `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="${bg}"/><path d="M12 96c2-22 18-32 36-32s34 10 36 32z" fill="#1e293b"/><circle cx="48" cy="40" r="19" fill="${skin}"/><path d="M28 38c0-14 9-22 21-22s20 8 20 21c-5-6-12-9-20-9s-15 3-21 10z" fill="${hair}"/></svg>`)}`
+const FACES = { 'u-sam': portrait('#c7d2fe', '#f1c9a5', '#3b2a20'), 'u-eri': portrait('#bbf7d0', '#d9a679', '#111827'), 'u-cha': portrait('#fde68a', '#f5d0b0', '#92400e'), 'u-nip': portrait('#fbcfe8', '#b9825a', '#1f2937') }
+
 export const STUDENTS = [
   { id: 'u-sam', name: 'Sadeesha Sathsara', mark: 78, interval: [64, 88], status: 'provisional', pattern: 'Consistent deep contributor' },
   { id: 'u-eri', name: 'Eric Devon', mark: 61, interval: [45, 76], status: 'pending_review', pattern: 'Balanced contributor' },
@@ -25,7 +29,7 @@ function result(i) {
   const f = factors(i)
   const flags = i === 1 ? [{ severity: 'warn', message: 'Requirement Fulfillment could not be judged: the model refused two requests.', action: 'escalate', reason: 'A person should check the two tasks by hand.' }] : i === 3 ? [{ severity: 'warn', message: 'No commits in the sprint, but the board shows 2 tasks as done.', action: 'escalate', reason: 'The commits may be under an unmapped e-mail address.' }] : []
   return {
-    id: `r${i}`, run_id: 'run-done', team_ref: 'MC01', sprint_id: 'MC01-S3', student_id: s.id, student: { name: s.name, picture: null }, mark: s.mark, effective_mark: i === 1 ? 66 : s.mark, mark_interval: s.interval, status: s.status,
+    id: `r${i}`, run_id: 'run-done', team_ref: 'MC01', sprint_id: 'MC01-S3', student_id: s.id, student: { name: s.name, picture: FACES[s.id] }, mark: s.mark, effective_mark: i === 1 ? 66 : s.mark, mark_interval: s.interval, status: s.status,
     override: i === 1 ? { mark: 66, reason: 'Pair-programmed with Chathush; most of the integration was his.', by_name: 'Ada Lecturer', at: '2026-04-14T09:00:00Z' } : null, factors: f,
     justification: {
       summary: `Provisional mark ${s.mark} out of 100 (plausible range ${s.interval[0]} to ${s.interval[1]}). Strongest factor: Task Complexity; weakest: ${i === 3 ? 'Effort' : 'Consistency'}. Not part of the mark: Code Ownership, Collaboration.`,
@@ -54,6 +58,10 @@ function ownRow() {
 
 export const runsList = (state = 'done') => [
   { id: state === 'done' ? 'run-done' : 'run-live', team_ref: 'MC01', sprint_id: 'MC01-S3', mode: 'snapshot', status: state === 'done' ? 'succeeded' : 'running', created_at: '2026-04-13T18:10:00Z', started_at: '2026-04-13T18:10:05Z', finished_at: state === 'done' ? '2026-04-13T18:24:30Z' : null, has_report: state === 'done', summary: state === 'done' ? { students: 4, method: { weights: { effort: 0.2, consistency: 0.15, requirement_fulfillment: 0.25, collaboration: 0.15, task_complexity: 0.1, code_ownership: 0.15 }, factors: { effort: { title: 'Effort', measures: 'Commits that carry code, net lines of real code, files and tasks finished.', validation: 'Checked on 144 sprints rated by an assistant. Beats the single-feature baseline.', limits: 'Counts source code only: configuration and documents do not count.' }, consistency: { title: 'Consistency', measures: 'How evenly the work is spread over the sprint.', validation: 'Cross-validated MAE 0.058.', limits: 'Fitted on 14-day sprints.' }, requirement_fulfillment: { title: 'Requirement Fulfillment', measures: 'Whether the student\'s own code meets the acceptance criteria.', validation: 'No finished held-out evaluation.', limits: 'The judge sees only the student\'s changed lines.' }, collaboration: { title: 'Collaboration', measures: 'Substantive reviews of teammates\' pull requests.', validation: 'Unavailable for most sprints.', limits: 'Needs reviews to exist.' }, task_complexity: { title: 'Task Complexity', measures: 'How demanding the tasks were.', validation: 'Does not beat the story-point baseline.', limits: 'Close to the story points.' }, code_ownership: { title: 'Code Ownership', measures: 'A question about code the student wrote.', validation: 'Tested on Python only.', limits: 'Rated on assistant-written answers.' }, behavioral_pattern: { title: 'Behavioral Pattern', measures: 'The working pattern.', validation: 'Rules calibrated on 144 sprints.', limits: 'Two patterns rarely fire.' } } } } : {}, requested_by: 'u-lec' },
+  { id: 'run-old3', team_ref: 'MC01', sprint_id: 'MC01-S3', mode: 'snapshot', status: 'succeeded', created_at: '2026-04-13T08:00:00Z', started_at: '2026-04-13T08:00:04Z', finished_at: '2026-04-13T08:13:40Z', has_report: true, summary: { students: 4 }, requested_by: 'schedule' },
+  { id: 'run-old2', team_ref: 'MC01', sprint_id: 'MC01-S3', mode: 'snapshot', status: 'failed', created_at: '2026-04-12T20:00:00Z', started_at: '2026-04-12T20:00:03Z', finished_at: '2026-04-12T20:04:10Z', has_report: false, summary: {}, error: { message: 'The model provider refused the request.' }, requested_by: 'schedule' },
+  { id: 'run-old1', team_ref: 'MC01', sprint_id: 'MC01-S3', mode: 'snapshot', status: 'succeeded', created_at: '2026-04-11T20:00:00Z', started_at: '2026-04-11T20:00:05Z', finished_at: '2026-04-11T20:09:20Z', has_report: true, summary: { students: 4 }, requested_by: 'schedule' },
+  { id: 'run-old0', team_ref: 'MC01', sprint_id: 'MC01-S3', mode: 'final', status: 'succeeded', created_at: '2026-04-10T20:00:00Z', started_at: '2026-04-10T20:00:05Z', finished_at: '2026-04-10T20:22:00Z', has_report: true, summary: { students: 4 }, requested_by: 'u-lec' }
 ]
 
 function events(upTo = Infinity) {
@@ -116,6 +124,20 @@ const QUESTIONS = CODE.map(([file, range, fn, question, answer, rating], i) => (
   warnings: i === 6 ? ['The answer scorer was not sure about this one.'] : [],
 }))
 
+// A different curve for every student: a steady rise, a rise with a dip, a late jump, and one that stays low.
+const CURVES = { 'u-sam': [38, 52, 61, 70, 74, 78], 'u-eri': [40, 58, 72, 78, 63, 66], 'u-cha': [18, 20, 24, 49, 50, 52], 'u-nip': [22, 18, 14, 16, 12, 14] }
+function trajectoryOf(id) {
+  const marks = CURVES[id] || CURVES['u-sam']
+  return marks.map((mark, k) => {
+    const width = 44 - k * 6
+    const f = (shift, wobble) => ({ score: Math.max(0.02, Math.min(0.98, mark / 100 + shift + wobble * (k % 2 ? 1 : -1))) })
+    return {
+      as_of: `2026-04-${11 + k}T20:00:00Z`, sprint_elapsed: (k + 1) / 6, mark, mark_interval: [Math.max(0, mark - width / 2), Math.min(100, mark + width / 2)],
+      factors: { effort: f(0.04, 0.03), consistency: f(-0.08 + k * 0.02, 0.04), requirement_fulfillment: f(-0.02, 0.05), task_complexity: f(0.06, 0.02) },
+    }
+  })
+}
+
 const GATE = {
   ok: { state: 'ok' },
   repo_not_linked: { state: 'repo_not_linked', is_leader: false, installed: false, repo: null },
@@ -134,10 +156,10 @@ export function respond(p, m, { role = 'instructor', live = false, gate = 'ok' }
     const json = (body, status = 200) => ({ status, body })
     if (p === '/teams/MC01') return json({ id: 't1', code: 'MC01', name: 'MediCare', term: '2026-S1', status: 'active', my_role: 'lecturer', repo_url: 'https://github.com/acme/app', members: [], invitations: [] })
     if (p === '/performance/teams/MC01/tracking') return json({ team_ref: 'MC01', repo_url: 'https://github.com/acme/app', board_ref: 'MC01', status: 'active', config: { sprints: [{ id: 'MC01-S3', start: '2026-04-10', end: '2026-04-15' }, { id: 'MC01-S4', start: '2026-04-16', end: '2026-04-21' }], release_to_students: true } })
-    if (p === '/performance/teams/MC01/readiness') return json({ ready: true, blockers: [], notes: ['Lee has not connected GitHub.'], repo: 'acme/app', members: [{ user_id: 'u1', name: 'Sadeesha Sathsara', login: 'sadeesha', state: 'ready', is_leader: true }, { user_id: 'u2', name: 'Eric Devon', login: 'eric-devon', state: 'ready' }, { user_id: 'u3', name: 'Chathush Perera', login: 'chathush', state: 'read_only' }, { user_id: 'u4', name: 'Nipun Dhananjaya', login: null, state: 'not_connected' }] })
+    if (p === '/performance/teams/MC01/readiness') return json({ ready: true, blockers: [], notes: ['Lee has not connected GitHub.'], repo: 'acme/app', members: [{ user_id: 'u1', name: 'Sadeesha Sathsara', picture: FACES['u-sam'], login: 'sadeesha', state: 'ready', is_leader: true }, { user_id: 'u2', name: 'Eric Devon', picture: FACES['u-eri'], login: 'eric-devon', state: 'ready' }, { user_id: 'u3', name: 'Chathush Perera', picture: FACES['u-cha'], login: 'chathush', state: 'read_only' }, { user_id: 'u4', name: 'Nipun Dhananjaya', picture: FACES['u-nip'], login: null, state: 'not_connected' }] })
     if (/^\/performance\/teams\/MC01\/runs$/.test(p)) return json(runsList(live ? 'live' : 'done'))
     if (/\/sprints\/[^/]+\/results$/.test(p)) return json(STUDENTS.map((_, i) => result(i)))
-    if (/\/trajectory$/.test(p)) return json([2, 3, 4, 5].map((d, k) => ({ as_of: `2026-04-${10 + d}T20:00:00Z`, sprint_elapsed: d / 6, mark: 30 + k * 15, mark_interval: [20 + k * 12, 45 + k * 17], factors: { effort: { score: 0.3 + k * 0.15 }, consistency: { score: 0.5 } } })))
+    if (/\/trajectory$/.test(p)) return json(trajectoryOf(p.match(/\/students\/([^/]+)\/trajectory$/)?.[1]))
     if (/\/quiz$/.test(p)) return json({ ...QUESTIONS[0], questions: QUESTIONS })
     if (p === '/performance/graph') return json(topology)
     if (/^\/performance\/runs\/[^/]+\/events$/.test(p)) return json(live ? liveEvents() : events())
@@ -147,7 +169,7 @@ export function respond(p, m, { role = 'instructor', live = false, gate = 'ok' }
     if (p === '/github/config') return json({ configured: true, app_slug: 'selvia-ai' })
     if (p === '/teams/MC01/gate') return json({ team: 'MC01', team_name: 'MediCare', leader_name: 'Sadeesha Sathsara', configured: true, verified: true, staff: false, can_link: false, ...GATE[gate] })
     if (p === '/teams/MC01/github/repos') return json([{ id: 1, full_name: 'sadeesha/medicare', private: false }, { id: 2, full_name: 'sadeesha/medicare-docs', private: true }])
-    if (p === '/teams/MC01/github') return json({ repo: 'acme/app', ready: true, blockers: [], notes: [], can_link: role === 'instructor', members: [{ user_id: 'u1', name: 'Sadeesha Sathsara', login: 'sadeesha', state: 'ready', is_leader: true }, { user_id: 'u2', name: 'Eric Devon', login: 'eric-devon', state: 'ready' }, { user_id: 'u3', name: 'Chathush Perera', login: 'chathush', state: 'read_only' }, { user_id: 'u4', name: 'Nipun Dhananjaya', login: null, state: 'not_connected' }] })
+    if (p === '/teams/MC01/github') return json({ repo: 'acme/app', ready: true, blockers: [], notes: [], can_link: role === 'instructor', members: [{ user_id: 'u1', name: 'Sadeesha Sathsara', picture: FACES['u-sam'], login: 'sadeesha', state: 'ready', is_leader: true }, { user_id: 'u2', name: 'Eric Devon', picture: FACES['u-eri'], login: 'eric-devon', state: 'ready' }, { user_id: 'u3', name: 'Chathush Perera', picture: FACES['u-cha'], login: 'chathush', state: 'read_only' }, { user_id: 'u4', name: 'Nipun Dhananjaya', picture: FACES['u-nip'], login: null, state: 'not_connected' }] })
     if (p === '/performance/me/results') return json([{ team_ref: 'MC01', ...ownRow() }])
     if (p === '/performance/me/quizzes') return json([{ id: 'q1', team_ref: 'MC01', sprint_id: 'MC01-S3', question: 'What does build_report do, and what do rows and threshold control?', snippet: 'def build_report(rows, threshold):\n    total = 0\n    for row in rows:\n        if row > threshold:\n            total += row\n    return total', file_path: 'report.py', line_range: [1, 6], status: 'open', deadline_at: new Date(Date.now() + 40 * 3600e3).toISOString() }])
     return json({}, 404)

@@ -13,7 +13,9 @@ import { when } from '../../assessment/format.js'
 import { RunPill } from '../../assessment/visuals.jsx'
 import SprintSelect from '../../assessment/SprintSelect.jsx'
 import ResultsTab from './team/ResultsTab.jsx'
-import { DevelopmentTab, ReviewsTab, RunsTab, SetupTab } from './team/OtherTabs.jsx'
+import DevelopmentTab from './team/DevelopmentTab.jsx'
+import { ReviewsTab, RunsTab } from './team/OtherTabs.jsx'
+import SetupTab from './team/SetupTab.jsx'
 
 const TABS = [
   { id: 'results', label: 'Results', icon: Users },
@@ -28,7 +30,7 @@ const TAB_HELP = {
   development: 'How each student\'s predicted mark moved while the sprint ran.',
   runs: 'Every assessment run, with its pipeline and report.',
   reviews: 'What the agent could not settle and left to a person.',
-  setup: 'The repository, the sprint dates and who is who.',
+  setup: 'Whether everything the agent needs is in place, and who is connected.',
 }
 
 /** The lecturer's page for one team: results first, then how they developed, the runs behind them, what needs a decision, and the setup. */
@@ -115,8 +117,8 @@ export default function TeamAssessment() {
 
       {!sprints.length && (
         <div className="rounded-xl border border-dashed p-5 text-sm">
-          <p className="font-medium">Add the sprint dates first</p>
-          <p className="mt-1 text-muted-foreground">The agent reads one sprint at a time. Enter the sprint id (as on the Scrum board) and its dates under Setup.</p>
+          <p className="font-medium">No sprint to assess yet</p>
+          <p className="mt-1 text-muted-foreground">The agent reads one sprint at a time. Sprints come from the team's Scrum board and appear here once the board has them. Setup shows what is still missing.</p>
           <Button size="sm" className="mt-3" onClick={() => openTab('setup')}>Open Setup</Button>
         </div>
       )}
@@ -135,10 +137,10 @@ export default function TeamAssessment() {
 
       <div>
         {tab === 'results' && <ResultsTab rows={results.data} loading={results.isPending && Boolean(sprint)} sprint={sprint} base={base} />}
-        {tab === 'development' && <DevelopmentTab team={teamId} sprint={sprint} rows={results.data} />}
+        {tab === 'development' && <DevelopmentTab team={teamId} sprint={sprint} rows={results.data} sprintInfo={sprints.find((s) => s.id === sprint)} base={base} canRun={!busy && ready && Boolean(sprint) && !active} onSnapshot={() => start('snapshot')} />}
         {tab === 'runs' && <RunsTab runs={runs.data} loading={runs.isPending && Boolean(sprint)} base={base} onRerun={rerun} onReport={report} busy={busy} />}
         {tab === 'reviews' && <ReviewsTab team={code} />}
-        {tab === 'setup' && <SetupTab key={tracking.dataUpdatedAt} team={teamId} tracking={tracking.data} readiness={readiness.data} membersPath={`/teams/${teamId}/members`} />}
+        {tab === 'setup' && <SetupTab tracking={tracking.data} readiness={readiness.data} runs={runs.data} base={base} membersPath={`/teams/${teamId}/members`} />}
       </div>
     </div>
   )

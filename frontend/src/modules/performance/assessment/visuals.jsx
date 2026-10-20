@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import PropTypes from 'prop-types'
+import { useAvatarImage } from '@/shared/hooks/useAvatarImage.js'
 import Badge from '@/shared/components/Badge.jsx'
 import { band, factorState, initials, markBand, markText, rangeText, RESULT_STATUS, RUN_STATUS, score100, styleOf } from './format.js'
 
@@ -64,15 +66,26 @@ export function RunPill({ status }) {
 }
 RunPill.propTypes = { status: PropTypes.string }
 
-export function Avatar({ name, size = 36 }) {
+function Photo({ src, size }) {
+  const [broken, setBroken] = useState(false)
+  if (broken) return null
+  return <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setBroken(true)} className="absolute inset-0 h-full w-full rounded-full object-cover" style={{ width: size, height: size }} />
+}
+Photo.propTypes = { src: PropTypes.string, size: PropTypes.number }
+
+/** A person's profile photo; their coloured initials show while it loads, and when they have no photo or it cannot be shown. */
+export function Avatar({ name, size = 36, picture = null }) {
+  const fromApi = useAvatarImage(picture)
+  const src = typeof picture === 'string' && picture.startsWith('/') ? fromApi : picture
   const hue = [...String(name || '?')].reduce((a, c) => a + c.charCodeAt(0), 0) % 360
   return (
-    <span className="inline-flex shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ width: size, height: size, background: `hsl(${hue} 55% 48%)` }} aria-hidden="true">
+    <span className="relative inline-flex shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ring-1 ring-black/5" style={{ width: size, height: size, background: `hsl(${hue} 55% 48%)`, fontSize: Math.max(9, size * 0.36) }} aria-hidden="true">
       {initials(name)}
+      {src && <Photo key={src} src={src} size={size} />}
     </span>
   )
 }
-Avatar.propTypes = { name: PropTypes.string, size: PropTypes.number }
+Avatar.propTypes = { name: PropTypes.string, size: PropTypes.number, picture: PropTypes.string }
 
 /** One thin stacked bar: how the mark is made up. Each part is weight x score. */
 export function ContributionBar({ parts }) {

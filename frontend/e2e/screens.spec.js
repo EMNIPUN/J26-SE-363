@@ -37,12 +37,20 @@ const scrollUntilVisible = (page, locator) => expect(async () => {
 
 test('a student for the lecturer: separate sections, parts that come in one by one, a way into the questions', async ({ page }) => {
   await open(page, `/teams/MC01/performance/students/${STUDENTS[1].id}?sprint=MC01-S3`)
+  // the top of the page is a profile: a large photo and the name in large type
+  await expect(page.getByRole('heading', { level: 1, name: STUDENTS[1].name })).toBeVisible()
+  await expect(page.locator('main img, #root img').first()).toBeVisible()
+  await expect(page.getByText('2nd of 4 in the team').or(page.getByText(/of 4 in the team/))).toBeVisible()
   for (const title of ['Points to check', 'How the mark is made', 'Why this mark', 'The factors']) await expect(page.getByRole('heading', { name: title })).toBeVisible()
   await expect(page.getByText('Effort added the most').or(page.getByText(/added the most/)).first()).toBeVisible()
   // the arrow on a factor card opens its explanation
+  const height = async (name) => (await page.getByRole('heading', { name }).locator('xpath=ancestor::*[contains(@class,"gap-4")][1]').boundingBox()).height
+  const before = await height('Consistency')
   await page.getByRole('button', { name: 'Show the explanation of Effort' }).click()
   await expect(page.getByText('In short').first()).toBeVisible()
   await expect(page.getByRole('button', { name: 'Hide the explanation of Effort' })).toHaveAttribute('aria-expanded', 'true')
+  await page.waitForTimeout(500)
+  expect(Math.abs((await height('Consistency')) - before)).toBeLessThan(2) // the card next to it does not grow with it
   // later parts appear when they are about to be seen
   await scrollUntilVisible(page, page.getByRole('heading', { name: 'The code questions' }))
   await expect(page.getByText('Open all 10 questions')).toBeVisible()

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, aliased
 
 from app.core.config import settings
 from app.core.errors import bad_request, conflict
+from app.services import avatars
 from app.models import Group, GroupMember, MemberRole, TeamGithub, TeamGithubAccess, User, UserGithubAccount
 
 WRITE = ("write", "admin")
@@ -232,7 +233,7 @@ def member_states(db: Session, group: Group) -> list[dict]:
             state = "read_only"
         else:
             state = "no_access"
-        out.append({"user_id": str(m.user_id), "name": m.user.name, "is_leader": group.leader_id == m.user_id, "login": acc.login if acc else None, "avatar_url": acc.avatar_url if acc else None,
+        out.append({"user_id": str(m.user_id), "name": m.user.name, "is_leader": group.leader_id == m.user_id, "login": acc.login if acc else None, "avatar_url": acc.avatar_url if acc else None, "picture": avatars.picture_of(m.user),
                     "permission": perm.permission if perm else None, "checked_at": perm.checked_at if perm else None, "state": state})
     return out
 

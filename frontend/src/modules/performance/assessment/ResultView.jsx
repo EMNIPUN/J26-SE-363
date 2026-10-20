@@ -5,27 +5,9 @@ import { CartesianGrid, Area, ComposedChart, Legend, Line, ResponsiveContainer, 
 import { AlertTriangle, ArrowRight, BarChart3, ChevronDown, Gauge, Info, Layers, LineChart, MessageSquareQuote, MinusCircle, PenLine, ShieldCheck, Sparkles, TrendingDown, TrendingUp } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { contributions, explainFactor, explainMark, FACTORS, factorState, markBand, markText, questionsOf, quizSummary, styleOf, when } from './format.js'
+import Panel from './Panel.jsx'
 import Reveal from './Reveal.jsx'
 import { ContributionBar, FactorBar, ScoreRing, StatusPill } from './visuals.jsx'
-
-/** One clearly separated part of the page: its own box, a header with an icon, a title and what it is for, then the content. */
-function Panel({ title, hint, icon: Icon, aside, tone = 'default', children }) {
-  const chip = tone === 'warning' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' : 'bg-primary/10 text-primary'
-  return (
-    <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-      <header className="flex flex-wrap items-start gap-3 border-b bg-muted/40 px-5 py-4 sm:px-6">
-        {Icon && <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${chip}`}><Icon className="h-[18px] w-[18px]" aria-hidden="true" /></span>}
-        <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold tracking-tight text-foreground">{title}</h3>
-          {hint && <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{hint}</p>}
-        </div>
-        {aside}
-      </header>
-      <div className="p-5 sm:p-6">{children}</div>
-    </section>
-  )
-}
-Panel.propTypes = { title: PropTypes.string, hint: PropTypes.string, icon: PropTypes.elementType, aside: PropTypes.node, tone: PropTypes.string, children: PropTypes.node }
 
 /** Opens and closes smoothly. The content stays in the page, so it can be found and read by assistive technology. */
 function Collapse({ open, children }) {
@@ -282,7 +264,7 @@ export default function ResultView({ result, weights, mode = 'lecturer', traject
           hint="Each bar runs from 0 to 100. The lighter stretch is the range the score is likely to fall in; hatching means the sprint is still running. The arrow on a card explains it."
           aside={<button type="button" onClick={() => setAll(!allOpen)} className="rounded-lg border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary">{allOpen ? 'Collapse all' : 'Expand all'}</button>}
         >
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid items-start gap-4 md:grid-cols-2">
             {FACTORS.map((m, i) => (
               <FactorCard key={m.id} index={i} meta={m} result={result.factors?.[m.id]} block={j.factors?.[m.id]} part={parts.find((p) => p.id === m.id)} open={Boolean(open[m.id])} onToggle={() => setOpen((o) => ({ ...o, [m.id]: !o[m.id] }))} />
             ))}

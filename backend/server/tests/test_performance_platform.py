@@ -167,3 +167,14 @@ def test_the_lecturer_reads_the_students_code_question_and_answer(team, perf):
     assert "reference" not in json.dumps(q) and "secret" not in json.dumps(q)
     as_user(team, "sam")
     assert team.get(url).status_code == 403
+
+
+def test_the_lecturer_sees_each_students_profile_picture(team, perf):
+    sam = account_id(team, "sam")
+    team.sign_in("sam", email="sam@example.com", name="Sam", picture="https://img.example/sam.png")
+    team.get("/me")  # the picture from the sign-in provider is kept on the account
+    as_user(team, "ada")
+    run_id = team.post(f"/performance/teams/{CODE}/runs", {"sprint_id": SPRINT}).json()["run_id"]
+    result(perf.store, run_id, sam, 81.0, team=CODE)
+    rows = team.get(f"/performance/teams/{CODE}/sprints/{SPRINT}/results").json()
+    assert [r["student"]["picture"] for r in rows] == ["https://img.example/sam.png"]

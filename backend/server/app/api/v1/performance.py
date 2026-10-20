@@ -48,6 +48,7 @@ from app.core.errors import bad_request, conflict, forbidden, not_found
 from app.database.session import get_db
 from app.models import Group, MemberRole
 from app.modules.performance import service
+from app.services import avatars
 from app.services import github_links as links
 from app.services import team_rules as rules
 
@@ -432,7 +433,7 @@ async def identity_map(run_id: str, body: IdentityMapIn, account: Staff, store: 
 async def team_results(team_ref: str, sprint_id: str, account: Staff, store: Store):
     await own_team(store, account, team_ref)
     group = platform_group(account.session, team_ref)
-    names = {str(m.user_id): {"name": m.user.name, "picture": None} for m in group.members} if group else {}
+    names = {str(m.user_id): {"name": m.user.name, "picture": avatars.picture_of(m.user)} for m in group.members} if group else {}
     rows = await db(store.latest_results, group.code if group else team_ref, sprint_id)
     return [{**service.lecturer_view(r), "student": names.get(r["student_id"], {"name": r["student_id"], "picture": None})} for r in rows]
 

@@ -34,7 +34,7 @@ function Spread({ rows }) {
         <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-rose-200 via-amber-200 to-emerald-200 dark:from-rose-900 dark:via-amber-900 dark:to-emerald-900" />
         {marks.map((r, i) => (
           <div key={r.student_id} className="group absolute -translate-x-1/2" style={{ left: `${Math.max(2, Math.min(98, r.effective_mark))}%`, top: i % 2 ? 6 : 28 }}>
-            <Avatar name={r.student?.name} size={24} />
+            <Avatar name={r.student?.name} picture={r.student?.picture} size={24} />
             <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded bg-foreground px-2 py-0.5 text-xs text-background group-hover:block">{r.student?.name}: {markText(r.effective_mark)}</span>
           </div>
         ))}
@@ -74,7 +74,7 @@ export default function ResultsTab({ rows, loading, sprint, base }) {
               <li key={r.student_id} className="border-b last:border-0">
                 <Link to={`${base}/students/${r.student_id}?sprint=${encodeURIComponent(sprint)}`} className="grid grid-cols-[minmax(0,1fr)] items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/50 md:grid-cols-[minmax(0,1.4fr)_120px_minmax(0,3fr)_24px] md:gap-4">
                   <span className="flex min-w-0 items-center gap-3">
-                    <Avatar name={r.student?.name} />
+                    <Avatar name={r.student?.name} picture={r.student?.picture} />
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium text-foreground">{r.student?.name}</span>
                       <span className="mt-0.5 flex flex-wrap items-center gap-1.5"><StatusPill status={r.status} />{flags > 0 && <span className="inline-flex items-center gap-1 text-xs text-amber-600"><AlertTriangle className="h-3 w-3" />{flags}</span>}</span>

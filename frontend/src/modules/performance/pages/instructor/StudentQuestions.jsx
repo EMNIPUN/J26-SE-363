@@ -84,7 +84,8 @@ export default function StudentQuestions() {
   const questions = useMemo(() => questionsOf(quiz.data), [quiz.data])
   const summary = quizSummary(questions)
   const shown = questions.filter(FILTERS.find((f) => f.id === filter).test)
-  const name = results.data?.find((r) => r.student_id === studentId)?.student?.name
+  const person = results.data?.find((r) => r.student_id === studentId)?.student
+  const name = person?.name
   const back = `/teams/${teamId}/performance/students/${studentId}?sprint=${encodeURIComponent(sprint)}`
   const allOpen = shown.length > 0 && shown.every((q) => open[q.n])
 
@@ -93,7 +94,7 @@ export default function StudentQuestions() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link to={back} aria-label="Back to the student" className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"><ArrowLeft className="h-4 w-4" /></Link>
-          {name && <Avatar name={name} size={44} />}
+          {name && <Avatar name={name} picture={person?.picture} size={44} />}
           <div>
             <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-foreground"><MessageSquareQuote className="h-5 w-5 text-primary" aria-hidden="true" />Code questions</h1>
             <p className="text-sm text-muted-foreground">{name ? `${name} · ` : ''}Sprint {sprint}</p>
