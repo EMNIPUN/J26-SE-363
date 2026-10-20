@@ -3,10 +3,14 @@
  * It lives in memory, never in storage, so reloading the page starts the check again.
  */
 const passed = new Set()
+
+/** Leaving the team (the home page and the other pages before a team) forgets every pass, so opening a team again goes through the check again. */
+export const clearPassed = () => passed.clear()
 const key = (who, team) => `${who}|${String(team).toLowerCase()}`
 
 export const hasPassed = (who, team) => passed.has(key(who, team))
-export const markPassed = (who, team) => { passed.add(key(who, team)) }
+// Only one team is passed at a time: passing another one takes the earlier pass away.
+export const markPassed = (who, team) => { passed.clear(); passed.add(key(who, team)) }
 export const forgetPassed = (who, team) => { passed.delete(key(who, team)) }
 
 /** Where to go once the gate is passed: only ever a page inside the same team. */

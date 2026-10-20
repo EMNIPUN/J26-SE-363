@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accessHref, forgetPassed, hasPassed, markPassed, safeNext } from './accessPassed.js'
+import { accessHref, clearPassed, forgetPassed, hasPassed, markPassed, safeNext } from './accessPassed.js'
 
 describe('the memory of a passed gate', () => {
   it('is per person and per team, and can be taken back', () => {
@@ -10,6 +10,20 @@ describe('the memory of a passed gate', () => {
     expect(hasPassed('a@x', 'MC02')).toBe(false)
     forgetPassed('a@x', 'MC01')
     expect(hasPassed('a@x', 'MC01')).toBe(false)
+  })
+})
+
+describe('leaving a team', () => {
+  it('forgets the pass, so the next visit is checked again', () => {
+    markPassed('a@x', 'MC01')
+    clearPassed()
+    expect(hasPassed('a@x', 'MC01')).toBe(false)
+  })
+  it('keeps one pass at a time: passing another team takes the earlier one away', () => {
+    markPassed('a@x', 'MC01')
+    markPassed('a@x', 'MC02')
+    expect(hasPassed('a@x', 'MC01')).toBe(false)
+    expect(hasPassed('a@x', 'MC02')).toBe(true)
   })
 })
 
