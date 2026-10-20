@@ -33,6 +33,8 @@ from pathlib import Path
 from typing import Protocol
 
 from app.agents.security_assistant.agent_loop import Action, DecisionTrail, LoopConfig, Policy, RulePolicy, render_trail, select
+from app.agents.security_assistant.graphs.question_graph import QuestionContext, build_question_graph
+from app.agents.security_assistant.graphs.question_graph import recursion_limit as graph_recursion_limit
 from app.agents.security_assistant.interpreter.evidence import _safe_file
 from app.agents.security_assistant.interpreter.redaction import redact_text
 from app.agents.security_assistant.pii import PIIRedactor
@@ -381,39 +383,15 @@ async def generate(doc: dict, repo: Path | None, tutor: TutorChannel, threshold:
     cfg = config or LoopConfig.from_env("QUESTION", max_steps=200, max_retries=2)
     policy, rules = policy or RulePolicy(), RulePolicy()
     trail = DecisionTrail("question agent", audit)
+    graph = build_question_graph(QuestionContext(trail, policy, rules, cfg, tutor, threshold, repo, pii))  # graphs/question_graph.py
     items, steps = [], 0
     for g in doc["groups"]:
         if g["result"]["status"] != "confirmed":
             continue
-        attempts: list[dict] = []
-        status, escalation = "open", None
-        last_q = last_r = None
-        while status == "open":
-            if steps >= cfg.max_steps:  # the budget is spent: the finding goes to a person, with the reason
-                status, escalation = "escalated", f"step budget spent ({cfg.max_steps} steps) before this finding was closed"
-                trail.outcome(trail.record(steps + 1, "budget", {"attempts": len(attempts)}, [], Action("escalate_to_lecturer"), escalation,
-                                           subject=g["group_id"]), "escalated")
-                break
-            options = question_options(attempts, threshold, cfg)
-            state = {"finding": g["group_id"], "attempts": len(attempts), "scores": [a["score"] for a in attempts], "threshold": threshold,
-                     "steps_used": steps, "max_steps": cfg.max_steps}
-            action, reason, rejected = select(policy, rules, state, options)
-            entry = trail.record(steps + 1, policy.name if rejected is None else f"{policy.name} -> rules", state, options, action, reason,
-                                 rejected, subject=g["group_id"])
-            steps += 1
-            if action.name in ("ask_question", "ask_followup"):
-                level = len(attempts)
-                last_q = build_question(g, repo, pii, hint_level=level, attempt=len(attempts) + 1)
-                last_r = await tutor.ask(last_q)
-                attempts.append({"attempt": last_q.attempt, "hint_level": level, "question_id": last_q.id, "text": last_q.text,
-                                 "score": last_r.score, "result": decide(last_r.score, threshold)})
-                trail.outcome(entry, f"attempt {last_q.attempt}: score {last_r.score:.2f} -> {attempts[-1]['result']}")
-            elif action.name == "close_finding":
-                status = "closed"
-                trail.outcome(entry, f"closed after {len(attempts)} attempt(s)")
-            else:
-                status, escalation = "escalated", reason
-                trail.outcome(entry, "escalated to lecturer review")
+        final = await graph.ainvoke({"group": g, "attempts": [], "status": "open", "escalation": None, "steps": steps},
+                                    {"recursion_limit": graph_recursion_limit(cfg)})
+        steps, attempts, status, escalation = final["steps"], final["attempts"], final["status"], final["escalation"]
+        last_q, last_r = final.get("last_q"), final.get("last_r")
         if last_q is None:  # escalated by the budget before the first question: build it so the lecturer sees what was to be asked
             last_q = build_question(g, repo, pii)
             last_r = TutorResult(0.0, tutor.label, tutor.mock, "(not asked: the step budget was spent)")
