@@ -280,3 +280,173 @@ def test_no_email_name_or_secret_is_in_any_findings_answer(api, many, results):
     text = api.get(findings_url()).text + api.get(findings_url("/A")).text + api.get(findings_url("?mine=true")).text
     for bad in ("jane@example.org", "ghp_a1B2", "Jane Doe", "sam@example.com", "salt"):
         assert bad not in text
+
+
+# ---- step 4: learning, agents, audit, workflow, evidence, compare ------------------------------------------------------------------------
+MMD = ("---\nconfig:\n  flowchart:\n    curve: linear\n---\ngraph TD;\n\t__start__([<p>__start__</p>]):::first\n\tfetch(fetch)\n\tscan(scan)\n\treport(report)\n"
+       "\t__end__([<p>__end__</p>]):::last\n\t__start__ --> fetch;\n\tfetch -.-> report;\n\tfetch -.-> scan;\n\tscan --> report;\n\treport --> __end__;\n")
+
+
+def probe(decision="closed", scores=(0.5, 0.8), reason=None):
+    log = [{"attempt": i + 1, "hint_level": i, "text": f"question {i + 1}", "score": s, "result": "below threshold" if s < 0.7 else "above threshold"}
+           for i, s in enumerate(scores)]
+    return {"question": "What happens?", "decision": decision, "attempts": len(log), "attempt_log": log, "scores": list(scores),
+            "threshold": 0.7, "escalation_reason": reason}
+
+
+@pytest.fixture
+def full(team, results):
+    path = results / CODE / RUN / "report.json"
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc["findings"] = [
+        finding("A", "V2", "confirmed", rank=1, contributor=MINE, probe=probe(), fix_guidance={"id": "parameterized-query", "title": "Use parameters"}),
+        finding("B", "V1", "confirmed", rank=2, contributor="C-99999999", probe=probe("escalated", (0.2, 0.3, 0.4), "attempt limit"),
+                fix_guidance={"id": "ownership-check", "title": "Check ownership"}),
+        finding("C", "V3", "dismissed")]
+    doc["findings"][2]["probe"] = None
+    doc["questions"] = {"meta": {"tutor_label": "MOCK TUTOR (simulated)", "tutor_is_mock": True, "threshold": 0.7}, "summary": {}}
+    doc["decision_trail"] = {"Analysis Orchestrator": [{"step": 1, "chosen": "run_tools"}], "Question Agent": [], "Governance": []}
+    doc["governance"] = {"mode": "enforce", "calls_checked": 4, "calls_blocked": 0, "scrutiny": {"level": "normal", "escalated": False},
+                         "injection_indicators": [{"id": "ignore-previous", "file": "README.md"}]}
+    doc["limitations"] = ["The Tutor is a MOCK."]
+    doc["run"]["stages"] = [{"stage": s, "status": "completed", "detail": "", "seconds": 0} for s in ("fetch", "scan", "governance")] + [
+        {"stage": "interpret", "status": "failed", "detail": "x", "seconds": 0}]
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    (results / CODE / RUN / "audit.jsonl").write_text("\n".join(json.dumps({"seq": i, "event": "llm_call", "prompt_sha256": "ab" * 32}) for i in range(5)),
+                                                      encoding="utf-8")
+    (results / "_shared").mkdir()
+    for name in ("workflow", "orchestrator", "question", "governance"):
+        (results / "_shared" / f"{name}.mmd").write_text(MMD, encoding="utf-8")
+    (results / "_shared" / "rq1_comparison.csv").write_text("suite,name,run\nseeded repo,vuln_py_repo,model / interpreter-v3\n", encoding="utf-8")
+    return team
+
+
+def run_url(suffix, code=CODE):
+    return f"/security-assistant/teams/{code}/runs/{RUN}{suffix}"
+
+
+def test_learning_lists_the_probes_with_attempts_scores_and_decisions_and_labels_the_tutor_a_mock(api, full):
+    as_user(api, "sam")
+    body = api.get(run_url("/learning")).json()
+    assert body["title"] == "comprehension check results (mock)" and body["tutor"] == {"label": "MOCK TUTOR (simulated)", "is_mock": True}
+    assert [i["group_id"] for i in body["items"]] == ["A", "B"] and body["threshold"] == 0.7
+    a, b = body["items"]
+    assert [x["hint_level"] for x in a["attempts"]] == [0, 1] and a["decision"] == "closed" and b["decision"] == "escalated" and b["escalation_reason"] == "attempt limit"
+    assert body["summary"] == {"title": "comprehension check results (mock)", "concepts": 2, "closed": 1, "escalated": 1, "open": 0, "attempts": 5}
+
+
+def test_learning_for_one_student_counts_only_their_findings(api, full):
+    as_user(api, "sam")
+    body = api.get(run_url("/learning?mine=true")).json()
+    assert [i["group_id"] for i in body["items"]] == ["A"] and body["summary"]["closed"] == 1 and body["summary"]["escalated"] == 0
+    assert body["summary_all"]["escalated"] == 1
+
+
+def test_agents_returns_the_trails_and_the_governance_summary(api, full):
+    as_user(api, "kim")
+    body = api.get(run_url("/agents")).json()
+    assert set(body["decision_trail"]) == {"Analysis Orchestrator", "Question Agent", "Governance"} and body["governance"]["calls_checked"] == 4
+    assert body["governance"]["injection_indicators"][0]["id"] == "ignore-previous"
+
+
+def test_the_audit_log_is_for_lecturers_and_admins_and_is_paged(api, full):
+    as_user(api, "sam")
+    assert api.get(run_url("/audit")).status_code == 403
+    as_user(api, "ada")
+    body = api.get(run_url("/audit?limit=2&offset=3")).json()
+    assert body["total"] == 5 and [x["seq"] for x in body["lines"]] == [3, 4] and body["lines"][0]["prompt_sha256"] == "ab" * 32
+    assert api.get(run_url("/audit?limit=0")).status_code == 422
+    api.sign_in("root", email="root@example.com", admin=True)
+    assert api.get(run_url("/audit")).status_code == 200
+    as_user(api, "zed")
+    assert api.get(run_url("/audit")).status_code in (403, 404)
+
+
+def test_the_workflow_has_nodes_edges_the_diagram_text_and_the_nodes_that_ran(api, full):
+    as_user(api, "sam")
+    body = api.get(run_url("/workflow")).json()
+    w = body["graphs"]["workflow"]
+    assert w["nodes"] == ["__start__", "fetch", "scan", "report", "__end__"] and "graph TD;" in w["mmd"]
+    assert {"from": "fetch", "to": "report", "conditional": True} in w["edges"] and {"from": "scan", "to": "report", "conditional": False} in w["edges"]
+    ran = body["ran"]
+    assert ran["workflow"]["fetch"] == "completed" and ran["workflow"]["interpret"] == "failed" and ran["workflow"]["report"] == "completed"
+    assert ran["question"] == {"ask": "ran", "score": "ran", "follow_up": "ran", "close": "ran", "escalate": "ran"}
+    assert ran["governance"]["allow"] == "ran" and ran["governance"]["block"] == "not run" and ran["governance"]["raise_scrutiny"] == "not run"
+    assert ran["orchestrator"]["plan"] == "ran"
+
+
+def test_the_workflow_still_answers_when_the_diagram_files_are_missing(api, team, results):
+    as_user(api, "sam")
+    body = api.get(run_url("/workflow")).json()
+    assert body["graphs"]["workflow"] == {"nodes": [], "edges": [], "mmd": None} and body["ran"]["workflow"]["fetch"] == "completed"
+
+
+def test_a_failed_scan_means_the_orchestrator_and_the_question_agent_did_not_run(api, team, results):
+    path = results / CODE / RUN / "report.json"
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc["run"]["stages"] = [{"stage": "scan", "status": "failed", "detail": "x", "seconds": 0}]
+    doc["findings"] = []
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    as_user(api, "sam")
+    ran = api.get(run_url("/workflow")).json()["ran"]
+    assert set(ran["orchestrator"].values()) == {"not run"} and set(ran["question"].values()) == {"not run"}
+
+
+def test_the_evidence_has_scanner_only_against_scanner_plus_llm_rq1_limitations_and_what_is_mocked(api, full):
+    as_user(api, "sam")
+    body = api.get(f"/security-assistant/teams/{CODE}/evidence?run={RUN}").json()
+    assert body["runs"][0]["scanner_findings"] == 3 and body["runs"][0]["confirmed"] == 2 and body["runs"][0]["dismissed"] == 1
+    assert body["rq1_rows"] == [{"suite": "seeded repo", "name": "vuln_py_repo", "run": "model / interpreter-v3"}]
+    assert body["limitations"] == ["The Tutor is a MOCK."] and any(m["status"] == "mock" for m in body["mocked"])
+    assert any(m["status"] == "pending" for m in body["mocked"])
+    as_user(api, "zed")
+    assert api.get(f"/security-assistant/teams/{CODE}/evidence").status_code == 404
+
+
+def test_the_evidence_works_without_the_rq1_file_or_a_chosen_run(api, team):
+    as_user(api, "sam")
+    body = api.get(f"/security-assistant/teams/{CODE}/evidence").json()
+    assert body["rq1_rows"] == [] and body["limitations"] == [] and len(body["runs"]) == 1
+
+
+def test_comparing_a_run_with_itself_changes_nothing(api, full):
+    as_user(api, "sam")
+    body = api.get(f"/security-assistant/teams/{CODE}/compare?a={RUN}&b={RUN}").json()
+    assert body["added"] == body["removed"] == body["changed"] == [] and body["unchanged_count"] == 3
+
+
+def test_compare_finds_added_removed_and_changed_findings(api, full, results):
+    other = results / CODE / "second-run"
+    other.mkdir()
+    doc = json.loads((results / CODE / RUN / "report.json").read_text(encoding="utf-8"))
+    doc["findings"] = [dict(f) for f in doc["findings"] if f["group_id"] != "C"]
+    doc["findings"][0]["status"] = "dismissed"
+    doc["findings"].append(finding("N", "V4", "confirmed", rank=3))
+    (other / "report.json").write_text(json.dumps(doc), encoding="utf-8")
+    (other / "run.json").write_text((results / CODE / RUN / "run.json").read_text(encoding="utf-8"), encoding="utf-8")
+    as_user(api, "sam")
+    body = api.get(f"/security-assistant/teams/{CODE}/compare?a={RUN}&b=second-run").json()
+    assert [f["group_id"] for f in body["added"]] == ["N"] and [f["group_id"] for f in body["removed"]] == ["C"]
+    assert [(f["group_id"], f["from"], f["to"]) for f in body["changed"]] == [("A", "confirmed", "dismissed")] and body["unchanged_count"] == 1
+
+
+def test_compare_refuses_runs_of_different_repositories_and_unknown_runs(api, full, results):
+    other = results / CODE / "other-repo"
+    other.mkdir()
+    (other / "report.json").write_text((results / CODE / RUN / "report.json").read_text(encoding="utf-8"), encoding="utf-8")
+    (other / "run.json").write_text(json.dumps({"repo": "https://github.com/someone/else"}), encoding="utf-8")
+    as_user(api, "sam")
+    refused = api.get(f"/security-assistant/teams/{CODE}/compare?a={RUN}&b=other-repo")
+    assert refused.status_code == 422 and refused.json()["code"] == "different_repositories"
+    assert api.get(f"/security-assistant/teams/{CODE}/compare?a={RUN}&b=nope").status_code == 404
+    assert api.get(f"/security-assistant/teams/{CODE}/compare?a={RUN}").status_code == 422
+    as_user(api, "zed")
+    assert api.get(f"/security-assistant/teams/{CODE}/compare?a={RUN}&b={RUN}").status_code == 404
+
+
+def test_nothing_in_any_step_4_answer_holds_an_email_a_name_or_the_mapping(api, full):
+    as_user(api, "sam")
+    urls = ["/learning", "/agents", "/workflow"]
+    text = "".join(api.get(run_url(u)).text for u in urls) + api.get(f"/security-assistant/teams/{CODE}/evidence?run={RUN}").text
+    for bad in ("sam@example.com", "salt", '"Sam"'):
+        assert bad not in text

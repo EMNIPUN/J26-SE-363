@@ -3,22 +3,29 @@
 GET /api/v1/security-assistant/teams/{team}/runs                 the runs of a team (newest first)
 GET /api/v1/security-assistant/teams/{team}/students             the students of a team (lecturers and admins)
 GET /api/v1/security-assistant/teams/{team}/runs/{run}           provenance, stages, tool runs, coverage, counts
+GET .../runs/{run}/findings[?category=&status=&mine=]             the findings; .../findings/{group_id} one finding
+GET .../runs/{run}/learning | agents | workflow                  mock Tutor results, agent trails and governance, graphs with the nodes that ran
+GET .../runs/{run}/audit                                         the audit log (lecturers and admins)
+GET .../evidence | compare?a=&b=                                 scanner only vs scanner plus LLM, RQ1, limitations | a diff of two runs
 
 `{team}` is the team's id or code, with the same rule as everywhere else: members only, anyone else gets 404. Nothing here writes
 to the database or to the result folders, and nothing starts a scan. The data comes from `reader.ResultsReader`.
 """
 
+import csv
+import io
+import re
 import uuid
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from shared.contracts import UserRole
 from sqlalchemy.orm import Session
 
 from app.api.deps import Account, get_onboarded_account, require_account_role
 from app.core.config import settings
-from app.core.errors import not_found
+from app.core.errors import ApiError, not_found
 from app.database.session import get_db
 from app.models.group import Group, MemberRole
 from app.modules.security.reader import NotFound, ResultsReader, counts
@@ -161,3 +168,171 @@ def read_finding(team: str, run: str, group_id: str, account: Onboarded, db: Db,
     if found is None:
         raise not_found("Finding not found")
     return _card(found, set(my_contributor_ids(reader, group, run, account, student)))
+
+
+# ---- learning verification (a mock Tutor), agents, audit, workflow, evidence, compare -----------------------------------------------------
+MOCK_TITLE = "comprehension check results (mock)"
+
+
+def _learning_item(f: dict, mine: set[str]) -> dict:
+    p = f["probe"]
+    return {"group_id": f["group_id"], "category": f["category"], "title": (f.get("message") or f["rule_id"])[:160], "mine": bool(_contributor(f) and _contributor(f) in mine),
+            "concept": (f.get("fix_guidance") or {}).get("title"), "concept_id": (f.get("fix_guidance") or {}).get("id"),
+            "question": p.get("question"), "attempts": p.get("attempt_log") or [], "scores": p.get("scores") or [], "threshold": p.get("threshold"),
+            "decision": p.get("decision"), "escalation_reason": p.get("escalation_reason")}
+
+
+def learning_summary(items: list[dict]) -> dict:
+    return {"title": MOCK_TITLE, "concepts": len({i["concept_id"] for i in items if i["concept_id"]}),
+            "closed": sum(i["decision"] == "closed" for i in items), "escalated": sum(i["decision"] == "escalated" for i in items),
+            "open": sum(i["decision"] not in ("closed", "escalated") for i in items), "attempts": sum(len(i["attempts"]) for i in items)}
+
+
+@router.get("/teams/{team}/runs/{run}/learning", summary="Probe questions and the (mock) Tutor's results")
+def read_learning(team: str, run: str, account: Onboarded, db: Db, reader: Reader, mine: bool = False,
+                  student: Annotated[str | None, Query()] = None) -> dict:
+    group = team_access(db, team, account)
+    rep = load_run(reader, group, run)["report"]
+    ids = set(my_contributor_ids(reader, group, run, account, student))
+    items = [_learning_item(f, ids) for f in rep["findings"] if f.get("probe")]
+    shown = [i for i in items if i["mine"]] if mine else items
+    qmeta = (rep.get("questions") or {}).get("meta") or {}
+    return {"run_id": run, "demo_data": demo_data(), "title": MOCK_TITLE, "threshold": qmeta.get("threshold", (rep["meta"] or {}).get("threshold")),
+            "tutor": {"label": qmeta.get("tutor_label"), "is_mock": bool(qmeta.get("tutor_is_mock", True))},
+            "my_contributor_ids": sorted(ids), "items": shown, "summary": learning_summary(shown), "summary_all": learning_summary(items)}
+
+
+@router.get("/teams/{team}/runs/{run}/agents", summary="The decision trails of the three agents and the governance summary")
+def read_agents(team: str, run: str, account: Onboarded, db: Db, reader: Reader) -> dict:
+    group = team_access(db, team, account)
+    rep = load_run(reader, group, run)["report"]
+    return {"run_id": run, "demo_data": demo_data(), "decision_trail": rep.get("decision_trail") or {}, "governance": rep.get("governance")}
+
+
+@router.get("/teams/{team}/runs/{run}/audit", summary="The audit log (hashes and counts only) of a run (lecturers and admins)")
+def read_audit(team: str, run: str, account: StaffOnly, db: Db, reader: Reader, limit: Annotated[int, Query(ge=1, le=500)] = 200,
+               offset: Annotated[int, Query(ge=0)] = 0) -> dict:
+    group = team_access(db, team, account)
+    load_run(reader, group, run)
+    lines = reader.audit(group.code, run)
+    return {"run_id": run, "total": len(lines), "limit": limit, "offset": offset, "lines": lines[offset:offset + limit]}
+
+
+GRAPHS = ("workflow", "orchestrator", "question", "governance")
+_NODE = re.compile(r"^\t([A-Za-z_]\w*)\(")
+_EDGE = re.compile(r"^\t([A-Za-z_]\w*) (-->|-\.->) ([A-Za-z_]\w*);")
+
+
+def parse_mermaid(text: str) -> dict:
+    """The nodes and edges of a LangGraph Mermaid export (docs/*.mmd): enough to draw the graph without a Mermaid library."""
+    nodes, edges = [], []
+    for line in text.splitlines():
+        if m := _NODE.match(line):
+            nodes.append(m.group(1))
+        elif m := _EDGE.match(line):
+            edges.append({"from": m.group(1), "to": m.group(3), "conditional": m.group(2) == "-.->"})
+    return {"nodes": nodes, "edges": edges}
+
+
+def graph_status(rep: dict) -> dict:
+    """Which nodes ran in this run. Workflow: the stage's own status. The agent graphs: derived from the probes, the scan stage and governance."""
+    stages = {s["stage"]: s["status"] for s in rep["run"]["stages"]}
+    stages["report"] = "completed"
+    gov = rep.get("governance") or {}
+    scrutiny = gov.get("scrutiny") or {}
+    probes = [f["probe"] for f in rep["findings"] if f.get("probe")]
+    asked = [p for p in probes if p.get("attempts")]
+    ran, none = "ran", "not run"
+    checked, blocked = gov.get("calls_checked", 0) or 0, gov.get("calls_blocked", 0) or 0
+    return {
+        "workflow": stages,
+        "orchestrator": {n: ran if stages.get("scan") in ("completed", "partial") else none for n in ("plan", "execute_action", "update_state", "stop")},
+        "question": {"ask": ran if asked else none, "score": ran if asked else none,
+                     "follow_up": ran if any(p["attempts"] > 1 for p in asked) else none,
+                     "close": ran if any(p.get("decision") == "closed" for p in probes) else none,
+                     "escalate": ran if any(p.get("decision") == "escalated" for p in probes) else none},
+        "governance": {"check_input": ran if (checked or stages.get("governance") == "completed") else none,
+                       "allow": ran if checked > blocked else none, "block": ran if blocked else none,
+                       "raise_scrutiny": ran if scrutiny.get("level") not in (None, "normal") else none,
+                       "escalate": ran if scrutiny.get("escalated") else none},
+    }
+
+
+@router.get("/teams/{team}/runs/{run}/workflow", summary="The workflow and agent graphs with the nodes that ran highlighted")
+def read_workflow(team: str, run: str, account: Onboarded, db: Db, reader: Reader) -> dict:
+    group = team_access(db, team, account)
+    rep = load_run(reader, group, run)["report"]
+    graphs = {}
+    for name in GRAPHS:
+        try:
+            text = reader.shared(f"{name}.mmd")
+        except NotFound:
+            graphs[name] = {"nodes": [], "edges": [], "mmd": None}
+            continue
+        graphs[name] = {**parse_mermaid(text), "mmd": text}
+    return {"run_id": run, "demo_data": demo_data(), "graphs": graphs, "ran": graph_status(rep)}
+
+
+MOCKED = [
+    {"part": "Tutor and the comprehension score", "status": "mock", "note": "No student answers anything; the scores only demonstrate the flow."},
+    {"part": "Requirements and sprint tasks", "status": "local files", "note": "Read from local JSON files; the Requirements agent does not exist."},
+    {"part": "LLM policy for the three agents", "status": "not built", "note": "Only deterministic rule policies; the interface is ready."},
+    {"part": "Orchestrator wiring, database persistence, webhook to assessment", "status": "not built", "note": "The assessment runs from the command line."},
+    {"part": "Checkpointing and resuming a run", "status": "not built", "note": "By design."},
+    {"part": "Real CodeQL per-language and OSV fallbacks", "status": "tested with fake tools", "note": "Not exercised against the real tools in this workflow."},
+    {"part": "RQ1 on all four demo repositories with one model", "status": "pending", "note": "Needs the model's daily quota; the table is from the saved runs."},
+]
+STATUS_KEYS = ("confirmed", "dismissed", "uncertain", "not interpreted")
+
+
+def rq1_rows(reader: ResultsReader) -> list[dict]:
+    try:
+        text = reader.shared("rq1_comparison.csv")
+    except NotFound:
+        return []
+    return list(csv.DictReader(io.StringIO(text)))
+
+
+def run_counts(reader: ResultsReader, group: Group) -> list[dict]:
+    """Scanner only (every finding group the tools reported) against scanner plus LLM (what the LLM confirmed, dismissed or left open)."""
+    rows = []
+    for s in reader.summaries(group.code):
+        total = {k: sum(row[k] for row in s["counts"].values()) for k in STATUS_KEYS}
+        rows.append({"run_id": s["run_id"], "repo": s["repo"], "started_at": s["started_at"], "scanner_findings": sum(total.values()),
+                     "confirmed": total["confirmed"], "dismissed": total["dismissed"], "uncertain": total["uncertain"], "not_interpreted": total["not interpreted"]})
+    return rows
+
+
+@router.get("/teams/{team}/evidence", summary="Evidence for the panel: scanner only against scanner plus LLM, RQ1, limitations")
+def read_evidence(team: str, account: Onboarded, db: Db, reader: Reader, run: Annotated[str | None, Query()] = None) -> dict:
+    group = team_access(db, team, account)
+    limitations = load_run(reader, group, run)["report"].get("limitations", []) if run else []
+    return {"demo_data": demo_data(), "runs": run_counts(reader, group), "rq1_rows": rq1_rows(reader), "limitations": limitations, "mocked": MOCKED}
+
+
+def finding_key(f: dict) -> tuple:
+    return (f["category"], f["rule_id"], f.get("file_path"), f.get("package"), f.get("line"))
+
+
+def compare_runs(a: list[dict], b: list[dict]) -> dict:
+    """What changed from run a to run b, matching findings on category, rule, file, package and line."""
+    old, new = {finding_key(f): f for f in a}, {finding_key(f): f for f in b}
+
+    def brief(f: dict) -> dict:
+        return {"category": f["category"], "rule_id": f["rule_id"], "file_path": f.get("file_path"), "line": f.get("line"), "package": f.get("package"),
+                "status": f["status"], "group_id": f["group_id"]}
+
+    return {"added": [brief(new[k]) for k in new if k not in old], "removed": [brief(old[k]) for k in old if k not in new],
+            "changed": [{**brief(new[k]), "from": old[k]["status"], "to": new[k]["status"]} for k in new if k in old and old[k]["status"] != new[k]["status"]],
+            "unchanged_count": sum(1 for k in new if k in old and old[k]["status"] == new[k]["status"])}
+
+
+@router.get("/teams/{team}/compare", summary="What changed between two runs of the same repository")
+def compare(team: str, account: Onboarded, db: Db, reader: Reader, a: str, b: str) -> dict:
+    group = team_access(db, team, account)
+    run_a, run_b = load_run(reader, group, a), load_run(reader, group, b)
+    repo_a = run_a["manifest"].get("repo") or run_a["report"]["meta"].get("source")
+    repo_b = run_b["manifest"].get("repo") or run_b["report"]["meta"].get("source")
+    if repo_a != repo_b:
+        raise ApiError(status.HTTP_422_UNPROCESSABLE_ENTITY, "different_repositories", "The two runs scanned different repositories")
+    return {"a": a, "b": b, "repo": repo_a, "demo_data": demo_data(), **compare_runs(run_a["report"]["findings"], run_b["report"]["findings"])}
