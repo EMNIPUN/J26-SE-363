@@ -154,3 +154,17 @@ test('GitHub opens in a small window and the button keeps working until it repor
   await expect(button).toBeDisabled() // still busy while the access is checked again
   await expect.poll(() => page.url()).not.toContain('/access') // and then it goes on, with no extra click
 })
+
+test('demo mode shows sample data on the real team address without asking the server (lecturer side)', async ({ page }) => {
+  await page.goto('/preview.html?role=instructor&demo=1#/teams/SE4529/performance/assessment?sprint=MC01-S3')
+  await expect(page.getByText('Sadeesha Sathsara').first()).toBeVisible()
+  await expect(page.getByText(/Sample data/)).toBeVisible()
+  await shot(page, 'demo-lecturer')
+})
+
+test('demo mode shows sample data on the student side', async ({ page }) => {
+  await page.goto('/preview.html?role=student&demo=1#/teams/SE4529/performance/my-assessment')
+  await expect(page.getByText(/Sample data/)).toBeVisible()
+  await expect(page.getByText(/Eric Devon/)).toHaveCount(0) // a student sees only their own result
+  await shot(page, 'demo-student')
+})

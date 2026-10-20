@@ -24,6 +24,12 @@ const apiClient = axios.create({
   },
 })
 
+// Development only: ?demo=1 on any page shows sample data on the performance pages (see src/preview/demoMode.js). The import below is removed from production builds.
+if (import.meta.env.DEV) {
+  const real = axios.getAdapter(apiClient.defaults.adapter)
+  apiClient.defaults.adapter = async (config) => (await import('../../preview/demoMode.js')).answer(config, real)
+}
+
 // ---------------------------------------------------------------------------
 // Request Interceptor: Auth Token & Trace Header Injection
 // ---------------------------------------------------------------------------
