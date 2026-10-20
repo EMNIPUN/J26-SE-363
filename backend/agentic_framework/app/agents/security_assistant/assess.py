@@ -34,6 +34,7 @@ from app.agents.security_assistant import governance as gv
 from app.agents.security_assistant.agent_loop import render_trail
 from app.agents.security_assistant import orchestrator as orch
 from app.agents.security_assistant.dedupe import dedupe
+from app.agents.security_assistant.graphs.assess_graph import RunContext, build_assess_graph
 from app.agents.security_assistant.interpreter.llm import LLMClient, LLMError, get_default_client
 from app.agents.security_assistant.interpreter.models import finding_key
 from app.agents.security_assistant.interpreter.redaction import redact_text
@@ -57,8 +58,8 @@ OK = ("completed",)
 class Stages:
     """Records what happened to each stage, in order."""
 
-    def __init__(self, say=lambda text: None):
-        self.items: dict[str, dict] = {}
+    def __init__(self, say=lambda text: None, items: dict[str, dict] | None = None):
+        self.items: dict[str, dict] = items if items is not None else {}  # the run's graph state holds these (graphs/assess_graph.py)
         self._say = say
 
     def record(self, name: str, status: str, detail: str = "", started: float | None = None) -> None:
@@ -183,246 +184,21 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
     label = _label(str(repo_url), is_url)
     out = Path(out_dir) if out_dir else Path("scan_output") / f"assessment_{label}"
     out.mkdir(parents=True, exist_ok=True)
-    st = Stages(say)
-    result = scan_report = idoc = tdoc = risk_doc = qdoc = None
-    plan = llm = None
-    link_usage: dict = {}
-    trails: dict[str, list[dict]] = {}
-    findings: list[dict] = []
-    guidance_used: dict[str, dict] = {}
-    reused = False
-    scan_md = ""
-    llm_refused = False
-
     pii = PIIRedactor.from_env()  # one redactor for the whole run: the same placeholders in the report snippets, prompts and questions
     gov = gv.Governance(out, warn_only=governance_warn_only, pii=pii)
     gov.start(command="assess", prompt_version=interp.PROMPT_VERSION, link_prompt_version=tr.TRACE_PROMPT_VERSION)
     stack = contextlib.AsyncExitStack()
-    t0 = time.monotonic()
+    ctx = RunContext(repo_url=str(repo_url), requirements_file=requirements_file, sprint_tasks_file=sprint_tasks_file, reuse_scan=reuse_scan,
+                     out=out, allow_external_llm=allow_external_llm, client=client, tutor=tutor, threshold=threshold, ref=ref, tools=tools,
+                     max_findings=max_findings, delay=delay, retries=retries, fetch_options=fetch_options, agent_config=agent_config,
+                     orchestrator_policy=orchestrator_policy, question_config=question_config, question_policy=question_policy, say=say,
+                     label=label, is_url=is_url, gov=gov, pii=pii, stack=stack, skip=skipped)
     try:
-        ctx = fetch_repo(str(repo_url), ref, **(fetch_options or {})) if is_url else contextlib.nullcontext(Path(repo_url))
-        repo = Path(await stack.enter_async_context(ctx))
-        if not repo.is_dir():
-            raise InvalidRepoPath(f"not a directory: {repo_url}")
-        pii.learn_git_names(repo)  # names of the git history are known names for every later stage
-        st.record("fetch", "completed", "repository fetched" if is_url else "local folder", t0)
-    except (FetchError, InvalidRepoPath, OSError) as exc:
-        repo = None
-        st.record("fetch", "failed", redact_text(str(exc))[:200], t0)
-
-    try:
-        # ---- scan ----------------------------------------------------------------------------------------------------------
-        if (why := st.blocked_by("scan")):
-            st.skip("scan", f"needs {why}")
-        else:
-            t = time.monotonic()
-            try:
-                if reuse_scan:
-                    result, saved_skips = from_json(Path(reuse_scan).read_text(encoding="utf-8"))
-                    skipped = sorted(set(skipped) | set(saved_skips))
-                    reused = True
-                    detail = f"reused saved findings ({Path(reuse_scan).name}); nothing was scanned now"
-                else:
-                    chosen = [x for x in (tools if tools is not None else default_tools()) if x.name not in skipped]
-                    if (rejected := gov.check_tools([x.name for x in chosen], "tools to run")):
-                        raise gv.ToolNotAllowed(f"governance: tool(s) not on the allow-list: {', '.join(rejected)}")
-                    outcome = await orch.orchestrate(repo, chosen, config=agent_config, audit=gov.audit, skipped=skipped, policy=orchestrator_policy)
-                    result, trails["Analysis Orchestrator"] = outcome.result, outcome.trail
-                    detail = (f"{len(result.runs)} tool run(s), {len(result.findings)} finding(s); agent loop: {outcome.steps} step(s), "
-                              f"{outcome.stop_reason}")
-                if reused and (rejected := gov.check_tools([r.tool for r in result.runs] + [f.tool for f in result.findings],
-                                                           "the reused findings.json")):
-                    raise gv.ToolNotAllowed(f"governance rejected the reused findings.json: tool(s) not on the allow-list: {', '.join(rejected)}")
-                if reused and not result.coverage_gaps and "coverage_gaps" not in json.loads(Path(reuse_scan).read_text(encoding="utf-8"))["scan"]:
-                    result.coverage_gaps = find_dependency_gaps(repo)  # a findings.json from before this check: look at the repo now
-                if reused:  # the same loop in review mode: no tool can run, but gaps and holes are decided on and shown
-                    outcome = await orch.review(result, config=agent_config, audit=gov.audit, skipped=skipped, policy=orchestrator_policy)
-                    result, trails["Analysis Orchestrator"] = outcome.result, outcome.trail
-                    detail += f"; agent loop (review, no tool can run): {outcome.steps} step(s), {outcome.stop_reason}"
-                scan_report = build_report(result, skipped=skipped, source=label, repo=repo, pii=pii)
-                scan_report.commit_sha = ref if is_url else scan_report.commit_sha
-                scan_md = render_markdown(scan_report)
-                bad = [r.tool for r in result.runs if r.status.value not in ("succeeded", "not_applicable")]
-                st.record("scan", "partial" if bad else "completed",
-                          detail + (f"; did not finish: {', '.join(bad)}" if bad else ""), t)
-            except Exception as exc:  # a stage must never take the whole run down silently
-                result = scan_report = None
-                st.record("scan", "failed", f"{type(exc).__name__}: {redact_text(str(exc))[:160]}", t)
-
-        # ---- governance (before anything is sent anywhere) -------------------------------------------------------------------------
-        if (why := st.blocked_by("governance")):
-            st.skip("governance", f"needs {why}")
-        else:
-            t = time.monotonic()
-            try:
-                gov.set_secret_values(gv.known_secret_values(repo, result.findings))
-                hits = gov.scan_repo(repo)
-                st.record("governance", "completed",
-                          f"{'WARN-ONLY mode' if gov.warn_only else 'enforcing'}; tool allow-list ok; {gov.repo_files_scanned} README/commit message(s) "
-                          f"scanned, {len(hits)} prompt-injection indicator(s) logged (an indicator, not proof)", t)
-            except Exception as exc:
-                st.record("governance", "failed", f"{type(exc).__name__}: {redact_text(str(exc))[:160]}", t)
-
-        # ---- interpret -----------------------------------------------------------------------------------------------------
-        if (why := st.blocked_by("interpret")):
-            st.skip("interpret", f"needs {why}")
-        elif not allow_external_llm:
-            llm_refused = True
-            st.skip("interpret", "--allow-external-llm was not given: nothing was sent to any LLM")
-        else:
-            t = time.monotonic()
-            try:
-                plan = interp.make_plan(result, repo, max_findings=max_findings, pii=pii)
-                llm = client or get_default_client(retries=retries, backoff=max(0.5, delay))
-                outcomes = await interp.run_calls(plan, llm, delay=delay, say=lambda text: None, governance=gov)
-                idoc = interp.to_document(plan, outcomes, llm.model, {
-                    "findings_file": "(this run)", "delay_s": delay, "retries": retries, "max_findings": max_findings,
-                    "only_category": None, "temperature": getattr(llm, "temperature", None)})
-                s = idoc["summary"]
-                bad = (s["uncertain_because"]["llm_error"] + s["uncertain_because"]["output_rejected"]
-                       + s["uncertain_because"]["governance_blocked"])
-                cut = s["not_analysed_findings"]
-                st.record("interpret", "partial" if bad or cut else "completed",
-                          f"{s['analysed_calls']} call(s): confirmed {s['confirmed']}, dismissed {s['dismissed']}, uncertain "
-                          f"{s['uncertain']}" + (f"; {bad} finding(s) with a failed, rejected or governance-blocked call" if bad else "")
-                          + (f"; {cut} not analysed" if cut else ""), t)
-            except Exception as exc:
-                idoc = None
-                st.record("interpret", "failed", f"{type(exc).__name__}: {redact_text(str(exc))[:160]}", t)
-
-        # ---- trace ---------------------------------------------------------------------------------------------------------
-        if (why := st.blocked_by("trace")):
-            st.skip("trace", f"needs {why}")
-        else:
-            t = time.monotonic()
-            try:
-                stories = load_stories(Path(requirements_file)) if requirements_file else []
-                tasks = load_tasks(Path(sprint_tasks_file)) if sprint_tasks_file else []
-                pseudo = Pseudonymizer.load(out / "trace_mapping.local.json")
-                proposer = (llm or client or get_default_client(retries=retries, backoff=max(0.5, delay))) if (stories or tasks) else None
-                traced = await tr.trace_all(idoc, repo, stories, tasks, pseudo, plan.pii if plan else pii, client=proposer, delay=delay,
-                                            usage=link_usage, governance=gov)
-                pseudo.save(out / "trace_mapping.local.json")
-                tdoc = tr.build_document(traced, {
-                    "interpreted_file": "(this run)", "requirements_file": Path(requirements_file).name if requirements_file else None,
-                    "tasks_file": Path(sprint_tasks_file).name if sprint_tasks_file else None, "propose_links": bool(stories or tasks),
-                    "llm_model": getattr(proposer, "model", None), "prompt_version": tr.TRACE_PROMPT_VERSION})
-                s = traced["summary"]
-                st.record("trace", "partial" if s["proposal_failures"] else "completed",
-                          f"{s['with_introducing_commit']}/{s['confirmed_findings']} with an introducing commit; links "
-                          f"{s['verified_links']} verified, {s['candidate_links']} candidate"
-                          + ("" if (stories or tasks) else "; no requirements file: commits only"), t)
-            except (FormatError, OSError, ValueError) as exc:
-                st.record("trace", "failed", f"{type(exc).__name__}: {redact_text(str(exc))[:160]}", t)
-            except Exception as exc:
-                st.record("trace", "failed", f"{type(exc).__name__}: {redact_text(str(exc))[:160]}", t)
-
-        # ---- risk ----------------------------------------------------------------------------------------------------------
-        if (why := st.blocked_by("risk")):
-            st.skip("risk", f"needs {why}")
-        else:
-            t = time.monotonic()
-            try:
-                risk_doc = rk.rank(idoc, repo)
-                st.record("risk", "completed", f"{len(risk_doc['ranked'])} ranked, {len(risk_doc['excluded'])} dismissed (not ranked)", t)
-            except Exception as exc:
-                st.record("risk", "failed", f"{type(exc).__name__}: {redact_text(str(exc))[:160]}", t)
-
-        # ---- guidance (needs only the scanner findings) --------------------------------------------------------------------------
-        if (why := st.blocked_by("guidance")):
-            st.skip("guidance", f"needs {why}")
-        else:
-            t = time.monotonic()
-            try:
-                for f in result.findings:
-                    g = guide.guidance_for(f)
-                    guidance_used.setdefault(g.id, {"id": g.id, "title": g.title, "why": g.why, "steps": list(g.steps),
-                                                    "references": guide.references(g, f)})
-                st.record("guidance", "completed", f"{len(guidance_used)} standard fix entr(ies) apply", t)
-            except Exception as exc:
-                st.record("guidance", "failed", f"{type(exc).__name__}: {redact_text(str(exc))[:160]}", t)
-
-        # ---- questions -----------------------------------------------------------------------------------------------------
-        if (why := st.blocked_by("questions")):
-            st.skip("questions", f"needs {why}")
-        else:
-            t = time.monotonic()
-            try:
-                qdoc = await qs.generate(idoc, repo, tutor or qs.MockTutor(), threshold, plan.pii if plan else pii, audit=gov.audit,
-                                         config=question_config, policy=question_policy)
-                trails["Question Generation"] = qdoc["decision_trail"]
-                s = qdoc["summary"]
-                st.record("questions", "completed", f"{s['questions']} finding(s): {s['closed']} closed, {s['escalated']} escalated to lecturer "
-                          f"review, {s['attempts']} question(s) asked ({qdoc['meta']['tutor_label'].split(' (')[0]})", t)
-            except Exception as exc:
-                st.record("questions", "failed", f"{type(exc).__name__}: {redact_text(str(exc))[:160]}", t)
-
-        # ---- one record per finding group -----------------------------------------------------------------------------------------
-        findings = _collect(result, idoc, tdoc, risk_doc, qdoc)
-        pii.save_mapping(out / "pii_mapping.local.json")  # local only; written when the report had to replace personal data
+        # the whole flow is one LangGraph workflow (graphs/assess_graph.py); a fetched checkout is deleted when the stack closes, after the report
+        final = await build_assess_graph(ctx).ainvoke({"stages": {}, "trails": {}}, {"recursion_limit": 40})
     finally:
-        await stack.aclose()  # a fetched checkout is deleted here, after everything that needed the code
-
-    for name in STAGES:
-        if name not in st.items:
-            st.skip(name, "not reached")
-    stages = [st.items[n] for n in STAGES]
-    reasons = [f"stage {s['stage']} {s['status']}: {s['detail']}" for s in stages if s["status"] not in OK]
-    if gov.escalated:
-        reasons.append(f"governance escalated for human review ({gov.escalation_reason}); read audit.jsonl")
-    if gov.allowed:
-        reasons.append(f"governance warn-only: {gov.allowed} call(s) were sent although a secret or personal-data check failed")
-    if result is not None:
-        reasons += [f"dependency coverage gap: {g}" for g in result.coverage_gaps]
-    if skipped:
-        reasons.append(f"tools skipped: {', '.join(skipped)}")
-    if scan_report is not None:
-        reasons += [f"coverage {c.value}: {v.level} - {v.note}" for c, v in scan_report.coverage.items()
-                    if v.level in ("NONE", "REDUCED")]
-    scan_info = {"languages": result.languages if result else [], "complete": bool(result and result.complete and not skipped and not result.coverage_gaps),
-                 "skipped_tools": skipped, "warnings": result.warnings if result else [], "reused": reused,
-                 "coverage_gaps": list(result.coverage_gaps) if result else [],
-                 "tool_runs": [{"tool": r.tool, "status": r.status.value, "reason": r.reason, "tool_version": r.tool_version,
-                                "duration_s": r.duration_s, "findings_count": r.findings_count} for r in (result.runs if result else [])],
-                 "coverage": {c.value: {"level": v.level, "note": v.note, "tools": v.tools}
-                              for c, v in (scan_report.coverage.items() if scan_report else [])}}
-    report = {
-        "report_version": REPORT_VERSION,
-        "meta": {"source": label, "commit_sha": ref if is_url else None, "threshold": threshold,
-                 "llm_model": idoc["meta"]["model"] if idoc else None, "interpreter_prompt": interp.PROMPT_VERSION,
-                 "trace_prompt": tr.TRACE_PROMPT_VERSION, "risk_version": rk.RISK_VERSION,
-                 "requirements_file": Path(requirements_file).name if requirements_file else None,
-                 "tasks_file": Path(sprint_tasks_file).name if sprint_tasks_file else None},
-        "run": {"complete": not reasons, "incomplete_reasons": reasons, "stages": stages, "llm_refused": llm_refused},
-        "scan": scan_info,
-        "interpretation": idoc["summary"] if idoc else None,
-        "llm_usage": _usage(idoc, link_usage),
-        "decision_trail": trails,
-        "findings": findings,
-        "dismissed": [x for x in (risk_doc["excluded"] if risk_doc else [])],
-        "guidance": list(guidance_used.values()),
-        "questions": {"meta": qdoc["meta"], "summary": qdoc["summary"]} if qdoc else None,
-        "limitations": _limitations(scan_info, idoc, qdoc, reused, bool(requirements_file or sprint_tasks_file)),
-    }
-    report["meta"]["governance"] = "warn-only" if gov.warn_only else "enforce"
-
-    def _texts() -> tuple[str, str]:
-        trails["Governance"] = gov.trail.entries
-        report["governance"] = gov.summary()
-        return (json.dumps(report, indent=2, ensure_ascii=False),
-                render(report, scan_md, idoc, tdoc, risk_doc, qdoc, findings))
-
-    js_text, md_text = _texts()
-    leaks = gov.count_leaks(js_text) + gov.count_leaks(md_text)
-    if leaks:  # a known secret or personal value reached the report: it is removed below, and the run says so
-        gov.scrubbed = leaks
-        reasons.append(f"governance removed {leaks} secret or personal value(s) that had reached the report")
-        report["run"].update(complete=False, incomplete_reasons=reasons)
-        js_text, md_text = _texts()
-    (out / "report.json").write_text(gov.scrub(js_text, "report.json"), encoding="utf-8")
-    (out / "report.md").write_text(gov.scrub(md_text, "report.md"), encoding="utf-8")
-    gov.end(complete=report["run"]["complete"], reasons=len(reasons))
-    return report
+        await stack.aclose()
+    return final["report"]
 
 
 def _usage(idoc, link_usage: dict) -> dict:
