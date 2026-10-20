@@ -21,7 +21,7 @@ import InvitationsTable from './InvitationsTable.jsx'
 import InviteDialog from './InviteDialog.jsx'
 import LeadershipBanner from './LeadershipBanner.jsx'
 import MembersTable from './MembersTable.jsx'
-import RepositoryForm from './RepositoryForm.jsx'
+import GithubLinkCard from '../../github/GithubLinkCard.jsx'
 
 function Section({ title, children }) {
   return (
@@ -168,11 +168,11 @@ export default function TeamMembersPage() {
       )}
 
       <Section title="Repository">
-        <RepositoryForm
+        <GithubLinkCard
           key={data.repo_url ?? ''}
           team={teamId}
           repoUrl={data.repo_url}
-          canEdit={isLecturer || isLeader}
+          canEditRepo={isLecturer || isLeader}
         />
       </Section>
 

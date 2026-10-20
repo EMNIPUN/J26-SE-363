@@ -1,48 +1,41 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import RequireRole from '@/shared/auth/RequireRole'
-
-import MyProgress from './pages/student/MyProgress.jsx'
-import MyAssessment from './pages/student/MyAssessment.jsx'
-import AssessmentHub from './pages/instructor/AssessmentHub.jsx'
-import RunPipeline from './pages/instructor/RunPipeline.jsx'
-import InstructorDashboard from './pages/instructor/Dashboard.jsx'
-import StudentDetail from './pages/instructor/StudentDetail.jsx'
-import Assessments from './pages/instructor/Assessments.jsx'
-import Reports from './pages/instructor/Reports.jsx'
-
 import { useAuth } from '@/shared/auth/useAuth'
+
+import MyAssessment from './pages/student/MyAssessment.jsx'
+import TeamAssessment from './pages/instructor/TeamAssessment.jsx'
+import StudentAssessment from './pages/instructor/StudentAssessment.jsx'
+import RunPage from './pages/instructor/RunPage.jsx'
+import Method from './pages/instructor/Method.jsx'
 
 function PerformanceIndex() {
   const { user } = useAuth()
-  if (user?.role === 'instructor' || user?.role === 'admin') {
-    return <Navigate to="dashboard" replace />
-  }
-  return <Navigate to="my-progress" replace />
+  return <Navigate to={user?.role === 'instructor' || user?.role === 'admin' ? 'assessment' : 'my-assessment'} replace />
 }
 
+/**
+ * Performance assessment, inside a team. Lecturers (and administrators) see the whole team and the pipeline of every run;
+ * a student sees only their own assessment. The API enforces the same rule: these guards are only the first line.
+ */
 export default function PerformanceRoutes() {
   return (
     <Routes>
       <Route index element={<PerformanceIndex />} />
-      <Route path="my-progress" element={<MyProgress />} />
       <Route path="my-assessment" element={<MyAssessment />} />
 
-      {/* Instructor & Admin restricted routes */}
       <Route element={<RequireRole allowedRoles={['instructor', 'admin']} />}>
-        <Route path="dashboard" element={<InstructorDashboard />} />
-        <Route path="assessment" element={<AssessmentHub />} />
-        <Route path="runs/:runId" element={<RunPipeline />} />
-        <Route path="students" element={<StudentDetail />} />
-        <Route path="assessments" element={<Assessments />} />
-        <Route path="reports" element={<Reports />} />
+        <Route path="assessment" element={<TeamAssessment />} />
+        <Route path="students/:studentId" element={<StudentAssessment />} />
+        <Route path="runs/:runId" element={<RunPage />} />
+        <Route path="method" element={<Method />} />
       </Route>
 
-      {/* Backward compatibility redirects for legacy /student/* and /instructor/* links */}
-      <Route path="student/my-progress" element={<Navigate to="../my-progress" replace />} />
-      <Route path="instructor/dashboard" element={<Navigate to="../dashboard" replace />} />
-      <Route path="instructor/student-detail" element={<Navigate to="../students" replace />} />
-      <Route path="instructor/assessments" element={<Navigate to="../assessments" replace />} />
-      <Route path="instructor/reports" element={<Navigate to="../reports" replace />} />
+      {/* links from the earlier prototype pages */}
+      <Route path="my-progress" element={<Navigate to="../my-assessment" replace />} />
+      <Route path="dashboard" element={<Navigate to="../assessment" replace />} />
+      <Route path="students" element={<Navigate to="../assessment" replace />} />
+      <Route path="assessments" element={<Navigate to="../assessment" replace />} />
+      <Route path="reports" element={<Navigate to="../assessment?tab=runs" replace />} />
     </Routes>
   )
 }

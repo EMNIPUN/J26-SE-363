@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { edgePath, edgeState, layers, layout, NODE_H, NODE_W, nodeStates, pathOf, studentsIn } from './pipelineModel.js'
+import { edgePath, edgeState, laneRows, lastLine, layers, layout, NODE_H, NODE_W, nodeStates, pathOf, rfSummary, rowState, studentsIn, teamSteps } from './pipelineModel.js'
 
 const nodes = ['check', 'a', 'b', 'join', 'next'].map((id) => ({ id }))
 const edges = [
@@ -71,5 +71,50 @@ describe('events to states', () => {
     expect(pathOf({ id: 'publish', group: 'team' })).toBe('team/publish')
     expect(pathOf({ id: 'fusion', group: 'student' }, 'S1')).toBe('student:S1/fusion')
     expect(pathOf({ id: 'decide', group: 'rf' }, 'S1')).toBe('student:S1/rf_subagent/decide')
+  })
+})
+
+describe('the vertical view', () => {
+  const topology = {
+    nodes: [
+      { id: 'a', group: 'team' }, { id: 'b', group: 'team' },
+      { id: 'check', group: 'student' }, { id: 'f1', group: 'student' }, { id: 'f2', group: 'student' }, { id: 'join', group: 'student' }, { id: 'export', group: 'student' },
+    ],
+    edges: [
+      { from: 'check', to: 'f1', group: 'student' }, { from: 'check', to: 'f2', group: 'student' }, { from: 'f1', to: 'join', group: 'student' }, { from: 'f2', to: 'join', group: 'student' },
+      { from: 'join', to: 'export', group: 'student' },
+    ],
+  }
+
+  it('puts the steps of the team run in order and the factors side by side in one row', () => {
+    expect(teamSteps(topology).map((n) => n.id)).toEqual(['a', 'b'])
+    expect(laneRows(topology).map((r) => r.map((n) => n.id))).toEqual([['check'], ['f1', 'f2'], ['join'], ['export']])
+  })
+
+  it('shows a row as one state', () => {
+    const row = [{ id: 'f1', group: 'student' }, { id: 'f2', group: 'student' }]
+    const at = (a, b) => ({ 'student:S/f1': a && { state: a }, 'student:S/f2': b && { state: b } })
+    expect(rowState(row, at(undefined, undefined), 'S')).toBe('idle')
+    expect(rowState(row, at('done', 'done'), 'S')).toBe('done')
+    expect(rowState(row, at('done', 'active'), 'S')).toBe('active')
+    expect(rowState(row, at('done', undefined), 'S')).toBe('active') // one finished, the other not started yet: still in progress
+    expect(rowState(row, at('done', 'failed'), 'S')).toBe('failed')
+    expect(rowState(row, at('waiting', 'active'), 'S')).toBe('waiting')
+  })
+
+  it('reads the last log line of a node', () => {
+    const ev = [{ node_path: 'team/a', type: 'log', message: 'one' }, { node_path: 'team/a', type: 'tool', message: 'tool' }, { node_path: 'team/a', type: 'log', message: 'two' }, { node_path: 'team/b', type: 'log', message: 'other' }]
+    expect(lastLine(ev, 'team/a')).toBe('two')
+    expect(lastLine(ev, 'team/zzz')).toBe('')
+  })
+
+  it('summarises the Requirement Fulfillment sub-agent from its log lines', () => {
+    const p = 'student:S/rf_subagent'
+    const ev = [
+      { node_path: p, message: 'task_start: judging task T1' }, { node_path: p, message: 'llm_call: agent:map:T1: 1000+50 tokens, 1.2s' }, { node_path: p, message: 'llm_call: agent:decide:T1:C1:0: 2000+60 tokens, 2.0s' },
+      { node_path: p, message: 'llm_error: agent:decide:T1:C2:final: bad_request: HTTP 400' }, { node_path: p, message: 'task_done: task T1: fulfilment 0.25' }, { node_path: p, message: 'task_start: judging task T2' },
+      { node_path: 'student:OTHER/rf_subagent', message: 'task_start: judging task X' },
+    ]
+    expect(rfSummary(ev, 'S')).toEqual({ tasks: [{ id: 'T1', state: 'done', fulfilment: 0.25 }, { id: 'T2', state: 'judging' }], calls: 2, errors: 1, tokens: 3110 })
   })
 })

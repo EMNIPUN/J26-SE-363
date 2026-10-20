@@ -95,7 +95,7 @@ def test_a_student_sees_only_their_own_result_of_a_platform_team(team, perf):
     as_user(team, "sam")
     mine = team.get("/performance/me/results").json()
     assert [r["student_id"] for r in mine] == [sam] and mine[0]["mark"] == 81.0
-    assert kim not in json.dumps(mine) and "44" not in json.dumps(mine)
+    assert kim not in json.dumps(mine) and 44.0 not in [r.get("mark") for r in mine]  # nothing of the teammate: not the id, not the mark
     as_user(team, "lee")
     assert team.get("/performance/me/results").json() == []
     student(team, "eve")

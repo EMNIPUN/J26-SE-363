@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
+    test: { exclude: ['e2e/**', 'node_modules/**'] }, // the browser checks in e2e/ run with Playwright, not Vitest
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, './src'),

@@ -333,7 +333,9 @@ async def rerun(run_id: str, account: Staff, store: Store, enqueue: Enqueue):
 @router.get("/teams/{team_ref}/runs")
 async def list_runs(team_ref: str, account: Staff, store: Store, sprint: str | None = None, limit: int = Query(30, ge=1, le=200)):
     await own_team(store, account, team_ref)
-    return await db(store.list_runs, team_ref, sprint, limit)
+    group = platform_group(account.session, team_ref)
+    rows = await db(store.list_runs, group.code if group else team_ref, sprint, limit)
+    return [{**r, "summary": {k: v for k, v in (r.get("summary") or {}).items() if k != "report_markdown"}, "has_report": bool((r.get("summary") or {}).get("report_markdown"))} for r in rows]
 
 
 @router.get("/graph")
@@ -344,7 +346,7 @@ async def get_graph(account: Staff):
 @router.get("/runs/{run_id}")
 async def get_run(run_id: str, account: Staff, store: Store):
     run = await own_run(store, account, run_id)
-    return {**run, "summary": {k: v for k, v in (run.get("summary") or {}).items() if k != "report_markdown"}}
+    return {**run, "summary": {k: v for k, v in (run.get("summary") or {}).items() if k != "report_markdown"}, "has_report": bool((run.get("summary") or {}).get("report_markdown"))}
 
 
 @router.post("/runs/{run_id}/cancel")

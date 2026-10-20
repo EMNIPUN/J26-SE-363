@@ -133,3 +133,66 @@ export function pathOf(node, student) {
   if (node.group === 'student') return `student:${student}/${node.id}`
   return `student:${student}/rf_subagent/${node.id}`
 }
+
+// ---- the vertical view -------------------------------------------------------------------------------------------------------------
+
+/** The team run as an ordered list of steps (the order of the topology). */
+export function teamSteps(topology) {
+  return topology.nodes.filter((n) => n.group === 'team')
+}
+
+/** The student lane as rows: nodes that run side by side (the factors) share a row, rows run top to bottom. */
+export function laneRows(topology) {
+  const nodes = topology.nodes.filter((n) => n.group === 'student')
+  const edges = topology.edges.filter((e) => e.group === 'student')
+  const depth = layers(nodes.map((n) => n.id), edges)
+  const rows = []
+  for (const n of nodes) {
+    const d = depth.get(n.id)
+    ;(rows[d] ||= []).push(n)
+  }
+  return rows.filter(Boolean)
+}
+
+/** State of a row of nodes as one: failed if any failed, waiting, active if any is running, done when all are, else idle. */
+export function rowState(row, states, student) {
+  const s = row.map((n) => states[pathOf(n, student)]?.state || 'idle')
+  if (s.includes('failed')) return 'failed'
+  if (s.includes('waiting')) return 'waiting'
+  if (s.includes('active')) return 'active'
+  if (s.every((x) => x === 'done')) return 'done'
+  return s.some((x) => x === 'done') ? 'active' : 'idle'
+}
+
+/** The last log line a node wrote, for the one-line caption under its name. */
+export function lastLine(events, path) {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]
+    if (e.node_path === path && e.type === 'log') return e.message
+  }
+  return ''
+}
+
+/** What the Requirement Fulfillment sub-agent did for one student: the tasks it judged, the model calls it made, and what the provider refused. */
+export function rfSummary(events, student) {
+  const path = `student:${student}/rf_subagent`
+  const tasks = new Map()
+  let calls = 0
+  let errors = 0
+  let tokens = 0
+  for (const e of events) {
+    if (e.node_path !== path) continue
+    const m = e.message || ''
+    let t
+    if ((t = /^task_start: judging task (\S+)/.exec(m))) tasks.set(t[1], { id: t[1], state: 'judging' })
+    else if ((t = /^task_done: task (\S+): fulfilment ([\d.]+)/.exec(m))) tasks.set(t[1], { id: t[1], state: 'done', fulfilment: Number(t[2]) })
+    else if ((t = /^task_skipped: task (\S+)/.exec(m))) tasks.set(t[1], { id: t[1], state: 'skipped' })
+    else if ((t = /^task_error: task (\S+)/.exec(m))) tasks.set(t[1], { id: t[1], state: 'error' })
+    else if (/^llm_call:/.test(m)) {
+      calls++
+      const k = /: (\d+)\+(\d+) tokens/.exec(m)
+      if (k) tokens += Number(k[1]) + Number(k[2])
+    } else if (/^llm_error:/.test(m)) errors++
+  }
+  return { tasks: [...tasks.values()], calls, errors, tokens }
+}
