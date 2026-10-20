@@ -48,6 +48,7 @@ from app.agents.security_assistant.schemas import Category
 
 AUDIT_FILE = "audit.jsonl"
 LEVELS = ("normal", "elevated", "high")
+GOVERNANCE_ACTIONS = ("allow_call", "allow_after_second_check", "block_call", "allow_call_warn_only", "raise_scrutiny", "escalate_to_reviewer")
 POINTS = {"repo_indicator": 1, "prompt_indicator": 1, "blocked_call": 2, "second_check_blocked": 2, "violation_allowed": 1}
 ALLOWED_TOOLS = frozenset({"config-scan", "gitleaks", "trufflehog", "osv-scanner", "npm-audit", "pip-audit", "actionlint", "zizmor", "codeql"})
 MIN_SECRET_LEN = 6

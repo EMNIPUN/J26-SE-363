@@ -6,6 +6,10 @@ Orchestrator name: `AgentName.SECURITY_ASSISTANT` (`security_assistant`); action
 
 ## Overview
 
+> **The flow as a diagram, the three agents and their allowed actions, and what is mocked or not built: [WORKFLOW.md](WORKFLOW.md).**
+> The workflow is a LangGraph graph (`graphs/`); the diagrams in `docs/` and in WORKFLOW.md are generated from it:
+> `python -m app.agents.security_assistant.graphs.diagrams` (add `--check` to see whether they are up to date).
+
 The Security Assistant checks a student project for five kinds of weakness (V1 access control, V2 injection, V3 login and
 session, V4 secrets, V5 dependencies and CI/CD) in Python, Java (Spring Boot) and JavaScript/TypeScript. It is built in two
 layers: **deterministic scanners** find candidate problems, then an **LLM** judges each one using a small, redacted piece of the
