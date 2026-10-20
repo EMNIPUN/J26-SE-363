@@ -100,6 +100,7 @@ class InterpretationResult(BaseModel):
     downgraded: bool = False
     downgrade_reason: str | None = None
     output_rejected: bool = False  # the model output failed schema validation
+    governance_blocked: str | None = None  # governance stopped the call before it was sent (a secret or personal data was still in the prompt)
     error: str | None = None  # the LLM could not be called
     model: str | None = None
     prompt_version: str = ""

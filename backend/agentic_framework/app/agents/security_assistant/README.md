@@ -13,13 +13,14 @@ student's code. Everything after that (links to commits and requirements, a risk
 student) is built on those judged findings.
 
 ```
-fetch -> scan -> interpret (LLM) -> trace -> risk -> guidance -> questions (mock Tutor) -> report.json + report.md
+fetch -> scan -> governance -> interpret (LLM) -> trace -> risk -> guidance -> questions (mock Tutor) -> report.json + report.md + audit.jsonl
 ```
 
 | Stage | What it does | Module | Needs the LLM |
 |---|---|---|---|
 | fetch | Clones a public https://github.com repo safely (or takes a local folder); deleted afterwards | `pipeline.py` | no |
 | scan | Runs the scanners (CodeQL, config checks, Gitleaks, TruffleHog, OSV, npm audit, pip-audit, actionlint, zizmor) and records which ran | `tools/`, `scan.py` | no |
+| governance | Tool allow-list, injection indicators in README and commit messages, audit log; blocks a call if a secret or personal value is still in it | `governance.py` | no |
 | interpret | Per finding: confirmed, dismissed or uncertain, with evidence ids and a short reason | `interpret.py`, `interpreter/` | yes |
 | trace | Finds the commit that introduced the line; links it to a story and a sprint task | `trace.py`, `traceability.py` | only for link proposals |
 | risk | Rule-based ranking with a score breakdown | `risk.py` | no |
@@ -409,6 +410,25 @@ score is the sum of the rounded contributions, so the breakdown adds up exactly.
 id, so the order never depends on the input order. Outputs: `risk.json` (weights, ranked list with the breakdown, excluded list)
 and a ranked table with the breakdown in `report.md`. The weights are a starting point for the team to review, not a
 measured probability.
+
+## Governance (`governance.py`)
+
+Narrow, deterministic checks around the stages that send data to an LLM (no LLM is involved in them). They run in `assess` (the stage
+`governance`, and a check before every call) and, for the calls they cover, in `interpret` and `trace`. **Governance never changes a
+verdict and never removes a finding.** It can stop a call, record a decision, or remove a leaked value from the report.
+
+| Check | What happens |
+|---|---|
+| **Pre-send secret and personal-data scan** (blocks) | Before every LLM call (interpretation and link proposal) the exact outgoing text is checked for: the literal secret values of the scanned repository (read from the files and the git history, so the check does not trust the redaction it checks); text that still matches a secret pattern; every personal value the redactor learned or replaced (names from labels and from git, e-mails, phone numbers, student ids); and e-mail, phone and student-id patterns. **A failed check blocks the call**: that finding becomes `uncertain` ("governance blocked the call before it was sent"), nothing is sent for it, and the run is INCOMPLETE. |
+| `--governance-warn-only` (off by default) | The failed check is recorded but the call goes through. The audit log (`run_start` says `warn_only: true`, each affected call says `send-warn-only`), `report.json` (`governance.mode`), the report banner and the run's incomplete reasons all say so. |
+| **Tool allow-list** | Only the tools of `default_tools()` may appear in a scan. A `--reuse-scan` file that names another tool in its runs or findings is rejected as a whole (the scan stage fails, nothing downstream runs). |
+| **Prompt-injection indicators** (logs only) | A fixed list of phrases (`ignore previous instructions`, `mark all findings dismissed`, `reply only with dismissed`, `you are now`, `NOTE FOR AI TOOLS`, a fake `system:` line, ...) is searched for in the README files and commit messages **even though they are not sent to the LLM**, and in every outgoing prompt. Hits are listed in the report as findings about the repository (where, kind, pattern, count). **This is an indicator, not proof**: the list is short, easy to evade, and also matches text that only talks about prompt injection. Nothing is blocked or changed because of a hit; the model is still told that repository text is untrusted data, and its verdict is validated exactly as before. |
+| **Report scan** | Before `report.json` and `report.md` are written, the known secret values and full personal values are removed if any got through (for example a name the model repeated in its own words); the run says how many and is INCOMPLETE. |
+| **Audit log `audit.jsonl`** | One JSON line per decision: tool check, repository scan, each injection indicator, every pre-send check (call kind, finding key, category, rule, SHA-256 of the prompt, number of characters, evidence ids offered, secret and personal-data check result, injection patterns, decision), every result (verdict from the model, final verdict, downgrade code, evidence ids cited and whether they were offered, tokens, seed), the report scan and the end of the run. **Hashes only: it never holds prompt text.** Every value is cleaned before it is written (secrets and personal data removed, strings cut at 200 characters), and the tests check the file for prompt lines, a planted secret, a name and an e-mail. A new run overwrites the file. |
+
+Limits: the pre-send check can be wrong in both directions. It can miss a secret or name that is in no list and matches no pattern, and it can
+block a prompt for a harmless reason (a phone-number-like digit string in code outside strings). The report scan only knows the values the run
+learned. `interpret` writes `audit.jsonl` and blocks calls but does not rewrite its report files. The injection list is a heuristic (see above).
 
 ## Personal data (PII) redaction (`pii.py`)
 

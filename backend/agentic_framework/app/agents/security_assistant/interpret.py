@@ -26,6 +26,7 @@ from pathlib import Path
 
 from app.agents.security_assistant import guidance as guide
 from app.agents.security_assistant.dedupe import FindingGroup, dedupe
+from app.agents.security_assistant.governance import Governance, known_secret_values
 from app.agents.security_assistant.interpreter.evidence import build_bundle
 from app.agents.security_assistant.interpreter.interpreter import SemanticInterpreter
 from app.agents.security_assistant.interpreter.llm import LLMClient, LLMError, get_default_client
@@ -147,8 +148,8 @@ class Outcome:
     result: InterpretationResult
 
 
-async def run_calls(plan: Plan, client: LLMClient, delay: float = 0.0, say=print) -> list[Outcome]:
-    interpreter = SemanticInterpreter(client, plan.pii)
+async def run_calls(plan: Plan, client: LLMClient, delay: float = 0.0, say=print, governance=None) -> list[Outcome]:
+    interpreter = SemanticInterpreter(client, plan.pii, governance)
     outcomes: list[Outcome] = []
     for n, call in enumerate(plan.calls, 1):
         result = await interpreter.interpret(call.group.representative, call.bundle)
@@ -171,7 +172,7 @@ def _brief(f) -> dict:
 
 def summarize(plan: Plan, outcomes: list[Outcome]) -> dict:
     counts = {"confirmed": 0, "dismissed": 0, "uncertain": 0}
-    why = {"llm_error": 0, "output_rejected": 0, "downgraded": 0, "model_said_uncertain": 0}
+    why = {"llm_error": 0, "output_rejected": 0, "downgraded": 0, "governance_blocked": 0, "model_said_uncertain": 0}
     analysed = 0
     for o in outcomes:
         n = len(o.call.group.members)
@@ -179,6 +180,7 @@ def summarize(plan: Plan, outcomes: list[Outcome]) -> dict:
         counts[o.result.status] += n
         if o.result.status == "uncertain":
             key = ("llm_error" if o.result.error else "output_rejected" if o.result.output_rejected
+                   else "governance_blocked" if o.result.governance_blocked
                    else "downgraded" if o.result.downgraded else "model_said_uncertain")
             why[key] += n
     return {"scanner_only_findings": plan.selected_findings, "analysed_findings": analysed,
@@ -216,7 +218,8 @@ def render_section(doc: dict) -> str:
          ""]
     u = s["uncertain_because"]
     M.append(f"Uncertain because: LLM error {u['llm_error']}, output rejected {u['output_rejected']}, downgraded "
-             f"(missing or fake evidence id) {u['downgraded']}, the model said uncertain {u['model_said_uncertain']}. "
+             f"(missing or fake evidence id, or an unsupported secret dismissal) {u['downgraded']}, stopped by governance before sending "
+             f"{u.get('governance_blocked', 0)}, the model said uncertain {u['model_said_uncertain']}. "
              "Counts are findings: a call about a package answers for every advisory of it.")
     if s["not_selected_findings"]:
         M.append(f"{s['not_selected_findings']} finding(s) were outside --only-category and not interpreted.")
@@ -230,7 +233,8 @@ def render_section(doc: dict) -> str:
     M += ["", "### Results", "", "| group | category | rule | where | status | conf. | evidence | rationale |", "|---|---|---|---|---|---|---|---|"]
     for g in doc["groups"]:
         r, rep = g["result"], g["representative"]
-        flag = " (LLM error)" if r["error"] else " (output rejected)" if r["output_rejected"] else " (downgraded)" if r["downgraded"] else ""
+        flag = (" (LLM error)" if r["error"] else " (output rejected)" if r["output_rejected"]
+                else " (blocked by governance)" if r.get("governance_blocked") else " (downgraded)" if r["downgraded"] else "")
         where = rep["file_path"] + (f":{rep['line']}" if rep["line"] else "") if rep["file_path"] else "-"
         what = (f"{g['package']} ({len(g['members'])} findings)" if g["kind"] == "package"
                 else f"{where} (+{len(g['members']) - 1} merged)" if g["kind"] == "location" else where)
@@ -279,6 +283,8 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None) -
     ap.add_argument("repo", type=Path, nargs="?")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--allow-external-llm", action="store_true")
+    ap.add_argument("--governance-warn-only", action="store_true",
+                    help="a failed secret or personal-data check before a call is recorded but does not block it (off by default)")
     ap.add_argument("--only-category", action="append", metavar="V1,V4")
     ap.add_argument("--max-findings", type=int)
     ap.add_argument("--delay", type=float, default=0.0)
@@ -315,13 +321,16 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None) -
     print(NOTICE)
     print(f"Calling {client.model}: {len(plan.calls)} call(s) after merging ({plan.selected_findings} findings), "
           f"delay {args.delay:g}s, retries {args.retries}.")
-    outcomes = await run_calls(plan, client, delay=args.delay)
+    out = args.out or args.findings.parent
+    gov = Governance(out, warn_only=args.governance_warn_only, pii=plan.pii)
+    gov.set_secret_values(known_secret_values(args.repo, result.findings))
+    gov.start(command="interpret", model=client.model)
+    outcomes = await run_calls(plan, client, delay=args.delay, governance=gov)
 
     doc = to_document(plan, outcomes, client.model, {"findings_file": str(args.findings), "delay_s": args.delay,
                                                       "temperature": getattr(client, "temperature", None),
                                                       "retries": args.retries, "max_findings": args.max_findings,
                                                       "only_category": [c.value for c in only] if only else None})
-    out = args.out or args.findings.parent
     js, md = write_outputs(out, result, skipped, args.repo, doc, plan.pii)
     mapping = plan.pii.save_mapping(out / "pii_mapping.local.json") if plan.pii is not None else None
     print(render_results_table(outcomes))
@@ -330,8 +339,12 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None) -
     s = doc["summary"]
     print(f"\nscanner-only findings {s['scanner_only_findings']} -> confirmed {s['confirmed']}, dismissed {s['dismissed']}, "
           f"uncertain {s['uncertain']}, not analysed {s['not_analysed_findings']}; uncertain because {s['uncertain_because']}")
+    blocked = sum(bool(o.result.governance_blocked) for o in outcomes)
+    gov.end(complete=not blocked and not any(o.result.error for o in outcomes), reasons=blocked)
+    print(f"Governance ({gov.summary()['mode']}): {gov.checked} call(s) checked, {blocked} blocked, "
+          f"{gov.allowed} sent despite a failed check. Audit log: {out / 'audit.jsonl'}")
     print(f"Wrote {js} and {md}")
-    return 2 if any(o.result.error for o in outcomes) else 0
+    return 2 if blocked or any(o.result.error for o in outcomes) else 0
 
 
 if __name__ == "__main__":

@@ -29,6 +29,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.agents.security_assistant.dedupe import package_of
+from app.agents.security_assistant.governance import Governance, GovernanceBlock, known_secret_values
 from app.agents.security_assistant.interpreter.llm import LLMClient, LLMError, get_default_client
 from app.agents.security_assistant.interpreter.models import EvidenceBundle, EvidenceItem
 from app.agents.security_assistant.interpreter.prompts import _neutralise
@@ -136,9 +137,28 @@ def add_usage(usage: dict | None, client) -> None:
         usage["completion_tokens"] = usage.get("completion_tokens", 0) + (record.completion_tokens or 0)
 
 
-async def propose_links(client: LLMClient, bundle: EvidenceBundle, usage: dict | None = None) -> tuple[Proposal | None, str | None]:
-    """(proposal, error). A failed call, bad output or an evidence id that does not exist gives no proposal at all."""
+async def propose_links(client: LLMClient, bundle: EvidenceBundle, usage: dict | None = None, governance: Governance | None = None,
+                        ctx: dict | None = None) -> tuple[Proposal | None, str | None]:
+    """(proposal, error). A failed call, bad output, an evidence id that does not exist or a governance block gives no proposal at all."""
     system, user = link_prompt(bundle)
+    digest = None
+    if governance is not None and ctx is not None:
+        try:
+            digest = governance.pre_send("link_proposal", finding_key=ctx["finding_key"], category=ctx["category"], rule_id=ctx["rule_id"],
+                                         system=system, user=user, offered_ids=bundle.ids, model=getattr(client, "model", None),
+                                         prompt_version=TRACE_PROMPT_VERSION, seed=getattr(client, "seed", None))
+        except GovernanceBlock as block:
+            governance.blocked_result_event(ctx["finding_key"], block.code)
+            return None, f"blocked by governance ({block.code})"
+    proposal, error = await _propose(client, system, user, bundle, usage)
+    if digest is not None:
+        governance.audit.record("link_result", finding_key=ctx["finding_key"], prompt_sha256=digest, accepted=proposal is not None,
+                                error_kind=None if error is None else ("llm_error" if error.startswith("LLM call failed") else "output_rejected"),
+                                verdict_changed=False)
+    return proposal, error
+
+
+async def _propose(client: LLMClient, system: str, user: str, bundle: EvidenceBundle, usage: dict | None) -> tuple[Proposal | None, str | None]:
     try:
         if "schema" in inspect.signature(client.complete).parameters:
             text = await client.complete(system, user, schema=LINK_SCHEMA, schema_name="link")
@@ -171,7 +191,8 @@ def _start_rev(f: Finding) -> str | None:
 
 async def trace_all(doc: dict, repo: Path, stories: list[Story], tasks: list[Task], pseudo: Pseudonymizer,
                     pii: PIIRedactor, client: LLMClient | None = None, delay: float = 0.0,
-                    say=lambda text: None, usage: dict | None = None) -> dict:
+                    say=lambda text: None, usage: dict | None = None,
+                    governance: Governance | None = None) -> dict:
     confirmed = [g for g in doc["groups"] if g["result"]["status"] == "confirmed"]
     traces, failures = [], 0
     shared: dict[tuple, Proposal] = {}
@@ -189,7 +210,9 @@ async def trace_all(doc: dict, repo: Path, stories: list[Story], tasks: list[Tas
                 proposal = replace(shared[key], rationale=shared[key].rationale + " [one proposal for the findings of this file, "
                                    "commit and category]")
             else:
-                proposal, error = await propose_links(client, link_bundle(f, shown, stories, tasks, pii), usage)
+                proposal, error = await propose_links(client, link_bundle(f, shown, stories, tasks, pii), usage, governance,
+                                                      {"finding_key": g["representative"].get("finding_key", g["group_id"]),
+                                                       "category": f.category.value, "rule_id": f.rule_id})
                 failures += error is not None
                 if proposal is not None:
                     shared[key] = proposal
@@ -265,6 +288,8 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None) -
     ap.add_argument("--propose-links", action="store_true")
     ap.add_argument("--allow-external-llm", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--governance-warn-only", action="store_true",
+                    help="a failed secret or personal-data check before a call is recorded but does not block it (off by default)")
     ap.add_argument("--delay", type=float, default=0.0)
     ap.add_argument("--retries", type=int, default=2)
     ap.add_argument("--out", type=Path)
@@ -315,7 +340,14 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None) -
     else:
         client = None
 
-    result = await trace_all(doc, args.repo, stories, tasks, pseudo, pii, client, args.delay, say=print)
+    gov = None
+    if client is not None:
+        gov = Governance(out, warn_only=args.governance_warn_only, pii=pii)
+        gov.set_secret_values(known_secret_values(args.repo, [finding_from_brief(g["representative"]) for g in doc["groups"]]))
+        gov.start(command="trace", model=getattr(client, "model", None))
+    result = await trace_all(doc, args.repo, stories, tasks, pseudo, pii, client, args.delay, say=print, governance=gov)
+    if gov is not None:
+        gov.end(complete=not result["summary"]["proposal_failures"], reasons=result["summary"]["proposal_failures"])
     meta = {"interpreted_file": str(args.interpreted), "requirements_file": str(args.requirements) if args.requirements else None,
             "tasks_file": str(args.tasks) if args.tasks else None, "propose_links": use_llm,
             "llm_model": getattr(client, "model", None), "prompt_version": TRACE_PROMPT_VERSION if use_llm else None}

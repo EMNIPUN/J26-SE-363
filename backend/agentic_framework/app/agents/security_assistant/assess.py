@@ -30,6 +30,7 @@ from app.agents.security_assistant import interpret as interp
 from app.agents.security_assistant import questions as qs
 from app.agents.security_assistant import risk as rk
 from app.agents.security_assistant import trace as tr
+from app.agents.security_assistant import governance as gv
 from app.agents.security_assistant.dedupe import dedupe
 from app.agents.security_assistant.interpreter.llm import LLMClient, LLMError, get_default_client
 from app.agents.security_assistant.interpreter.models import finding_key
@@ -44,8 +45,8 @@ from app.agents.security_assistant.tools.runner import InvalidRepoPath, default_
 from app.agents.security_assistant.traceability import FormatError, Pseudonymizer, load_stories, load_tasks
 
 REPORT_VERSION = "assessment-v1"
-STAGES = ("fetch", "scan", "interpret", "trace", "risk", "guidance", "questions")
-NEEDS = {"scan": "fetch", "interpret": "scan", "trace": "interpret", "risk": "interpret", "guidance": "scan",
+STAGES = ("fetch", "scan", "governance", "interpret", "trace", "risk", "guidance", "questions")
+NEEDS = {"scan": "fetch", "governance": "scan", "interpret": "governance", "trace": "interpret", "risk": "interpret", "guidance": "scan",
          "questions": "interpret"}
 OK = ("completed",)
 
@@ -155,6 +156,8 @@ def render(report: dict, scan_md: str, idoc, tdoc, risk_doc, qdoc, findings: lis
         M.append(rk.render_section(risk_doc))
     if qdoc is not None:
         M.append(qs.render_section(qdoc))
+    if report.get("governance"):
+        M.append(gv.render_section(report["governance"]))
     M += ["## Limitations", ""] + [f"- {x}" for x in report["limitations"]]
     return "\n".join(M) + "\n"
 
@@ -164,7 +167,7 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
                        out_dir: Path | str | None = None, allow_external_llm: bool = False, client: LLMClient | None = None,
                        tutor: qs.TutorChannel | None = None, threshold: float | None = None, ref: str | None = None,
                        tools=None, max_findings: int | None = None, delay: float = 0.0, retries: int = 2,
-                       fetch_options: dict | None = None, say=lambda text: None) -> dict:
+                       governance_warn_only: bool = False, fetch_options: dict | None = None, say=lambda text: None) -> dict:
     """Run every stage and write report.json and report.md into `out_dir`. Returns the report (a dict).
     Raises ValueError for unusable arguments (an unknown tool in `skip`, a threshold outside 0..1)."""
     skipped = parse_skip(skip)
@@ -186,6 +189,8 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
     llm_refused = False
 
     pii = PIIRedactor.from_env()  # one redactor for the whole run: the same placeholders in the report snippets, prompts and questions
+    gov = gv.Governance(out, warn_only=governance_warn_only, pii=pii)
+    gov.start(command="assess", prompt_version=interp.PROMPT_VERSION, link_prompt_version=tr.TRACE_PROMPT_VERSION)
     stack = contextlib.AsyncExitStack()
     t0 = time.monotonic()
     try:
@@ -213,8 +218,13 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
                     detail = f"reused saved findings ({Path(reuse_scan).name}); nothing was scanned now"
                 else:
                     chosen = [x for x in (tools if tools is not None else default_tools()) if x.name not in skipped]
+                    if (rejected := gov.check_tools([x.name for x in chosen], "tools to run")):
+                        raise gv.ToolNotAllowed(f"governance: tool(s) not on the allow-list: {', '.join(rejected)}")
                     result = await run_all(repo, tools=chosen)
                     detail = f"{len(result.runs)} tool run(s), {len(result.findings)} finding(s)"
+                if reused and (rejected := gov.check_tools([r.tool for r in result.runs] + [f.tool for f in result.findings],
+                                                           "the reused findings.json")):
+                    raise gv.ToolNotAllowed(f"governance rejected the reused findings.json: tool(s) not on the allow-list: {', '.join(rejected)}")
                 scan_report = build_report(result, skipped=skipped, source=label, repo=repo, pii=pii)
                 scan_report.commit_sha = ref if is_url else scan_report.commit_sha
                 scan_md = render_markdown(scan_report)
@@ -224,6 +234,20 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
             except Exception as exc:  # a stage must never take the whole run down silently
                 result = scan_report = None
                 st.record("scan", "failed", f"{type(exc).__name__}: {redact_text(str(exc))[:160]}", t)
+
+        # ---- governance (before anything is sent anywhere) -------------------------------------------------------------------------
+        if (why := st.blocked_by("governance")):
+            st.skip("governance", f"needs {why}")
+        else:
+            t = time.monotonic()
+            try:
+                gov.set_secret_values(gv.known_secret_values(repo, result.findings))
+                hits = gov.scan_repo(repo)
+                st.record("governance", "completed",
+                          f"{'WARN-ONLY mode' if gov.warn_only else 'enforcing'}; tool allow-list ok; {gov.repo_files_scanned} README/commit message(s) "
+                          f"scanned, {len(hits)} prompt-injection indicator(s) logged (an indicator, not proof)", t)
+            except Exception as exc:
+                st.record("governance", "failed", f"{type(exc).__name__}: {redact_text(str(exc))[:160]}", t)
 
         # ---- interpret -----------------------------------------------------------------------------------------------------
         if (why := st.blocked_by("interpret")):
@@ -236,16 +260,17 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
             try:
                 plan = interp.make_plan(result, repo, max_findings=max_findings, pii=pii)
                 llm = client or get_default_client(retries=retries, backoff=max(0.5, delay))
-                outcomes = await interp.run_calls(plan, llm, delay=delay, say=lambda text: None)
+                outcomes = await interp.run_calls(plan, llm, delay=delay, say=lambda text: None, governance=gov)
                 idoc = interp.to_document(plan, outcomes, llm.model, {
                     "findings_file": "(this run)", "delay_s": delay, "retries": retries, "max_findings": max_findings,
                     "only_category": None, "temperature": getattr(llm, "temperature", None)})
                 s = idoc["summary"]
-                bad = s["uncertain_because"]["llm_error"] + s["uncertain_because"]["output_rejected"]
+                bad = (s["uncertain_because"]["llm_error"] + s["uncertain_because"]["output_rejected"]
+                       + s["uncertain_because"]["governance_blocked"])
                 cut = s["not_analysed_findings"]
                 st.record("interpret", "partial" if bad or cut else "completed",
                           f"{s['analysed_calls']} call(s): confirmed {s['confirmed']}, dismissed {s['dismissed']}, uncertain "
-                          f"{s['uncertain']}" + (f"; {bad} finding(s) with a failed or rejected call" if bad else "")
+                          f"{s['uncertain']}" + (f"; {bad} finding(s) with a failed, rejected or governance-blocked call" if bad else "")
                           + (f"; {cut} not analysed" if cut else ""), t)
             except Exception as exc:
                 idoc = None
@@ -262,7 +287,7 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
                 pseudo = Pseudonymizer.load(out / "trace_mapping.local.json")
                 proposer = (llm or client or get_default_client(retries=retries, backoff=max(0.5, delay))) if (stories or tasks) else None
                 traced = await tr.trace_all(idoc, repo, stories, tasks, pseudo, plan.pii if plan else pii, client=proposer, delay=delay,
-                                            usage=link_usage)
+                                            usage=link_usage, governance=gov)
                 pseudo.save(out / "trace_mapping.local.json")
                 tdoc = tr.build_document(traced, {
                     "interpreted_file": "(this run)", "requirements_file": Path(requirements_file).name if requirements_file else None,
@@ -327,6 +352,8 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
             st.skip(name, "not reached")
     stages = [st.items[n] for n in STAGES]
     reasons = [f"stage {s['stage']} {s['status']}: {s['detail']}" for s in stages if s["status"] not in OK]
+    if gov.allowed:
+        reasons.append(f"governance warn-only: {gov.allowed} call(s) were sent although a secret or personal-data check failed")
     if skipped:
         reasons.append(f"tools skipped: {', '.join(skipped)}")
     if scan_report is not None:
@@ -355,8 +382,23 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
         "questions": {"meta": qdoc["meta"], "summary": qdoc["summary"]} if qdoc else None,
         "limitations": _limitations(scan_info, idoc, qdoc, reused, bool(requirements_file or sprint_tasks_file)),
     }
-    (out / "report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
-    (out / "report.md").write_text(render(report, scan_md, idoc, tdoc, risk_doc, qdoc, findings), encoding="utf-8")
+    report["meta"]["governance"] = "warn-only" if gov.warn_only else "enforce"
+
+    def _texts() -> tuple[str, str]:
+        report["governance"] = gov.summary()
+        return (json.dumps(report, indent=2, ensure_ascii=False),
+                render(report, scan_md, idoc, tdoc, risk_doc, qdoc, findings))
+
+    js_text, md_text = _texts()
+    leaks = gov.count_leaks(js_text) + gov.count_leaks(md_text)
+    if leaks:  # a known secret or personal value reached the report: it is removed below, and the run says so
+        gov.scrubbed = leaks
+        reasons.append(f"governance removed {leaks} secret or personal value(s) that had reached the report")
+        report["run"].update(complete=False, incomplete_reasons=reasons)
+        js_text, md_text = _texts()
+    (out / "report.json").write_text(gov.scrub(js_text, "report.json"), encoding="utf-8")
+    (out / "report.md").write_text(gov.scrub(md_text, "report.md"), encoding="utf-8")
+    gov.end(complete=report["run"]["complete"], reasons=len(reasons))
     return report
 
 
@@ -414,6 +456,8 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None, t
     ap.add_argument("--skip", action="append", metavar="TOOLS")
     ap.add_argument("--reuse-scan", type=Path, dest="reuse_scan")
     ap.add_argument("--allow-external-llm", action="store_true")
+    ap.add_argument("--governance-warn-only", action="store_true",
+                    help="a failed secret or personal-data check before a call is recorded but does not block it (off by default)")
     ap.add_argument("--threshold", type=float)
     ap.add_argument("--ref")
     ap.add_argument("--max-findings", type=int)
@@ -428,7 +472,7 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None, t
         report = await run_pipeline(args.source, args.requirements, args.tasks, parse_skip(args.skip), args.reuse_scan,
                                     out_dir=args.out, allow_external_llm=args.allow_external_llm, client=client, tutor=tutor,
                                     threshold=args.threshold, ref=args.ref, max_findings=args.max_findings, delay=args.delay,
-                                    retries=args.retries, say=print)
+                                    retries=args.retries, governance_warn_only=args.governance_warn_only, say=print)
     except ValueError as exc:
         print(exc, file=sys.stderr)
         return 3

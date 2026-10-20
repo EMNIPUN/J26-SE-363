@@ -68,3 +68,18 @@ def redact_text(text: str, known_secrets: tuple[str, ...] = ()) -> str:
 
         text = regex.sub(sub, text)
     return text
+
+
+def find_secret_values(text: str) -> list[str]:
+    """The literal secret values in `text`, found with the same patterns and filters as `redact_text`. Governance uses them to check
+    that none of them is in a prompt: the check does not trust the replacement it is checking."""
+    found: list[str] = []
+    for kind, regex, group in _PATTERNS:
+        for m in regex.finditer(text or ""):
+            value = m.group(group)
+            if value.startswith("[REDACTED") or value.startswith("${"):
+                continue
+            if kind == "high_entropy" and _entropy(value) < 3.6:
+                continue
+            found.append(value)
+    return found

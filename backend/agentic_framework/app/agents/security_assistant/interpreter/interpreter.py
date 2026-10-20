@@ -15,6 +15,7 @@ import re
 from pydantic import ValidationError
 
 from app.agents.security_assistant import guidance as guide
+from app.agents.security_assistant.governance import Governance, GovernanceBlock
 from app.agents.security_assistant.interpreter.hooks import governance_hook
 from app.agents.security_assistant.interpreter.llm import LLMClient, LLMError
 from app.agents.security_assistant.interpreter.models import (
@@ -91,18 +92,37 @@ def v4_dismissal_support(finding: Finding, bundle: EvidenceBundle) -> str | None
 
 
 class SemanticInterpreter:
-    def __init__(self, client: LLMClient, pii: PIIRedactor | None = None):
+    def __init__(self, client: LLMClient, pii: PIIRedactor | None = None, governance: Governance | None = None):
         self._client = client
         self.pii = pii if pii is not None else PIIRedactor.from_env()  # its mapping stays local, never in a prompt
+        self.governance = governance  # checks every outgoing prompt, logs every decision; None = no governance (tests, old callers)
 
     async def interpret(self, finding: Finding, bundle: EvidenceBundle) -> InterpretationResult:
         if not isinstance(finding, Finding) or not finding.rule_id:
             raise ValueError("the interpreter judges an existing scanner finding; it cannot create findings")
+        sent: dict = {}
+        result = await self._interpret(finding, bundle, sent)
+        if self.governance is not None and sent.get("hash"):
+            self.governance.post_call("interpret", finding_key=result.finding_key, prompt_sha256=sent["hash"], offered_ids=bundle.ids,
+                                      result=result)
+        return result
+
+    async def _interpret(self, finding: Finding, bundle: EvidenceBundle, sent: dict) -> InterpretationResult:
         base = dict(finding_key=finding_key(finding), category=finding.category, rule_id=finding.rule_id,
                     model=getattr(self._client, "model", None), prompt_version=PROMPT_VERSION)
 
         system, user = build_prompt(finding, bundle, self.pii)  # redacts again
         governance_hook("pre_llm", {"finding_key": base["finding_key"], "system": system, "user": user})
+        if self.governance is not None:
+            try:
+                sent["hash"] = self.governance.pre_send(
+                    "interpret", finding_key=base["finding_key"], category=finding.category.value, rule_id=finding.rule_id,
+                    system=system, user=user, offered_ids=bundle.ids, model=base["model"], prompt_version=PROMPT_VERSION,
+                    seed=getattr(self._client, "seed", None))
+            except GovernanceBlock as block:  # nothing was sent: the finding stays uncertain, with the reason
+                self.governance.blocked_result_event(base["finding_key"], block.code)
+                return InterpretationResult(**base, status="uncertain", governance_blocked=block.code,
+                                            rationale=f"{block.message}. This finding was not interpreted.")
 
         try:
             raw = await self._client.complete(system, user)

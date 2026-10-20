@@ -106,6 +106,11 @@ class PIIRedactor:
                 learned += len(self._names) > before
         return learned
 
+    def originals(self) -> set[str]:
+        """Every personal value this redactor replaced or learned (emails, phones, ids, names and name parts of 3+ letters), in
+        their original form. Governance checks that none of them is left in a prompt. Never put this set in a prompt or a log."""
+        return {v for v in self.mapping.values() if len(v) >= 3} | {k for k in self._names if len(k) >= 3}
+
     def add_known_name(self, name: str) -> None:
         name = " ".join(name.split()).strip(" ,.")
         if len(name) < 3:

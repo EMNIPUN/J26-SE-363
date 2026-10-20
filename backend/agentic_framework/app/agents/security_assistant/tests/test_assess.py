@@ -13,7 +13,7 @@ from app.agents.security_assistant.tools.tests.demo_repos import make_demo_repos
 
 SAVED = Path(__file__).parent / "saved" / "python_full.json"
 SAMPLES = Path(__file__).resolve().parents[1] / "traceability_samples"
-STAGES = ["fetch", "scan", "interpret", "trace", "risk", "guidance", "questions"]
+STAGES = ["fetch", "scan", "governance", "interpret", "trace", "risk", "guidance", "questions"]
 
 
 def run(coro):
