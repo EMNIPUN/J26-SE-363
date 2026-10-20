@@ -26,19 +26,19 @@
         "stage": "fetch",
         "status": "completed",
         "detail": "local folder",
-        "seconds": 0.05
+        "seconds": 0.11
       },
       {
         "stage": "scan",
         "status": "completed",
         "detail": "reused saved findings (python_full.json); nothing was scanned now; agent loop (review, no tool can run): 1 step(s), goal met: every category is FULL or has nothing to scan, and there is no coverage gap",
-        "seconds": 0.03
+        "seconds": 0.06
       },
       {
         "stage": "governance",
         "status": "completed",
         "detail": "enforcing; tool allow-list ok; 4 README/commit message(s) scanned, 0 prompt-injection indicator(s) logged (an indicator, not proof)",
-        "seconds": 0.09
+        "seconds": 0.17
       },
       {
         "stage": "interpret",

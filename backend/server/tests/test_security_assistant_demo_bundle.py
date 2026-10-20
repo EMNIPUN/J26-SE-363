@@ -16,7 +16,7 @@ from app.modules.security.router import SAMPLE_DIR, get_reader
 from tests.test_security_assistant_api import as_user
 from tests.test_teams_api import join_all, lecturer, new_team
 
-TEAM, FULL, NO_LLM = "J26-SE-363", "sample-python-demo", "sample-python-no-llm"
+TEAM, FULL, NO_LLM, HOSTILE = "J26-SE-363", "sample-python-demo", "sample-python-no-llm", "sample-hostile-readme"
 BUNDLE = Path(__file__).resolve().parents[3] / "frontend" / "src" / "modules" / "security" / "assistant" / "demo" / "demoBundle.json"
 DEMO_STUDENT = "sam"  # a synthetic student; the e-mail below exists only in the temporary copy of the sample
 
@@ -26,7 +26,7 @@ def collect(api, tmp_path, monkeypatch):
     shutil.copytree(SAMPLE_DIR, work)
     report = json.loads((work / TEAM / FULL / "report.json").read_text(encoding="utf-8"))
     mine = next(f["introducing_commit"]["contributor"] for f in report["findings"] if f["introducing_commit"])
-    for run in (FULL, NO_LLM):
+    for run in (FULL, NO_LLM, HOSTILE):
         (work / TEAM / run / "trace_mapping.local.json").write_text(
             json.dumps({"salt": "demo", "contributors": {mine: {"name": "demo", "email": f"{DEMO_STUDENT}@example.com"}}}), encoding="utf-8")
     app.dependency_overrides[get_reader] = lambda: ResultsReader(work)
@@ -44,7 +44,7 @@ def collect(api, tmp_path, monkeypatch):
     # the ids are random per database; the demo needs only stable keys
     bundle["students"] = [{**s, "id": f"demo-student-{s['display_name'].lower()}"} for s in sorted(get(f"{base}/students"), key=lambda s: s["display_name"])]
     bundle["runs"] = get(f"{base}/runs")
-    for run in (FULL, NO_LLM):
+    for run in (FULL, NO_LLM, HOSTILE):
         as_user(api, "ada")
         bundle["audit"][run] = get(f"{base}/runs/{run}/audit")
         as_user(api, DEMO_STUDENT)

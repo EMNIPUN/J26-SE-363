@@ -4,6 +4,7 @@ const PAGES = [
   { to: '', label: 'Overview' },
   { to: '/findings', label: 'Findings by type' },
   { to: '/learning', label: 'Comprehension checks (mock)' },
+  { to: '/agents', label: 'Agents and governance' },
 ]
 
 // Page links of the Security Assistant section; the chosen run and student stay in the address (?run=...&student=...).

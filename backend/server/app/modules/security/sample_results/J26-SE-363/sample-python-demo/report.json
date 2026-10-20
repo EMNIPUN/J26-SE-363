@@ -21,7 +21,7 @@
         "stage": "fetch",
         "status": "completed",
         "detail": "local folder",
-        "seconds": 0.06
+        "seconds": 0.08
       },
       {
         "stage": "scan",
@@ -33,25 +33,25 @@
         "stage": "governance",
         "status": "completed",
         "detail": "enforcing; tool allow-list ok; 4 README/commit message(s) scanned, 0 prompt-injection indicator(s) logged (an indicator, not proof)",
-        "seconds": 0.11
+        "seconds": 0.14
       },
       {
         "stage": "interpret",
         "status": "completed",
         "detail": "10 call(s): confirmed 12, dismissed 0, uncertain 0",
-        "seconds": 0.27
+        "seconds": 0.39
       },
       {
         "stage": "trace",
         "status": "completed",
         "detail": "9/10 with an introducing commit; links 17 verified, 0 candidate",
-        "seconds": 0.44
+        "seconds": 0.86
       },
       {
         "stage": "risk",
         "status": "completed",
         "detail": "10 ranked, 0 dismissed (not ranked)",
-        "seconds": 0.0
+        "seconds": 0.02
       },
       {
         "stage": "guidance",
@@ -63,7 +63,7 @@
         "stage": "questions",
         "status": "completed",
         "detail": "10 finding(s): 6 closed, 4 escalated to lecturer review, 27 question(s) asked (MOCK TUTOR)",
-        "seconds": 0.2
+        "seconds": 0.38
       }
     ],
     "llm_refused": false
@@ -1553,10 +1553,10 @@
       ],
       "recommendation": "",
       "introducing_commit": {
-        "sha": "1555c038cad31120cc48d61442069a9324b0a076",
-        "date": "2026-10-20T20:23:36+05:30",
+        "sha": "0ef579a5d77c867c79a71f91003616a9267866d9",
+        "date": "2026-10-20T21:33:21+05:30",
         "subject": "T-101 US-01: login and orders",
-        "contributor": "C-961f654c",
+        "contributor": "C-7fc7e292",
         "how_found": "found by the line's history (git log -L): the commit that added the line"
       },
       "links": [
@@ -1569,7 +1569,7 @@
             "commit_message_reference"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions T-101"
+            "the message of commit 0ef579a mentions T-101"
           ],
           "confidence": 0.95
         },
@@ -1583,7 +1583,7 @@
             "task_linked_story"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions US-01",
+            "the message of commit 0ef579a mentions US-01",
             "task T-101 belongs to US-01"
           ],
           "confidence": 0.95
@@ -1739,10 +1739,10 @@
       ],
       "recommendation": "",
       "introducing_commit": {
-        "sha": "1555c038cad31120cc48d61442069a9324b0a076",
-        "date": "2026-10-20T20:23:36+05:30",
+        "sha": "0ef579a5d77c867c79a71f91003616a9267866d9",
+        "date": "2026-10-20T21:33:21+05:30",
         "subject": "T-101 US-01: login and orders",
-        "contributor": "C-961f654c",
+        "contributor": "C-7fc7e292",
         "how_found": "found by the line's history (git log -L): the commit that added the line"
       },
       "links": [
@@ -1756,7 +1756,7 @@
             "file_or_endpoint_mentioned"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions T-101",
+            "the message of commit 0ef579a mentions T-101",
             "'app.py' appears in task T-101"
           ],
           "confidence": 0.95
@@ -1771,7 +1771,7 @@
             "task_linked_story"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions US-01",
+            "the message of commit 0ef579a mentions US-01",
             "task T-101 belongs to US-01"
           ],
           "confidence": 0.95
@@ -1903,10 +1903,10 @@
       ],
       "recommendation": "",
       "introducing_commit": {
-        "sha": "1555c038cad31120cc48d61442069a9324b0a076",
-        "date": "2026-10-20T20:23:36+05:30",
+        "sha": "0ef579a5d77c867c79a71f91003616a9267866d9",
+        "date": "2026-10-20T21:33:21+05:30",
         "subject": "T-101 US-01: login and orders",
-        "contributor": "C-961f654c",
+        "contributor": "C-7fc7e292",
         "how_found": "found by the line's history (git log -L): the commit that added the line"
       },
       "links": [
@@ -1920,7 +1920,7 @@
             "file_or_endpoint_mentioned"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions T-101",
+            "the message of commit 0ef579a mentions T-101",
             "'app.py' appears in task T-101"
           ],
           "confidence": 0.95
@@ -1935,7 +1935,7 @@
             "task_linked_story"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions US-01",
+            "the message of commit 0ef579a mentions US-01",
             "task T-101 belongs to US-01"
           ],
           "confidence": 0.95
@@ -2075,10 +2075,10 @@
       ],
       "recommendation": "",
       "introducing_commit": {
-        "sha": "1555c038cad31120cc48d61442069a9324b0a076",
-        "date": "2026-10-20T20:23:36+05:30",
+        "sha": "0ef579a5d77c867c79a71f91003616a9267866d9",
+        "date": "2026-10-20T21:33:21+05:30",
         "subject": "T-101 US-01: login and orders",
-        "contributor": "C-961f654c",
+        "contributor": "C-7fc7e292",
         "how_found": "found by the line's history (git log -L): the commit that added the line"
       },
       "links": [
@@ -2092,7 +2092,7 @@
             "file_or_endpoint_mentioned"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions T-101",
+            "the message of commit 0ef579a mentions T-101",
             "'app.py' appears in task T-101"
           ],
           "confidence": 0.95
@@ -2107,7 +2107,7 @@
             "task_linked_story"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions US-01",
+            "the message of commit 0ef579a mentions US-01",
             "task T-101 belongs to US-01"
           ],
           "confidence": 0.95
@@ -2247,10 +2247,10 @@
       ],
       "recommendation": "",
       "introducing_commit": {
-        "sha": "1555c038cad31120cc48d61442069a9324b0a076",
-        "date": "2026-10-20T20:23:36+05:30",
+        "sha": "0ef579a5d77c867c79a71f91003616a9267866d9",
+        "date": "2026-10-20T21:33:21+05:30",
         "subject": "T-101 US-01: login and orders",
-        "contributor": "C-961f654c",
+        "contributor": "C-7fc7e292",
         "how_found": "found by the line's history (git log -L): the commit that added the line"
       },
       "links": [
@@ -2264,7 +2264,7 @@
             "file_or_endpoint_mentioned"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions T-101",
+            "the message of commit 0ef579a mentions T-101",
             "'app.py' appears in task T-101"
           ],
           "confidence": 0.95
@@ -2279,7 +2279,7 @@
             "task_linked_story"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions US-01",
+            "the message of commit 0ef579a mentions US-01",
             "task T-101 belongs to US-01"
           ],
           "confidence": 0.95
@@ -2418,10 +2418,10 @@
       ],
       "recommendation": "",
       "introducing_commit": {
-        "sha": "1555c038cad31120cc48d61442069a9324b0a076",
-        "date": "2026-10-20T20:23:36+05:30",
+        "sha": "0ef579a5d77c867c79a71f91003616a9267866d9",
+        "date": "2026-10-20T21:33:21+05:30",
         "subject": "T-101 US-01: login and orders",
-        "contributor": "C-961f654c",
+        "contributor": "C-7fc7e292",
         "how_found": "found by the line's history (git log -L): the commit that added the line"
       },
       "links": [
@@ -2435,7 +2435,7 @@
             "file_or_endpoint_mentioned"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions T-101",
+            "the message of commit 0ef579a mentions T-101",
             "'app.py' appears in task T-101"
           ],
           "confidence": 0.95
@@ -2450,7 +2450,7 @@
             "task_linked_story"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions US-01",
+            "the message of commit 0ef579a mentions US-01",
             "task T-101 belongs to US-01"
           ],
           "confidence": 0.95
@@ -2712,10 +2712,10 @@
       ],
       "recommendation": "",
       "introducing_commit": {
-        "sha": "1555c038cad31120cc48d61442069a9324b0a076",
-        "date": "2026-10-20T20:23:36+05:30",
+        "sha": "0ef579a5d77c867c79a71f91003616a9267866d9",
+        "date": "2026-10-20T21:33:21+05:30",
         "subject": "T-101 US-01: login and orders",
-        "contributor": "C-961f654c",
+        "contributor": "C-7fc7e292",
         "how_found": "found by the first commit that added 'requests' to the file"
       },
       "links": [
@@ -2728,7 +2728,7 @@
             "commit_message_reference"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions T-101"
+            "the message of commit 0ef579a mentions T-101"
           ],
           "confidence": 0.95
         },
@@ -2742,7 +2742,7 @@
             "task_linked_story"
           ],
           "evidence": [
-            "the message of commit 1555c03 mentions US-01",
+            "the message of commit 0ef579a mentions US-01",
             "task T-101 belongs to US-01"
           ],
           "confidence": 0.95
@@ -2883,10 +2883,10 @@
       ],
       "recommendation": "",
       "introducing_commit": {
-        "sha": "30266a617eaf2b737b5ec4b5708cc8590396a579",
-        "date": "2026-10-20T20:23:36+05:30",
+        "sha": "a673e6e038cb95ddbcc12d865a54cc0bdcb5c1de",
+        "date": "2026-10-20T21:33:21+05:30",
         "subject": "T-105: add CI workflow",
-        "contributor": "C-961f654c",
+        "contributor": "C-7fc7e292",
         "how_found": "found by the line's history (git log -L): the commit that added the line"
       },
       "links": [
@@ -2899,7 +2899,7 @@
             "commit_message_reference"
           ],
           "evidence": [
-            "the message of commit 30266a6 mentions T-105"
+            "the message of commit a673e6e mentions T-105"
           ],
           "confidence": 0.95
         }
@@ -3040,10 +3040,10 @@
       ],
       "recommendation": "",
       "introducing_commit": {
-        "sha": "30266a617eaf2b737b5ec4b5708cc8590396a579",
-        "date": "2026-10-20T20:23:36+05:30",
+        "sha": "a673e6e038cb95ddbcc12d865a54cc0bdcb5c1de",
+        "date": "2026-10-20T21:33:21+05:30",
         "subject": "T-105: add CI workflow",
-        "contributor": "C-961f654c",
+        "contributor": "C-7fc7e292",
         "how_found": "found by the line's history (git log -L): the commit that added the line"
       },
       "links": [
@@ -3056,7 +3056,7 @@
             "commit_message_reference"
           ],
           "evidence": [
-            "the message of commit 30266a6 mentions T-105"
+            "the message of commit a673e6e mentions T-105"
           ],
           "confidence": 0.95
         }

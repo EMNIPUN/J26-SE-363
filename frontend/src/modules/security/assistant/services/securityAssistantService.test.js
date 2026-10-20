@@ -24,12 +24,17 @@ describe('demo mode', () => {
 
     const runs = await service.runs('J26-SE-363')
     expect(runs.demo_data).toBe(true)
-    expect(runs.runs.map((r) => r.run_id).sort()).toEqual(['sample-python-demo', 'sample-python-no-llm'])
+    expect(runs.runs.map((r) => r.run_id).sort()).toEqual(['sample-hostile-readme', 'sample-python-demo', 'sample-python-no-llm'])
     const overview = await service.run('J26-SE-363', 'sample-python-demo')
     expect(overview.demo_data).toBe(true)
     expect(await service.students('J26-SE-363')).toEqual(bundle.students)
     expect((await service.learning('J26-SE-363', 'sample-python-demo')).title).toBe('comprehension check results (mock)')
     expect((await service.findings('J26-SE-363', 'sample-python-demo')).findings.length).toBeGreaterThan(0)
+    expect((await service.agents('J26-SE-363', 'sample-hostile-readme')).governance.injection_indicators.length).toBeGreaterThan(0)
+    expect((await service.workflow('J26-SE-363', 'sample-python-demo')).graphs.workflow.nodes).toContain('scan')
+    expect((await service.audit('J26-SE-363', 'sample-python-demo')).total).toBeGreaterThan(0)
+    await expect(service.agents('J26-SE-363', 'nope')).rejects.toMatchObject({ status: 404 })
+    await expect(service.audit('J26-SE-363', 'nope')).rejects.toMatchObject({ status: 404 })
     await expect(service.learning('J26-SE-363', 'nope')).rejects.toMatchObject({ status: 404 })
     await expect(service.finding('J26-SE-363', 'sample-python-demo', 'nope')).rejects.toMatchObject({ status: 404 })
     await expect(service.run('J26-SE-363', 'nope')).rejects.toMatchObject({ status: 404 })
@@ -42,7 +47,7 @@ describe('demo mode', () => {
     const { securityAssistantService: service } = await import('./securityAssistantService.js')
     const first = await service.runs('x')
     first.runs.length = 0
-    expect((await service.runs('x')).runs).toHaveLength(2)
+    expect((await service.runs('x')).runs).toHaveLength(3)
   })
 
   it('calls the Core API when demo mode is off, and an error stays an error', async () => {

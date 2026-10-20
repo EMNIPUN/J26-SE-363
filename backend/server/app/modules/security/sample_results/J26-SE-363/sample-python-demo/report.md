@@ -19,21 +19,21 @@
 
 | rank | group | finding | where | status | conf. | evidence | introducing commit | links | risk | probe question |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 1 | G02 | V2 py/sql-injection | app.py:22 | **confirmed** | 0.8 | E1 | `1555c03` C-961f654c | T-101 (verified), US-01 (verified) | 90.5 | closed after 2 question(s) (last score 0.74, MOCK) |
-| 2 | G01 | V1 security-assistant/py/missing-ownership-check | app.py:22 | **confirmed** | 0.8 | E1 | `1555c03` C-961f654c | T-101 (verified), US-01 (verified), US-02 (verified) | 90.5 | escalated after 3 question(s) (last score 0.64, MOCK) |
-| 3 | G09 | V5 zizmor:dangerous-triggers | .github/workflows/ci.yml:1 | **confirmed** | 0.8 | E1 | `30266a6` C-961f654c | T-105 (verified) | 87.5 | escalated after 3 question(s) (last score 0.60, MOCK) |
-| 4 | G04 | V3 security-assistant-cfg-001 | app.py:14 | **confirmed** | 0.8 | E1 | `1555c03` C-961f654c | T-101 (verified), US-01 (verified) | 71.0 | closed after 3 question(s) (last score 0.72, MOCK) |
-| 5 | G05 | V3 security-assistant-cfg-003 | app.py:8 | **confirmed** | 0.8 | E1 | `1555c03` C-961f654c | T-101 (verified), US-01 (verified) | 71.0 | escalated after 3 question(s) (last score 0.60, MOCK) |
-| 6 | G06 | V3 security-assistant-cfg-007 | app.py:11 | **confirmed** | 0.8 | E1 | `1555c03` C-961f654c | T-101 (verified), US-01 (verified) | 71.0 | closed after 3 question(s) (last score 0.81, MOCK) |
+| 1 | G02 | V2 py/sql-injection | app.py:22 | **confirmed** | 0.8 | E1 | `0ef579a` C-7fc7e292 | T-101 (verified), US-01 (verified) | 90.5 | closed after 2 question(s) (last score 0.74, MOCK) |
+| 2 | G01 | V1 security-assistant/py/missing-ownership-check | app.py:22 | **confirmed** | 0.8 | E1 | `0ef579a` C-7fc7e292 | T-101 (verified), US-01 (verified), US-02 (verified) | 90.5 | escalated after 3 question(s) (last score 0.64, MOCK) |
+| 3 | G09 | V5 zizmor:dangerous-triggers | .github/workflows/ci.yml:1 | **confirmed** | 0.8 | E1 | `a673e6e` C-7fc7e292 | T-105 (verified) | 87.5 | escalated after 3 question(s) (last score 0.60, MOCK) |
+| 4 | G04 | V3 security-assistant-cfg-001 | app.py:14 | **confirmed** | 0.8 | E1 | `0ef579a` C-7fc7e292 | T-101 (verified), US-01 (verified) | 71.0 | closed after 3 question(s) (last score 0.72, MOCK) |
+| 5 | G05 | V3 security-assistant-cfg-003 | app.py:8 | **confirmed** | 0.8 | E1 | `0ef579a` C-7fc7e292 | T-101 (verified), US-01 (verified) | 71.0 | escalated after 3 question(s) (last score 0.60, MOCK) |
+| 6 | G06 | V3 security-assistant-cfg-007 | app.py:11 | **confirmed** | 0.8 | E1 | `0ef579a` C-7fc7e292 | T-101 (verified), US-01 (verified) | 71.0 | closed after 3 question(s) (last score 0.81, MOCK) |
 | 7 | G07 | V4 aws-access-token | settings_old.py:1 | **confirmed** | 0.8 | E1 | - | - | 70.0 | closed after 1 question(s) (last score 0.70, MOCK) |
-| 8 | G03 | V3 security-assistant-cfg-005 | app.py:13 | **confirmed** | 0.8 | E1 | `1555c03` C-961f654c | T-101 (verified), US-01 (verified) | 69.5 | closed after 3 question(s) (last score 0.83, MOCK) |
-| 9 | G08 | V5 PYSEC-2018-28 | requirements.txt | **confirmed** | 0.8 | E1 | `1555c03` C-961f654c | T-101 (verified), US-01 (verified) | 68.0 | escalated after 3 question(s) (last score 0.69, MOCK) |
-| 10 | G10 | V5 zizmor:unpinned-uses | .github/workflows/ci.yml:6 | **confirmed** | 0.8 | E1 | `30266a6` C-961f654c | T-105 (verified) | 62.0 | closed after 3 question(s) (last score 0.72, MOCK) |
+| 8 | G03 | V3 security-assistant-cfg-005 | app.py:13 | **confirmed** | 0.8 | E1 | `0ef579a` C-7fc7e292 | T-101 (verified), US-01 (verified) | 69.5 | closed after 3 question(s) (last score 0.83, MOCK) |
+| 9 | G08 | V5 PYSEC-2018-28 | requirements.txt | **confirmed** | 0.8 | E1 | `0ef579a` C-7fc7e292 | T-101 (verified), US-01 (verified) | 68.0 | escalated after 3 question(s) (last score 0.69, MOCK) |
+| 10 | G10 | V5 zizmor:unpinned-uses | .github/workflows/ci.yml:6 | **confirmed** | 0.8 | E1 | `a673e6e` C-7fc7e292 | T-105 (verified) | 62.0 | closed after 3 question(s) (last score 0.72, MOCK) |
 
 # Security scan report
 
 - **Source:** vuln_py_repo
-- **Scanned:** 2026-10-20 14:53:36 UTC
+- **Scanned:** 2026-10-20 16:03:26 UTC
 - **Languages:** python
 - **Findings:** 12
 - **Result:** every tool that ran finished.
@@ -567,16 +567,16 @@ Link proposals by `mock-model` (trace-v1), checked by rules afterwards.
 
 | group | finding | introducing commit | contributor | links | notes |
 |---|---|---|---|---|---|
-| G01 | security-assistant/py/missing-ownership-check app.py:22 | `1555c03` 2026-10-20 T-101 US-01: login and orders | C-961f654c | task T-101 **verified** (commit_message_reference, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95)<br>story US-02 **verified** (file_or_endpoint_mentioned, 0.70) | 'orders' appears in 2 tasks (T-101, T-102): too vague to verify |
-| G02 | py/sql-injection app.py:22 | `1555c03` 2026-10-20 T-101 US-01: login and orders | C-961f654c | task T-101 **verified** (commit_message_reference, file_or_endpoint_mentioned, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95) | - |
-| G03 | security-assistant-cfg-005 app.py:13 | `1555c03` 2026-10-20 T-101 US-01: login and orders | C-961f654c | task T-101 **verified** (commit_message_reference, file_or_endpoint_mentioned, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95) | - |
-| G04 | security-assistant-cfg-001 app.py:14 | `1555c03` 2026-10-20 T-101 US-01: login and orders | C-961f654c | task T-101 **verified** (commit_message_reference, file_or_endpoint_mentioned, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95) | - |
-| G05 | security-assistant-cfg-003 app.py:8 | `1555c03` 2026-10-20 T-101 US-01: login and orders | C-961f654c | task T-101 **verified** (commit_message_reference, file_or_endpoint_mentioned, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95) | - |
-| G06 | security-assistant-cfg-007 app.py:11 | `1555c03` 2026-10-20 T-101 US-01: login and orders | C-961f654c | task T-101 **verified** (commit_message_reference, file_or_endpoint_mentioned, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95) | - |
+| G01 | security-assistant/py/missing-ownership-check app.py:22 | `0ef579a` 2026-10-20 T-101 US-01: login and orders | C-7fc7e292 | task T-101 **verified** (commit_message_reference, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95)<br>story US-02 **verified** (file_or_endpoint_mentioned, 0.70) | 'orders' appears in 2 tasks (T-101, T-102): too vague to verify |
+| G02 | py/sql-injection app.py:22 | `0ef579a` 2026-10-20 T-101 US-01: login and orders | C-7fc7e292 | task T-101 **verified** (commit_message_reference, file_or_endpoint_mentioned, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95) | - |
+| G03 | security-assistant-cfg-005 app.py:13 | `0ef579a` 2026-10-20 T-101 US-01: login and orders | C-7fc7e292 | task T-101 **verified** (commit_message_reference, file_or_endpoint_mentioned, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95) | - |
+| G04 | security-assistant-cfg-001 app.py:14 | `0ef579a` 2026-10-20 T-101 US-01: login and orders | C-7fc7e292 | task T-101 **verified** (commit_message_reference, file_or_endpoint_mentioned, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95) | - |
+| G05 | security-assistant-cfg-003 app.py:8 | `0ef579a` 2026-10-20 T-101 US-01: login and orders | C-7fc7e292 | task T-101 **verified** (commit_message_reference, file_or_endpoint_mentioned, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95) | - |
+| G06 | security-assistant-cfg-007 app.py:11 | `0ef579a` 2026-10-20 T-101 US-01: login and orders | C-7fc7e292 | task T-101 **verified** (commit_message_reference, file_or_endpoint_mentioned, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95) | - |
 | G07 | aws-access-token settings_old.py:1 | none found | - | - | no matching story; no introducing commit found: the line has no history in this repository |
-| G08 | PYSEC-2018-28 requirements.txt | `1555c03` 2026-10-20 T-101 US-01: login and orders | C-961f654c | task T-101 **verified** (commit_message_reference, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95) | - |
-| G09 | zizmor:dangerous-triggers .github/workflows/ci.yml:1 | `30266a6` 2026-10-20 T-105: add CI workflow | C-961f654c | task T-105 **verified** (commit_message_reference, 0.95) | no matching story |
-| G10 | zizmor:unpinned-uses .github/workflows/ci.yml:6 | `30266a6` 2026-10-20 T-105: add CI workflow | C-961f654c | task T-105 **verified** (commit_message_reference, 0.95) | no matching story |
+| G08 | PYSEC-2018-28 requirements.txt | `0ef579a` 2026-10-20 T-101 US-01: login and orders | C-7fc7e292 | task T-101 **verified** (commit_message_reference, 0.95)<br>story US-01 **verified** (commit_message_reference, task_linked_story, 0.95) | - |
+| G09 | zizmor:dangerous-triggers .github/workflows/ci.yml:1 | `a673e6e` 2026-10-20 T-105: add CI workflow | C-7fc7e292 | task T-105 **verified** (commit_message_reference, 0.95) | no matching story |
+| G10 | zizmor:unpinned-uses .github/workflows/ci.yml:6 | `a673e6e` 2026-10-20 T-105: add CI workflow | C-7fc7e292 | task T-105 **verified** (commit_message_reference, 0.95) | no matching story |
 
 <!-- risk-prioritisation -->
 ## Risk prioritisation

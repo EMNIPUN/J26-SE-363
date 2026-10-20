@@ -65,3 +65,16 @@ export function useLearning(team, run, student) {
     enabled: Boolean(team && run),
   })
 }
+
+export function useAgents(team, run) {
+  return useQuery({ queryKey: key('agents', team, run), queryFn: () => securityAssistantService.agents(team, run), enabled: Boolean(team && run) })
+}
+
+export function useWorkflow(team, run) {
+  return useQuery({ queryKey: key('workflow', team, run), queryFn: () => securityAssistantService.workflow(team, run), enabled: Boolean(team && run) })
+}
+
+// Only mounted for a lecturer or an administrator (pages/AgentsPage.jsx), so a student's browser never asks for the log.
+export function useAudit(team, run) {
+  return useQuery({ queryKey: key('audit', team, run), queryFn: () => securityAssistantService.audit(team, run), enabled: Boolean(team && run) })
+}

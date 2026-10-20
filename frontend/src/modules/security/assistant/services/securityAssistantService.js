@@ -41,6 +41,24 @@ export const securityAssistantService = {
     isDemoMode()
       ? demoBundle.learning[run] ? demo(demoBundle.learning[run]) : missing('This run')
       : apiClient.get(E.LEARNING(team, run), { params: student ? { student } : undefined }),
+
+  // The decision trails and the governance summary of a run.
+  agents: (team, run) =>
+    isDemoMode()
+      ? demoBundle.agents[run] ? demo(demoBundle.agents[run]) : missing('This run')
+      : apiClient.get(E.AGENTS(team, run)),
+
+  // The workflow and agent graphs (nodes, edges, Mermaid text) and which nodes ran.
+  workflow: (team, run) =>
+    isDemoMode()
+      ? demoBundle.workflow[run] ? demo(demoBundle.workflow[run]) : missing('This run')
+      : apiClient.get(E.WORKFLOW(team, run)),
+
+  // The audit log (hashes and counts only): lecturers and administrators. The page does not call this for a student.
+  audit: (team, run, { limit = 500 } = {}) =>
+    isDemoMode()
+      ? demoBundle.audit[run] ? demo(demoBundle.audit[run]) : missing('This audit log')
+      : apiClient.get(E.AUDIT(team, run), { params: { limit } }),
 }
 
 export default securityAssistantService

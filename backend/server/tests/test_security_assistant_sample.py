@@ -12,7 +12,7 @@ from tests.test_security_assistant_api import as_user
 from tests.test_teams_api import join_all, lecturer, new_team
 
 TEAM = "J26-SE-363"
-FULL, NO_LLM = "sample-python-demo", "sample-python-no-llm"
+FULL, NO_LLM, HOSTILE = "sample-python-demo", "sample-python-no-llm", "sample-hostile-readme"
 
 
 @pytest.fixture
@@ -31,9 +31,9 @@ def demo_team(api, monkeypatch):
     return TEAM
 
 
-def test_the_sample_has_two_runs_of_the_same_repository(reader):
+def test_the_sample_has_three_runs_and_two_of_them_are_of_the_same_repository(reader):
     rows = {r["run_id"]: r for r in reader.summaries(TEAM)}
-    assert set(rows) == {FULL, NO_LLM} and rows[FULL]["repo"] == rows[NO_LLM]["repo"] == "vuln_py_repo"
+    assert set(rows) == {FULL, NO_LLM, HOSTILE} and rows[FULL]["repo"] == rows[NO_LLM]["repo"] == "vuln_py_repo"
     assert rows[FULL]["trigger"] == "manual" and rows[FULL]["scan_type"] == "reused-scan"
 
 
@@ -58,6 +58,17 @@ def test_nothing_personal_or_secret_is_in_the_sample_as_it_leaves_the_reader(rea
     assert not any(f.name.endswith(".local.json") for f in SAMPLE_DIR.rglob("*"))  # a mapping is never part of the sample
 
 
+def test_the_hostile_readme_run_shows_indicators_and_rejected_choices_and_changes_no_verdict(reader):
+    rep = reader.run(TEAM, HOSTILE)["report"]
+    gov = rep["governance"]
+    assert gov["injection_indicators"] and {h["kind"] for h in gov["injection_indicators"]} >= {"readme", "commit message"}
+    assert gov["scrutiny"]["level"] in ("elevated", "high") and gov["calls_blocked"] == 0
+    trails = rep["decision_trail"]
+    assert trails["Analysis Orchestrator"][0]["rejected"]["proposed"].startswith("shell") and trails["Question Generation"][0]["rejected"]
+    # nothing changed, nothing dropped: the same findings, all still confirmed
+    assert all(f["status"] == "confirmed" for f in rep["findings"]) and len(rep["findings"]) == len(reader.run(TEAM, FULL)["report"]["findings"])
+
+
 def test_the_shared_files_are_there(reader):
     assert "graph TD;" in reader.shared("workflow.mmd") and "WORKFLOW" in reader.shared("WORKFLOW.md").upper()
     assert reader.shared("rq1_comparison.csv").startswith("suite,name,run")
@@ -66,7 +77,8 @@ def test_the_shared_files_are_there(reader):
 def test_in_demo_mode_the_routes_serve_the_sample_to_team_members_and_say_it_is_demo_data(api, demo_team):
     as_user(api, "sam")
     body = api.get(f"/security-assistant/teams/{TEAM}/runs").json()
-    assert body["demo_data"] is True and {r["run_id"] for r in body["runs"]} == {FULL, NO_LLM}
+    assert body["demo_data"] is True and {r["run_id"] for r in body["runs"]} == {FULL, NO_LLM, HOSTILE}
+    assert [r["run_id"] for r in body["runs"] if r["complete"]][0] == FULL  # the newest complete run is the full one
     overview = api.get(f"/security-assistant/teams/{TEAM}/runs/{FULL}").json()
     assert overview["demo_data"] is True and overview["llm"]["model"] == "mock-model" and overview["llm"]["tutor_is_mock"] is True
     assert api.get(f"/security-assistant/teams/{TEAM}/runs/{NO_LLM}").json()["run"]["complete"] is False
