@@ -16,6 +16,7 @@ import { ThemeProvider } from '../shared/theme/ThemeProvider.jsx'
 import GithubLinkCard from '../shared/github/GithubLinkCard.jsx'
 import TeamAccessGate from '../shared/github/TeamAccessGate.jsx'
 import TeamAccessPage from '../shared/github/TeamAccessPage.jsx'
+import GithubPopupDone from '../shared/github/GithubPopupDone.jsx'
 import PerformanceRoutes from '../modules/performance/routes.jsx'
 
 const role = new URLSearchParams(window.location.search).get('role') || 'instructor'
@@ -37,6 +38,7 @@ createRoot(document.getElementById('root')).render(
               <Frame>
                 <Routes>
                   <Route path="/teams/:teamId/performance/*" element={<PerformanceRoutes />} />
+                  <Route path="/github/popup-done" element={<GithubPopupDone />} />
                   <Route path="/teams/:teamId/access" element={<TeamAccessPage />} />
                   <Route path="/teams/:teamId/gate" element={<TeamAccessGate teamId="MC01"><div className="p-10 text-center text-lg">The team dashboard</div></TeamAccessGate>} />
                   <Route path="/teams/:teamId/github" element={<GithubLinkCard team="MC01" repoUrl="https://github.com/acme/app" canEditRepo />} />

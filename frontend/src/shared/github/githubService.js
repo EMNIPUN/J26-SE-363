@@ -8,7 +8,7 @@ import apiClient from '@/shared/api/apiClient'
 export const githubService = {
   config: () => apiClient.get('/github/config'),
   team: (team) => apiClient.get(`/teams/${team}/github`),
-  install: (team, back) => apiClient.post(`/teams/${team}/github/install`, null, { params: back ? { back } : {} }),
+  install: (team, back, popup = false) => apiClient.post(`/teams/${team}/github/install`, null, { params: { ...(back ? { back } : {}), ...(popup ? { popup: true } : {}) } }),
   repos: (team) => apiClient.get(`/teams/${team}/github/repos`),
   chooseRepo: (team, fullName) => apiClient.put(`/teams/${team}/github/repo`, { full_name: fullName }),
   unlink: (team) => apiClient.delete(`/teams/${team}/github`),

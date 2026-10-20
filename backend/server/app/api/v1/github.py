@@ -93,18 +93,20 @@ def github_config(account: Onboarded, app: App):
 
 @router.post("/teams/{team}/github/install", response_model=UrlOut)
 def start_install(team: str, account: Onboarded, db: Db, app: App,
-                  back: Annotated[str, Query(max_length=200, pattern=r"^(/[A-Za-z0-9/_\-.?=&]*)?$")] = "") -> UrlOut:
+                  back: Annotated[str, Query(max_length=200, pattern=r"^(/[A-Za-z0-9/_\-.?=&]*)?$")] = "", popup: bool = False) -> UrlOut:
     group, member = _team(db, team, account)
     _must_link(group, member, account)
     _require_configured(app)
-    state = sign_state(app.config.state_secret, {"purpose": "install", "user": str(account.user.id), "team": str(group.id), "back": back})
+    state = sign_state(app.config.state_secret, {"purpose": "install", "user": str(account.user.id), "team": str(group.id), "back": back, "popup": popup})
     return UrlOut(url=f"{app.install_url}?state={state}")
 
 
 def _finish_install(db: Db, app: App, installation_id: int, state: str) -> RedirectResponse:
     """The leader installed the App. The signed state says who started it and for which team."""
+    base, popup = settings.APP_BASE_URL.rstrip("/"), False
     try:
         data = read_state(app.config.state_secret, state)
+        popup = bool(data.get("popup"))
         if data.get("purpose") != "install":
             raise GitHubAppError("wrong kind of link")
         group = db.get(Group, uuid.UUID(data["team"]))
@@ -117,10 +119,12 @@ def _finish_install(db: Db, app: App, installation_id: int, state: str) -> Redir
             raise GitHubAppError("that person may not link this team")
         links.link_installation(db, group, installation_id, user, app)
     except (GitHubAppError, ValueError):
-        return RedirectResponse(f"{settings.APP_BASE_URL.rstrip('/')}/?github=error")
+        return RedirectResponse(f"{base}/github/popup-done?github=error" if popup else f"{base}/?github=error")
+    if popup:  # the small window only reports back to the page that opened it
+        return RedirectResponse(f"{base}/github/popup-done?github=installed")
     # Back to the team's access page, which checks the person again before the dashboard opens (and then goes on to where they came from).
     nxt = f"&next={quote(data.get('back') or '', safe='/')}" if data.get("back") else ""
-    return RedirectResponse(f"{settings.APP_BASE_URL.rstrip('/')}/teams/{group.code}/access?github=installed{nxt}")
+    return RedirectResponse(f"{base}/teams/{group.code}/access?github=installed{nxt}")
 
 
 @public_router.get("/github/installed", include_in_schema=True)

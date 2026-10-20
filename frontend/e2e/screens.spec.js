@@ -142,3 +142,15 @@ test('the access page stays on the check, at its own address, when the check fai
   await expect(page.getByRole('heading', { name: 'Sign in with GitHub to enter MediCare' })).toBeVisible()
   expect(page.url()).toContain('#/teams/MC01/access')
 })
+
+test('GitHub opens in a small window and the button keeps working until it reports back', async ({ page }) => {
+  await open(page, '/teams/MC01/access', { role: 'student', gate: 'account_not_linked', popupFlow: true })
+  const button = page.getByRole('button', { name: 'Continue with GitHub' })
+  const popupOpened = page.waitForEvent('popup')
+  await button.click()
+  const popup = await popupOpened
+  await expect(button).toBeDisabled() // busy while the small window is open
+  await popup.waitForEvent('close') // the small window reports back and closes itself
+  await expect(button).toBeDisabled() // still busy while the access is checked again
+  await expect.poll(() => page.url()).not.toContain('/access') // and then it goes on, with no extra click
+})

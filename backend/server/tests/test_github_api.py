@@ -324,3 +324,15 @@ def test_an_install_returns_to_the_access_page_and_remembers_where_the_person_ca
     assert r.headers["location"].endswith("/teams/TEAM-ALPHA/access?github=installed&next=/teams/TEAM-ALPHA/members")
     as_user(gh, "sam")
     assert gh.post("/teams/TEAM-ALPHA/github/install", params={"back": "https://evil.example"}).status_code == 422
+
+
+def test_a_popup_install_reports_back_to_the_window_that_opened_it(gh):
+    make_team(gh)
+    as_user(gh, "sam")
+    url = gh.post("/teams/TEAM-ALPHA/github/install", params={"popup": True}).json()["url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    gh.sign_out()
+    r = gh.get("/github/installed", params={"installation_id": 7, "state": state}, follow_redirects=False)
+    assert r.headers["location"].endswith("/github/popup-done?github=installed")
+    bad = gh.get("/github/installed", params={"installation_id": 7, "state": state + "x"}, follow_redirects=False)
+    assert "/?github=error" in bad.headers["location"]  # a state that cannot be read does not say it was a popup

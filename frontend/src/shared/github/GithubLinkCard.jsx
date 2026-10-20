@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import PropTypes from 'prop-types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { CheckCircle2, ExternalLink, Lock, RefreshCw, Unlink } from 'lucide-react'
+import { CheckCircle2, ExternalLink, Loader2, Lock, RefreshCw, Unlink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import Badge from '@/shared/components/Badge.jsx'
 import { showToast } from '../utils/toast.jsx'
 import RepositoryForm from '../pages/teams/RepositoryForm.jsx'
 import GithubIcon from './GithubIcon.jsx'
+import { POPUP_DONE_PATH, useGithubPopup } from './githubPopup.js'
 import { githubKeys, githubService, MEMBER_STATE } from './githubService.js'
 
 const REASONS = {
@@ -91,7 +92,7 @@ export default function GithubLinkCard({ team, repoUrl, canEditRepo }) {
     setParams(next, { replace: true })
   }, [params, setParams, qc])
 
-  const go = useMutation({ mutationFn: (fn) => fn(), onSuccess: (r) => { if (r?.url) window.location.assign(r.url) } })
+  const popup = useGithubPopup()
   const done = useMutation({
     mutationFn: (fn) => fn(),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['github'] }),
@@ -135,7 +136,7 @@ export default function GithubLinkCard({ team, repoUrl, canEditRepo }) {
             linked ? <p className="text-sm text-muted-foreground">Installed.</p> : (
               <>
                 <p className="text-sm text-muted-foreground">GitHub asks you to choose which repository the app may read. Choose only the team's repository.</p>
-                <Button size="sm" onClick={() => go.mutate(() => githubService.install(team, `/teams/${team}/members`))} disabled={go.isPending}>Install on GitHub</Button>
+                <Button size="sm" onClick={() => popup.run((p) => githubService.install(team, p ? '' : `/teams/${team}/members`, p))} disabled={popup.pending}>{popup.pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Install on GitHub</Button>
               </>
             )
           ) : <p className="text-sm text-muted-foreground">The team leader does this.</p>}
@@ -165,7 +166,7 @@ export default function GithubLinkCard({ team, repoUrl, canEditRepo }) {
                   {mine.login ? (
                     <Button size="sm" variant="outline" onClick={() => done.mutate(() => githubService.disconnect())}>Disconnect</Button>
                   ) : (
-                    <Button size="sm" onClick={() => go.mutate(() => githubService.connect(team, `/teams/${team}/members`))} disabled={go.isPending}><GithubIcon className="h-4 w-4" /> Connect GitHub</Button>
+                    <Button size="sm" onClick={() => popup.run((p) => githubService.connect(team, p ? POPUP_DONE_PATH : `/teams/${team}/members`))} disabled={popup.pending}>{popup.pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <GithubIcon className="h-4 w-4" />} Connect GitHub</Button>
                   )}
                 </div>
               )}

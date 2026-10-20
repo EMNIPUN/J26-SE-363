@@ -100,7 +100,8 @@ const GATE = {
   github_unavailable: { state: 'github_unavailable', installed: true, repo: 'acme/app', login: 'eric-devon', is_leader: false },
 }
 
-export async function mockApi(page, { role = 'instructor', live = false, gate = 'ok' } = {}) {
+export async function mockApi(page, { role = 'instructor', live = false, gate = 'ok', popupFlow = false } = {}) {
+  let connected = false
   await page.route((url) => url.pathname.startsWith('/api/'), async (route) => {
     const url = new URL(route.request().url())
     const p = url.pathname.replace(/^\/api/, '')
@@ -119,6 +120,8 @@ export async function mockApi(page, { role = 'instructor', live = false, gate = 
     if (/^\/performance\/runs\/[^/]+$/.test(p) && m === 'GET') return json(runsList(live ? 'live' : 'done')[0])
     if (p === '/performance/reviews') return json([{ id: 'rev1', run_id: 'run-done', team_ref: 'MC01', sprint_id: 'MC01-S3', student_id: 'u-eri', kind: 'audit', reason: 'requirement_fulfillment could not be computed | A person should check the two tasks by hand.', status: 'open' }])
     if (p === '/github/config') return json({ configured: true, app_slug: 'selvia-ai' })
+    if (popupFlow && p === '/me/github/connect') { connected = true; return json({ url: `${new URL(route.request().url()).origin}/preview.html?role=student#/github/popup-done?github=connected` }) }
+    if (p === '/teams/MC01/gate' && popupFlow && connected) { await new Promise((r) => setTimeout(r, 700)); return json({ state: 'ok' }) }
     if (p === '/teams/MC01/gate') return json({ team: 'MC01', team_name: 'MediCare', leader_name: 'Sadeesha Sathsara', configured: true, verified: true, staff: false, can_link: false, ...GATE[gate] })
     if (p === '/teams/MC01/github/repos') return json([{ id: 1, full_name: 'sadeesha/medicare', private: false }, { id: 2, full_name: 'sadeesha/medicare-docs', private: true }])
     if (p === '/teams/MC01/github') return json({ repo: 'acme/app', ready: true, blockers: [], notes: [], can_link: role === 'instructor', members: [{ user_id: 'u1', name: 'Sadeesha Sathsara', login: 'sadeesha', state: 'ready', is_leader: true }, { user_id: 'u2', name: 'Eric Devon', login: 'eric-devon', state: 'ready' }, { user_id: 'u3', name: 'Chathush Perera', login: 'chathush', state: 'read_only' }, { user_id: 'u4', name: 'Nipun Dhananjaya', login: null, state: 'not_connected' }] })
