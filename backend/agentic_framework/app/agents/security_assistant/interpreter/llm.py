@@ -39,8 +39,9 @@ class GeminiClient:
     """Google Gemini over its REST API (httpx, no extra dependency). The key goes in a header, never a URL."""
 
     def __init__(self, api_key: str, model: str = DEFAULT_MODEL, timeout: float = 60.0,
-                 transport: httpx.AsyncBaseTransport | None = None, retries: int = 2):
+                 transport: httpx.AsyncBaseTransport | None = None, retries: int = 2, backoff: float = 0.5):
         self._key, self.model, self._timeout, self._transport, self._retries = api_key, model, timeout, transport, retries
+        self._backoff = backoff  # seconds; the wait before retry n is backoff * n
 
     async def complete(self, system: str, user: str) -> str:
         body = {
@@ -69,7 +70,7 @@ class GeminiClient:
                         pass
                     if resp.status_code not in (429, 500, 503):
                         break  # a client error will not get better by retrying
-                await asyncio.sleep(0.5 * (attempt + 1))
+                await asyncio.sleep(self._backoff * (attempt + 1))
         raise LLMError(f"Gemini call failed: {last}")  # never include headers, so the key cannot leak
 
 
@@ -84,7 +85,7 @@ def _setting(name: str) -> str | None:
         return None
 
 
-def get_default_client() -> LLMClient:
+def get_default_client(retries: int = 2, backoff: float = 0.5) -> LLMClient:
     """Gemini configured from the environment or backend/agentic_framework/.env:
     SECURITY_ASSISTANT_LLM_API_KEY (or GEMINI_API_KEY), SECURITY_ASSISTANT_LLM_MODEL (default gemini-3.5-flash),
     SECURITY_ASSISTANT_LLM_TIMEOUT (seconds). A real environment variable wins over the file."""
@@ -97,4 +98,6 @@ def get_default_client() -> LLMClient:
         key,
         model=_setting("SECURITY_ASSISTANT_LLM_MODEL") or DEFAULT_MODEL,
         timeout=float(_setting("SECURITY_ASSISTANT_LLM_TIMEOUT") or "60"),
+        retries=retries,
+        backoff=backoff,
     )

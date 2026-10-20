@@ -134,6 +134,32 @@ Open `scan_output/reports/<name>_fast/report.md` (or `_full`) afterwards. On the
 app.agents.security_assistant.scan <folder>` also works, but only config-scan is installed there, so the other tools are
 reported as unavailable and the result is INCOMPLETE.
 
+## Interpret the findings with the LLM (`interpret.py`)
+
+Takes the `findings.json` of a scan plus the scanned folder. It runs on the host with `uv` (no scanner is needed) and
+**sends nothing to an LLM unless `--allow-external-llm` is passed**.
+
+```powershell
+cd backend\agentic_framework
+# 1. see exactly what would be sent (redacted) and how many calls; calls nothing
+uv run python -m app.agents.security_assistant.interpret scan_output/reports/<name>_fast/findings.json scan_output/demo_repos/<name> --dry-run
+# 2. the real run (needs SECURITY_ASSISTANT_LLM_API_KEY in .env); --delay is the pause between calls
+uv run python -m app.agents.security_assistant.interpret scan_output/reports/<name>_fast/findings.json scan_output/demo_repos/<name> --allow-external-llm --delay 6 --out scan_output/reports/<name>_fast_interpreted
+```
+
+Options: `--only-category V1,V4`, `--max-findings N` (limits the number of calls), `--retries N` (bounded retries for
+429/500/503, default 2). It writes `interpreted.json` and `report.md` (the normal report plus an "LLM interpretation"
+section: scanner-only count versus confirmed / dismissed / uncertain, why answers are uncertain, what was merged, and
+per call the status, confidence, evidence ids and rationale).
+
+Before any call (`dedupe.py`): the same advisory for the same package reported by several tools (for example OSV-Scanner and
+pip-audit) is merged, then dependency findings are grouped per package, so one call judges a package and answers for
+all its advisories. Every merge is listed in the output; no scanner finding is dropped, each stays a member of its group.
+
+The LLM cannot add findings: output with extra fields is rejected, a failed call or rejected output is `uncertain`
+(with the reason), and a cited evidence id that is not in the bundle downgrades the answer to `uncertain`.
+Exit codes: 0 ok, 2 some calls failed, 3 usage error, 4 refused (no `--allow-external-llm`).
+
 ## Local setup with uv (the project package manager)
 
 The Python side is managed with [uv](https://docs.astral.sh/uv/) from `backend/agentic_framework/`

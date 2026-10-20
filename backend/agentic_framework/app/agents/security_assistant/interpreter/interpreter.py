@@ -33,8 +33,12 @@ def parse_verdict(text: str) -> Verdict:
     cleaned = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", text or "", flags=re.I)
     try:
         return Verdict.model_validate(json.loads(cleaned))
-    except (ValueError, ValidationError) as exc:  # json errors are ValueError subclasses
-        raise InvalidLLMOutput(str(exc)[:300]) from exc
+    except ValidationError as exc:
+        # name the fields and error types only: the message must not echo the model text into reports
+        raise InvalidLLMOutput("schema errors: " + ", ".join(
+            f"{'.'.join(str(p) for p in e['loc']) or 'output'} ({e['type']})" for e in exc.errors()[:6])) from exc
+    except ValueError as exc:
+        raise InvalidLLMOutput("output is not valid JSON") from exc
 
 
 class SemanticInterpreter:
