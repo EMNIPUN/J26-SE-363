@@ -12,6 +12,7 @@ import argparse
 import asyncio
 import json
 import sys
+from pathlib import Path
 
 from app.agents.security_assistant.interpreter.interpreter import SemanticInterpreter
 from app.agents.security_assistant.interpreter.llm import LLMError, get_default_client
@@ -35,6 +36,7 @@ class OracleClient:
 async def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--live", action="store_true", help="call the real LLM (needs SECURITY_ASSISTANT_LLM_API_KEY and SECURITY_ASSISTANT_LLM_MODEL)")
+    ap.add_argument("--save", type=Path, help="write the per-case statuses to this JSON file (read by the rq1 comparison)")
     args = ap.parse_args(argv)
 
     cases = load_cases()
@@ -50,6 +52,7 @@ async def main(argv=None) -> int:
 
     print(f"model: {client.model}{'  (mock: answers with the human label)' if not args.live else ''}")
     correct = errors = 0
+    saved = []
     for case in cases:
         if not args.live:
             client.current = case
@@ -57,6 +60,8 @@ async def main(argv=None) -> int:
         ok = result.status == case.ground_truth
         correct += ok
         errors += bool(result.error or result.output_rejected)
+        saved.append({"id": case.id, "ground_truth": case.ground_truth, "status": result.status, "confidence": result.confidence,
+                      "error": bool(result.error or result.output_rejected)})
         flags = " ".join(f for f, on in (("downgraded", result.downgraded), ("rejected", result.output_rejected),
                                          ("llm-error", bool(result.error))) if on)
         print(f"{case.finding.category.value} {case.id:<38} truth={case.ground_truth:<9} got={result.status:<9} "
@@ -64,6 +69,9 @@ async def main(argv=None) -> int:
         if result.error or result.output_rejected:
             print(f"     reason: {(result.error or result.rationale)[:200]}")
     print(f"agreement with the labels: {correct}/{len(cases)}; calls that failed or were rejected: {errors}")
+    if args.save:
+        args.save.write_text(json.dumps({"model": client.model, "live": args.live, "cases": saved}, indent=2), encoding="utf-8")
+        print(f"saved {args.save}")
     return 0
 
 
