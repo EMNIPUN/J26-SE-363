@@ -221,6 +221,29 @@ It traces the **confirmed** findings of `interpreted.json` and writes `traced.js
 
 Exit codes: 0 ok, 2 some proposals failed, 3 usage error, 4 refused (no `--allow-external-llm`).
 
+## Risk prioritisation (`risk.py`)
+
+```
+python -m app.agents.security_assistant.risk <interpreted.json> [repo folder] [--out DIR]
+```
+
+A transparent rule engine, **no LLM scoring**. `score = 100 x sum(weight x factor)` over six factors between 0 and 1:
+
+| factor | weight | value |
+|---|---|---|
+| severity | 0.30 | the tool's own severity: critical or CVSS 9+ 1.0, high / 7+ 0.8, medium or moderate / 4+ 0.5, low 0.2, none given 0.4 (a package group uses its highest advisory) |
+| category | 0.15 | V1 1.0, V2 1.0, V4 0.9, V3 0.8, V5 0.7 |
+| llm_status | 0.20 | confirmed 1.0, uncertain 0.4 (the down-weight); **dismissed findings are not ranked** and are listed under "Not ranked" |
+| llm_confidence | 0.10 | the model's confidence in its own status |
+| exposure | 0.15 | by type of issue (a public workflow trigger 1.0, ownership check / injection 0.9, ... dependency 0.5); a named HTTP endpoint or function raises it to at least 0.9 |
+| presence | 0.10 | in the current files 1.0, only in the git history 0.6 (a secret whose file is gone or whose line no longer holds it; needs the repo folder, otherwise it is counted as current and the report says so) |
+
+Each factor is stored with its weight, value, contribution (`100 x weight x value`, rounded to 2 decimals) and the reason; the
+score is the sum of the rounded contributions, so the breakdown adds up exactly. Ties are broken by category, rule id, group
+id, so the order never depends on the input order. Outputs: `risk.json` (weights, ranked list with the breakdown, excluded list)
+and a ranked table with the breakdown in `report.md`. The weights are a starting point for the team to review, not a
+measured probability.
+
 ## Personal data (PII) redaction (`pii.py`)
 
 Before anything is sent to the LLM, `PIIRedactor` (next to `redaction.py`, which handles secrets) replaces personal data
