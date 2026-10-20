@@ -36,6 +36,7 @@ class OracleClient:
 async def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--live", action="store_true", help="call the real LLM (needs SECURITY_ASSISTANT_LLM_API_KEY and SECURITY_ASSISTANT_LLM_MODEL)")
+    ap.add_argument("--delay", type=float, default=0.0, help="seconds to wait between live calls (free API tiers need this)")
     ap.add_argument("--save", type=Path, help="write the per-case statuses to this JSON file (read by the rq1 comparison)")
     args = ap.parse_args(argv)
 
@@ -53,7 +54,9 @@ async def main(argv=None) -> int:
     print(f"model: {client.model}{'  (mock: answers with the human label)' if not args.live else ''}")
     correct = errors = 0
     saved = []
-    for case in cases:
+    for n, case in enumerate(cases):
+        if args.live and args.delay and n:
+            await asyncio.sleep(args.delay)
         if not args.live:
             client.current = case
         result = await interpreter.interpret(case.finding, case.bundle)
@@ -61,7 +64,8 @@ async def main(argv=None) -> int:
         correct += ok
         errors += bool(result.error or result.output_rejected)
         saved.append({"id": case.id, "ground_truth": case.ground_truth, "status": result.status, "confidence": result.confidence,
-                      "error": bool(result.error or result.output_rejected)})
+                      "evidence_ids": result.evidence_ids, "rationale": result.rationale,
+                      "error": result.error or result.downgrade_reason or ("output rejected" if result.output_rejected else None)})
         flags = " ".join(f for f, on in (("downgraded", result.downgraded), ("rejected", result.output_rejected),
                                          ("llm-error", bool(result.error))) if on)
         print(f"{case.finding.category.value} {case.id:<38} truth={case.ground_truth:<9} got={result.status:<9} "
