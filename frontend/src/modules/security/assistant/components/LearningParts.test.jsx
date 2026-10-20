@@ -45,10 +45,13 @@ describe('the comprehension checks page on the sample run', () => {
   it('shows concepts covered, closed against open, and the questions asked', () => {
     const markup = body()
     const s = data.summary_all
-    for (const [key, value] of Object.entries({ concepts: s.concepts, closed: s.closed, escalated: s.escalated, open: s.open, attempts: s.attempts })) {
+    for (const [key, value] of Object.entries({ concepts: s.concepts, closed: s.closed, escalated: s.escalated, attempts: s.attempts })) {
       expect(markup).toMatch(new RegExp(`data-stat="${key}"[^>]*><dt[^>]*>[^<]*</dt><dd[^>]*>${value}</dd>`))
     }
     expect(markup).toContain('data-slot="concept-table"')
+    expect(markup).not.toContain('data-stat="open"')
+    expect(markup).not.toContain('Still open')
+    expect(s.closed + s.escalated).toBe(data.items.length) // every check ends closed or escalated
   })
 
   it('shows closed and escalated checks differently, with the reason for an escalation', () => {
@@ -131,28 +134,28 @@ describe('the pieces', () => {
 
 describe('the helpers', () => {
   it('summarises the way the Core API does', () => {
-    expect(learningSummary(data.items)).toEqual({ concepts: data.summary_all.concepts, closed: data.summary_all.closed, escalated: data.summary_all.escalated, open: data.summary_all.open, attempts: data.summary_all.attempts })
-    expect(learningSummary(undefined)).toEqual({ concepts: 0, closed: 0, escalated: 0, open: 0, attempts: 0 })
-    expect(learningSummary([{ decision: 'skipped', attempts: [], concept_id: null }]).open).toBe(1)
+    expect(learningSummary(data.items)).toEqual({ concepts: data.summary_all.concepts, closed: data.summary_all.closed, escalated: data.summary_all.escalated, attempts: data.summary_all.attempts })
+    expect(learningSummary(undefined)).toEqual({ concepts: 0, closed: 0, escalated: 0, attempts: 0 })
   })
 
   it('groups the checks by concept', () => {
     const rows = conceptRows([
       { concept_id: 'a', concept: 'B concept', decision: 'closed', attempts: [1, 2] },
       { concept_id: 'a', concept: 'B concept', decision: 'escalated', attempts: [1] },
-      { concept_id: 'c', concept: 'A concept', decision: 'open', attempts: [] },
+      { concept_id: 'c', concept: 'A concept', decision: 'closed', attempts: [1] },
     ])
     expect(rows.map((r) => r.concept)).toEqual(['A concept', 'B concept'])
-    expect(rows[1]).toMatchObject({ checks: 2, closed: 1, escalated: 1, open: 0, attempts: 3 })
-    expect(rows[0].open).toBe(1)
+    expect(rows[1]).toMatchObject({ checks: 2, closed: 1, escalated: 1, attempts: 3 })
+    expect(rows[0]).toMatchObject({ checks: 1, closed: 1, escalated: 0 })
   })
 
   it('words decisions and clamps scores', () => {
     expect(decisionLabel('escalated')).toBe('escalated to the lecturer')
-    expect(decisionLabel('whatever')).toBe('open')
+    expect(decisionLabel('whatever')).toBe('whatever')
+    expect(decisionLabel(undefined)).toBe('unknown')
     expect(decisionTone('closed')).toBe('success')
     expect(decisionTone('escalated')).toBe('warning')
-    expect(decisionTone('open')).toBe('neutral')
+    expect(decisionTone('whatever')).toBe('neutral')
     expect([scorePercent(0.59), scorePercent(2), scorePercent(-1), scorePercent(undefined), scorePercent('x')]).toEqual([59, 100, 0, 0, 0])
   })
 })

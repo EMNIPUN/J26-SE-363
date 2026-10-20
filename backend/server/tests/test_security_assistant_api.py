@@ -332,7 +332,7 @@ def test_learning_lists_the_probes_with_attempts_scores_and_decisions_and_labels
     assert [i["group_id"] for i in body["items"]] == ["A", "B"] and body["threshold"] == 0.7
     a, b = body["items"]
     assert [x["hint_level"] for x in a["attempts"]] == [0, 1] and a["decision"] == "closed" and b["decision"] == "escalated" and b["escalation_reason"] == "attempt limit"
-    assert body["summary"] == {"title": "comprehension check results (mock)", "concepts": 2, "closed": 1, "escalated": 1, "open": 0, "attempts": 5}
+    assert body["summary"] == {"title": "comprehension check results (mock)", "concepts": 2, "closed": 1, "escalated": 1, "attempts": 5}
 
 
 def test_learning_for_one_student_counts_only_their_findings(api, full):

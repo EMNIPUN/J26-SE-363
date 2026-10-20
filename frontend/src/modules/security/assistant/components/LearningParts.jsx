@@ -89,11 +89,10 @@ const STATS = [
   ['concepts', 'Concepts covered'],
   ['closed', 'Closed'],
   ['escalated', 'Escalated to the lecturer'],
-  ['open', 'Still open'],
   ['attempts', 'Questions asked'],
 ]
 
-// Concepts covered, closed against open, and attempts, for the checks listed below it.
+// Concepts covered, closed against escalated, and questions asked, for the checks listed below it.
 export function LearningSummaryCard({ items, scope }) {
   const summary = learningSummary(items)
   return (
@@ -102,7 +101,7 @@ export function LearningSummaryCard({ items, scope }) {
         <h2 className="text-sm font-semibold">Summary: {scope}</h2>
         <MockBadge>MOCK results</MockBadge>
       </div>
-      <dl className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+      <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {STATS.map(([key, label]) => (
           <div key={key} data-stat={key}>
             <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -118,7 +117,6 @@ export function LearningSummaryCard({ items, scope }) {
               <TableHead className="text-right">Checks</TableHead>
               <TableHead className="text-right">Closed</TableHead>
               <TableHead className="text-right">Escalated</TableHead>
-              <TableHead className="text-right">Open</TableHead>
               <TableHead className="text-right">Questions</TableHead>
             </TableRow>
           </TableHeader>
@@ -129,7 +127,6 @@ export function LearningSummaryCard({ items, scope }) {
                 <TableCell className="text-right">{r.checks}</TableCell>
                 <TableCell className="text-right">{r.closed}</TableCell>
                 <TableCell className="text-right">{r.escalated}</TableCell>
-                <TableCell className="text-right">{r.open}</TableCell>
                 <TableCell className="text-right">{r.attempts}</TableCell>
               </TableRow>
             ))}

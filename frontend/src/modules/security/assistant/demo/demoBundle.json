@@ -3782,7 +3782,6 @@
     "concepts": 10,
     "closed": 6,
     "escalated": 4,
-    "open": 0,
     "attempts": 27
    },
    "summary_all": {
@@ -3790,7 +3789,6 @@
     "concepts": 10,
     "closed": 6,
     "escalated": 4,
-    "open": 0,
     "attempts": 27
    }
   },
@@ -3812,7 +3810,6 @@
     "concepts": 0,
     "closed": 0,
     "escalated": 0,
-    "open": 0,
     "attempts": 0
    },
    "summary_all": {
@@ -3820,7 +3817,6 @@
     "concepts": 0,
     "closed": 0,
     "escalated": 0,
-    "open": 0,
     "attempts": 0
    }
   }

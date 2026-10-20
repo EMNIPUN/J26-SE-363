@@ -183,9 +183,10 @@ def _learning_item(f: dict, mine: set[str]) -> dict:
 
 
 def learning_summary(items: list[dict]) -> dict:
+    """Every check ends closed or escalated (the question agent has no other end), so there is no "open" count."""
     return {"title": MOCK_TITLE, "concepts": len({i["concept_id"] for i in items if i["concept_id"]}),
             "closed": sum(i["decision"] == "closed" for i in items), "escalated": sum(i["decision"] == "escalated" for i in items),
-            "open": sum(i["decision"] not in ("closed", "escalated") for i in items), "attempts": sum(len(i["attempts"]) for i in items)}
+            "attempts": sum(len(i["attempts"]) for i in items)}
 
 
 @router.get("/teams/{team}/runs/{run}/learning", summary="Probe questions and the (mock) Tutor's results")
