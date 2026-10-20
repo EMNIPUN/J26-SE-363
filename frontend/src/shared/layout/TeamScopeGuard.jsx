@@ -38,8 +38,8 @@ export default function TeamScopeGuard() {
   if (isLoading) return <div className="min-h-[40svh]" />
   if (pending) return <Navigate to={teamHref(pending)} replace /> // finish the setup first
   if (!matchedGroup) return <NotFound />
-  // A student enters the team only through the GitHub gate (checked live on every load); lecturers and administrators supervise and go straight in.
-  if (user?.role === 'student') {
+  // Only a lecturer or administrator who is already known to be one goes straight in. Everyone else, including while the role is still loading, waits at the gate, so the dashboard is never drawn before the check has answered.
+  if (user?.role !== 'instructor' && user?.role !== 'admin') {
     return (
       <TeamAccessGate teamId={matchedGroup.code}>
         <Outlet />
