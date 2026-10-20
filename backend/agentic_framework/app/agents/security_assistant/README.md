@@ -133,8 +133,9 @@ What running this script from start to finish showed (verification, 2026-10-20):
 
 - **`uv` must be installed.** Every command above starts with `uv run python`. If `uv` is not on the PATH, use the project's own interpreter instead:
   `.\.venv\Scripts\python.exe -m app.agents.security_assistant....`.
-- **The LLM quota is the limit, not the code.** Groq's free tier allows 200,000 tokens per day per model, and one `assess` run on the Python demo repo now costs
-  about 30,000 (measured: 14 interpreter calls 22,300 tokens, 6 link proposals 7,300; it was about 45,000 before the token cuts below). A few runs in one day exhaust `openai/gpt-oss-120b`; the run then finishes in about a minute as
+- **The LLM quota is the limit, not the code.** Groq's free tier allows 200,000 tokens per day per model, and one `assess` run on the Python demo repo costs
+  about 30,000 on `gpt-oss-20b` (measured: 14 interpreter calls 22,300 tokens, 6 link proposals 7,300). That figure is for `gpt-oss-20b`; the 120b figure
+  is not yet measured with the current prompt, and no before/after claim is made across models (see "Tokens per run"). A few runs in one day exhaust `openai/gpt-oss-120b`; the run then finishes in about a minute as
   INCOMPLETE with every affected finding "uncertain" and the 429 reason in the report (this is intended, and it is what happened during the verification). Keep a buffer, or set
   `SECURITY_ASSISTANT_LLM_MODEL=openai/gpt-oss-20b` for the demo (its quota is separate; it judged the same demo repo slightly differently: it dismissed `zizmor:unpinned-uses`).
 - **Timings measured:** `demo_repos` 1 s, `scan --from-json` 1 s, `interpret --dry-run` 2 s, the refusal 3 s, `assess` on the Python demo repo 2 to 4.5 minutes
@@ -314,10 +315,18 @@ of each other (Gitleaks and TruffleHog on one key pair). Two different weaknesse
 ownership check) are never merged. Every merge is listed in the output; no scanner finding is dropped, each stays a member of its group.
 
 **Tokens per run.** `report.json` has `llm_usage` (interpreter calls, link proposals, prompt and completion tokens, model, seed) and
-`report.md` says it under the stage table. Measured on the Python demo scan, `gpt-oss-20b`: interpreter calls 17 -> 14 (merged places),
-prompt tokens per call 1,286 -> 1,155 (shorter system prompt and guidance block, prompt version `interpreter-v4`, same rules), link
-proposals 16 calls -> 6 (findings of one file, commit and category share one proposal; the rules still validate each finding),
-interpreter + link proposals about 45,000 -> about 29,600 tokens. The 10 seeded cases stayed 10 of 10 (16,079 -> 14,282 tokens).
+`report.md` says it under the stage table. What the changes of prompt version `interpreter-v4` saved (shorter system prompt and guidance block, same rules; merged places; link
+proposals shared by findings of one file, commit and category), **only counting comparisons made with the same model**:
+
+| Comparison | Before | After | Same model? |
+|---|---|---|---|
+| The 10 seeded cases, `gpt-oss-20b`, v3 -> v4 | 16,079 tokens (12,517 prompt + 3,562 completion), 10 of 10 correct | 14,282 tokens (11,151 + 3,131), 10 of 10 correct | **yes**: a like-for-like saving of 11% |
+| Interpreter calls on the Python demo scan | 17 | 14 | the number of calls does not depend on the model |
+| Link-proposal calls on the same findings | 16 | 6 | the number of calls does not depend on the model |
+| Interpreter tokens on the Python demo scan | 27,663 (`gpt-oss-120b`, v3) | 22,308 (`gpt-oss-20b`, v4) | **no: not comparable.** Completion tokens depend on the model (a reasoning model writes more or less), and the earlier run is the only 120b figure. A like-for-like figure needs a 120b run with v4 (planned after the quota reset). |
+
+The prompt text is the same for both models, but I did not verify that the two models count tokens identically, so the per-call prompt figures of
+different models (1,286 vs 1,155) are indicative only.
 
 The LLM cannot add findings: output with extra fields is rejected, a failed call or rejected output is `uncertain`
 (with the reason), and a cited evidence id that is not in the bundle downgrades the answer to `uncertain`.
