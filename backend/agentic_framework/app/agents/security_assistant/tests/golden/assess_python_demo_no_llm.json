@@ -1,0 +1,276 @@
+{
+  "audit_events": [
+    "run_start",
+    "tool_allowlist",
+    "agent_decision",
+    "repo_scan",
+    "report_scan",
+    "report_scan",
+    "run_end"
+  ],
+  "complete": false,
+  "coverage": {
+    "V1": "FULL",
+    "V2": "FULL",
+    "V3": "FULL",
+    "V4": "FULL",
+    "V5": "FULL"
+  },
+  "decision_trail": {
+    "Analysis Orchestrator": [
+      [
+        1,
+        "rules",
+        "stop",
+        "goal met: every category is FULL or has nothing to scan, and there is no coverage gap",
+        "stopped after 1 step(s); coverage {'V1': 'FULL', 'V2': 'FULL', 'V3': 'FULL', 'V4': 'FULL', 'V5': 'FULL'}",
+        false
+      ]
+    ],
+    "Governance": []
+  },
+  "dismissed": [],
+  "findings": [
+    {
+      "confidence": null,
+      "evidence": [],
+      "group": "G01",
+      "guidance": "ownership-check",
+      "links": [],
+      "probe": null,
+      "risk": null,
+      "rule": "security-assistant/py/missing-ownership-check",
+      "status": "not interpreted"
+    },
+    {
+      "confidence": null,
+      "evidence": [],
+      "group": "G02",
+      "guidance": "sql-injection",
+      "links": [],
+      "probe": null,
+      "risk": null,
+      "rule": "py/sql-injection",
+      "status": "not interpreted"
+    },
+    {
+      "confidence": null,
+      "evidence": [],
+      "group": "G03",
+      "guidance": "weak-password-hash",
+      "links": [],
+      "probe": null,
+      "risk": null,
+      "rule": "security-assistant-cfg-005",
+      "status": "not interpreted"
+    },
+    {
+      "confidence": null,
+      "evidence": [],
+      "group": "G04",
+      "guidance": "token-expiry",
+      "links": [],
+      "probe": null,
+      "risk": null,
+      "rule": "security-assistant-cfg-001",
+      "status": "not interpreted"
+    },
+    {
+      "confidence": null,
+      "evidence": [],
+      "group": "G05",
+      "guidance": "cookie-flags",
+      "links": [],
+      "probe": null,
+      "risk": null,
+      "rule": "security-assistant-cfg-003",
+      "status": "not interpreted"
+    },
+    {
+      "confidence": null,
+      "evidence": [],
+      "group": "G06",
+      "guidance": "login-rate-limit",
+      "links": [],
+      "probe": null,
+      "risk": null,
+      "rule": "security-assistant-cfg-007",
+      "status": "not interpreted"
+    },
+    {
+      "confidence": null,
+      "evidence": [],
+      "group": "G07",
+      "guidance": "hardcoded-secret",
+      "links": [],
+      "probe": null,
+      "risk": null,
+      "rule": "aws-access-token",
+      "status": "not interpreted"
+    },
+    {
+      "confidence": null,
+      "evidence": [],
+      "group": "G08",
+      "guidance": "dependency-upgrade",
+      "links": [],
+      "probe": null,
+      "risk": null,
+      "rule": "PYSEC-2018-28",
+      "status": "not interpreted"
+    },
+    {
+      "confidence": null,
+      "evidence": [],
+      "group": "G09",
+      "guidance": "workflow-trigger",
+      "links": [],
+      "probe": null,
+      "risk": null,
+      "rule": "zizmor:dangerous-triggers",
+      "status": "not interpreted"
+    },
+    {
+      "confidence": null,
+      "evidence": [],
+      "group": "G10",
+      "guidance": "workflow-pinning",
+      "links": [],
+      "probe": null,
+      "risk": null,
+      "rule": "zizmor:unpinned-uses",
+      "status": "not interpreted"
+    }
+  ],
+  "governance": {
+    "calls_blocked": 0,
+    "calls_checked": 0,
+    "mode": "enforce",
+    "report_items_removed": 0,
+    "violations_allowed_in_warn_only": 0
+  },
+  "incomplete_reasons": [
+    "stage interpret skipped: --allow-external-llm was not given: nothing was sent to any LLM",
+    "stage trace skipped: needs interpret",
+    "stage risk skipped: needs interpret",
+    "stage questions skipped: needs interpret"
+  ],
+  "interpretation": null,
+  "llm_refused": true,
+  "llm_usage": {
+    "interpret": {
+      "calls": 0,
+      "completion_tokens": 0,
+      "prompt_tokens": 0
+    },
+    "link_proposals": {
+      "calls": 0,
+      "completion_tokens": 0,
+      "prompt_tokens": 0
+    },
+    "model": null,
+    "seed": null,
+    "total_tokens": 0
+  },
+  "report_md_headings": [
+    "# Security Assistant report: vuln_py_repo",
+    "## Stages",
+    "## Findings overview",
+    "# Security scan report",
+    "## Tools",
+    "## Coverage by category",
+    "## V1 Broken access control (1)",
+    "### V1.1 `security-assistant/py/missing-ownership-check` - app.py:22",
+    "## V2 Injection (1)",
+    "### V2.1 `py/sql-injection` - app.py:22",
+    "## V3 Authentication failures (4)",
+    "### V3.1 `security-assistant-cfg-003` - app.py:8",
+    "### V3.2 `security-assistant-cfg-007` - app.py:11",
+    "### V3.3 `security-assistant-cfg-005` - app.py:13",
+    "### V3.4 `security-assistant-cfg-001` - app.py:14",
+    "## V4 Sensitive data exposure / hard-coded secrets (2)",
+    "### V4.1 `aws-access-token` - settings_old.py:1",
+    "### V4.2 `AWS` - settings_old.py:1",
+    "## V5 Vulnerable dependencies and insecure CI/CD (4)",
+    "### V5.1 `PYSEC-2018-28` - requirements.txt",
+    "### V5.2 `PYSEC-2018-28` - requirements.txt",
+    "### V5.3 `zizmor:dangerous-triggers` - .github/workflows/ci.yml:1",
+    "### V5.4 `zizmor:unpinned-uses` - .github/workflows/ci.yml:6",
+    "## How to fix (by type of issue)",
+    "### V1: Check that the logged-in user owns the record",
+    "### V2: Use parameterised queries instead of building SQL text",
+    "### V3: Give tokens and sessions an expiry",
+    "### V3: Hash passwords with bcrypt or Argon2",
+    "### V3: Limit how often the login can be tried",
+    "### V3: Set the Secure and HttpOnly flags on session cookies",
+    "### V4: Remove the secret, rotate it, and keep secrets out of code",
+    "### V5: Do not run untrusted pull request code with secrets",
+    "### V5: Pin actions to a full commit SHA",
+    "### V5: Upgrade the vulnerable package",
+    "# requirements.txt: use the fixed version named in the advisory",
+    "## Governance",
+    "### Prompt-injection indicators in the repository",
+    "## Decision trail",
+    "### Analysis Orchestrator",
+    "## Limitations"
+  ],
+  "report_md_sha256": "3e5781828474b94b0e2bbd9164bc1c75ef9368db2de5b7d815a029f97c9ed8ab",
+  "scan": {
+    "complete": true,
+    "coverage_gaps": [],
+    "languages": [
+      "python"
+    ],
+    "reused": true,
+    "skipped_tools": [],
+    "warnings": []
+  },
+  "scrutiny": {
+    "escalated": false,
+    "level": "normal",
+    "score": 0,
+    "second_checks": 0
+  },
+  "stages": [
+    [
+      "fetch",
+      "completed",
+      "local folder"
+    ],
+    [
+      "scan",
+      "completed",
+      "reused saved findings (python_full.json); nothing was scanned now; agent loop (review, no tool can run): 1 step(s), goal met: every category is FULL or has nothing to scan, and there is no coverage gap"
+    ],
+    [
+      "governance",
+      "completed",
+      "enforcing; tool allow-list ok; 4 README/commit message(s) scanned, 0 prompt-injection indicator(s) logged (an indicator, not proof)"
+    ],
+    [
+      "interpret",
+      "skipped",
+      "--allow-external-llm was not given: nothing was sent to any LLM"
+    ],
+    [
+      "trace",
+      "skipped",
+      "needs interpret"
+    ],
+    [
+      "risk",
+      "skipped",
+      "needs interpret"
+    ],
+    [
+      "guidance",
+      "completed",
+      "10 standard fix entr(ies) apply"
+    ],
+    [
+      "questions",
+      "skipped",
+      "needs interpret"
+    ]
+  ]
+}

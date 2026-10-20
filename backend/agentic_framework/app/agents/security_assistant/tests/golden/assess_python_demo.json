@@ -1,0 +1,1103 @@
+{
+  "audit_events": [
+    "run_start",
+    "tool_allowlist",
+    "agent_decision",
+    "repo_scan",
+    "pre_send_check",
+    "agent_decision",
+    "llm_result",
+    "pre_send_check",
+    "agent_decision",
+    "llm_result",
+    "pre_send_check",
+    "agent_decision",
+    "llm_result",
+    "pre_send_check",
+    "agent_decision",
+    "llm_result",
+    "pre_send_check",
+    "agent_decision",
+    "llm_result",
+    "pre_send_check",
+    "agent_decision",
+    "llm_result",
+    "pre_send_check",
+    "agent_decision",
+    "llm_result",
+    "pre_send_check",
+    "agent_decision",
+    "llm_result",
+    "pre_send_check",
+    "agent_decision",
+    "llm_result",
+    "pre_send_check",
+    "agent_decision",
+    "llm_result",
+    "pre_send_check",
+    "agent_decision",
+    "link_result",
+    "pre_send_check",
+    "agent_decision",
+    "link_result",
+    "pre_send_check",
+    "agent_decision",
+    "link_result",
+    "pre_send_check",
+    "agent_decision",
+    "link_result",
+    "pre_send_check",
+    "agent_decision",
+    "link_result",
+    "pre_send_check",
+    "agent_decision",
+    "link_result",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "agent_decision",
+    "report_scan",
+    "report_scan",
+    "run_end"
+  ],
+  "complete": true,
+  "coverage": {
+    "V1": "FULL",
+    "V2": "FULL",
+    "V3": "FULL",
+    "V4": "FULL",
+    "V5": "FULL"
+  },
+  "decision_trail": {
+    "Analysis Orchestrator": [
+      [
+        1,
+        "rules",
+        "stop",
+        "goal met: every category is FULL or has nothing to scan, and there is no coverage gap",
+        "stopped after 1 step(s); coverage {'V1': 'FULL', 'V2': 'FULL', 'V3': 'FULL', 'V4': 'FULL', 'V5': 'FULL'}",
+        false
+      ]
+    ],
+    "Governance": [
+      [
+        1,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        2,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        3,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        4,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        5,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        6,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        7,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        8,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        9,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        10,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        11,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        12,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        13,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        14,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        15,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ],
+      [
+        16,
+        "rules",
+        "allow_call",
+        "no check failed",
+        "sent",
+        false
+      ]
+    ],
+    "Question Generation": [
+      [
+        1,
+        "rules",
+        "ask_question:level 0",
+        "the first question, from the scenario angle",
+        "attempt 1: score 0.34 -> open",
+        false
+      ],
+      [
+        2,
+        "rules",
+        "ask_followup:level 1",
+        "score 0.34 is below 0.7; a follow-up from a different angle (hint level 1); it never states the fix",
+        "attempt 2: score 0.49 -> open",
+        false
+      ],
+      [
+        3,
+        "rules",
+        "ask_followup:level 2",
+        "score 0.49 is below 0.7; a follow-up from a different angle (hint level 2); it never states the fix",
+        "attempt 3: score 0.64 -> open",
+        false
+      ],
+      [
+        4,
+        "rules",
+        "escalate_to_lecturer",
+        "3 attempt(s), last score 0.64 below 0.7; the limit of 2 follow-up(s) is reached",
+        "escalated to lecturer review",
+        false
+      ],
+      [
+        5,
+        "rules",
+        "ask_question:level 0",
+        "the first question, from the scenario angle",
+        "attempt 1: score 0.59 -> open",
+        false
+      ],
+      [
+        6,
+        "rules",
+        "ask_followup:level 1",
+        "score 0.59 is below 0.7; a follow-up from a different angle (hint level 1); it never states the fix",
+        "attempt 2: score 0.74 -> closed",
+        false
+      ],
+      [
+        7,
+        "rules",
+        "close_finding",
+        "score 0.74 reached the threshold 0.7 on attempt 2",
+        "closed after 2 attempt(s)",
+        false
+      ],
+      [
+        8,
+        "rules",
+        "ask_question:level 0",
+        "the first question, from the scenario angle",
+        "attempt 1: score 0.53 -> open",
+        false
+      ],
+      [
+        9,
+        "rules",
+        "ask_followup:level 1",
+        "score 0.53 is below 0.7; a follow-up from a different angle (hint level 1); it never states the fix",
+        "attempt 2: score 0.68 -> open",
+        false
+      ],
+      [
+        10,
+        "rules",
+        "ask_followup:level 2",
+        "score 0.68 is below 0.7; a follow-up from a different angle (hint level 2); it never states the fix",
+        "attempt 3: score 0.83 -> closed",
+        false
+      ],
+      [
+        11,
+        "rules",
+        "close_finding",
+        "score 0.83 reached the threshold 0.7 on attempt 3",
+        "closed after 3 attempt(s)",
+        false
+      ],
+      [
+        12,
+        "rules",
+        "ask_question:level 0",
+        "the first question, from the scenario angle",
+        "attempt 1: score 0.42 -> open",
+        false
+      ],
+      [
+        13,
+        "rules",
+        "ask_followup:level 1",
+        "score 0.42 is below 0.7; a follow-up from a different angle (hint level 1); it never states the fix",
+        "attempt 2: score 0.57 -> open",
+        false
+      ],
+      [
+        14,
+        "rules",
+        "ask_followup:level 2",
+        "score 0.57 is below 0.7; a follow-up from a different angle (hint level 2); it never states the fix",
+        "attempt 3: score 0.72 -> closed",
+        false
+      ],
+      [
+        15,
+        "rules",
+        "close_finding",
+        "score 0.72 reached the threshold 0.7 on attempt 3",
+        "closed after 3 attempt(s)",
+        false
+      ],
+      [
+        16,
+        "rules",
+        "ask_question:level 0",
+        "the first question, from the scenario angle",
+        "attempt 1: score 0.30 -> open",
+        false
+      ],
+      [
+        17,
+        "rules",
+        "ask_followup:level 1",
+        "score 0.30 is below 0.7; a follow-up from a different angle (hint level 1); it never states the fix",
+        "attempt 2: score 0.45 -> open",
+        false
+      ],
+      [
+        18,
+        "rules",
+        "ask_followup:level 2",
+        "score 0.45 is below 0.7; a follow-up from a different angle (hint level 2); it never states the fix",
+        "attempt 3: score 0.60 -> open",
+        false
+      ],
+      [
+        19,
+        "rules",
+        "escalate_to_lecturer",
+        "3 attempt(s), last score 0.60 below 0.7; the limit of 2 follow-up(s) is reached",
+        "escalated to lecturer review",
+        false
+      ],
+      [
+        20,
+        "rules",
+        "ask_question:level 0",
+        "the first question, from the scenario angle",
+        "attempt 1: score 0.51 -> open",
+        false
+      ],
+      [
+        21,
+        "rules",
+        "ask_followup:level 1",
+        "score 0.51 is below 0.7; a follow-up from a different angle (hint level 1); it never states the fix",
+        "attempt 2: score 0.66 -> open",
+        false
+      ],
+      [
+        22,
+        "rules",
+        "ask_followup:level 2",
+        "score 0.66 is below 0.7; a follow-up from a different angle (hint level 2); it never states the fix",
+        "attempt 3: score 0.81 -> closed",
+        false
+      ],
+      [
+        23,
+        "rules",
+        "close_finding",
+        "score 0.81 reached the threshold 0.7 on attempt 3",
+        "closed after 3 attempt(s)",
+        false
+      ],
+      [
+        24,
+        "rules",
+        "ask_question:level 0",
+        "the first question, from the scenario angle",
+        "attempt 1: score 0.70 -> closed",
+        false
+      ],
+      [
+        25,
+        "rules",
+        "close_finding",
+        "score 0.70 reached the threshold 0.7 on attempt 1",
+        "closed after 1 attempt(s)",
+        false
+      ],
+      [
+        26,
+        "rules",
+        "ask_question:level 0",
+        "the first question, from the scenario angle",
+        "attempt 1: score 0.39 -> open",
+        false
+      ],
+      [
+        27,
+        "rules",
+        "ask_followup:level 1",
+        "score 0.39 is below 0.7; a follow-up from a different angle (hint level 1); it never states the fix",
+        "attempt 2: score 0.54 -> open",
+        false
+      ],
+      [
+        28,
+        "rules",
+        "ask_followup:level 2",
+        "score 0.54 is below 0.7; a follow-up from a different angle (hint level 2); it never states the fix",
+        "attempt 3: score 0.69 -> open",
+        false
+      ],
+      [
+        29,
+        "rules",
+        "escalate_to_lecturer",
+        "3 attempt(s), last score 0.69 below 0.7; the limit of 2 follow-up(s) is reached",
+        "escalated to lecturer review",
+        false
+      ],
+      [
+        30,
+        "rules",
+        "ask_question:level 0",
+        "the first question, from the scenario angle",
+        "attempt 1: score 0.30 -> open",
+        false
+      ],
+      [
+        31,
+        "rules",
+        "ask_followup:level 1",
+        "score 0.30 is below 0.7; a follow-up from a different angle (hint level 1); it never states the fix",
+        "attempt 2: score 0.45 -> open",
+        false
+      ],
+      [
+        32,
+        "rules",
+        "ask_followup:level 2",
+        "score 0.45 is below 0.7; a follow-up from a different angle (hint level 2); it never states the fix",
+        "attempt 3: score 0.60 -> open",
+        false
+      ],
+      [
+        33,
+        "rules",
+        "escalate_to_lecturer",
+        "3 attempt(s), last score 0.60 below 0.7; the limit of 2 follow-up(s) is reached",
+        "escalated to lecturer review",
+        false
+      ],
+      [
+        34,
+        "rules",
+        "ask_question:level 0",
+        "the first question, from the scenario angle",
+        "attempt 1: score 0.42 -> open",
+        false
+      ],
+      [
+        35,
+        "rules",
+        "ask_followup:level 1",
+        "score 0.42 is below 0.7; a follow-up from a different angle (hint level 1); it never states the fix",
+        "attempt 2: score 0.57 -> open",
+        false
+      ],
+      [
+        36,
+        "rules",
+        "ask_followup:level 2",
+        "score 0.57 is below 0.7; a follow-up from a different angle (hint level 2); it never states the fix",
+        "attempt 3: score 0.72 -> closed",
+        false
+      ],
+      [
+        37,
+        "rules",
+        "close_finding",
+        "score 0.72 reached the threshold 0.7 on attempt 3",
+        "closed after 3 attempt(s)",
+        false
+      ]
+    ]
+  },
+  "dismissed": [],
+  "findings": [
+    {
+      "confidence": 0.8,
+      "evidence": [
+        "E1"
+      ],
+      "group": "G01",
+      "guidance": "ownership-check",
+      "links": [
+        [
+          "task",
+          "T-101",
+          "verified",
+          [
+            "commit_message_reference"
+          ]
+        ],
+        [
+          "story",
+          "US-01",
+          "verified",
+          [
+            "commit_message_reference",
+            "task_linked_story"
+          ]
+        ],
+        [
+          "story",
+          "US-02",
+          "verified",
+          [
+            "file_or_endpoint_mentioned"
+          ]
+        ]
+      ],
+      "probe": [
+        "escalated",
+        3,
+        [
+          0.34,
+          0.49,
+          0.64
+        ]
+      ],
+      "risk": [
+        2,
+        90.5
+      ],
+      "rule": "security-assistant/py/missing-ownership-check",
+      "status": "confirmed"
+    },
+    {
+      "confidence": 0.8,
+      "evidence": [
+        "E1"
+      ],
+      "group": "G02",
+      "guidance": "sql-injection",
+      "links": [
+        [
+          "task",
+          "T-101",
+          "verified",
+          [
+            "commit_message_reference",
+            "file_or_endpoint_mentioned"
+          ]
+        ],
+        [
+          "story",
+          "US-01",
+          "verified",
+          [
+            "commit_message_reference",
+            "task_linked_story"
+          ]
+        ]
+      ],
+      "probe": [
+        "closed",
+        2,
+        [
+          0.59,
+          0.74
+        ]
+      ],
+      "risk": [
+        1,
+        90.5
+      ],
+      "rule": "py/sql-injection",
+      "status": "confirmed"
+    },
+    {
+      "confidence": 0.8,
+      "evidence": [
+        "E1"
+      ],
+      "group": "G03",
+      "guidance": "weak-password-hash",
+      "links": [
+        [
+          "task",
+          "T-101",
+          "verified",
+          [
+            "commit_message_reference",
+            "file_or_endpoint_mentioned"
+          ]
+        ],
+        [
+          "story",
+          "US-01",
+          "verified",
+          [
+            "commit_message_reference",
+            "task_linked_story"
+          ]
+        ]
+      ],
+      "probe": [
+        "closed",
+        3,
+        [
+          0.53,
+          0.68,
+          0.83
+        ]
+      ],
+      "risk": [
+        8,
+        69.5
+      ],
+      "rule": "security-assistant-cfg-005",
+      "status": "confirmed"
+    },
+    {
+      "confidence": 0.8,
+      "evidence": [
+        "E1"
+      ],
+      "group": "G04",
+      "guidance": "token-expiry",
+      "links": [
+        [
+          "task",
+          "T-101",
+          "verified",
+          [
+            "commit_message_reference",
+            "file_or_endpoint_mentioned"
+          ]
+        ],
+        [
+          "story",
+          "US-01",
+          "verified",
+          [
+            "commit_message_reference",
+            "task_linked_story"
+          ]
+        ]
+      ],
+      "probe": [
+        "closed",
+        3,
+        [
+          0.42,
+          0.57,
+          0.72
+        ]
+      ],
+      "risk": [
+        4,
+        71.0
+      ],
+      "rule": "security-assistant-cfg-001",
+      "status": "confirmed"
+    },
+    {
+      "confidence": 0.8,
+      "evidence": [
+        "E1"
+      ],
+      "group": "G05",
+      "guidance": "cookie-flags",
+      "links": [
+        [
+          "task",
+          "T-101",
+          "verified",
+          [
+            "commit_message_reference",
+            "file_or_endpoint_mentioned"
+          ]
+        ],
+        [
+          "story",
+          "US-01",
+          "verified",
+          [
+            "commit_message_reference",
+            "task_linked_story"
+          ]
+        ]
+      ],
+      "probe": [
+        "escalated",
+        3,
+        [
+          0.3,
+          0.45,
+          0.6
+        ]
+      ],
+      "risk": [
+        5,
+        71.0
+      ],
+      "rule": "security-assistant-cfg-003",
+      "status": "confirmed"
+    },
+    {
+      "confidence": 0.8,
+      "evidence": [
+        "E1"
+      ],
+      "group": "G06",
+      "guidance": "login-rate-limit",
+      "links": [
+        [
+          "task",
+          "T-101",
+          "verified",
+          [
+            "commit_message_reference",
+            "file_or_endpoint_mentioned"
+          ]
+        ],
+        [
+          "story",
+          "US-01",
+          "verified",
+          [
+            "commit_message_reference",
+            "task_linked_story"
+          ]
+        ]
+      ],
+      "probe": [
+        "closed",
+        3,
+        [
+          0.51,
+          0.66,
+          0.81
+        ]
+      ],
+      "risk": [
+        6,
+        71.0
+      ],
+      "rule": "security-assistant-cfg-007",
+      "status": "confirmed"
+    },
+    {
+      "confidence": 0.8,
+      "evidence": [
+        "E1"
+      ],
+      "group": "G07",
+      "guidance": "hardcoded-secret",
+      "links": [],
+      "probe": [
+        "closed",
+        1,
+        [
+          0.7
+        ]
+      ],
+      "risk": [
+        7,
+        70.0
+      ],
+      "rule": "aws-access-token",
+      "status": "confirmed"
+    },
+    {
+      "confidence": 0.8,
+      "evidence": [
+        "E1"
+      ],
+      "group": "G08",
+      "guidance": "dependency-upgrade",
+      "links": [
+        [
+          "task",
+          "T-101",
+          "verified",
+          [
+            "commit_message_reference"
+          ]
+        ],
+        [
+          "story",
+          "US-01",
+          "verified",
+          [
+            "commit_message_reference",
+            "task_linked_story"
+          ]
+        ]
+      ],
+      "probe": [
+        "escalated",
+        3,
+        [
+          0.39,
+          0.54,
+          0.69
+        ]
+      ],
+      "risk": [
+        9,
+        68.0
+      ],
+      "rule": "PYSEC-2018-28",
+      "status": "confirmed"
+    },
+    {
+      "confidence": 0.8,
+      "evidence": [
+        "E1"
+      ],
+      "group": "G09",
+      "guidance": "workflow-trigger",
+      "links": [
+        [
+          "task",
+          "T-105",
+          "verified",
+          [
+            "commit_message_reference"
+          ]
+        ]
+      ],
+      "probe": [
+        "escalated",
+        3,
+        [
+          0.3,
+          0.45,
+          0.6
+        ]
+      ],
+      "risk": [
+        3,
+        87.5
+      ],
+      "rule": "zizmor:dangerous-triggers",
+      "status": "confirmed"
+    },
+    {
+      "confidence": 0.8,
+      "evidence": [
+        "E1"
+      ],
+      "group": "G10",
+      "guidance": "workflow-pinning",
+      "links": [
+        [
+          "task",
+          "T-105",
+          "verified",
+          [
+            "commit_message_reference"
+          ]
+        ]
+      ],
+      "probe": [
+        "closed",
+        3,
+        [
+          0.42,
+          0.57,
+          0.72
+        ]
+      ],
+      "risk": [
+        10,
+        62.0
+      ],
+      "rule": "zizmor:unpinned-uses",
+      "status": "confirmed"
+    }
+  ],
+  "governance": {
+    "calls_blocked": 0,
+    "calls_checked": 16,
+    "mode": "enforce",
+    "report_items_removed": 0,
+    "violations_allowed_in_warn_only": 0
+  },
+  "incomplete_reasons": [],
+  "interpretation": {
+    "analysed_calls": 10,
+    "analysed_findings": 12,
+    "confirmed": 12,
+    "dismissed": 0,
+    "not_analysed_findings": 0,
+    "not_selected_findings": 0,
+    "scanner_only_findings": 12,
+    "uncertain": 0,
+    "uncertain_because": {
+      "downgraded": 0,
+      "governance_blocked": 0,
+      "llm_error": 0,
+      "model_said_uncertain": 0,
+      "output_rejected": 0
+    }
+  },
+  "llm_refused": false,
+  "llm_usage": {
+    "interpret": {
+      "calls": 0,
+      "completion_tokens": 0,
+      "prompt_tokens": 0
+    },
+    "link_proposals": {
+      "calls": 0,
+      "completion_tokens": 0,
+      "prompt_tokens": 0
+    },
+    "model": "mock-model",
+    "seed": null,
+    "total_tokens": 0
+  },
+  "report_md_headings": [
+    "# Security Assistant report: vuln_py_repo",
+    "## Stages",
+    "## Findings overview",
+    "# Security scan report",
+    "## Tools",
+    "## Coverage by category",
+    "## V1 Broken access control (1)",
+    "### V1.1 `security-assistant/py/missing-ownership-check` - app.py:22",
+    "## V2 Injection (1)",
+    "### V2.1 `py/sql-injection` - app.py:22",
+    "## V3 Authentication failures (4)",
+    "### V3.1 `security-assistant-cfg-003` - app.py:8",
+    "### V3.2 `security-assistant-cfg-007` - app.py:11",
+    "### V3.3 `security-assistant-cfg-005` - app.py:13",
+    "### V3.4 `security-assistant-cfg-001` - app.py:14",
+    "## V4 Sensitive data exposure / hard-coded secrets (2)",
+    "### V4.1 `aws-access-token` - settings_old.py:1",
+    "### V4.2 `AWS` - settings_old.py:1",
+    "## V5 Vulnerable dependencies and insecure CI/CD (4)",
+    "### V5.1 `PYSEC-2018-28` - requirements.txt",
+    "### V5.2 `PYSEC-2018-28` - requirements.txt",
+    "### V5.3 `zizmor:dangerous-triggers` - .github/workflows/ci.yml:1",
+    "### V5.4 `zizmor:unpinned-uses` - .github/workflows/ci.yml:6",
+    "## How to fix (by type of issue)",
+    "### V1: Check that the logged-in user owns the record",
+    "### V2: Use parameterised queries instead of building SQL text",
+    "### V3: Give tokens and sessions an expiry",
+    "### V3: Hash passwords with bcrypt or Argon2",
+    "### V3: Limit how often the login can be tried",
+    "### V3: Set the Secure and HttpOnly flags on session cookies",
+    "### V4: Remove the secret, rotate it, and keep secrets out of code",
+    "### V5: Do not run untrusted pull request code with secrets",
+    "### V5: Pin actions to a full commit SHA",
+    "### V5: Upgrade the vulnerable package",
+    "# requirements.txt: use the fixed version named in the advisory",
+    "## LLM interpretation",
+    "### Merged and grouped before the calls",
+    "### Results",
+    "### How to fix the confirmed findings",
+    "## Traceability",
+    "## Risk prioritisation",
+    "### Why each finding scored as it did",
+    "## Probe questions and comprehension check",
+    "### G01 V1 app.py:22",
+    "### G02 V2 app.py:22",
+    "### G03 V3 app.py:13",
+    "### G04 V3 app.py:14",
+    "### G05 V3 app.py:8",
+    "### G06 V3 app.py:11",
+    "### G07 V4 settings_old.py:1",
+    "### G08 V5 requirements.txt",
+    "### G09 V5 .github/workflows/ci.yml:1",
+    "### G10 V5 .github/workflows/ci.yml:6",
+    "## Governance",
+    "### Prompt-injection indicators in the repository",
+    "## Decision trail",
+    "### Analysis Orchestrator",
+    "### Question Generation",
+    "### Governance",
+    "## Limitations"
+  ],
+  "report_md_sha256": "557ae71899db32fed7a36158e8ae86a9ea62dcfc8a56083a54f6b4529208ab55",
+  "scan": {
+    "complete": true,
+    "coverage_gaps": [],
+    "languages": [
+      "python"
+    ],
+    "reused": true,
+    "skipped_tools": [],
+    "warnings": []
+  },
+  "scrutiny": {
+    "escalated": false,
+    "level": "normal",
+    "score": 0,
+    "second_checks": 0
+  },
+  "stages": [
+    [
+      "fetch",
+      "completed",
+      "local folder"
+    ],
+    [
+      "scan",
+      "completed",
+      "reused saved findings (python_full.json); nothing was scanned now; agent loop (review, no tool can run): 1 step(s), goal met: every category is FULL or has nothing to scan, and there is no coverage gap"
+    ],
+    [
+      "governance",
+      "completed",
+      "enforcing; tool allow-list ok; 4 README/commit message(s) scanned, 0 prompt-injection indicator(s) logged (an indicator, not proof)"
+    ],
+    [
+      "interpret",
+      "completed",
+      "10 call(s): confirmed 12, dismissed 0, uncertain 0"
+    ],
+    [
+      "trace",
+      "completed",
+      "9/10 with an introducing commit; links 17 verified, 0 candidate"
+    ],
+    [
+      "risk",
+      "completed",
+      "10 ranked, 0 dismissed (not ranked)"
+    ],
+    [
+      "guidance",
+      "completed",
+      "10 standard fix entr(ies) apply"
+    ],
+    [
+      "questions",
+      "completed",
+      "10 finding(s): 6 closed, 4 escalated to lecturer review, 27 question(s) asked (MOCK TUTOR)"
+    ]
+  ]
+}
