@@ -128,7 +128,7 @@ def build_report(result: ScanResult, *, skipped: list[str] | None = None, source
                  repo: Path | None = None, pii: PIIRedactor | None = None) -> ScanReport:
     skipped = sorted(skipped or [])
     snippets: dict[int, str] = {}
-    pii = pii if pii is not None else PIIRedactor.from_env()  # snippets are the student's own code: personal data is replaced here too
+    pii = pii if pii is not None else PIIRedactor.from_env(repo)  # snippets are the student's own code: personal data is replaced here too
     if repo is not None:
         for i, f in enumerate(result.findings):
             if len(snippets) >= MAX_SNIPPETS:

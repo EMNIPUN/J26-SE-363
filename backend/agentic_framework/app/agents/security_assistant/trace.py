@@ -265,7 +265,7 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None) -
         print("note: --propose-links needs a requirements or tasks file; no link proposals will be made.")
     out = args.out or args.interpreted.parent
     out.mkdir(parents=True, exist_ok=True)
-    pii = PIIRedactor.from_env()
+    pii = PIIRedactor.from_env(args.repo)
     pseudo = Pseudonymizer.load(out / "trace_mapping.local.json")
 
     use_llm = args.propose_links and bool(stories or tasks)

@@ -188,6 +188,7 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
         repo = Path(await stack.enter_async_context(ctx))
         if not repo.is_dir():
             raise InvalidRepoPath(f"not a directory: {repo_url}")
+        pii.learn_git_names(repo)  # names of the git history are known names for every later stage
         st.record("fetch", "completed", "repository fetched" if is_url else "local folder", t0)
     except (FetchError, InvalidRepoPath, OSError) as exc:
         repo = None

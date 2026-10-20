@@ -4,9 +4,10 @@ placeholder to original stays in memory / a local file; it is never put into a p
 
 What it redacts, and what it deliberately does not:
 - emails, phone numbers and student IDs (default format IT + 8 digits, configurable) in the text it is given;
-- names, ONLY on labelled lines (Author:, @author, Copyright, Maintainer, Contact, Written by, Created by, ...). This is
-  label based and incomplete: a name in a sentence ("fixed by John") is not found unless that name was seen on a
-  labelled line, in git author metadata or in the configured known names;
+- names: on labelled lines (Author:, @author, Copyright, Maintainer, Contact, Written by, Created by, ...), and every
+  author or committer name of the repository's git history (`learn_git_names`, also in unlabelled text such as "ask Priya
+  about this"). Incomplete by nature: a name that is on no label, not in the git history and not in the configured known
+  names ("fixed by John", a classmate who never committed) is not found;
 - in source code only comments and string literals are touched (see `redact_code`); identifiers and structure never are;
 - file paths are kept, except a known person's name, email or student ID inside them, which gets a placeholder
   (`path_map` keeps redacted path -> original path so a finding stays traceable).
@@ -15,6 +16,7 @@ What it redacts, and what it deliberately does not:
 import json
 import os
 import re
+import subprocess
 from pathlib import Path
 
 DEFAULT_STUDENT_ID = r"\bIT\d{8}\b"
@@ -37,6 +39,10 @@ _LABELS = [
 _STOP = {"all", "rights", "reserved", "licensed", "license", "under", "released", "this", "inc", "ltd", "llc", "the",
          "project", "university", "of", "for", "from", "on", "at", "is", "was", "date", "email", "e-mail", "phone",
          "tel", "id", "student", "version", "see", "to"}
+MAX_GIT_COMMITS = 5000
+MAX_GIT_NAMES = 200
+_GENERIC_NAMES = {"demo", "unknown", "root", "admin", "user", "github", "git", "ci", "test", "tester", "student", "you", "me", "noreply"}
+_GENERIC_IDENTITY = re.compile(r"(?i)\[bot\]|\bbot\b|\bnoreply\b|\bgithub[ -]actions?\b|\bdependabot\b|\brenovate\b")
 _NUMBERED = re.compile(r"^([ >]\s*\d+ \| )(.*)$")
 _SEPARATORS = (" ", "_", "-", ".", "")  # how a name is written inside a path: kasun perera, kasun_perera, KasunPerera, ...
 
@@ -53,10 +59,14 @@ class PIIRedactor:
             self.add_known_name(name)
 
     @classmethod
-    def from_env(cls) -> "PIIRedactor":
-        """SECURITY_ASSISTANT_STUDENT_ID_REGEX and SECURITY_ASSISTANT_PII_KNOWN_NAMES (comma separated)."""
+    def from_env(cls, repo: Path | str | None = None) -> "PIIRedactor":
+        """SECURITY_ASSISTANT_STUDENT_ID_REGEX and SECURITY_ASSISTANT_PII_KNOWN_NAMES (comma separated). With `repo`, the
+        author and committer names of its git history are learned as known names (see `learn_git_names`)."""
         names = [n.strip() for n in os.environ.get("SECURITY_ASSISTANT_PII_KNOWN_NAMES", "").split(",") if n.strip()]
-        return cls(os.environ.get("SECURITY_ASSISTANT_STUDENT_ID_REGEX") or None, names)
+        redactor = cls(os.environ.get("SECURITY_ASSISTANT_STUDENT_ID_REGEX") or None, names)
+        if repo is not None:
+            redactor.learn_git_names(repo)
+        return redactor
 
     # ---- placeholders and known names ---------------------------------------------------------------------------
     def placeholder(self, kind: str, original: str) -> str:
@@ -67,6 +77,34 @@ class PIIRedactor:
             self._by_original[key] = ph
             self.mapping[ph] = original
         return self._by_original[key]
+
+    def learn_git_names(self, repo: Path | str) -> int:
+        """Learn the author and committer names of the repository's git history as known names, so a name written
+        without a label ("ask Priya about this") is replaced too. Read-only `git log`; the names stay in this object and in
+        the local mapping file, never in a prompt or report. Generic or automated identities (a bot, "root", "demo") are
+        skipped. Returns how many names were learned; 0 when there is no usable git history."""
+        repo = Path(repo)
+        if not (repo / ".git").exists():
+            return 0
+        from app.agents.security_assistant.tools.base import child_env
+
+        env = {**child_env(), "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull, "GIT_TERMINAL_PROMPT": "0"}
+        try:
+            done = subprocess.run(["git", "-c", "core.fsmonitor=false", "-C", str(repo), "log", "--all", f"-n{MAX_GIT_COMMITS}",
+                                   "--format=%an%x1f%cn"], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                                  timeout=30, env=env)
+        except (OSError, subprocess.TimeoutExpired):
+            return 0
+        if done.returncode != 0:
+            return 0
+        names = {n.strip() for line in done.stdout.splitlines() for n in line.split("\x1f")}
+        learned = 0
+        for name in sorted(names)[:MAX_GIT_NAMES]:
+            if name and not _GENERIC_IDENTITY.search(name) and name.lower() not in _GENERIC_NAMES:
+                before = len(self._names)
+                self.add_known_name(name)
+                learned += len(self._names) > before
+        return learned
 
     def add_known_name(self, name: str) -> None:
         name = " ".join(name.split()).strip(" ,.")

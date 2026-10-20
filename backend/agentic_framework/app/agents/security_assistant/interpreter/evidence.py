@@ -215,7 +215,7 @@ def build_bundle(f: Finding, repo: Path | None = None, extra: list[EvidenceItem]
 
     Secrets and personal data are replaced by placeholders here. `pii` keeps the placeholder -> original mapping
     (pass the same redactor for a whole run so placeholders stay stable); the mapping is never part of the bundle."""
-    pii = pii if pii is not None else PIIRedactor.from_env()
+    pii = pii if pii is not None else PIIRedactor.from_env(repo)
     target = None
     if repo is not None:
         repo = Path(repo)

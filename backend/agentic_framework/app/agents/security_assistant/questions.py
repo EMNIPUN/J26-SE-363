@@ -263,7 +263,7 @@ def _ask(fix_pattern: str, where: str, fn: str, inputs: str, secret: str | None,
 
 def build_question(group: dict, repo: Path | None, pii: PIIRedactor | None = None) -> Question:
     """One probe question for one confirmed group of `interpreted.json`."""
-    pii = pii if pii is not None else PIIRedactor.from_env()
+    pii = pii if pii is not None else PIIRedactor.from_env(repo)
     rep = group["representative"]
     file_path, line = rep["file_path"], rep["line"]
     ex = extract(repo, file_path, line)
@@ -286,7 +286,7 @@ def build_question(group: dict, repo: Path | None, pii: PIIRedactor | None = Non
 
 async def generate(doc: dict, repo: Path | None, tutor: TutorChannel, threshold: float,
                    pii: PIIRedactor | None = None) -> dict:
-    pii = pii if pii is not None else PIIRedactor.from_env()
+    pii = pii if pii is not None else PIIRedactor.from_env(repo)
     items = []
     for g in doc["groups"]:
         if g["result"]["status"] != "confirmed":

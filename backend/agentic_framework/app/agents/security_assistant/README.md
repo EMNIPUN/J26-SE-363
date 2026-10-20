@@ -408,7 +408,7 @@ once more when the prompt is built, so a hand-made bundle is covered too). `inte
 | email addresses | pattern | `<EMAIL_1>`, `<EMAIL_2>`, ... |
 | phone numbers | pattern with a separator or `+` country code, or 0 + 9 digits (not plain digit strings, versions or IPs) | `<PHONE_n>` |
 | student IDs | regex, default `\bIT\d{8}\b`; set `SECURITY_ASSISTANT_STUDENT_ID_REGEX` for another format | `<STUDENT_ID_n>` |
-| names | only on labelled lines: `Author:`, `@author`, `Copyright`, `Maintainer`, `Contact`, `Written/Created/Developed by`, `Signed-off-by`, ...; afterwards the same name (and a first or last name of 4+ letters) is redacted wherever it appears in comments, strings and messages; `SECURITY_ASSISTANT_PII_KNOWN_NAMES` adds names | `<NAME_n>` |
+| names | on labelled lines (`Author:`, `@author`, `Copyright`, `Maintainer`, `Contact`, `Written/Created/Developed by`, `Signed-off-by`, ...) and **every author or committer name in the git history of the scanned repository** (bots and generic identities such as `root` or `demo` are skipped); afterwards the same name (and a first or last name of 4+ letters) is redacted wherever it appears in comments, strings and messages; `SECURITY_ASSISTANT_PII_KNOWN_NAMES` adds names. **Limitation kept:** a name that is on no label, not in the git history and not configured (a classmate who never committed, "fixed by John") is not found | `<NAME_n>` |
 | git metadata | author, email and message, when a caller adds them to a bundle (`redact_git_metadata`); the bundle builder does not add commit data by itself | same |
 | file paths | kept as they are, except a known name, email or student ID inside the path (for example `submissions/kasun_perera/app.py` becomes `submissions/<NAME_1>/app.py`) | same |
 

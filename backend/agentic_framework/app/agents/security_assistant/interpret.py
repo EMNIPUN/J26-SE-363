@@ -41,8 +41,8 @@ from app.agents.security_assistant.schemas import Category, ScanResult
 NOTICE = (
     "NOTICE: this sends data to an external LLM (Groq). Per call: the finding (rule, tool, CWE, file path, "
     "line, message), about 17 lines of code around it and up to 3 short snippets of related code from the project; "
-    "secrets are masked and personal data is replaced by placeholders (names only on labelled lines, so not "
-    "complete). Not sent: the rest of the repository, the git history, other findings."
+    "secrets are masked and personal data is replaced by placeholders (names on labelled lines and names from the git history; a name found "
+    "in neither is not detected). Not sent: the rest of the repository, the git history, other findings."
 )
 SECTION_MARK = "<!-- llm-interpretation -->"
 
@@ -90,7 +90,7 @@ def _advisory_item(group: FindingGroup) -> EvidenceItem | None:
 
 def make_plan(result: ScanResult, repo: Path | None, *, only: list[Category] | None = None,
               max_findings: int | None = None, pii: PIIRedactor | None = None) -> Plan:
-    pii = pii if pii is not None else PIIRedactor.from_env()  # one redactor per run: stable placeholders
+    pii = pii if pii is not None else PIIRedactor.from_env(repo)  # one redactor per run: stable placeholders
     selected = [f for f in result.findings if not only or f.category in only]
     groups, log = dedupe(selected)
     cut = max(0, len(groups) - max_findings) if max_findings is not None else 0
