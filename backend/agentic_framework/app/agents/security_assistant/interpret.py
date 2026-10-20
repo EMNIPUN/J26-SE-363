@@ -77,6 +77,12 @@ def parse_categories(values: list[str] | None) -> list[Category] | None:
 
 
 def _advisory_item(group: FindingGroup) -> EvidenceItem | None:
+    if group.kind == "location" and group.advisories:  # the same place, seen by other tools: one call covers them all
+        rep = group.representative
+        lines = [f"{a['id']} | severity {a['severity'] or '-'} | reported by {', '.join(a['tools'])} | {a['message']}"
+                 for a in group.advisories[:8]]
+        return EvidenceItem(id="E9", kind="context", label=f"other findings reported at the same place ({rep.file_path}:{rep.line})",
+                            content="\n".join(lines))
     if group.kind != "package" or not group.advisories:
         return None
     lines = [f"{a['id']} | severity {a['severity'] or '-'} | reported by {', '.join(a['tools'])} | {a['message']}"
@@ -115,8 +121,8 @@ def render_dry_run(plan: Plan, model: str) -> str:
     if plan.merge_log:
         L.append("MERGED / GROUPED BEFORE ANY CALL")
         for m in plan.merge_log:
-            if m["type"].startswith("same advisory"):
-                L.append(f"  merged  {m['package']} {m['advisory']}: kept {m['kept']}, merged {', '.join(m['merged'])}")
+            if "kept" in m:
+                L.append(f"  merged  {m['package']} {m.get('advisory', '')}: kept {m['kept']}, merged {', '.join(m['merged'])}".replace("  :", ":"))
             else:
                 L.append(f"  grouped {m['package']}: {m['findings_in_group']} finding(s), {len(m['advisories'])} advisory(ies) -> 1 call")
         L.append("")
@@ -226,7 +232,8 @@ def render_section(doc: dict) -> str:
         r, rep = g["result"], g["representative"]
         flag = " (LLM error)" if r["error"] else " (output rejected)" if r["output_rejected"] else " (downgraded)" if r["downgraded"] else ""
         where = rep["file_path"] + (f":{rep['line']}" if rep["line"] else "") if rep["file_path"] else "-"
-        what = f"{g['package']} ({len(g['members'])} findings)" if g["kind"] == "package" else where
+        what = (f"{g['package']} ({len(g['members'])} findings)" if g["kind"] == "package"
+                else f"{where} (+{len(g['members']) - 1} merged)" if g["kind"] == "location" else where)
         M.append(f"| {g['group_id']} | {rep['category']} | {_cell(rep['rule_id'])} | {_cell(what)} | **{r['status']}**{flag} | "
                  f"{r['confidence']:.2f} | {_cell(', '.join(r['evidence_ids']) or '-')} | {_cell(r['error'] or r['downgrade_reason'] or r['rationale'])} |")
     confirmed = [g for g in doc["groups"] if g["result"]["status"] == "confirmed"]

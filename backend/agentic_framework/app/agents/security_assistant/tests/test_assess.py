@@ -184,3 +184,31 @@ def test_without_requirement_files_the_trace_is_commits_only_and_still_complete_
     assert stage(report, "trace")["status"] == "completed" and "commits only" in stage(report, "trace")["detail"]
     assert not any(p[0] == "link" for p in mock.prompts)
     assert any("No requirements or sprint-task file" in x for x in report["limitations"])
+
+
+# ---- token accounting ------------------------------------------------------------------------------------------------------------
+class TokenMock(Mock):
+    """A Mock whose calls leave a call record with fixed token counts, like the Groq client does."""
+
+    def __init__(self):
+        super().__init__()
+        from app.agents.security_assistant.interpreter.models import CallRecord
+        self.last_call = CallRecord(model="mock-model", seed=7, prompt_tokens=100, completion_tokens=20, total_tokens=120)
+
+    async def complete(self, system, user, schema=None, schema_name="verdict"):
+        return await super().complete(system, user, schema, schema_name)
+
+
+def test_the_report_counts_the_tokens_of_interpretation_and_link_proposals(demo, tmp_path):
+    report = go(demo, tmp_path, client=TokenMock(), req=SAMPLES / "requirements.json", tasks=SAMPLES / "tasks.json")
+    u = report["llm_usage"]
+    groups = report["interpretation"]["analysed_calls"]
+    assert u["interpret"] == {"calls": groups, "prompt_tokens": 100 * groups, "completion_tokens": 20 * groups}
+    assert u["link_proposals"]["calls"] > 0 and u["link_proposals"]["prompt_tokens"] == 100 * u["link_proposals"]["calls"]
+    assert u["total_tokens"] == 120 * (groups + u["link_proposals"]["calls"]) and u["seed"] == 7 and u["model"] == "mock-model"
+    assert f"LLM usage: {u['total_tokens']} tokens" in (tmp_path / "report.md").read_text(encoding="utf-8")
+
+
+def test_a_run_without_the_llm_reports_zero_tokens(demo, tmp_path):
+    report = go(demo, tmp_path, allow_external_llm=False, client=Forbidden())
+    assert report["llm_usage"]["total_tokens"] == 0 and "LLM usage:" not in (tmp_path / "report.md").read_text(encoding="utf-8")

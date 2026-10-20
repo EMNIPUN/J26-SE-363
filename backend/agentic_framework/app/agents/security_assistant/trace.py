@@ -23,6 +23,7 @@ import inspect
 import json
 import re
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -126,7 +127,16 @@ def link_prompt(bundle: EvidenceBundle) -> tuple[str, str]:
     return SYSTEM_PROMPT, user
 
 
-async def propose_links(client: LLMClient, bundle: EvidenceBundle) -> tuple[Proposal | None, str | None]:
+def add_usage(usage: dict | None, client) -> None:
+    """Add the tokens of the client's last call to `usage` (calls, prompt_tokens, completion_tokens)."""
+    record = getattr(client, "last_call", None)
+    if usage is not None and record is not None:
+        usage["calls"] = usage.get("calls", 0) + 1
+        usage["prompt_tokens"] = usage.get("prompt_tokens", 0) + (record.prompt_tokens or 0)
+        usage["completion_tokens"] = usage.get("completion_tokens", 0) + (record.completion_tokens or 0)
+
+
+async def propose_links(client: LLMClient, bundle: EvidenceBundle, usage: dict | None = None) -> tuple[Proposal | None, str | None]:
     """(proposal, error). A failed call, bad output or an evidence id that does not exist gives no proposal at all."""
     system, user = link_prompt(bundle)
     try:
@@ -135,7 +145,9 @@ async def propose_links(client: LLMClient, bundle: EvidenceBundle) -> tuple[Prop
         else:
             text = await client.complete(system, user)
     except LLMError as exc:
+        add_usage(usage, client)
         return None, f"LLM call failed: {exc}"
+    add_usage(usage, client)
     try:
         verdict = parse_link(text)
     except ValueError as exc:
@@ -159,9 +171,10 @@ def _start_rev(f: Finding) -> str | None:
 
 async def trace_all(doc: dict, repo: Path, stories: list[Story], tasks: list[Task], pseudo: Pseudonymizer,
                     pii: PIIRedactor, client: LLMClient | None = None, delay: float = 0.0,
-                    say=lambda text: None) -> dict:
+                    say=lambda text: None, usage: dict | None = None) -> dict:
     confirmed = [g for g in doc["groups"] if g["result"]["status"] == "confirmed"]
     traces, failures = [], 0
+    shared: dict[tuple, Proposal] = {}
     for n, g in enumerate(confirmed, 1):
         f = finding_from_brief(g["representative"])
         pkg = package_of(f)
@@ -169,10 +182,19 @@ async def trace_all(doc: dict, repo: Path, stories: list[Story], tasks: list[Tas
         shown = pseudonymous_commit(commit, pseudo, pii, how)
         proposal, error = None, None
         if client is not None and (stories or tasks):
-            proposal, error = await propose_links(client, link_bundle(f, shown, stories, tasks, pii))
-            failures += error is not None
-            if delay and n < len(confirmed):
-                await asyncio.sleep(delay)
+            # Findings of one file, introduced by one commit, in one category belong to the same story and task: one proposal
+            # (and one LLM call) serves them all. The rules still validate every finding on its own. A failed call is not cached.
+            key = (shown["sha"] if shown else None, f.file_path, f.category.value)
+            if key in shared:
+                proposal = replace(shared[key], rationale=shared[key].rationale + " [one proposal for the findings of this file, "
+                                   "commit and category]")
+            else:
+                proposal, error = await propose_links(client, link_bundle(f, shown, stories, tasks, pii), usage)
+                failures += error is not None
+                if proposal is not None:
+                    shared[key] = proposal
+                if delay and n < len(confirmed):
+                    await asyncio.sleep(delay)
         links, rejected, notes = build_links(f, commit, stories, tasks, proposal)
         if commit is None:
             notes.append(how)

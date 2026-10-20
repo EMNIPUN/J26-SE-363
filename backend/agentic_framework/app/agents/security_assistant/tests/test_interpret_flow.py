@@ -104,15 +104,20 @@ def test_non_dependency_findings_are_never_grouped():
     groups, log = dedupe(findings)
     zizmor = [g for g in groups if g.representative.tool == "zizmor"]
     assert len(zizmor) == 2 and all(g.kind == "single" for g in zizmor)
-    assert len(groups) == 11  # 12 findings; osv-scanner and pip-audit report the same requests advisory
+    # 12 findings -> 10 calls: osv-scanner and pip-audit report the same requests advisory and Gitleaks and TruffleHog flag the
+    # same key; the injection and the missing ownership check on app.py:22 are two different weaknesses of one tool and stay two calls
+    assert len(groups) == 10
     assert any(m["type"] == "grouped per package" and m["package"] == "requests" for m in log)  # osv + pip-audit repeat
+    assert sorted(m["package"] for m in log if m["type"] == "same place reported by several tools") == ["settings_old.py:1"]
+    same_line = [g for g in groups if g.representative.file_path == "app.py" and g.representative.line == 22]
+    assert len(same_line) == 2 and all(g.kind == "single" for g in same_line)
 
 
 # ---- the plan --------------------------------------------------------------------------------------------------------------
 def test_plan_filters_by_category_and_caps_the_calls():
     result = load(FULL)
     only = flow.make_plan(result, REPO, only=[Category.V4])
-    assert only.selected_findings == 2 and len(only.calls) == 2 and only.total_findings == 12
+    assert only.selected_findings == 2 and len(only.calls) == 1 and only.total_findings == 12  # Gitleaks and TruffleHog: one key, one call
     capped = flow.make_plan(result, REPO, max_findings=3)
     assert len(capped.calls) == 3 and capped.groups_cut == capped.groups_total - 3
 

@@ -237,5 +237,5 @@ def test_interpreted_json_records_model_prompt_version_and_temperature(repo, tmp
     out = tmp_path / "out"
     assert run(flow.main([str(saved), str(repo), "--allow-external-llm", "--out", str(out)], client=client)) == 0
     meta = json.loads((out / "interpreted.json").read_text(encoding="utf-8"))["meta"]
-    assert (meta["model"], meta["prompt_version"], meta["temperature"]) == ("some-model", "interpreter-v3", 0.0)
+    assert (meta["model"], meta["prompt_version"], meta["temperature"]) == ("some-model", "interpreter-v4", 0.0)
     assert AWS_KEY not in (out / "interpreted.json").read_text(encoding="utf-8")

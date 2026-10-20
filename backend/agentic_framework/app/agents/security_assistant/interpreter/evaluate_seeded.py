@@ -65,6 +65,8 @@ async def main(argv=None) -> int:
         errors += bool(result.error or result.output_rejected)
         saved.append({"id": case.id, "ground_truth": case.ground_truth, "status": result.status, "confidence": result.confidence,
                       "evidence_ids": result.evidence_ids, "rationale": result.rationale,
+                      "prompt_tokens": result.call.prompt_tokens if result.call else None,
+                      "completion_tokens": result.call.completion_tokens if result.call else None,
                       "error": result.error or result.downgrade_reason or ("output rejected" if result.output_rejected else None)})
         flags = " ".join(f for f, on in (("downgraded", result.downgraded), ("rejected", result.output_rejected),
                                          ("llm-error", bool(result.error))) if on)
@@ -73,6 +75,10 @@ async def main(argv=None) -> int:
         if result.error or result.output_rejected:
             print(f"     reason: {(result.error or result.rationale)[:200]}")
     print(f"agreement with the labels: {correct}/{len(cases)}; calls that failed or were rejected: {errors}")
+    prompt = sum(c["prompt_tokens"] or 0 for c in saved)
+    completion = sum(c["completion_tokens"] or 0 for c in saved)
+    if prompt or completion:
+        print(f"tokens: {prompt} prompt + {completion} completion = {prompt + completion} for {len(saved)} calls")
     if args.save:
         args.save.write_text(json.dumps({"model": client.model, "live": args.live, "cases": saved}, indent=2), encoding="utf-8")
         print(f"saved {args.save}")

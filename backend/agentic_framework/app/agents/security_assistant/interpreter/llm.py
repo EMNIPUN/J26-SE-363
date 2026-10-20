@@ -29,6 +29,7 @@ STRICT_SCHEMA_MODELS = frozenset({"openai/gpt-oss-20b", "openai/gpt-oss-120b", "
                                   "meta-models/muse-spark-open"})
 DEFAULT_MAX_TOKENS = 4096
 TEMPERATURE = 0.0  # the lowest value Groq accepts (range 0 to 2): the least random answers it can give
+SEED = 7  # best-effort repeatable sampling; SECURITY_ASSISTANT_LLM_SEED changes it, 'off' disables it
 MAX_WAIT_S = 60.0  # never wait longer than this for one retry; a longer retry-after is reported instead
 # backend/agentic_framework/.env, the same file the rest of the AI backend reads
 ENV_FILE = Path(__file__).resolve().parents[4] / ".env"
@@ -78,18 +79,23 @@ class GroqClient:
     """Groq chat completions (OpenAI-compatible). The key goes in the Authorization header only."""
 
     def __init__(self, api_key: str, model: str, timeout: float = 60.0, max_tokens: int = DEFAULT_MAX_TOKENS,
-                 transport: httpx.AsyncBaseTransport | None = None, retries: int = 2, backoff: float = 0.5):
+                 transport: httpx.AsyncBaseTransport | None = None, retries: int = 2, backoff: float = 0.5,
+                 seed: int | None = SEED):
         self._key, self.model, self._timeout, self._max_tokens = api_key, model, timeout, max_tokens
         self._transport, self._retries, self._backoff = transport, retries, backoff
         self.temperature = TEMPERATURE
+        self.seed = seed
         self.last_call: CallRecord | None = None
 
     def _body(self, system: str, user: str, schema_mode: bool, schema: dict | None = None, name: str = "verdict") -> dict:
         response_format = ({"type": "json_schema", "json_schema": {"name": name, "strict": True, "schema": schema or VERDICT_SCHEMA}}
                            if schema_mode else {"type": "json_object"})
-        return {"model": self.model, "temperature": self.temperature, "max_completion_tokens": self._max_tokens,
+        body = {"model": self.model, "temperature": self.temperature, "max_completion_tokens": self._max_tokens,
                 "response_format": response_format,
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+        if self.seed is not None:
+            body["seed"] = self.seed
+        return body
 
     def _scrub(self, text: str) -> str:
         return text.replace(self._key, "<key>")
@@ -97,7 +103,7 @@ class GroqClient:
     async def complete(self, system: str, user: str, schema: dict | None = None, schema_name: str = "verdict") -> str:
         """`schema` and `schema_name` pick the strict JSON schema for models that support it (default: the verdict)."""
         schema_mode = self.model in STRICT_SCHEMA_MODELS
-        record = self.last_call = CallRecord(model=self.model, temperature=self.temperature,
+        record = self.last_call = CallRecord(model=self.model, temperature=self.temperature, seed=self.seed,
                                              response_format="json_schema (strict)" if schema_mode else "json_object")
         last = "no attempt made"
         async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as http:
@@ -117,6 +123,9 @@ class GroqClient:
                         last += ": " + self._scrub(str(resp.json()["error"]["message"])[:200])
                     except (KeyError, ValueError, TypeError):
                         pass
+                    if resp.status_code == 400 and self.seed is not None and "seed" in last.lower():
+                        self.seed, record.seed = None, None  # this model does not take a seed: carry on without it
+                        continue
                     if resp.status_code == 400 and schema_mode:
                         schema_mode = False  # the schema request was refused: try JSON Object Mode once
                         record.response_format = "json_object (fallback after HTTP 400 for json_schema)"
@@ -161,6 +170,16 @@ def _setting(name: str) -> str | None:
         return None
 
 
+def _seed() -> int | None:
+    value = (_setting("SECURITY_ASSISTANT_LLM_SEED") or "").strip().lower()
+    if value in ("off", "none", "false"):
+        return None
+    try:
+        return int(value) if value else SEED
+    except ValueError:
+        return SEED
+
+
 def get_default_client(retries: int = 2, backoff: float = 0.5) -> LLMClient:
     """A Groq client configured from the environment or backend/agentic_framework/.env (see the module docstring)."""
     key, model = _setting("SECURITY_ASSISTANT_LLM_API_KEY"), _setting("SECURITY_ASSISTANT_LLM_MODEL")
@@ -176,5 +195,5 @@ def get_default_client(retries: int = 2, backoff: float = 0.5) -> LLMClient:
         key, model,
         timeout=float(_setting("SECURITY_ASSISTANT_LLM_TIMEOUT") or "60"),
         max_tokens=int(_setting("SECURITY_ASSISTANT_LLM_MAX_TOKENS") or DEFAULT_MAX_TOKENS),
-        retries=retries, backoff=backoff,
+        retries=retries, backoff=backoff, seed=_seed(),
     )

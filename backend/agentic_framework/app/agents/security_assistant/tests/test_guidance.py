@@ -210,10 +210,10 @@ def test_the_recommendation_is_optional_for_older_answers_and_the_schema_require
 def test_the_prompt_carries_the_reference_guidance_and_the_instruction():
     case = load_cases()[0]
     system, user = build_prompt(case.finding, case.bundle)
-    assert PROMPT_VERSION == "interpreter-v3"
-    assert '"recommendation"' in system and "at most 6 lines" in system and "do not invent APIs" in system
+    assert PROMPT_VERSION == "interpreter-v4"
+    assert '"recommendation"' in system and "at most 6 lines" in system and "Use only functions and libraries from the evidence or the guidance" in system
     assert "Never write a version number, commit SHA, URL" in system and "fixed version named in the advisory" in system
-    assert "Reference fix guidance for this kind of issue" in user and "do not cite it" in user
+    assert "Reference fix guidance (trusted, not evidence, do not cite)" in user
     assert "Check that the logged-in user owns the record" in user and "(1) Find the query" in user
     assert user.index("Reference fix guidance") < user.index("<evidence")  # guidance is not inside an evidence block
     assert "Example (python)" in user
@@ -229,7 +229,7 @@ def test_the_interpreted_report_lists_the_advice_for_confirmed_findings(tmp_path
     assert md.count("Hash the password with bcrypt.hashpw instead of hashlib.md5.") == 4  # one per confirmed V3 finding
     assert "(standard advice: Hash passwords with bcrypt or Argon2)" in md
     doc = json.loads((out / "interpreted.json").read_text(encoding="utf-8"))
-    assert all(g["result"]["recommendation"] for g in doc["groups"]) and doc["meta"]["prompt_version"] == "interpreter-v3"
+    assert all(g["result"]["recommendation"] for g in doc["groups"]) and doc["meta"]["prompt_version"] == "interpreter-v4"
     assert all(g["representative"]["fix_pattern"] for g in doc["groups"])
 
 

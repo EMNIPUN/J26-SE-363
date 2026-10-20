@@ -393,3 +393,28 @@ def test_the_groq_client_sends_the_given_schema_for_strict_models():
     body = c._body("s", "u", True, trace.LINK_SCHEMA, "link")
     assert body["response_format"]["json_schema"]["name"] == "link" and body["response_format"]["json_schema"]["schema"] is trace.LINK_SCHEMA
     assert c._body("s", "u", True)["response_format"]["json_schema"]["name"] == "verdict"
+
+
+# ---- one proposal per file, commit and category ---------------------------------------------------------------------------------------
+def test_findings_of_one_file_commit_and_category_share_one_llm_call(tmp_path, repo):
+    mock = Mock(proposal(story="US-01", task="T-101"))
+    g1, g2 = group("G01", "r1", "app.py", 3), group("G02", "r2", "app.py", 4)  # lines 3 and 4 were added by the same commit
+    g3 = group("G03", "r3", "app.py", 3)
+    g3["representative"]["category"] = "V3"  # another category: its own question
+    doc = write_doc(tmp_path, g1, g2, g3)
+    assert go([doc, repo, *files(tmp_path), "--propose-links", "--allow-external-llm"], client=mock) == 0
+    assert len(mock.prompts) == 2  # G01 and G02 share, G03 asks again
+    t = {x["group_id"]: x for x in traced(tmp_path)["traces"]}
+    for gid in ("G01", "G02", "G03"):
+        assert {(l["id"], l["status"]) for l in t[gid]["links"]} >= {("US-01", "verified"), ("T-101", "verified")}
+    shared_note = [l["evidence"] for l in t["G02"]["links"] if "llm_proposal" in l["methods"]]
+    assert shared_note and any("one proposal for the findings of this file" in e for ev in shared_note for e in ev)
+    assert not any("one proposal for the findings" in e for ev in [l["evidence"] for l in t["G01"]["links"]] for e in ev)
+
+
+def test_a_failed_proposal_is_not_shared_and_is_asked_again(tmp_path, repo):
+    from app.agents.security_assistant.interpreter.llm import LLMError
+    mock = Mock(LLMError("down"))
+    doc = write_doc(tmp_path, group("G01", "r1", "app.py", 3), group("G02", "r2", "app.py", 4))
+    assert go([doc, repo, *files(tmp_path), "--propose-links", "--allow-external-llm"], client=mock) == 2
+    assert len(mock.prompts) == 2 and traced(tmp_path)["summary"]["proposal_failures"] == 2

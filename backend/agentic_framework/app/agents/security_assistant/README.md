@@ -132,8 +132,8 @@ What running this script from start to finish showed (verification, 2026-10-20):
 
 - **`uv` must be installed.** Every command above starts with `uv run python`. If `uv` is not on the PATH, use the project's own interpreter instead:
   `.\.venv\Scripts\python.exe -m app.agents.security_assistant....`.
-- **The LLM quota is the limit, not the code.** Groq's free tier allows 200,000 tokens per day per model, and one `assess` run costs about 30,000 to 45,000
-  (17 interpreter calls took about 28,000, plus link proposals). A few runs in one day exhaust `openai/gpt-oss-120b`; the run then finishes in about a minute as
+- **The LLM quota is the limit, not the code.** Groq's free tier allows 200,000 tokens per day per model, and one `assess` run on the Python demo repo now costs
+  about 30,000 (measured: 14 interpreter calls 22,300 tokens, 6 link proposals 7,300; it was about 45,000 before the token cuts below). A few runs in one day exhaust `openai/gpt-oss-120b`; the run then finishes in about a minute as
   INCOMPLETE with every affected finding "uncertain" and the 429 reason in the report (this is intended, and it is what happened during the verification). Keep a buffer, or set
   `SECURITY_ASSISTANT_LLM_MODEL=openai/gpt-oss-20b` for the demo (its quota is separate; it judged the same demo repo slightly differently: it dismissed `zizmor:unpinned-uses`).
 - **Timings measured:** `demo_repos` 1 s, `scan --from-json` 1 s, `interpret --dry-run` 2 s, the refusal 3 s, `assess` on the Python demo repo 2 to 4.5 minutes
@@ -307,7 +307,16 @@ per call the status, confidence, evidence ids and rationale).
 
 Before any call (`dedupe.py`): the same advisory for the same package reported by several tools (for example OSV-Scanner and
 pip-audit) is merged, then dependency findings are grouped per package, so one call judges a package and answers for
-all its advisories. Every merge is listed in the output; no scanner finding is dropped, each stays a member of its group.
+all its advisories. The same place seen twice is one call too: different tools reporting the same category on the same
+line (the config scanner and CodeQL both flag the MD5 hash), and secrets (V4) of the same file and commit within two lines
+of each other (Gitleaks and TruffleHog on one key pair). Two different weaknesses on one line (injection and a missing
+ownership check) are never merged. Every merge is listed in the output; no scanner finding is dropped, each stays a member of its group.
+
+**Tokens per run.** `report.json` has `llm_usage` (interpreter calls, link proposals, prompt and completion tokens, model, seed) and
+`report.md` says it under the stage table. Measured on the Python demo scan, `gpt-oss-20b`: interpreter calls 17 -> 14 (merged places),
+prompt tokens per call 1,286 -> 1,155 (shorter system prompt and guidance block, prompt version `interpreter-v4`, same rules), link
+proposals 16 calls -> 6 (findings of one file, commit and category share one proposal; the rules still validate each finding),
+interpreter + link proposals about 45,000 -> about 29,600 tokens. The 10 seeded cases stayed 10 of 10 (16,079 -> 14,282 tokens).
 
 The LLM cannot add findings: output with extra fields is rejected, a failed call or rejected output is `uncertain`
 (with the reason), and a cited evidence id that is not in the bundle downgrades the answer to `uncertain`.
@@ -524,8 +533,10 @@ redacted) and, for a history-only secret, the masked line as it was in that comm
 folder has no history, or the commit cannot be read, the item says "unknown" instead of guessing.
 
 Every call uses temperature 0.0, the lowest Groq accepts (range 0 to 2), which makes the answers as repeatable as
-Groq allows but does not guarantee identical output. `interpreted.json` records the model, prompt version and temperature
-in `meta`, and each result's `call` record also holds the temperature.
+Groq allows but does not guarantee identical output. A `seed` (default 7, `SECURITY_ASSISTANT_LLM_SEED` changes it, `off` disables it)
+is sent as well; Groq documents it as best effort, and in a repeat of the 10 seeded cases on `gpt-oss-20b` all 10 statuses were the same
+but only 6 rationales were word for word identical. A model that refuses the parameter is called again without it. `interpreted.json`
+records the model, prompt version and temperature in `meta`, and each result's `call` record also holds the temperature and the seed.
 
 Seeded set for the RQ1 comparison: `interpreter/seeded/cases.json`, one real finding and one deliberate false
 positive per category (10 cases, scanner-style findings with hand-written evidence). Run

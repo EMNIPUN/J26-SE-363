@@ -140,6 +140,10 @@ def render(report: dict, scan_md: str, idoc, tdoc, risk_doc, qdoc, findings: lis
     banner = ("> **INCOMPLETE RUN.** This is not a clean result.\n" + "\n".join(f"> - {r}" for r in run["incomplete_reasons"])
               if not run["complete"] else "> All stages completed. Read the limitations below before relying on the result.")
     M = [f"# Security Assistant report: {report['meta']['source']}", "", banner, "", _stage_table(run["stages"])]
+    u = report.get("llm_usage") or {}
+    if u.get("total_tokens"):
+        M.append(f"LLM usage: {u['total_tokens']} tokens ({u['interpret']['calls']} interpretation call(s), "
+                 f"{u['link_proposals']['calls']} link proposal(s)), model {u['model']}.\n")
     if findings:
         M.append(_overview(findings))
     M.append(scan_md)
@@ -174,6 +178,7 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
     st = Stages(say)
     result = scan_report = idoc = tdoc = risk_doc = qdoc = None
     plan = llm = None
+    link_usage: dict = {}
     findings: list[dict] = []
     guidance_used: dict[str, dict] = {}
     reused = False
@@ -256,7 +261,8 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
                 tasks = load_tasks(Path(sprint_tasks_file)) if sprint_tasks_file else []
                 pseudo = Pseudonymizer.load(out / "trace_mapping.local.json")
                 proposer = (llm or client or get_default_client(retries=retries, backoff=max(0.5, delay))) if (stories or tasks) else None
-                traced = await tr.trace_all(idoc, repo, stories, tasks, pseudo, plan.pii if plan else pii, client=proposer, delay=delay)
+                traced = await tr.trace_all(idoc, repo, stories, tasks, pseudo, plan.pii if plan else pii, client=proposer, delay=delay,
+                                            usage=link_usage)
                 pseudo.save(out / "trace_mapping.local.json")
                 tdoc = tr.build_document(traced, {
                     "interpreted_file": "(this run)", "requirements_file": Path(requirements_file).name if requirements_file else None,
@@ -342,6 +348,7 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
         "run": {"complete": not reasons, "incomplete_reasons": reasons, "stages": stages, "llm_refused": llm_refused},
         "scan": scan_info,
         "interpretation": idoc["summary"] if idoc else None,
+        "llm_usage": _usage(idoc, link_usage),
         "findings": findings,
         "dismissed": [x for x in (risk_doc["excluded"] if risk_doc else [])],
         "guidance": list(guidance_used.values()),
@@ -351,6 +358,18 @@ async def run_pipeline(repo_url: str, requirements_file: Path | str | None = Non
     (out / "report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
     (out / "report.md").write_text(render(report, scan_md, idoc, tdoc, risk_doc, qdoc, findings), encoding="utf-8")
     return report
+
+
+def _usage(idoc, link_usage: dict) -> dict:
+    """Tokens the run used: interpreter calls (from their call records) and link proposals."""
+    calls = [g["result"]["call"] for g in (idoc["groups"] if idoc else []) if g["result"].get("call")]
+    interpret = {"calls": len(calls), "prompt_tokens": sum(c.get("prompt_tokens") or 0 for c in calls),
+                 "completion_tokens": sum(c.get("completion_tokens") or 0 for c in calls)}
+    links = {"calls": link_usage.get("calls", 0), "prompt_tokens": link_usage.get("prompt_tokens", 0),
+             "completion_tokens": link_usage.get("completion_tokens", 0)}
+    total = sum(x["prompt_tokens"] + x["completion_tokens"] for x in (interpret, links))
+    return {"interpret": interpret, "link_proposals": links, "total_tokens": total, "model": idoc["meta"]["model"] if idoc else None,
+            "seed": next((c.get("seed") for c in calls if c.get("seed") is not None), None)}
 
 
 def _collect(result, idoc, tdoc, risk_doc, qdoc) -> list[dict]:
@@ -414,6 +433,8 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None, t
         print(exc, file=sys.stderr)
         return 3
     out = args.out or Path("scan_output") / f"assessment_{_label(args.source, args.source.startswith('http'))}"
+    if report["llm_usage"]["total_tokens"]:
+        print(f"LLM tokens used: {report['llm_usage']['total_tokens']}")
     print(("COMPLETE" if report["run"]["complete"] else "INCOMPLETE") + f" - wrote {out / 'report.json'} and {out / 'report.md'}")
     for r in report["run"]["incomplete_reasons"]:
         print(f"  - {r}")

@@ -346,8 +346,9 @@ def render_markdown(g: Guidance, findings: list[Finding]) -> str:
 
 
 def prompt_text(g: Guidance, f: Finding) -> str:
-    """The reference guidance as the LLM sees it (trusted text written by the team)."""
-    out = [f"{g.title}. {g.why}", "Steps: " + " ".join(f"({n}) {s}" for n, s in enumerate(g.steps, 1))]
+    """The reference guidance as the LLM sees it (trusted text written by the team). The "why it matters" paragraph is left out:
+    it is for the student's report, and the model only needs the steps and the example to write a tailored note."""
+    out = [f"{g.title}.", "Steps: " + " ".join(f"({n}) {s}" for n, s in enumerate(g.steps, 1))]
     ex = example_for(g, f)
     if ex:
         out.append(f"Example ({ex[0]}):\n{ex[1]}")

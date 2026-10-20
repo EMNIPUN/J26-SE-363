@@ -74,6 +74,7 @@ class CallRecord(BaseModel):
 
     model: str | None = None
     temperature: float | None = None
+    seed: int | None = None  # sent to Groq for best-effort repeatable sampling; None if the model refused it
     response_format: str | None = None  # json_schema (strict) or json_object
     attempts: int = 0
     http_status: int | None = None
