@@ -28,6 +28,7 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 STRICT_SCHEMA_MODELS = frozenset({"openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b",
                                   "meta-models/muse-spark-open"})
 DEFAULT_MAX_TOKENS = 4096
+TEMPERATURE = 0.0  # the lowest value Groq accepts (range 0 to 2): the least random answers it can give
 MAX_WAIT_S = 60.0  # never wait longer than this for one retry; a longer retry-after is reported instead
 # backend/agentic_framework/.env, the same file the rest of the AI backend reads
 ENV_FILE = Path(__file__).resolve().parents[4] / ".env"
@@ -80,12 +81,13 @@ class GroqClient:
                  transport: httpx.AsyncBaseTransport | None = None, retries: int = 2, backoff: float = 0.5):
         self._key, self.model, self._timeout, self._max_tokens = api_key, model, timeout, max_tokens
         self._transport, self._retries, self._backoff = transport, retries, backoff
+        self.temperature = TEMPERATURE
         self.last_call: CallRecord | None = None
 
     def _body(self, system: str, user: str, schema_mode: bool) -> dict:
         response_format = ({"type": "json_schema", "json_schema": {"name": "verdict", "strict": True, "schema": VERDICT_SCHEMA}}
                            if schema_mode else {"type": "json_object"})
-        return {"model": self.model, "temperature": 0, "max_completion_tokens": self._max_tokens,
+        return {"model": self.model, "temperature": self.temperature, "max_completion_tokens": self._max_tokens,
                 "response_format": response_format,
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
 
@@ -94,7 +96,7 @@ class GroqClient:
 
     async def complete(self, system: str, user: str) -> str:
         schema_mode = self.model in STRICT_SCHEMA_MODELS
-        record = self.last_call = CallRecord(model=self.model,
+        record = self.last_call = CallRecord(model=self.model, temperature=self.temperature,
                                              response_format="json_schema (strict)" if schema_mode else "json_object")
         last = "no attempt made"
         async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as http:

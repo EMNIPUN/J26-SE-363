@@ -297,6 +297,18 @@ waits follow `retry-after` (seconds, capped at 60 s: a longer one is reported, n
 record in `interpreted.json` (model, format, attempts, HTTP status, finish reason, output length, token usage; never the
 model's text), and a rejected answer says in its reason, for example, `finish_reason=length` (cut off by the output limit).
 
+Evidence for secret findings (V4): besides the code snippet, the bundle has an item "details about the secret (its value
+is never shown)": the masked value from the scanner, the kind and length of the value and whether it looks like a
+placeholder (measured by reading the line locally, only the measurement is kept), whether it is in the current files or
+only in the git history (a file that was deleted later), the introducing commit's date and message (personal data
+redacted) and, for a history-only secret, the masked line as it was in that commit. History is read with read-only
+`git show` on the scanned folder, using only the commit id and path from the finding after checking their format. If the
+folder has no history, or the commit cannot be read, the item says "unknown" instead of guessing.
+
+Every call uses temperature 0.0, the lowest Groq accepts (range 0 to 2), which makes the answers as repeatable as
+Groq allows but does not guarantee identical output. `interpreted.json` records the model, prompt version and temperature
+in `meta`, and each result's `call` record also holds the temperature.
+
 Seeded set for the RQ1 comparison: `interpreter/seeded/cases.json`, one real finding and one deliberate false
 positive per category (10 cases, scanner-style findings with hand-written evidence). Run
 `uv run python -m app.agents.security_assistant.interpreter.evaluate_seeded` (offline, a mock that answers with the

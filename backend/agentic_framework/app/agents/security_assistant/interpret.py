@@ -179,7 +179,7 @@ def summarize(plan: Plan, outcomes: list[Outcome]) -> dict:
 
 def to_document(plan: Plan, outcomes: list[Outcome], model: str | None, args: dict) -> dict:
     return {
-        "meta": {"model": model, "prompt_version": PROMPT_VERSION, **args, "calls_planned": len(plan.calls),
+        "meta": {"model": model, "prompt_version": PROMPT_VERSION, "temperature": args.pop("temperature", None), **args, "calls_planned": len(plan.calls),
                  "calls_made": len(outcomes)},
         "summary": summarize(plan, outcomes),
         "merge_log": plan.merge_log,
@@ -307,6 +307,7 @@ async def main(argv: list[str] | None = None, client: LLMClient | None = None) -
     outcomes = await run_calls(plan, client, delay=args.delay)
 
     doc = to_document(plan, outcomes, client.model, {"findings_file": str(args.findings), "delay_s": args.delay,
+                                                      "temperature": getattr(client, "temperature", None),
                                                       "retries": args.retries, "max_findings": args.max_findings,
                                                       "only_category": [c.value for c in only] if only else None})
     out = args.out or args.findings.parent

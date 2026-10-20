@@ -5,13 +5,16 @@ snippets found by simple searches (where authorisation, sanitisers or usages of 
 Everything is size-limited and redacted. The repository is only read, never executed.
 """
 
+import os
 import re
+import subprocess
 from pathlib import Path
 
 from app.agents.security_assistant.interpreter.models import EvidenceBundle, EvidenceItem
 from app.agents.security_assistant.interpreter.redaction import redact_text
 from app.agents.security_assistant.pii import PIIRedactor
 from app.agents.security_assistant.schemas import Category, Finding
+from app.agents.security_assistant.tools.base import child_env
 from app.agents.security_assistant.tools.languages import walk_repo
 
 SNIPPET_RADIUS = 8
@@ -124,6 +127,78 @@ def _search(repo: Path, pattern: re.Pattern, skip: Path | None, limit: int, radi
     return hits
 
 
+_SHA = re.compile(r"^[0-9a-f]{7,40}$")
+_MARKER = re.compile(r"\[REDACTED secret kind=(\w+) len=(\d+) placeholder_like=(yes|no)\]")
+
+
+def _git_read(repo: Path, *args: str, timeout: float = 20.0) -> str | None:
+    """A read-only git command in the scanned repository (show / log only). None if it fails."""
+    env = {**child_env(), "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull, "GIT_TERMINAL_PROMPT": "0"}
+    try:
+        done = subprocess.run(["git", "-c", "core.fsmonitor=false", "-C", str(repo), *args], capture_output=True,
+                              text=True, encoding="utf-8", errors="replace", timeout=timeout, env=env)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return done.stdout if done.returncode == 0 else None
+
+
+def secret_details_item(f: Finding, repo: Path, pii: PIIRedactor | None = None) -> EvidenceItem | None:
+    """Details a reviewer needs to tell a live secret from a test value, without ever showing the secret: the masked
+    value from the scanner, its kind and length, whether it is in the current files or only in the git history, and the
+    introducing commit's date and message (personal data redacted). The real value is read only to measure it."""
+    repo = Path(repo)
+    masked = redact_text(f.masked_snippet) if f.masked_snippet else "(the scanner gave none)"
+    commit = (f.source or "")[len("commit:"):] if (f.source or "").startswith("commit:") else None
+    commit = commit if commit and _SHA.match(commit) else None
+    rel = f.file_path if f.file_path and ".." not in Path(f.file_path).parts and not Path(f.file_path).is_absolute() else None
+    has_git = (repo / ".git").exists()
+
+    current = _safe_file(repo, rel)
+    line_now = None
+    if current is not None and f.line:
+        now = current.read_text(encoding="utf-8", errors="replace").splitlines()
+        line_now = now[f.line - 1] if 1 <= f.line <= len(now) else None
+    in_current = line_now is not None and redact_text(line_now) != line_now
+
+    history = None
+    if commit and rel and has_git:
+        history = _git_read(repo, "show", "--no-textconv", f"{commit}:{rel}")
+    hist_lines = history.splitlines() if history is not None else []
+    line_then = hist_lines[f.line - 1] if history is not None and f.line and 1 <= f.line <= len(hist_lines) else None
+
+    sample = line_now if in_current else line_then
+    marker = _MARKER.search(redact_text(sample)) if sample else None
+    out = [f"masked value (from the scanner; the real value is never shown): {masked}"]
+    out.append(f"kind: {marker.group(1)}; length: {marker.group(2)} characters; looks like a placeholder: "
+               f"{marker.group(3)}" if marker else
+               "kind and length: unknown (the value could not be read, or it is not a pattern this tool recognises)")
+
+    if in_current:
+        out.append(f"where: in the current files ({rel}:{f.line})")
+    elif current is not None:
+        out.append(f"where: the file exists, but line {f.line} no longer holds the secret (it was removed or changed)")
+    elif history is not None:
+        out.append("where: only in the git history; the file is not in the current files")
+    else:
+        out.append("where: unknown (the file is not in the current files and the git history could not be read)")
+
+    if commit and has_git:
+        meta = _git_read(repo, "show", "-s", "--no-textconv", "--format=%cI%x1f%B", commit)
+        if meta and "\x1f" in meta:
+            date, message = meta.split("\x1f", 1)
+            message = " ".join(message.split())[:200]
+            if pii is not None:
+                message = pii.redact_plain(message)
+            out.append(f"introducing commit {commit[:12]}: dated {date.strip()}; message: \"{redact_text(message)}\"")
+    if history is not None and not in_current and line_then is not None:
+        lo, hi = max(1, f.line - 2), min(len(hist_lines), f.line + 2)
+        text = pii.redact_code(history) if pii is not None else history
+        window = text.splitlines()[lo - 1:hi]
+        out += ["the line as it was in that commit (secret masked):", redact_text(_numbered(window, lo, f.line))]
+    return EvidenceItem(id="E9", kind="context", label="details about the secret (its value is never shown)",
+                        content="\n".join(out)[:MAX_ITEM_CHARS])
+
+
 def redact_bundle(bundle: EvidenceBundle, pii: PIIRedactor) -> EvidenceBundle:
     """Personal data out of every item (idempotent). Code items are redacted as code: comments and strings only."""
     items = []
@@ -162,6 +237,8 @@ def build_bundle(f: Finding, repo: Path | None = None, extra: list[EvidenceItem]
             body = "\n\n".join(f"{where}\n{text}" for where, text in hits) if hits else "(no source file mentions it)"
             items.append(EvidenceItem(id=f"E{len(items) + 1}", kind="context",
                                       label=f"where the package '{name}' is used in the project", content=body[:MAX_ITEM_CHARS]))
+        elif f.category is Category.V4 and (details := secret_details_item(f, repo, pii)):
+            items.append(details.model_copy(update={"id": f"E{len(items) + 1}"}))
     for item in extra or []:
         items.append(EvidenceItem(id=f"E{len(items) + 1}", kind=item.kind, label=item.label,
                                   content=redact_text(item.content)[:MAX_ITEM_CHARS]))

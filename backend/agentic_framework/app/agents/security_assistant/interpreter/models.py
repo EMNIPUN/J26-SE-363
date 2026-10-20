@@ -73,6 +73,7 @@ class CallRecord(BaseModel):
     """What is known about one LLM call, without the model's text: for diagnosing rejected or failed answers."""
 
     model: str | None = None
+    temperature: float | None = None
     response_format: str | None = None  # json_schema (strict) or json_object
     attempts: int = 0
     http_status: int | None = None
