@@ -43,7 +43,7 @@ deleted again in the last commit, so only the git history shows it (Gitleaks and
 | 8 | V3 | login route without rate limiting | server.js:8 | config-scan `-cfg-007`, codeql `js/missing-rate-limiting` | no |
 | 9 | V4 | hard-coded JWT signing key `'key'` | server.js:9 | codeql `js/hardcoded-credentials` | yes |
 | 10 | V4 | AWS key pair in deleted commit | `settings_old.py` (history, demo copy only) | gitleaks, trufflehog | no |
-| 11 | V5 | vulnerable `lodash 4.17.15`, `express 4.17.1` | package-lock.json | npm-audit, osv-scanner | no |
+| 11 | V5 | vulnerable `lodash 4.17.15` (`express 4.17.1` is only in package.json: the fixture's package-lock.json lists lodash alone, so no scanner reports express) | package-lock.json | npm-audit, osv-scanner | no |
 | 12 | V5 | workflow: `pull_request_target`, no permissions, `@latest` | ci.yml:1,3,6 | zizmor | no |
 
 ## vuln_java_repo (Spring Boot, Maven)  - files: UserController.java, SecurityConfig.java, application.properties, pom.xml, ci.yml

@@ -56,10 +56,12 @@ def test_scanner_only_and_llm_columns_are_computed_from_the_statuses():
     assert (r["scanner_only_reported"], r["scanner_only_tp"], r["scanner_only_fp"], r["scanner_only_precision"]) == (6, 3, 3, "0.500")
     assert (r["llm_confirmed"], r["llm_dismissed"], r["llm_uncertain"]) == (2, 3, 1)
     assert (r["llm_tp_kept"], r["llm_fp_kept"], r["llm_precision"]) == (1, 1, "0.500")
-    assert (r["llm_fp_removed"], r["llm_true_findings_dismissed"], r["llm_dismissed_file_only"]) == (1, 2, 1)
+    # the V3 dismissal is a lost true positive; the V5 dismissal is "dismissed as unreachable" in its own column
+    assert (r["llm_fp_removed"], r["llm_true_findings_dismissed"], r["llm_dismissed_file_only"]) == (1, 1, 0)
+    assert r["llm_v5_dismissed_unreachable"] == 1 and r["llm_bugs_set_aside_unreachable"] == 1
     assert (r["planted_expected"], r["scanner_only_bugs_found"], r["llm_bugs_found"]) == (3, 3, 1)
-    assert (r["scanner_only_recall"], r["llm_recall"]) == ("1.000", "0.333")
-    assert "lost true positives" in r["notes"] and "only by file" in r["notes"]
+    assert (r["scanner_only_recall"], r["llm_recall"]) == ("1.000", "0.500")  # 1 of the 2 bugs not set aside as unreachable
+    assert "lost true positives" in r["notes"] and "dismissed as unreachable" in r["notes"]
 
 
 def test_a_removed_false_positive_raises_precision():
@@ -172,3 +174,16 @@ def test_an_assess_report_json_is_accepted_as_the_llm_run(tmp_path):
     py = next(r for r in rows if r["name"] == "vuln_py_repo")
     assert py["run"] == "m / p" and py["findings_analysed"] == 12
     assert py["llm_confirmed"] + py["llm_dismissed"] == 12 and py["llm_dismissed"] == 4  # the four V5 findings were dismissed
+
+
+
+def test_v5_dismissals_are_not_lost_recall_but_a_non_v5_dismissal_is():
+    bugs = [bug(1, "V5", "req.txt"), bug(2, "V5", "pom.xml", {6}), bug(3, "V1", "a.py", {5})]
+    items = [item("V5", "req.txt", None, "dismissed"), item("V5", "req.txt", None, "confirmed"),  # bug 1 keeps a confirmed finding
+             item("V5", "pom.xml", None, "dismissed"), item("V5", "pom.xml", None, "dismissed"),  # bug 2: only unreachable dismissals
+             item("V1", "a.py", 5, "dismissed")]  # bug 3 really lost
+    r = rq1.evaluate_repo("r", bugs, items, True, True, "m")
+    assert r["llm_v5_dismissed_unreachable"] == 3 and r["llm_true_findings_dismissed"] == 1
+    assert (r["llm_bugs_found"], r["llm_bugs_set_aside_unreachable"], r["llm_recall"]) == (1, 1, "0.500")  # 1 of (3 - 1 set aside)
+    total = rq1.total_row([r])
+    assert total["llm_v5_dismissed_unreachable"] == 3 and total["llm_recall"] == "0.500"

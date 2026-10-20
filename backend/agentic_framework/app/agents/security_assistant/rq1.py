@@ -36,7 +36,8 @@ COLUMNS = ["suite", "name", "run", "findings_analysed", "planted_expected", "pla
            "scanner_only_reported", "scanner_only_tp", "scanner_only_fp", "scanner_only_precision",
            "scanner_only_bugs_found", "scanner_only_recall",
            "llm_confirmed", "llm_dismissed", "llm_uncertain", "llm_tp_kept", "llm_fp_kept", "llm_precision",
-           "llm_fp_removed", "llm_true_findings_dismissed", "llm_dismissed_file_only", "llm_bugs_found", "llm_recall", "notes"]
+           "llm_fp_removed", "llm_true_findings_dismissed", "llm_dismissed_file_only", "llm_v5_dismissed_unreachable",
+           "llm_bugs_found", "llm_bugs_set_aside_unreachable", "llm_recall", "notes"]
 
 
 @dataclass
@@ -127,19 +128,29 @@ def evaluate_repo(name: str, bugs: list[Bug], items: list[Item], codeql_ran: boo
         conf = [i for i in items if i.status == "confirmed"]
         dis = [i for i in items if i.status == "dismissed"]
         unc = [i for i in items if i.status == "uncertain"]
-        found_llm = {n for i in conf for n in i.matched} & {b.number for b in expected}
+        # A V5 dismissal means "the vulnerable package is not reachable from the project's code": a judgement about use, not a
+        # claim that the advisory is wrong. It is counted in its own column and does not count as lost recall.
+        v5_dis = [i for i in dis if i.category == "V5" and i.matched]
+        other_dis = [i for i in dis if i.matched and i.category != "V5"]
+        expected_nums = {b.number for b in expected}
+        found_llm = {n for i in conf for n in i.matched} & expected_nums
+        set_aside = ({n for i in v5_dis for n in i.matched} & expected_nums) - found_llm  # only reachable-or-not dismissals left
         row.update({"llm_confirmed": len(conf), "llm_dismissed": len(dis), "llm_uncertain": len(unc),
                     "llm_tp_kept": sum(bool(i.matched) for i in conf), "llm_fp_kept": sum(not i.matched for i in conf),
                     "llm_precision": _ratio(sum(bool(i.matched) for i in conf), len(conf)),
                     "llm_fp_removed": sum(not i.matched for i in dis),
-                    "llm_true_findings_dismissed": sum(bool(i.matched) for i in dis),
-                    "llm_dismissed_file_only": sum(bool(i.matched) and all(not b.lines for b in bugs if b.number in i.matched) for i in dis),
-                    "llm_bugs_found": len(found_llm), "llm_recall": _ratio(len(found_llm), len(expected))})
-        if row["llm_true_findings_dismissed"]:
-            notes.append("the LLM dismissed findings that match planted bugs (lost true positives)")
+                    "llm_true_findings_dismissed": len(other_dis),
+                    "llm_dismissed_file_only": sum(all(not b.lines for b in bugs if b.number in i.matched) for i in other_dis),
+                    "llm_v5_dismissed_unreachable": len(v5_dis),
+                    "llm_bugs_found": len(found_llm), "llm_bugs_set_aside_unreachable": len(set_aside),
+                    "llm_recall": _ratio(len(found_llm), len(expected) - len(set_aside))})
+        if v5_dis:
+            notes.append(f"{len(v5_dis)} dependency finding(s) matching planted bugs were dismissed as unreachable (own column, not lost "
+                         f"recall); {len(set_aside)} planted bug(s) have only such dismissals and are left out of the recall denominator")
+        if other_dis:
+            notes.append(f"the LLM dismissed {len(other_dis)} non-dependency finding(s) that match planted bugs (lost true positives)")
             if row["llm_dismissed_file_only"]:
-                notes.append(f"{row['llm_dismissed_file_only']} of them match a bug only by file (for example one advisory of a planted vulnerable package), "
-                             "so the ground truth cannot say whether the model's argument for dismissing them was right")
+                notes.append(f"{row['llm_dismissed_file_only']} of them match a bug only by file, so the ground truth cannot judge them")
     else:
         notes.append("no saved LLM run for this repository: scanner-only columns only")
     row["notes"] = "; ".join(notes)
@@ -210,12 +221,13 @@ def total_row(rows: list[dict]) -> dict | None:
     total.update({"suite": "seeded repo", "name": "TOTAL (repos with a saved LLM run)", "run": "see rows"})
     for col in ("findings_analysed", "planted_expected", "planted_known_miss", "scanner_only_reported", "scanner_only_tp",
                 "scanner_only_fp", "scanner_only_bugs_found", "llm_confirmed", "llm_dismissed", "llm_uncertain", "llm_tp_kept",
-                "llm_fp_kept", "llm_fp_removed", "llm_true_findings_dismissed", "llm_dismissed_file_only", "llm_bugs_found"):
+                "llm_fp_kept", "llm_fp_removed", "llm_true_findings_dismissed", "llm_dismissed_file_only",
+                "llm_v5_dismissed_unreachable", "llm_bugs_found", "llm_bugs_set_aside_unreachable"):
         total[col] = sum(int(r[col]) for r in done)
     total["scanner_only_precision"] = _ratio(total["scanner_only_tp"], total["scanner_only_reported"])
     total["llm_precision"] = _ratio(total["llm_tp_kept"], total["llm_confirmed"])
     total["scanner_only_recall"] = _ratio(total["scanner_only_bugs_found"], total["planted_expected"])
-    total["llm_recall"] = _ratio(total["llm_bugs_found"], total["planted_expected"])
+    total["llm_recall"] = _ratio(total["llm_bugs_found"], total["planted_expected"] - total["llm_bugs_set_aside_unreachable"])
     return total
 
 
