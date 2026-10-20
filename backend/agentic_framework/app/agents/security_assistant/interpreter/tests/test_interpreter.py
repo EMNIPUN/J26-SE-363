@@ -57,7 +57,9 @@ def interpret(case, reply):
 @pytest.mark.parametrize("status", ["confirmed", "dismissed", "uncertain"])
 @pytest.mark.parametrize("category", list(Category))
 def test_each_status_for_each_category(category, status):
-    case = BY_CATEGORY[category][0]
+    # a V4 dismissal needs deterministic support (see test_v4_guard.py), so it is tried on the case in a test file
+    case = next(c for c in BY_CATEGORY[category]
+                if not (category is Category.V4 and status == "dismissed") or "tests/" in c.finding.file_path)
     result, client = interpret(case, verdict(status, confidence=0.7))
     assert result.status == status and not result.downgraded and not result.output_rejected
     assert result.category is category and result.finding_key == finding_key(case.finding)

@@ -23,7 +23,7 @@ from app.agents.security_assistant.interpreter.models import (
 from app.agents.security_assistant.interpreter.prompts import PROMPT_VERSION, build_prompt
 from app.agents.security_assistant.interpreter.redaction import redact_text
 from app.agents.security_assistant.pii import PIIRedactor
-from app.agents.security_assistant.schemas import Finding
+from app.agents.security_assistant.schemas import Category, Finding
 
 
 class InvalidLLMOutput(ValueError):
@@ -68,6 +68,28 @@ def _ungrounded(recommendation: str, grounded: str) -> str | None:
     return None
 
 
+# A V4 finding (a secret) may only be dismissed when something deterministic supports it: the file is a test or example file,
+# or our own redactor marked the value on the flagged line as a placeholder (it contains example, dummy, test, changeme, ...).
+# The model's argument alone is not enough: "it looks like a placeholder" is exactly what a real weak secret also looks like.
+_TEST_PATH = re.compile(
+    r"(?i)(?:^|/)(?:tests?|__tests__|specs?|fixtures?|mocks?|__mocks__|examples?|samples?|testdata|test_data|e2e)(?:/|$)"
+    r"|(?:^|/)(?:test_[^/]*|conftest\.py|[^/]*_tests?\.\w+|[^/]*\.(?:test|spec)\.\w+|[^/]*Tests?\.java|[^/]*\.(?:example|sample|template))$")
+
+
+def v4_dismissal_support(finding: Finding, bundle: EvidenceBundle) -> str | None:
+    """Why dismissing this V4 finding is supported by something other than the model's say-so, or None."""
+    path = (finding.file_path or "").replace("\\", "/")
+    if path and _TEST_PATH.search(path):
+        return f"{path} is a test or example file"
+    for item in bundle.items:
+        for line in item.content.splitlines():
+            if item.kind == "code_snippet" and line.lstrip().startswith(">") and "placeholder_like=yes" in line:
+                return "the value on the flagged line is a recognised placeholder pattern"
+            if item.kind == "context" and "looks like a placeholder: yes" in line:
+                return "the scanner's secret details mark the value as a placeholder"
+    return None
+
+
 class SemanticInterpreter:
     def __init__(self, client: LLMClient, pii: PIIRedactor | None = None):
         self._client = client
@@ -101,6 +123,11 @@ class SemanticInterpreter:
         if reason and verdict.status != "uncertain":
             result.original_status, result.status = verdict.status, "uncertain"
             result.downgraded, result.downgrade_reason = True, reason
+        if finding.category is Category.V4 and result.status == "dismissed" and not v4_dismissal_support(finding, bundle):
+            result.original_status = result.original_status or "dismissed"
+            result.status, result.downgraded = "uncertain", True
+            result.downgrade_reason = ("the model dismissed a secret finding, but the file is not a test or example file and the value "
+                                       "is not a recognised placeholder pattern: a dismissal needs deterministic support")
         if result.status == "confirmed":  # advice only for findings that were confirmed with valid evidence
             advice = redact_text(verdict.recommendation).strip()
             grounded = "\n".join([*(i.content for i in bundle.items), guide.prompt_text(guide.guidance_for(finding), finding)])

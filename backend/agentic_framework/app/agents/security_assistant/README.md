@@ -311,6 +311,10 @@ all its advisories. Every merge is listed in the output; no scanner finding is d
 
 The LLM cannot add findings: output with extra fields is rejected, a failed call or rejected output is `uncertain`
 (with the reason), and a cited evidence id that is not in the bundle downgrades the answer to `uncertain`.
+**A secret (V4) finding can only be dismissed with deterministic support:** the file is a test or example file (`tests/`, `test_*.py`, `*.spec.ts`,
+`examples/`, `fixtures/`, `*.example`, ...), or the redactor marked the value on the flagged line as a placeholder (`placeholder_like=yes`: it contains
+example, dummy, test, changeme, ...). Otherwise a dismissal is downgraded to `uncertain` and the reason is recorded (`downgrade_reason`, shown in the
+report); the prompt is not changed. Example: the hard-coded JWT key `'key'` of the JS demo is no longer dismissed as "a placeholder".
 Exit codes: 0 ok, 2 some calls failed, 3 usage error, 4 refused (no `--allow-external-llm`).
 
 ## Fix advice for students (`guidance.py`)
