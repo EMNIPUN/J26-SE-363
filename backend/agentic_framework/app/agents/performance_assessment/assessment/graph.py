@@ -77,6 +77,12 @@ def stopped(name, seconds):
             "provisional": False, "removed": {}, "tasks": None, "model": None}
 
 
+def fuse_weights():
+    from app.agents.performance_assessment.com_agent.fusion_engine.weights_config import get_weights_as_dict
+
+    return get_weights_as_dict()
+
+
 def _safe(payload):
     if not isinstance(payload, dict):
         return {}
@@ -168,7 +174,7 @@ class StudentPipeline:
         if self.mode != "final":
             r = quiz_flow.pending("the code question is asked at the end of the sprint")
         else:
-            quiz = await quiz_flow.issue(self.sv.store, self.sv.ws, self.run["repo_url"], self.d.rev, self.team, self.sprint_id, self.sid, self.evidence, self.run["id"], self.sv.token, self.sv.now())
+            quiz = await quiz_flow.issue(self.sv.store, self.sv.ws, self.run["repo_url"], self.d.rev, self.team, self.sprint_id, self.sid, self.evidence, self.run["id"], await self.sv.token_for(self.d), self.sv.now())
             r = await quiz_flow.factor_for(self.sv.store, quiz)
             n.log(("quiz issued" if quiz and quiz["status"] == "open" else f"quiz {quiz['status']}" if quiz else "no suitable code for a quiz") + f"; Code Ownership {r['status']}")
         await self._save("code_ownership", r)
@@ -311,6 +317,7 @@ class TeamGraph:
         d = sv.data(state["run_id"])
         cfg = team.get("config") or {}
         d.roster = cfg.get("roster") or []
+        d.installation_id = cfg.get("installation_id")  # the GitHub App installation of a platform team; its token is minted when needed and never stored
         d.simulate_now = cfg.get("simulate_now")  # test aid: take a snapshot as if it were this moment (set directly in the database)
         d.scrum_data_dir = cfg.get("scrum_data_dir")  # set directly in the database for a board that lives outside the course dataset; the API never accepts it
         d.previous_marks = {r["student_id"]: r["mark"] for r in await sv.astore.latest_results(state["team_ref"], state["sprint_id"]) if r.get("mark") is not None}
@@ -320,7 +327,7 @@ class TeamGraph:
 
     async def prepare_workspace(self, state, n, ev):
         sv = self.sv
-        await asyncio.to_thread(sv.ws.ensure_mirror, state["repo_url"], token=sv.token)
+        await asyncio.to_thread(sv.ws.ensure_mirror, state["repo_url"], token=await sv.token_for(sv.data(state["run_id"])))
         n.tool("git fetch", "read-only mirror up to date")
         return {}
 
@@ -358,11 +365,14 @@ class TeamGraph:
     async def collect_github(self, state, n, ev):
         sv, d = self.sv, self.sv.data(state["run_id"])
         d.prs = None
-        if sv.github is None:
-            n.log("GitHub is not connected: Collaboration will be 'not available'", level="warn")
-            return {}
+        token = await sv.token_for(d)
+        github = sv.github
+        if github is None:
+            from app.agents.performance_assessment.com_agent.ingestion.github_rest import GitHubREST
+
+            github = GitHubREST(token)  # without a token a public repository can still be read, within GitHub's 60 requests an hour
         try:
-            d.prs = await sv.github.pulls_bundle(state["repo_url"], since=d.sprint["start"])
+            d.prs = await github.pulls_bundle(state["repo_url"], since=d.sprint["start"])
             n.tool("pulls_bundle", f"{len(d.prs)} pull requests with reviews and comments")
         except Exception as e:  # rate limit, no access: the rest of the run goes on without the review data
             if type(e).__name__ == "GitHubRateLimited":
@@ -377,7 +387,8 @@ class TeamGraph:
         if d.as_of:
             sprint["end"] = min(_days(sprint["end"]), _days(d.as_of)).isoformat()
         roster = Roster(d.roster)
-        built = await asyncio.to_thread(lambda: build_team_evidence(sv.ws, state["repo_url"], roster, sprint, d.tasks_by_student, d.prs, token=sv.token, progress=lambda m: n.log(m)))
+        token = await sv.token_for(d)
+        built = await asyncio.to_thread(lambda: build_team_evidence(sv.ws, state["repo_url"], roster, sprint, d.tasks_by_student, d.prs, token=token, progress=lambda m: n.log(m)))
         d.evidence, d.quality, d.rev, d.patches = built.evidence, built.quality, built.rev, built.patches
         if d.as_of:
             for e in d.evidence.values():
@@ -482,7 +493,8 @@ class TeamGraph:
                 await sv.astore.add_snapshot(state["team_ref"], state["sprint_id"], sid, as_of, elapsed, mark=o["mark"], mark_interval=o["interval"], factors=o["factors"])
         marks = {s: o["mark"] for s, o in out.items()}
         pending = sorted({s for s, o in out.items() if o.get("pending")})
-        await sv.astore.update_run(state["run_id"], summary={"students": len(out), "marks": marks, "pending_code_ownership": pending, "flags": state.get("flags", []), "report_markdown": state.get("report", ""),
+        method = {"weights": fuse_weights(), "factors": {n: {k: c.get(k) for k in ("title", "measures", "validation", "limits", "warnings")} for n, c in sv.cards.items()}}
+        await sv.astore.update_run(state["run_id"], summary={"method": method, "students": len(out), "marks": marks, "pending_code_ownership": pending, "flags": state.get("flags", []), "report_markdown": state.get("report", ""),
                                                       "sprint_elapsed": elapsed, "quality": {k: d.quality.get(k) for k in ("commits_in_sprint", "unmapped_share_of_added_lines", "bot_commits")}})
         n.log(f"{len(out)} results published, {len(pending)} waiting for a quiz answer")
         return {}

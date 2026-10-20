@@ -116,7 +116,7 @@ def finish_install(db: Db, app: App, installation_id: int = Query(...), state: s
         links.link_installation(db, group, installation_id, user, app)
     except (GitHubAppError, ValueError):
         return RedirectResponse(f"{settings.APP_BASE_URL.rstrip('/')}/?github=error")
-    return RedirectResponse(f"{settings.APP_BASE_URL.rstrip('/')}/teams/{group.code}/github?github=installed")
+    return RedirectResponse(f"{settings.APP_BASE_URL.rstrip('/')}/teams/{group.code}/members?github=installed")
 
 
 @router.get("/teams/{team}/github/repos")

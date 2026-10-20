@@ -435,6 +435,44 @@ async def team_results(team_ref: str, sprint_id: str, account: Staff, store: Sto
     return [{**service.lecturer_view(r), "student": names.get(r["student_id"], {"name": r["student_id"], "picture": None})} for r in rows]
 
 
+class OverrideIn(BaseModel):
+    mark: float | None = Field(default=None, ge=0, le=100)
+    reason: str = Field(default="", max_length=1000)
+
+
+@router.put("/teams/{team_ref}/sprints/{sprint_id}/students/{student_id}/override")
+async def set_mark(team_ref: str, sprint_id: str, student_id: str, body: OverrideIn, account: Staff, store: Store):
+    """The lecturer's own mark for a student, with the reason. The agent's prediction stays beside it; a mark of null takes the override away. The agent supports the decision and never replaces it."""
+    await own_team(store, account, team_ref)
+    group = platform_group(account.session, team_ref)
+    ref = group.code if group else team_ref
+    current = {r["student_id"]: r for r in await db(store.latest_results, ref, sprint_id)}.get(student_id)
+    if current is None:
+        raise not_found("There is no result for this student and sprint yet")
+    if body.mark is None:
+        await db(store.set_override, str(current["run_id"]), student_id, {"mark": None, "cleared_by": uid(account), "at": service.now().isoformat()})
+        return {"override": None}
+    if len(body.reason.strip()) < 10:
+        raise bad_request("override_needs_a_reason", "Give the reason for the mark in at least 10 characters")
+    ov = {"mark": body.mark, "reason": body.reason.strip(), "by": uid(account), "by_name": account.user.name, "at": service.now().isoformat()}
+    await db(store.set_override, str(current["run_id"]), student_id, ov)
+    return {"override": ov}
+
+
+@router.get("/teams/{team_ref}/sprints/{sprint_id}/students/{student_id}/quiz")
+async def student_quiz(team_ref: str, sprint_id: str, student_id: str, account: Staff, store: Store):
+    """The code question this student was asked, their answer and how it was rated, for the lecturer. The reference answer used by the rater is not part of it."""
+    await own_team(store, account, team_ref)
+    group = platform_group(account.session, team_ref)
+    q = await db(store.get_quiz, group.code if group else team_ref, sprint_id, student_id)
+    if q is None:
+        return None
+    result = q.get("result") or {}
+    return {"status": q["status"], "question": q["question"], "snippet": q["snippet"], "file_path": q.get("file_path"), "line_range": q.get("line_range"), "deadline_at": q["deadline_at"],
+            "extended_until": q.get("extended_until"), "answer": q.get("answer"), "answered_at": q.get("answered_at"), "in_second_window": bool(q.get("in_extension")),
+            "score": result.get("score"), "rating": (result.get("features") or {}).get("comprehension_rating_1_to_5"), "warnings": result.get("warnings", [])}
+
+
 @router.get("/teams/{team_ref}/sprints/{sprint_id}/students/{student_id}/trajectory")
 async def trajectory(team_ref: str, sprint_id: str, student_id: str, account: Staff, store: Store):
     await own_team(store, account, team_ref)

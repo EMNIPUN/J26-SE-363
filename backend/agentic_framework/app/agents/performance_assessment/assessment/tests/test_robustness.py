@@ -138,3 +138,35 @@ def test_a_model_that_proposes_a_retry_that_cannot_help_gets_a_clear_reason():
     found = audit.findings({"effort": res("effort", 0.0)}, {"student_id": "S", "commits": [], "tasks": [{"status": "Done", "completed_by": "S"}]})
     out = audit.decide(found, {"decisions": {found[0]["id"]: {"action": "retry", "reason": "The score is 0 but work is visible."}}})
     assert out[0]["action"] == "escalate" and out[0]["reason"].startswith("The score is 0") and "cannot fix this" in out[0]["reason"]
+
+
+# ---- reading a linked repository ---------------------------------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_a_linked_team_is_read_with_a_short_lived_installation_token_that_is_never_stored(world):
+    from app.agents.performance_assessment.assessment.services import RunData
+
+    class FakeApp:
+        def __init__(self):
+            self.asked = []
+
+        def installation_token(self, installation_id):
+            self.asked.append(installation_id)
+            return "ghs_short_lived"
+
+    sv = world
+    sv.github_app, sv.token = FakeApp(), "worker-own-token"
+    d = RunData(sv.work_dir / "x")
+    assert await sv.token_for(d) == "worker-own-token"  # a team without an installation uses the worker's own token
+    d.installation_id = 7
+    assert await sv.token_for(d) == "ghs_short_lived" and sv.github_app.asked == [7]
+    d.evidence, d.roster, d.sprint = {}, [], {}
+    d.save()
+    assert "ghs_" not in (d.folder / "data.json").read_text(encoding="utf-8")  # only the installation id is written down, not a token
+
+    class Broken(FakeApp):
+        def installation_token(self, installation_id):
+            raise RuntimeError("GitHub is down")
+
+    sv.github_app = Broken()
+    assert await sv.token_for(d) == "worker-own-token"

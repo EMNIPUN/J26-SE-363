@@ -75,7 +75,7 @@ def connect(api, sub, code, team="TEAM-ALPHA"):
 def test_the_leader_installs_the_app_and_picks_the_repository(gh):
     code = make_team(gh)
     r = install(gh)
-    assert r.status_code in (302, 307) and "/teams/TEAM-ALPHA/github?github=installed" in r.headers["location"]
+    assert r.status_code in (302, 307) and "/teams/TEAM-ALPHA/members?github=installed" in r.headers["location"]
     as_user(gh, "sam")
     repos = gh.get(f"/teams/{code}/github/repos").json()
     assert [x["full_name"] for x in repos] == ["acme/app", "acme/docs"]

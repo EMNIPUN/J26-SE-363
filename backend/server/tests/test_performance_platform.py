@@ -130,3 +130,40 @@ def test_the_team_list_says_what_is_missing(gh, perf):  # noqa: F811
     as_user(gh, "ada")
     card = gh.get("/performance/teams").json()[0]
     assert card["source"] == "platform" and card["student_count"] == 3 and card["readiness"]["ready"] is False and card["readiness"]["blockers"]
+
+
+def test_the_lecturer_sets_a_mark_with_a_reason_and_can_take_it_away(team, perf):
+    sam = account_id(team, "sam")
+    as_user(team, "ada")
+    run_id = team.post(f"/performance/teams/{CODE}/runs", {"sprint_id": SPRINT}).json()["run_id"]
+    result(perf.store, run_id, sam, 40.0, team=CODE)
+    url = f"/performance/teams/{CODE}/sprints/{SPRINT}/students/{sam}/override"
+    assert team.put(url, {"mark": 65, "reason": "short"}).status_code == 400
+    ok = team.put(url, {"mark": 65, "reason": "Spoke to the team: most of the integration work was his."})
+    assert ok.status_code == 200 and ok.json()["override"]["by_name"] == "Ada"
+    row = team.get(f"/performance/teams/{CODE}/sprints/{SPRINT}/results").json()[0]
+    assert row["effective_mark"] == 65 and row["mark"] == 40.0  # the prediction stays beside the lecturer's mark
+    as_user(team, "sam")
+    assert team.get("/performance/me/results").json()[0]["mark"] == 65 and team.get("/performance/me/results").json()[0]["overridden"] is True
+    as_user(team, "ada")
+    assert team.put(url, {"mark": None}).json() == {"override": None}
+    assert team.get(f"/performance/teams/{CODE}/sprints/{SPRINT}/results").json()[0]["effective_mark"] == 40.0
+    lecturer(team, "bob")  # not a lecturer of this team
+    assert team.put(url, {"mark": 10, "reason": "I should not be able to do this"}).status_code == 404
+    as_user(team, "sam")
+    assert team.put(url, {"mark": 100, "reason": "A student marking themselves, no."}).status_code == 403
+
+
+def test_the_lecturer_reads_the_students_code_question_and_answer(team, perf):
+    from datetime import datetime, timedelta, timezone
+
+    sam = account_id(team, "sam")
+    perf.store.create_quiz(CODE, SPRINT, sam, question="What does a2 do?", snippet="def a2(): ...", file_path="a.py", line_range=[1, 9], meta={"facts": {"reference": "secret"}},
+                           deadline_at=datetime.now(timezone.utc) + timedelta(hours=48))
+    as_user(team, "ada")
+    url = f"/performance/teams/{CODE}/sprints/{SPRINT}/students/{sam}/quiz"
+    q = team.get(url).json()
+    assert q["question"] == "What does a2 do?" and q["status"] == "open" and q["answer"] is None
+    assert "reference" not in json.dumps(q) and "secret" not in json.dumps(q)
+    as_user(team, "sam")
+    assert team.get(url).status_code == 403
