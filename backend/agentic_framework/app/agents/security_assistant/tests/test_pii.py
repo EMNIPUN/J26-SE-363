@@ -310,3 +310,24 @@ def test_no_mapping_file_when_nothing_was_redacted(tmp_path, saved_findings):
     out = tmp_path / "out"
     run(flow.main([str(saved_findings), str(clean), "--allow-external-llm", "--out", str(out)], client=Mock()))
     assert not (out / "pii_mapping.local.json").exists()
+
+
+# ---- package@version is not an email address (found in the first live run) ------------------------------------------------
+@pytest.mark.parametrize("text", ["flask@1.0", "requests@2.19.0 (PyPI)", "lodash@4.17.15", "log4j-core@2.14.1 (Maven)",
+                                  "@angular/core@17.0.1"])
+def test_package_at_version_is_not_redacted(text):
+    pii = PIIRedactor()
+    assert pii.redact_plain(text) == text and not pii.mapping
+
+
+@pytest.mark.parametrize("text", ["a@b.org", "first.last@students.example.edu", "x_y+tag@sub.domain.co.uk"])
+def test_real_emails_are_still_redacted(text):
+    assert PIIRedactor().redact_plain(f"mail {text} now") == "mail <EMAIL_1> now"
+
+
+def test_a_dependency_finding_keeps_its_package_and_version_in_the_prompt():
+    f = Finding(category=Category.V5, tool="osv-scanner", rule_id="PYSEC-2018-28", file_path="requirements.txt",
+                sink="requests@2.19.0 (PyPI)", message="CVE-2018-18074: leak")
+    pii = PIIRedactor()
+    _system, user = build_prompt(f, build_bundle(f, pii=pii), pii)
+    assert "sink: requests@2.19.0 (PyPI)" in user and not pii.mapping

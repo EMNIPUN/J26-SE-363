@@ -19,7 +19,8 @@ from pathlib import Path
 
 DEFAULT_STUDENT_ID = r"\bIT\d{8}\b"
 
-_EMAIL = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+")
+# the last label must be letters, so package versions such as flask@1.0 or lodash@4.17.15 are not emails
+_EMAIL = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}")
 _PHONE = re.compile(
     r"(?<![\w.])(?:\+\d{8,14}|\+\d{1,3}[ \t-]?(?:\(\d{2,4}\)|\d{2,4})[ \t.-]\d{3,4}[ \t.-]\d{3,4}|"
     r"(?:\(\d{2,4}\)|\d{2,4})[ \t.-]\d{3,4}[ \t.-]\d{3,4}|0\d{9})(?![\w.])"
