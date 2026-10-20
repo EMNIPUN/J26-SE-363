@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
 import FindingDetailPage from './pages/FindingDetailPage.jsx'
+import LearningPage from './pages/LearningPage.jsx'
 import FindingsPage from './pages/FindingsPage.jsx'
 import OverviewPage from './pages/OverviewPage.jsx'
 
@@ -11,6 +12,7 @@ export default function AssistantRoutes() {
       <Route path="findings" element={<FindingsPage />} />
       <Route path="findings/:category" element={<FindingsPage />} />
       <Route path="findings/:category/:groupId" element={<FindingDetailPage />} />
+      <Route path="learning" element={<LearningPage />} />
     </Routes>
   )
 }

@@ -35,6 +35,12 @@ export const securityAssistantService = {
     isDemoMode()
       ? demoBundle.finding[run]?.[groupId] ? demo(demoBundle.finding[run][groupId]) : missing('This finding')
       : apiClient.get(E.FINDING(team, run, groupId), { params: student ? { student } : undefined }),
+
+  // The probe questions and the (mock) Tutor's results of a run; the page filters "mine" itself.
+  learning: (team, run, { student } = {}) =>
+    isDemoMode()
+      ? demoBundle.learning[run] ? demo(demoBundle.learning[run]) : missing('This run')
+      : apiClient.get(E.LEARNING(team, run), { params: student ? { student } : undefined }),
 }
 
 export default securityAssistantService

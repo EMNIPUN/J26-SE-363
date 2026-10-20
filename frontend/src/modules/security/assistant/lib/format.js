@@ -201,3 +201,47 @@ export function probeSummary(probe) {
 export function firstCategoryWithFindings(counts) {
   return CATEGORIES.find((c) => totalOf(counts?.[c.id]) > 0)?.id ?? 'V1'
 }
+
+export const LEARNING_TITLE = 'Comprehension check results (mock)'
+export const MOCK_NOTICE =
+  'The Tutor is a mock: no student answered anything and nothing was graded. Every score here is simulated to show how the flow works. None of it is an assessment of anyone.'
+
+// The summary the page shows for the checks it lists (the same rule as the Core API: a check is closed, escalated or still open).
+export function learningSummary(items) {
+  const list = items ?? []
+  return {
+    concepts: new Set(list.map((i) => i.concept_id).filter(Boolean)).size,
+    closed: list.filter((i) => i.decision === 'closed').length,
+    escalated: list.filter((i) => i.decision === 'escalated').length,
+    open: list.filter((i) => !['closed', 'escalated'].includes(i.decision)).length,
+    attempts: list.reduce((sum, i) => sum + (i.attempts?.length ?? 0), 0),
+  }
+}
+
+export function decisionTone(decision) {
+  return { closed: 'success', escalated: 'warning' }[decision] ?? 'neutral'
+}
+
+export function decisionLabel(decision) {
+  return { closed: 'closed', escalated: 'escalated to the lecturer' }[decision] ?? 'open'
+}
+
+// 0..100 for a bar; a score outside 0..1 is clamped, a missing one is 0.
+export function scorePercent(score) {
+  const n = Number(score)
+  return Number.isFinite(n) ? Math.round(Math.min(1, Math.max(0, n)) * 100) : 0
+}
+
+// One row per concept (the kind of fix the finding needs): how many checks, how many closed, escalated or open.
+export function conceptRows(items) {
+  const rows = new Map()
+  for (const i of items ?? []) {
+    const key = i.concept_id ?? 'none'
+    const row = rows.get(key) ?? { id: key, concept: i.concept ?? 'No standard concept', checks: 0, closed: 0, escalated: 0, open: 0, attempts: 0 }
+    row.checks += 1
+    row[['closed', 'escalated'].includes(i.decision) ? i.decision : 'open'] += 1
+    row.attempts += i.attempts?.length ?? 0
+    rows.set(key, row)
+  }
+  return [...rows.values()].sort((a, b) => a.concept.localeCompare(b.concept))
+}

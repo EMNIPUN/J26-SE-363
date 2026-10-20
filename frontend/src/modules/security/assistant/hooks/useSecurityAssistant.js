@@ -57,3 +57,11 @@ export function useFinding(team, run, groupId, student) {
     enabled: Boolean(team && run && groupId),
   })
 }
+
+export function useLearning(team, run, student) {
+  return useQuery({
+    queryKey: key('learning', team, run, student ?? null),
+    queryFn: () => securityAssistantService.learning(team, run, { student }),
+    enabled: Boolean(team && run),
+  })
+}
