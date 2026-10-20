@@ -38,7 +38,7 @@ def test_matching_needs_category_file_name_and_a_listed_line():
     b = bug(1, "V1", "app.py", {19, 20})
     assert rq1.matches(b, "V1", "app.py", 19) and rq1.matches(b, "V1", "src/app.py", 20)
     assert not rq1.matches(b, "V2", "app.py", 19) and not rq1.matches(b, "V1", "other.py", 19) and not rq1.matches(b, "V1", "app.py", 99)
-    assert not rq1.matches(b, "V1", "app.py", None)
+    assert rq1.matches(b, "V1", "app.py", None)  # no line number: matched on file alone (manifest advisories carry none)
     assert rq1.matches(bug(2, "V5", "requirements.txt"), "V5", "requirements.txt", None)  # no listed line: file alone
     assert rq1.matches(bug(3, "V5", "ci.yml", {1}), "V5", ".github/workflows/ci.yml", 1)
 
@@ -146,3 +146,12 @@ def test_unknown_repository_and_missing_file_are_usage_errors(tmp_path, capsys):
     assert rq1.main(["--repo", "nope=x.json", "--out", str(tmp_path)]) == 3
     assert rq1.main(["--repo", f"vuln_py_repo={tmp_path / 'missing.json'}", "--out", str(tmp_path)]) == 3
     assert "cannot run" in capsys.readouterr().err
+
+
+def test_a_dependency_advisory_without_a_line_matches_a_bug_that_lists_manifest_lines():
+    """Regression: vuln_java_repo lists pom.xml:6,8 but OSV reports pom.xml findings without a line, so the bug was reported missed."""
+    bugs = rq1.parse_planted()["vuln_java_repo"]
+    pom = next(b for b in bugs if b.file == "pom.xml")
+    assert pom.lines and rq1.matches(pom, "V5", "pom.xml", None)
+    assert not rq1.matches(pom, "V5", "other.xml", None) and not rq1.matches(pom, "V4", "pom.xml", None)
+    assert not rq1.matches(pom, "V5", "pom.xml", 99)  # a line that is given must still be one of the listed lines

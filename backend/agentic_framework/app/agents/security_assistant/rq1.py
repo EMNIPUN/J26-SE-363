@@ -49,6 +49,7 @@ class Bug:
     lines: set[int]  # empty = any line
     needs_codeql: bool
     known_miss: bool
+    expected: str = ""  # the "Expected from" cell: tools and rule ids the table says should report it
 
 
 def _lines(spec: str | None) -> set[int]:
@@ -77,7 +78,7 @@ def parse_planted(path: Path = PLANTED) -> dict[str, list[Bug]]:
         m = re.search(r"`?([\w./-]+\.\w+)`?(?::(\d+(?:[-,]\d+)*))?", where)
         repos[current].append(Bug(current, int(cells[0]), cells[1], cells[2], m.group(1) if m else None,
                                   _lines(m.group(2)) if m else set(), cells[5].lower().startswith("yes"),
-                                  "not detected" in cells[4].lower()))
+                                  "not detected" in cells[4].lower(), cells[4]))
     return repos
 
 
@@ -86,7 +87,8 @@ def matches(bug: Bug, category: str, file_path: str | None, line: int | None) ->
         return False
     if Path(file_path).name != Path(bug.file).name:
         return False
-    return not bug.lines or (line is not None and line in bug.lines)
+    # a finding without a line (a dependency advisory in a manifest) matches on file alone, whatever lines the bug lists
+    return not bug.lines or line is None or line in bug.lines
 
 
 @dataclass
