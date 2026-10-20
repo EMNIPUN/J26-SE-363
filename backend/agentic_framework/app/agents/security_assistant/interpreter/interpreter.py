@@ -17,7 +17,7 @@ from pydantic import ValidationError
 from app.agents.security_assistant.interpreter.hooks import governance_hook
 from app.agents.security_assistant.interpreter.llm import LLMClient, LLMError
 from app.agents.security_assistant.interpreter.models import (
-    EvidenceBundle, InterpretationResult, Verdict, finding_key,
+    CallRecord, EvidenceBundle, InterpretationResult, Verdict, finding_key,
 )
 from app.agents.security_assistant.interpreter.prompts import PROMPT_VERSION, build_prompt
 from app.agents.security_assistant.interpreter.redaction import redact_text
@@ -42,6 +42,17 @@ def parse_verdict(text: str) -> Verdict:
         raise InvalidLLMOutput("output is not valid JSON") from exc
 
 
+def _diagnostics(call: CallRecord | None) -> str:
+    """Why an answer may have been unusable, from the call record only (never from the model's text)."""
+    if call is None or call.finish_reason is None and call.output_chars is None:
+        return ""
+    parts = [f"finish_reason={call.finish_reason}", f"{call.output_chars} characters"]
+    if call.completion_tokens is not None:
+        parts.append(f"{call.completion_tokens} completion tokens")
+    note = "; the output limit cut the answer off" if call.finish_reason == "length" else ""
+    return f" [{', '.join(parts)}{note}]"
+
+
 class SemanticInterpreter:
     def __init__(self, client: LLMClient, pii: PIIRedactor | None = None):
         self._client = client
@@ -59,13 +70,15 @@ class SemanticInterpreter:
         try:
             raw = await self._client.complete(system, user)
         except LLMError as exc:
+            base["call"] = getattr(self._client, "last_call", None)
             return InterpretationResult(**base, status="uncertain", error=str(exc)[:300],
                                         rationale="The LLM could not be called, so this finding was not interpreted.")
+        base["call"] = call = getattr(self._client, "last_call", None)  # finish reason, sizes, tokens: never the text
         try:
             verdict = parse_verdict(raw)
         except InvalidLLMOutput as exc:
             return InterpretationResult(**base, status="uncertain", output_rejected=True,
-                                        rationale=f"LLM output rejected: {exc}")
+                                        rationale=f"LLM output rejected: {exc}{_diagnostics(call)}")
 
         result = InterpretationResult(**base, status=verdict.status, rationale=redact_text(verdict.rationale),
                                       evidence_ids=verdict.evidence_ids, confidence=verdict.confidence)

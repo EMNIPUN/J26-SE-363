@@ -67,6 +67,21 @@ class Verdict(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
 
 
+class CallRecord(BaseModel):
+    """What is known about one LLM call, without the model's text: for diagnosing rejected or failed answers."""
+
+    model: str | None = None
+    response_format: str | None = None  # json_schema (strict) or json_object
+    attempts: int = 0
+    http_status: int | None = None
+    finish_reason: str | None = None  # "stop" normally; "length" = the output limit cut the answer
+    output_chars: int | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+    waited_s: float = 0.0  # time spent waiting between retries
+
+
 class InterpretationResult(BaseModel):
     """The interpreter's answer for one finding, including why a verdict was downgraded or rejected."""
 
@@ -84,3 +99,4 @@ class InterpretationResult(BaseModel):
     error: str | None = None  # the LLM could not be called
     model: str | None = None
     prompt_version: str = ""
+    call: CallRecord | None = None  # finish reason, output length and token usage; never the model's text

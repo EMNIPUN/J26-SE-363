@@ -1,7 +1,7 @@
 """Run the Semantic Interpreter on the seeded set and print status versus the human label.
 
     uv run python -m app.agents.security_assistant.interpreter.evaluate_seeded            # offline, mock oracle
-    uv run python -m app.agents.security_assistant.interpreter.evaluate_seeded --live     # real Gemini call
+    uv run python -m app.agents.security_assistant.interpreter.evaluate_seeded --live     # real Groq call (needs the key and model in .env)
 
 The offline mode answers with the human label, so it only checks the plumbing. It says nothing about the
 model: only --live produces numbers for the RQ1 comparison (scanner only: every seeded finding counts as
@@ -34,7 +34,7 @@ class OracleClient:
 
 async def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--live", action="store_true", help="call the real LLM (needs SECURITY_ASSISTANT_LLM_API_KEY)")
+    ap.add_argument("--live", action="store_true", help="call the real LLM (needs SECURITY_ASSISTANT_LLM_API_KEY and SECURITY_ASSISTANT_LLM_MODEL)")
     args = ap.parse_args(argv)
 
     cases = load_cases()

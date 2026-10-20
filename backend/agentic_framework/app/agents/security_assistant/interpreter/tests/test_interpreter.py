@@ -126,7 +126,7 @@ def test_json_in_a_code_fence_is_accepted():
 
 
 def test_llm_failure_is_reported_not_raised():
-    result, _ = interpret(CASES[0], LLMError("Gemini call failed: HTTP 503"))
+    result, _ = interpret(CASES[0], LLMError("Groq call failed: HTTP 503"))
     assert result.status == "uncertain" and "503" in result.error
     result, _ = interpret(CASES[0], LLMNotConfigured("no key"))
     assert result.status == "uncertain" and result.error == "no key"

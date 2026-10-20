@@ -10,8 +10,9 @@ import pytest
 
 from app.agents.security_assistant import interpret as flow
 from app.agents.security_assistant.dedupe import dedupe, package_of
-from app.agents.security_assistant.interpreter.llm import GeminiClient, LLMError, get_default_client
+from app.agents.security_assistant.interpreter.llm import GroqClient, LLMError, get_default_client
 from app.agents.security_assistant.interpreter.models import finding_key
+from app.agents.security_assistant.interpreter.seeded import load_cases
 from app.agents.security_assistant.report import from_json
 from app.agents.security_assistant.schemas import Category
 from app.agents.security_assistant.tools.tests.conftest import FIXTURES
@@ -166,7 +167,7 @@ def test_refuses_to_call_the_llm_without_the_flag(capsys, tmp_path):
     code = go([FULL, REPO, "--out", tmp_path / "o"], client=client)
     err = capsys.readouterr().err
     assert code == 4 and "REFUSED" in err and "--allow-external-llm" in err
-    assert "external LLM (Google Gemini)" in err and "secrets are masked" in err and "Not sent:" in err
+    assert "external LLM (Groq)" in err and "secrets are masked" in err and "Not sent:" in err
     assert not (tmp_path / "o").exists()
 
 
@@ -177,11 +178,11 @@ def test_the_notice_is_printed_when_the_llm_is_allowed(capsys, tmp_path):
 
 def test_without_a_key_a_real_run_stops_with_a_clear_message(capsys, monkeypatch, tmp_path):
     from app.agents.security_assistant.interpreter import llm as llm_module
-    for name in ("SECURITY_ASSISTANT_LLM_API_KEY", "GEMINI_API_KEY"):
+    for name in ("SECURITY_ASSISTANT_LLM_API_KEY", "SECURITY_ASSISTANT_LLM_MODEL"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(llm_module, "ENV_FILE", tmp_path / "no.env")
     assert go([FULL, REPO, "--allow-external-llm", "--out", tmp_path / "o"]) == 3
-    assert "no API key found" in capsys.readouterr().err
+    assert "not configured" in capsys.readouterr().err
 
 
 # ---- a run ---------------------------------------------------------------------------------------------------------------------
@@ -239,9 +240,10 @@ def test_delay_between_calls_but_not_after_the_last(tmp_path, monkeypatch):
 
 def test_retries_are_bounded_and_passed_to_the_client(monkeypatch):
     from app.agents.security_assistant.interpreter import llm as llm_module
-    monkeypatch.setenv("SECURITY_ASSISTANT_LLM_API_KEY", "k")
+    monkeypatch.setenv("SECURITY_ASSISTANT_LLM_API_KEY", "gsk_k")
+    monkeypatch.setenv("SECURITY_ASSISTANT_LLM_MODEL", "some-model")
     client = get_default_client(retries=1, backoff=6)
-    assert isinstance(client, GeminiClient) and (client._retries, client._backoff) == (1, 6)
+    assert isinstance(client, GroqClient) and (client._retries, client._backoff) == (1, 6)
 
 
 # ---- the existing safety checks still hold through the flow ----------------------------------------------------------
@@ -264,7 +266,7 @@ def test_a_fake_evidence_id_downgrades_to_uncertain(tmp_path):
 
 
 def test_a_failed_call_is_uncertain_never_a_guess(tmp_path, capsys):
-    code = go([DEPS, REPO, "--allow-external-llm", "--out", tmp_path / "o"], client=Mock(LLMError("Gemini call failed: HTTP 429")))
+    code = go([DEPS, REPO, "--allow-external-llm", "--out", tmp_path / "o"], client=Mock(LLMError("Groq call failed: HTTP 429")))
     doc = json.loads((tmp_path / "o" / "interpreted.json").read_text(encoding="utf-8"))
     assert code == 2 and doc["summary"]["uncertain"] == 8 and doc["summary"]["uncertain_because"]["llm_error"] == 8
     assert all(g["result"]["status"] == "uncertain" and "429" in g["result"]["error"] for g in doc["groups"])
@@ -286,3 +288,58 @@ def test_bad_input_is_a_usage_error(tmp_path, capsys):
     assert go([tmp_path / "missing.json", REPO]) == 3
     assert go([FULL, tmp_path / "no_such_dir", "--dry-run"]) == 3
     assert go([FULL, REPO, "--dry-run", "--only-category", "V9"]) == 3
+
+
+# ---- diagnostics of a rejected or failed call (Groq client on a mock transport) ---------------------------------------
+def groq(handler, **kw):
+    import httpx
+    return GroqClient("gsk_TESTKEY", "some-model", transport=httpx.MockTransport(handler), retries=kw.pop("retries", 0), **kw)
+
+
+def chat(content, finish="stop", completion=40):
+    import httpx
+    return httpx.Response(200, json={"choices": [{"message": {"content": content}, "finish_reason": finish}],
+                                     "usage": {"prompt_tokens": 500, "completion_tokens": completion, "total_tokens": 500 + completion}})
+
+
+def test_a_truncated_answer_is_rejected_with_finish_reason_length_and_token_usage():
+    from app.agents.security_assistant.interpreter.interpreter import SemanticInterpreter
+    case = load_cases()[0]
+    cut_off = '{"status": "confirmed", "rationale": "SECRET-MODEL-TEXT the evidence'  # ends in the middle of the JSON
+    client = groq(lambda r: chat(cut_off, finish="length", completion=4096))
+    result = run(SemanticInterpreter(client).interpret(case.finding, case.bundle))
+    assert result.output_rejected and result.status == "uncertain"
+    assert "finish_reason=length" in result.rationale and "4096 completion tokens" in result.rationale
+    assert "the output limit cut the answer off" in result.rationale
+    call = result.call
+    assert (call.finish_reason, call.output_chars, call.completion_tokens, call.prompt_tokens, call.http_status) == (
+        "length", len(cut_off), 4096, 500, 200)
+    assert "SECRET-MODEL-TEXT" not in result.model_dump_json()  # the model's text is never stored
+
+
+def test_an_empty_answer_from_a_reasoning_model_is_diagnosed():
+    from app.agents.security_assistant.interpreter.interpreter import SemanticInterpreter
+    case = load_cases()[0]
+    result = run(SemanticInterpreter(groq(lambda r: chat(None, finish="length", completion=4096))).interpret(case.finding, case.bundle))
+    assert result.output_rejected and "finish_reason=length, 0 characters" in result.rationale
+
+
+def test_a_failed_call_keeps_the_call_record():
+    import httpx
+    from app.agents.security_assistant.interpreter.interpreter import SemanticInterpreter
+    case = load_cases()[0]
+    client = groq(lambda r: httpx.Response(429, json={"error": {"message": "rate limit reached"}}))
+    result = run(SemanticInterpreter(client).interpret(case.finding, case.bundle))
+    assert result.error.startswith("Groq call failed: HTTP 429") and "rate limit reached" in result.error
+    assert (result.call.http_status, result.call.attempts, result.call.finish_reason) == (429, 1, None)
+
+
+def test_a_good_answer_through_the_groq_client_and_the_command(tmp_path):
+    answer = json.dumps({"status": "dismissed", "rationale": "an owner check exists", "evidence_ids": ["E1"], "confidence": 0.9})
+    out = tmp_path / "o"
+    code = go([DEPS, REPO, "--allow-external-llm", "--only-category", "V3", "--out", out], client=groq(lambda r: chat(answer)))
+    doc = json.loads((out / "interpreted.json").read_text(encoding="utf-8"))
+    result = doc["groups"][0]["result"]
+    assert code == 0 and result["status"] == "dismissed" and result["model"] == "some-model"
+    assert result["call"]["finish_reason"] == "stop" and result["call"]["total_tokens"] == 540
+    assert "gsk_TESTKEY" not in json.dumps(doc)

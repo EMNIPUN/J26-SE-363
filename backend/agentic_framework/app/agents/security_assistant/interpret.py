@@ -37,7 +37,7 @@ from app.agents.security_assistant.report import build_report, from_json, render
 from app.agents.security_assistant.schemas import Category, ScanResult
 
 NOTICE = (
-    "NOTICE: this sends data to an external LLM (Google Gemini). Per call: the finding (rule, tool, CWE, file path, "
+    "NOTICE: this sends data to an external LLM (Groq). Per call: the finding (rule, tool, CWE, file path, "
     "line, message), about 17 lines of code around it and up to 3 short snippets of related code from the project; "
     "secrets are masked and personal data is replaced by placeholders (names only on labelled lines, so not "
     "complete). Not sent: the rest of the repository, the git history, other findings."

@@ -187,7 +187,7 @@ code, paths and names, so treat them like the repository itself.
   the known names. Phone and ID patterns can miss unusual formats and can match other numbers. Secret and PII redaction
   reduce the risk; they do not remove it. Always read the `--dry-run` output.
 - **Real student code still needs the students' consent and ethics approval before it is used with an external LLM**
-  (Google Gemini here). This tool does not replace that approval. Use the synthetic demo repositories until it exists.
+  (Groq here). This tool does not replace that approval. Use the synthetic demo repositories until it exists.
 
 ## Local setup with uv (the project package manager)
 
@@ -260,10 +260,21 @@ verdict without any evidence id, is downgraded to `uncertain`; the prompt declar
 and fences it in `<evidence>` blocks; an LLM error gives `uncertain` with the error, never a verdict. `hooks.py` has
 the single `governance_hook(event, data)` (called before and after the call), a no-op for now.
 
-LLM: Gemini, for this component only (`interpreter/llm.py`, `LLMClient` is a one-method protocol, so another model
-is one new class). Settings in `.env.example`: `SECURITY_ASSISTANT_LLM_API_KEY` (or `GEMINI_API_KEY`), `..._MODEL`.
+LLM: Groq, for this component only: its own small client in `interpreter/llm.py` (plain httpx against Groq's
+OpenAI-compatible `chat/completions`), behind the one-method `LLMClient` protocol, so another provider is one new class.
+Nothing from performance_assessment is imported or changed. Settings (in `.env`, never printed): `SECURITY_ASSISTANT_LLM_API_KEY`
+(a Groq key, `gsk_...`; any other key is refused so it is never sent to Groq) and `SECURITY_ASSISTANT_LLM_MODEL` (**required, no
+default**, because models get retired; if either is missing the command stops with a clear message), optional
+`SECURITY_ASSISTANT_LLM_TIMEOUT` and `SECURITY_ASSISTANT_LLM_MAX_TOKENS` (default 4096, reasoning models also spend it on thinking).
+
+Output format (Groq docs, structured outputs): for `openai/gpt-oss-20b`, `openai/gpt-oss-120b`, `qwen/qwen3.8-27b` and
+`meta-models/muse-spark-open` the request uses `json_schema` with `strict: true` (output constrained to the verdict schema);
+every other model gets JSON Object Mode. Both are validated again by the interpreter. Retries are bounded (`--retries`),
+waits follow `retry-after` (seconds, capped at 60 s: a longer one is reported, not waited out). Every call keeps a call
+record in `interpreted.json` (model, format, attempts, HTTP status, finish reason, output length, token usage; never the
+model's text), and a rejected answer says in its reason, for example, `finish_reason=length` (cut off by the output limit).
 
 Seeded set for the RQ1 comparison: `interpreter/seeded/cases.json`, one real finding and one deliberate false
 positive per category (10 cases, scanner-style findings with hand-written evidence). Run
 `uv run python -m app.agents.security_assistant.interpreter.evaluate_seeded` (offline, a mock that answers with the
-labels: plumbing only) or add `--live` for a real Gemini run.
+labels: plumbing only) or add `--live` for a real Groq run.
