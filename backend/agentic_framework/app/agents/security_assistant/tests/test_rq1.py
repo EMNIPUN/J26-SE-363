@@ -155,3 +155,20 @@ def test_a_dependency_advisory_without_a_line_matches_a_bug_that_lists_manifest_
     assert pom.lines and rq1.matches(pom, "V5", "pom.xml", None)
     assert not rq1.matches(pom, "V5", "other.xml", None) and not rq1.matches(pom, "V4", "pom.xml", None)
     assert not rq1.matches(pom, "V5", "pom.xml", 99)  # a line that is given must still be one of the listed lines
+
+
+def test_an_assess_report_json_is_accepted_as_the_llm_run(tmp_path):
+    """assess writes report.json without the group members; rq1 regroups the scan the same way and reads the statuses."""
+    from app.agents.security_assistant.dedupe import dedupe
+    from app.agents.security_assistant.report import from_json
+
+    findings_doc = json.loads(SAVED.read_text(encoding="utf-8"))
+    groups, _ = dedupe(from_json(SAVED.read_text(encoding="utf-8"))[0].findings)
+    report = {"report_version": "assessment-v1", "meta": {"llm_model": "m", "interpreter_prompt": "p"},
+              "findings": [{"group_id": g.id, "status": "dismissed" if g.representative.category.value == "V5" else "confirmed"} for g in groups]}
+    path = tmp_path / "report.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+    rows, _, _ = rq1.run_comparison([f"vuln_py_repo={SAVED},{path}"], None)
+    py = next(r for r in rows if r["name"] == "vuln_py_repo")
+    assert py["run"] == "m / p" and py["findings_analysed"] == 12
+    assert py["llm_confirmed"] + py["llm_dismissed"] == 12 and py["llm_dismissed"] == 4  # the four V5 findings were dismissed

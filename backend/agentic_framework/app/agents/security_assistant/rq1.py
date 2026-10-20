@@ -146,7 +146,20 @@ def evaluate_repo(name: str, bugs: list[Bug], items: list[Item], codeql_ran: boo
     return row
 
 
+def items_from_report(findings_doc: dict, report: dict) -> list[Item]:
+    """Items from an `assess` report.json: its findings carry one status per group, not the members, so the scan is grouped again
+    with the same deterministic `dedupe` the run used (the group ids are identical) and every member inherits its group's status."""
+    from app.agents.security_assistant.dedupe import dedupe
+    from app.agents.security_assistant.report import from_json
+
+    status = {f["group_id"]: f["status"] for f in report["findings"]}
+    groups, _ = dedupe(from_json(json.dumps(findings_doc))[0].findings)
+    return [Item(m.category.value, m.file_path, m.line, m.rule_id, status.get(g.id)) for g in groups for m in g.members]
+
+
 def items_from(findings_doc: dict | None, interpreted: dict | None) -> list[Item]:
+    if interpreted is not None and "report_version" in interpreted:
+        return items_from_report(findings_doc, interpreted)
     if interpreted is not None:  # every member of a group inherits the group's status
         return [Item(m["category"], m["file_path"], m["line"], m["rule_id"], g["result"]["status"])
                 for g in interpreted["groups"] for m in g["members"]]
@@ -227,6 +240,8 @@ def run_comparison(repo_args: list[str], seeded_results: Path | None, planted: P
             continue
         items = items_from(findings, interpreted)
         meta = (interpreted or {}).get("meta", {})
+        if interpreted and "report_version" in interpreted:  # an assess report.json
+            meta = {"model": meta.get("llm_model"), "prompt_version": meta.get("interpreter_prompt")}
         run = (f"{meta.get('model')} / {meta.get('prompt_version')}" if interpreted else "scanner only")
         row = evaluate_repo(name, bugs, items, codeql_succeeded(findings), interpreted is not None, run)
         if interpreted and meta.get("only_category"):
