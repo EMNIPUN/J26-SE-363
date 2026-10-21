@@ -1,266 +1,276 @@
-# Assessment agent: end-to-end integration plan
+# PLAN — Requirement Quality Agent (+ Decomposition, + DART)
 
-> After approval this file is copied to `C:\Users\sadee\OneDrive\Documents\Simultanious Work\J26-SE-363\plan.md` on branch `feature/assessment-agent-integration-sadeesha`.
+> Component: **Requirement Analysis & Project Planning** (`project_planning`) · Owner: Rajapaksha R W V C V, IT23152878 · Project J26-SE-363 / SELVIA
+> Target: end-of-October viva — **2 core functions working end-to-end + DART as the novelty**.
+> **On approval, step 0 is to copy this file to `J26-SE-363/PLAN.md`** (plan mode cannot write there yet).
+
+---
 
 ## Context
 
-The seven factor packages exist (Collaboration, Behavioral Pattern, Code Ownership have production entry points; Effort, Consistency, Task Complexity have trained/validated models but no `evaluate.py`; Requirement Fulfillment has a LangGraph sub-agent that runs on a synthetic benchmark). The `com_agent` graph runs on real LangGraph but almost everything around it is mock: GitHub and Scrum clients are stubs, there is no clone, several features are hard-coded, results are not saved, the checkpointer is in-memory, nothing streams progress, the worker tasks return placeholders, the server has no performance endpoints and the frontend uses mock data with no pipeline view.
+Students in project-based learning write poor requirements and get slow lecturer feedback. This component turns an uploaded SRS into a sprint-ready backlog by gating the student's own work through specialized ReAct agents, and — the research contribution — arbitrating agent disagreement with **DART** (Diagnostic Arbitration via Reasoning Traces) instead of naive re-voting/averaging.
 
-**Goal (the finish line for the assessment agent):** a lecturer gives a team (repo link + Scrum board) and starts tracking; the agent collects evidence through the whole sprint, evaluates every student with the factors as tools, checks and debugs suspicious results, asks a human when needed, and produces predicted marks with a justification per factor, a final report, and a day-by-day development view. The frontend shows the live pipeline (every node, its logs, the active node glowing, the glow travelling along edges) and the results for lecturers and students.
+The SELVIA platform and its common foundation are **already built**: shared Pydantic contracts, a deterministic prefix-router orchestrator, two FastAPI services, Keycloak/Kong, and a **fully-built frontend** for this module running on mock data. The `project_planning` agent slot already exists in the contracts and routing — **the files are just empty**. So this work is: fill one agent folder, add one line to the registry, add Core-API endpoints + persistence, and point the existing frontend at real data. **No shared or teammate code is forked.**
 
-**Decisions already taken with the user**
-- Scrum board: our own planning module. A small **MCP server script** exposes its data to the agent (not a new board).
-- Sandbox: **read only** (git history, diffs, blame, syntax trees). No student code is executed, so no containers.
-- Timing: tracking starts at sprint start; continuous cheap evidence sync; nightly staggered provisional snapshots; queued, rate-limited runs; the agent's memory persists in Postgres (one LangGraph thread per team-sprint), not in a long-running process.
-
-## 1. When assessment happens (and lack of data during development)
-
-**Lifecycle per team**
-1. `start tracking` (lecturer) creates the team's tracking record (repo URL, board id, sprint calendar, roster, GitHub usernames and commit e-mails).
-2. **Sync** (cheap, no LLM): GitHub webhook on push/PR/review, plus a periodic sync every 2 hours as a safety net. Fetches into the cached mirror; stores new commits/PR events. Seconds per team.
-3. **Nightly snapshot** (staggered: `hash(team_id) % window`): provisional factor results to date for each student. Only what changed since the last snapshot is recomputed (cache keyed by commit SHA set, task status, PR ids).
-4. **Sprint-end run** (deadline or lecturer trigger): final run. Most of the work is already cached, so it is incremental. The Code Ownership quiz is issued here.
-5. **Resume events**: quiz answers, quiz timeouts, lecturer review decisions resume the same persisted thread.
-
-**Why no crash at the deadline:** runs are jobs on the existing Procrastinate queue with a fixed number of worker slots (heavy LLM/encoder work on its own queue), a per-team lock (no duplicate runs), and incremental computation. 250 students become 250 queued student sub-runs that drain at the workers' pace; nothing runs unbounded.
-
-**Lack of data during the sprint (the known weakness of starting early), handled explicitly:**
-- **Provisional, never final, before sprint end.** Every snapshot result carries `status: provisional`, `as_of`, `sprint_elapsed` (0-1) and a confidence interval that is wide early and narrows.
-- **Per-factor evidence gates** (a factor reports "not enough evidence yet" instead of a misleading number):
-
-| Factor | Can be computed during the sprint when | Before that |
+### Decisions locked with the owner
+| # | Decision | Choice |
 |---|---|---|
-| Effort | at least 1 working day elapsed; reported as effort-to-date and pace | "no activity yet" |
-| Consistency | at least 5 days elapsed (rhythm needs a window) | not available |
-| Requirement Fulfillment | per task, once the task is In Review or Done (only those tasks are judged) | tasks in progress listed, not scored |
-| Collaboration | as soon as the team has any review; otherwise "not available" (existing gate) | not available |
-| Task Complexity | as soon as tasks are assigned (it is measured before the work) | available from day 1 |
-| Code Ownership | only at sprint end (quiz) | passive context only (survival, primary-owner share) |
-| Behavioral Pattern | only when its inputs are final; during the sprint shown as "tendency" without a modifier | not applied |
+| 1 | LLM provider | **Groq** (mirror the repo's working `GroqMultiKeyClient` pattern; the proposal's GPT-4o-mini is substituted — justify in report). |
+| 2 | Build fidelity | **Pragmatic MVP on correct foundations** — real spaCy/ChromaDB/SBERT/Groq, but small seed data & LLM-centric scoring; no throwaway stubs. |
+| 3 | Quality dimensions | **IEEE 830 six**: clarity, completeness, correctness, testability, consistency, traceability. Update the frontend to match. |
+| 4 | Persistence | **Dedicated results table**, done the correct way (Alembic migration, owned & written by the Core API), because research continues after the deadline. |
+| 5 | Gate threshold | **75** default, configurable (FR-04). Frontend mock's `70` → `75`. |
 
-- **Pace instead of totals early on.** Effort and activity are compared with the expected curve at the same point of the sprint: the student's own earlier sprints (cross-sprint memory) and the cohort's typical curve at that day fraction. This gives early warnings ("behind own usual pace", "no commits for 5 days", "task in progress for 8 days without commits") without pretending to know the final mark.
-- **First sprint of a student:** no history, so only absolute indicators and "insufficient data" labels.
-- The **day-by-day view** plots provisional results with their bands; the final mark appears only after the sprint-end run.
+---
 
-## 2. What data each factor needs (team context vs one student)
+## Step 1 — Understanding (summary)
 
-Evidence is collected **once per team** (one clone, one GitHub fetch, one board read) and turned into one `evidence/1` per student. Scoring is per student. A student's result only contains their own data plus aggregate counts about the team.
+### (i) What my component must do (per proposal `IT23152878.pdf` §3.3, §5.1, and `Architecture & Build Guide` §6–13)
+- **FR-01** Parse uploaded SRS (`.docx`) → individual requirements (rule-based, python-docx).
+- **FR-02** Score each requirement on the six IEEE 830 dimensions; **FR-03** emit structured diagnostic rationales + evidence; **FR-04** enforce a configurable quality gate (default ≥75: pass / block+feedback / low-confidence→DART).
+- **FR-05** Evaluate student-written user-story decomposition against parent requirements (INVEST, coverage).
+- **FR-07/08/09** DART arbitration on low confidence or disagreement: classify uncertainty (COMPOUND/AMBIGUOUS/STRUCTURAL/NOVEL), pick a resolution (RESOLVE/RETRIEVE/REFINE/ESCALATE), escalate to instructor when unresolvable.
+- Everything is **ONE registered agent** (`project_planning`, prefix `planning.`). The three "agents" + DART are internal Python modules behind `handle()` (Build Guide §7 — "the single most important idea").
+- *(Out of presentation scope: Effort Estimation agent + XGBoost, FR-06 — post-viva.)*
 
-| Factor | Needs other members' code/data? | Why |
-|---|---|---|
-| Effort | No (own commits); repo needed for file classification and line stats | |
-| Consistency | No (own commit timestamps) | |
-| Requirement Fulfillment | Reads the surrounding repo code as context; scores only the student's own changes | judging whether a criterion is met needs the code around the change |
-| Collaboration | Team review counts only (no other student's text exposed) | evidence gate: did the team review at all |
-| Task Complexity | **Yes**: whole-repo import graph before the task | dependency reach is a property of the codebase |
-| Code Ownership | **Yes**: blame over the whole repo | who owns surviving lines needs everyone's history |
-| Behavioral Pattern | No (the student's other factor scores) | |
+### (ii) What the current architecture already provides
+- **Contracts** `backend/shared/src/shared/contracts/agent.py`: `AgentName.PROJECT_PLANNING` + `ACTION_PREFIX_TO_AGENT["planning"]` **already exist**. `AgentRequest{action, input, scope ids, requester}` → `AgentResponse{status, result, evidence[], next_action, error}`. Component shapes ride inside `input`/`result` — **never fork the contract**.
+- **Agent interface** `backend/agentic_framework/app/agents/base.py`: `BaseAgent` protocol = one `async def handle(AgentRequest) -> AgentResponse`.
+- **Registry** `.../app/agents/registry.py`: currently `return {}` → every `planning.*` request answers `unavailable`. Register with **one line**.
+- **Orchestrator** `.../app/orchestrator/` (`route → execute → finalize`): deterministic prefix routing, no code change needed.
+- **Two paths**: fast = Core API `AIBackendClient.orchestrate()` → `POST /api/v1/orchestration` (:8003); slow = `start_ai_job()` → Procrastinate worker → same orchestrator. Poll `GET /api/v1/jobs/{id}`.
+- **Reference implementation**: teammate's `performance_assessment/` is a full LangGraph+Groq agent with its own DB/checkpointer — the pattern to imitate (but **do not import** from it; it's CODEOWNERS-protected).
+- **Core API** `backend/server/` (:8002): Keycloak JWT auth (`app/core/security.py`), SQLAlchemy 2 + Alembic, models `user/group/project/agent_run`, empty `app/modules/planning/`, `app/api/v1/router.py` to mount new routers.
+- **Frontend** `frontend/src/modules/planning/` (React 19 + Vite, JS, shadcn, Tailwind v4, React Query, axios, Keycloak): pages `SRSQuality.jsx`, `Decomposition.jsx`, `Estimation.jsx`, instructor `ArbitrationOversight.jsx` (for DART), components `QualityRadarChart`, `AgentBadge`, `RequirementListPanel`, `HighlightedRequirementText`, `WorkflowStepper`. All on `data/mockData.js`.
 
-So the unit of a run is **a team-sprint**, with per-student sub-runs inside it.
-
-## 3. Architecture
-
-```
-Frontend (React)  --REST/SSE-->  Core API (FastAPI :8002, /api/v1/performance)
-                                   |  enqueue jobs (Procrastinate on Postgres), read results/events
-                                   v
-                          Postgres (server DB): performance tables, run events, LangGraph checkpoints/store, queue
-                                   ^
-                                   |  worker (backend/agentic_framework/worker.py, queues: performance, performance_heavy)
-                          Assessment agent (LangGraph): team graph -> student subgraph -> RF sub-agent
-                                   |               |                    |
-                         Workspace manager    GitHub REST          Scrum MCP server script (stdio)
-                         (git mirror+worktree) (PRs, reviews)       (planning module data)
-                                   |
-                         factor_models/* (evaluate.py per factor)
-```
-
-Agent code stays in `backend/agentic_framework/app/agents/performance_assessment/` (owned by the user, CI-guarded). Server code goes in `backend/server/app/modules/performance/`.
-
-## 4. Workspace (sandbox) manager: read-only git
-
-New module `performance_assessment/workspace/` (reuses `com_agent/ingestion/git_sandbox_runner.py` whitelisted read-only commands):
-- `WorkspaceManager(root, max_total_bytes, ttl)`.
-- `ensure_mirror(repo_url)`: `git clone --mirror --filter=blob:none` once, `git fetch --prune` afterwards; token passed through `GIT_ASKPASS`/env, never written to disk.
-- `checkout(repo, ref, as_of) -> Worktree` (context manager): `git worktree add --detach` at the sprint-end commit or at the snapshot time; removed after the run.
-- Size limits, TTL cleanup, one lock per mirror, path containment checks.
-- Only read operations: log/numstat/patch, show, blame `-w`, `ls-tree`, file reads for syntax trees. No build, no install, no execution.
-- Open-source: plain `git` CLI (already used). If code execution is ever needed later: `llm-sandbox` (Docker) or E2B; not part of this plan.
-
-## 5. Ingestion and MCP
-
-- **Scrum MCP server script** `performance_assessment/mcp_servers/scrum_board_server.py` (Python `mcp` SDK, FastMCP, stdio). Tools match the existing `ScrumMCPClientProtocol` plus two more: `list_sprints(team)`, `get_sprint_details(sprint)`, `get_student_tasks(student, sprint)`, `get_task_acceptance_criteria(task)`, `get_task_status_history(task)`, `get_team_roster(team)`. Data source behind it is pluggable: JSON/CSV fixtures now (from `dataset/scrum_board`), the planning module's tables later. The agent side implements `RealScrumMCPClient` with the `mcp` client (stdio).
-- **GitHub**: `RealGitHubClient` over the REST API with `httpx` (PRs, reviews, review comments, issue comments, merged-by), ETag caching, rate-limit handling. Repository content comes from the workspace, not the API.
-- **Evidence builder** (`ingestion/evidence_builder.py`): replaces the hard-coded features. From the worktree + GitHub + board it builds `evidence/1` per student using the existing pieces: `evidence/lines.py` (counted lines), the dataset scripts' logic (`dataset/scripts/01_extract_evidence.py`, `09_clean_commit_stats.py`, `11_clean_blame_real.py`, `repo_analysis.py` for import-graph reach and ownership), and `synthetic_students/to_evidence.py` as the schema reference.
-- **Identity resolution**: commit e-mails/usernames mapped to students from the roster; unmapped authors are reported, and the run pauses for a lecturer mapping when they hold a meaningful share of the code.
-- **Evidence store**: evidence is saved per student-sprint with `as_of` and a hash of its inputs (incremental reuse).
-
-## 6. Agent graph
-
-Three levels. Every node emits events (section 9), so the frontend can draw the same graph.
-
-**6.1 Team run graph `team_assessment`** (one persisted thread per team-sprint; `thread_id = team:{team}:sprint:{sprint}`)
-1. `load_run_context`: team, sprint window, roster, config, mode (snapshot or final).
-2. `prepare_workspace`: mirror fetch, worktree at the right point in time.
-3. `collect_scrum`: MCP calls.
-4. `collect_github`: PRs, reviews, comments.
-5. `build_team_evidence`: `evidence/1` per student, blame, reach, data-quality report.
-6. `evidence_quality_gate`: deterministic checks (unmapped authors, empty sprint, history rewrites, clock skew). It can interrupt for identity mapping.
-7. `dispatch_students`: LangGraph `Send` to one `student_assessment` subgraph per student, run in parallel, bounded by the worker.
-8. `team_cross_check`: duplicate credit, co-authored commits, tasks claimed by two students, team-level anomalies.
-9. `team_review_gate`: one interrupt collecting all open review items for the lecturer.
-10. `team_report`: team summary and lecturer report.
-11. `publish`: persist, notify the lecturer and students.
-
-**6.2 Student subgraph `student_assessment`**
-1. `student_evidence_check`
-2. In parallel: `factor_effort`, `factor_consistency`, `factor_collaboration`, `factor_task_complexity`, `rf_subagent` (subgraph)
-3. `join_factors`
-4. `factor_audit` (the agent's judgement, see 6.4), which can go to `factor_debug` and re-run, at most 2 times per factor.
-5. `ownership_quiz_generate`, then `await_quiz_answer` (interrupt, existing 48 h + 48 h extension + 0.50 cap + double-timeout policy), then `ownership_quiz_score`. Final runs only.
-6. `behavioral_pattern`
-7. `fusion`: `S = BP_modifier * sum(w_k * factor_k)`, with redistribution for factors that are not available, and an interval propagated from the factor intervals.
-8. `discrepancy_check`, then `human_review` (interrupt) when a CRITICAL flag or an audit escalation occurs.
-9. `explain`: LLM, grounded only in factor results (features, removed, warnings, citations); PII redacted before and restored after.
-10. `student_result_export`
-
-**6.3 Requirement Fulfillment sub-agent** (reuse `03_requirement_fulfillment/experiments/agent_critic.py`): `map_commits → decide ↔ act (tools) → record → check → critique → revise`, per task and criterion. New adapter: `Scope` over the real `evidence/1` + worktree (`list_commits`, `search_changes`, `read_hunk`, `read_file_context`) with the same rule that only the student's own changes can be cited. LLM through the existing `GroqPool` (keys from env, budgets per run). Verdicts are cached by `(task, criterion, commit-set hash)`.
-
-**6.4 The agent knows the factors, checks results and debugs**
-- **Factor cards**: each factor folder gets `FACTOR_CARD.md` plus `card.json`, generated from its README/PROTOCOL. They cover what it measures, inputs, formula, validation results and limits, what each warning means, typical failure causes and remedies. The audit node and the explanation node read them.
-- **`factor_audit`**: deterministic checks first (range, versions, `extrapolated` flags, warnings, gate status, internal contradictions such as high Effort with zero commits, or a jump against yesterday's snapshot or the student's history). Then an LLM auditor with constrained tools: `get_factor_card`, `inspect_evidence(student, factor)`, `compare_with_history`, `rerun_factor(factor, fix)` (allowed fixes only: identity mapping, excluding commits flagged as generated or vendored, re-fetching evidence), `mark_not_available(reason)`, `escalate_to_human(reason)`.
-- **The LLM can never set a score.** Scores come only from the factor packages. Every audit decision is logged with its reason and shown in the UI and the report.
-
-**6.5 Human in the loop**: identity mapping (6.1 step 6), student-level review (6.2 step 8), the team review gate (6.1 step 9). The lecturer can accept, override with a reason, or request a re-run. Overrides are stored next to the model's value and never replace it silently.
-
-## 7. Factor integration work
-
-- `evaluate.py` for Effort, Consistency and Task Complexity: `schema.validate → cleaning.featurize → model.predict` from the chosen experiment results (`training/experiments/*/results/model_choice.json`), with intervals and gates. Saved artifacts go in each factor's `model/` (as done for Code Ownership).
-- Requirement Fulfillment `evaluate.py`: runs the sub-agent through the adapter; `simulate.py` stays as a fallback.
-- Code Ownership: already production (CodeBERT + SVR head, final test MAE 0.137, Spearman 0.88 on assistant-written data). Needs torch, transformers, scikit-learn and joblib in the agent's environment, and the encoder weights cached.
-- Collaboration and Behavioral Pattern: done (merge their branches).
-- `factor_bridge.py`: pass the `evidence/1` reference, check `versions`, add the "provisional mode" flag, and return `not available` as its own status (not 0) everywhere.
-
-## 8. Persistence (server Postgres, alembic, schema `performance`)
-
-`tracked_teams` (repo, board, schedule, status) · `sprints` (team, number, start, end, board id) · `identity_map` · `evidence` (student-sprint, as_of, inputs hash, json) · `assessment_runs` (extends `agent_runs`: team, sprint, mode, thread id, status, current node) · `run_events` (run, seq, ts, node path, type, payload) · `factor_results` (run, student, factor, score, interval, status, features, warnings, versions, audit decision) · `assessment_results` (final per student-sprint, mark, interval, justification, overrides) · `snapshots` (daily provisional per student) · `reviews` (open/decided, decision, reason) · `quizzes` (snippet, question, deadlines, answer, score).
-
-LangGraph `PostgresSaver` and `PostgresStore` (`langgraph-checkpoint-postgres`) in the same database replace the in-memory saver. The separate `assessment_db` on port 5434 is retired.
-
-## 9. Job queue, events and live progress
-
-**Procrastinate tasks** (`app/tasks/performance_tasks.py`, which already has placeholders):
-- `performance.sync_team`: periodic every 2 h, and on webhook.
-- `performance.snapshot_team`: nightly cron, staggered.
-- `performance.assess_team`: final or on demand, queue `performance_heavy`.
-- `performance.resume_run`: quiz answer, review decision, identity mapping.
-- `performance.quiz_timeout_sweep`: periodic.
-
-Locks are per team (`lock=team_id`, `queueing_lock`). Worker concurrency is configurable. The encoder model is loaded once per worker process.
-
-**Events**: the worker runs the graph with `astream(stream_mode=["updates", "custom", "debug"], subgraphs=True)`. An event writer stores node start/finish, logs, tool calls, LLM calls (redacted), interrupts and errors in `run_events`, with `pg_notify`. The graph topology comes from `graph.get_graph(xray=True)` and is exported as JSON, so the UI draws exactly the real graph.
-
-## 10. FastAPI endpoints (`/api/v1/performance`, lecturer/admin unless noted)
-
-Every route is protected through the existing deps (`require_account_role`).
-
-| Method and path | Purpose |
+### (iii) The gap
+| Needed | Status today |
 |---|---|
-| `POST /teams/{team}/tracking` · `GET` · `DELETE` | start, read or stop tracking (repo, board, schedule, roster mapping) |
-| `POST /teams/{team}/sync` | manual sync (202 + job id) |
-| `POST /teams/{team}/runs` | start a run `{sprint, mode: snapshot or final}`; returns 202 + run id |
-| `GET /runs/{run}` · `POST /runs/{run}/cancel` | run status, current node, timings |
-| `GET /runs/{run}/graph` | topology (nodes, edges, subgraph groups) |
-| `GET /runs/{run}/events?after=seq` · `GET /runs/{run}/stream` | polling, and SSE (Last-Event-ID resume) |
-| `GET /runs/{run}/nodes/{path}` | logs, inputs/outputs summary, tool calls of one node |
-| `GET /teams/{team}/sprints/{sprint}/results` | all students: marks, factor scores, flags |
-| `GET /teams/{team}/students/{student}/results?sprint=` | one student: mark, interval, per-factor justification, evidence links |
-| `GET /teams/{team}/students/{student}/trajectory?sprint=` | day-by-day provisional snapshots |
-| `GET /reviews?status=open` · `POST /reviews/{id}/decision` | review queue and decisions |
-| `POST /teams/{team}/identity-map` | resolve unmapped authors |
-| `GET /runs/{run}/report` | lecturer report (markdown; PDF later) |
-| student `GET /me/performance?sprint=` | own results and feedback only |
-| student `GET /me/quizzes` · `POST /me/quizzes/{id}/answer` | pending quiz and answer |
-| `POST /webhooks/github` | HMAC-verified (the documented exception to the auth rule) |
+| `project_planning/agent.py`, `schemas.py` | **Empty files** |
+| Registry entry | Missing (one line) |
+| Component orchestrator, extraction, quality/decomposition sub-agents, DART | **Do not exist** |
+| LLM client usable in my folder | Only teammate's (protected). Need **my own** Groq client. |
+| spaCy, ChromaDB (vector KB), sentence-transformers/SBERT | **Not installed** anywhere — all net-new deps |
+| Core API `planning.py` endpoints + persistence model/migration | **Do not exist** |
+| Frontend → real backend wiring; IEEE 830 dimensions; threshold 75 | On mock data; dimensions/threshold mismatched |
 
-## 11. Frontend (`frontend/src/modules/performance/`)
+---
 
-**Live pipeline** (`pages/instructor/RunPipeline.jsx`): `@xyflow/react` with `elkjs` layout.
-- **Node states:** idle, active, done, failed, waiting for a human.
-- **Active node:** a rotating glow border (CSS conic-gradient animated with `@property`).
-- **Moving glow:** a custom "comet" edge (SVG `animateMotion` along the edge path) shows the glow travelling from the finished node to the next active one.
-- **Layout:** student sub-runs are collapsible lanes, and the RF sub-agent is an expandable group.
-- **Node drawer:** click a node to see its logs (virtualised), inputs/outputs summary, tool calls, duration and errors.
-- **Controls:** cancel and re-run.
-- **Data:** `GET /graph` once, then the SSE stream (fetch-based so the auth header is sent), with react-query polling of `/events?after=` as the fallback.
+## Step 2 — Implementation plan: Requirement Quality Agent (build FIRST)
 
-**Lecturer pages**
-- **Team results:** students × factors table with provisional/final badges, flags and intervals.
-- **Student detail:** mark with interval; a factor card per factor with its justification, evidence links (commits, PRs, tasks), warnings and audit decisions; a "what changed since yesterday" view.
-- **Development view:** a day-by-day chart (recharts) of the provisional mark and each factor, with bands.
-- **Review queue:** accept, override with a reason, or re-run.
-- **Tracking setup:** repo, board, roster mapping.
-- **Report download.**
+### 2a. Folder layout (all under `backend/agentic_framework/app/agents/project_planning/`)
+Mirrors Build Guide §11. Create only what Function 1 needs first; the rest are stubs to grow.
+```
+project_planning/
+├─ agent.py            # ProjectPlanningAgent.handle() — reads request.action, runs component orchestrator
+├─ schemas.py          # Pydantic models for input/result (see 2b)
+├─ llm/groq_client.py  # OWN Groq client (mirrors teammate pattern; cannot import theirs)
+├─ orchestrator/
+│  ├─ graph.py         # internal LangGraph: extract → quality → gate (→ decompose → gate … later)
+│  ├─ state.py         # shared internal state object
+│  └─ gates.py         # ≥75 pass · <75 block+feedback · low-confidence → DART
+├─ extraction/extractor.py   # python-docx: SRS .docx → requirement list
+├─ subagents/quality/
+│  ├─ graph.py         # ReAct loop: reason → execute_tool → reflect → finalize
+│  ├─ tools.py         # the 5 tools (2c)
+│  └─ prompts.py
+├─ knowledge/
+│  ├─ vector_store.py  # ChromaDB client + SBERT embedding fn (collections below)
+│  └─ seed/            # curated seed docs (IEEE 830, SMART, exemplars)
+└─ tests/test_quality_agent.py
+```
+Add the registry line in `app/agents/registry.py`:
+```python
+from app.agents.project_planning.agent import ProjectPlanningAgent
+def build_agent_registry():
+    return {AgentName.PROJECT_PLANNING: ProjectPlanningAgent()}
+```
 
-**Student pages**
-- **My progress:** own provisional and final results and feedback, never peers' data.
-- **Quiz:** the code snippet, the question, a countdown and submission.
+### 2b. Inputs / outputs (example JSON — ride inside `AgentRequest.input` / `AgentResponse.result`)
+**Action:** `planning.analyze_quality` (fast) · `planning.extract_requirements` (slow job, SRS upload).
 
-## 12. Delivery phases
+**`AgentRequest.input`:**
+```json
+{
+  "requirements": [
+    { "id": "FR-01", "text": "The system shall provide a user-friendly login page.", "type": "functional" }
+  ],
+  "srs_context": { "all_requirement_texts": ["..."] },
+  "options": { "threshold": 75 }
+}
+```
+**`AgentResponse.result`:**
+```json
+{
+  "threshold": 75,
+  "requirements": [{
+    "id": "FR-01",
+    "overall_score": 68,
+    "status": "blocked",
+    "gate_action": "block",
+    "dimension_scores": {
+      "clarity":      { "score": 55, "rationale": "...", "issues": ["vague term 'user-friendly'"] },
+      "completeness": { "score": 70, "rationale": "..." },
+      "correctness":  { "score": 75, "rationale": "..." },
+      "testability":  { "score": 60, "rationale": "..." },
+      "consistency":  { "score": 80, "rationale": "..." },
+      "traceability": { "score": 68, "rationale": "..." }
+    },
+    "smells": [{ "type": "vague_term", "span": "user-friendly", "suggestion": "specify measurable criteria" }],
+    "suggested_rewrite": "The system shall display a login form with email and password fields and validate credentials within 2 seconds.",
+    "confidence": 0.78,
+    "dart_triggered": false
+  }]
+}
+```
+`AgentResponse.evidence[]` carries tool observations as `Evidence(source, description, reference, data)` (e.g. retrieved IEEE 830 clause, matched exemplar, SBERT duplicate pair) — satisfies FR-03 + NFR-05 transparency. This maps cleanly onto the frontend requirement shape (`overallScore`, `dimensionScores`, `status`, `suggestedRewrite`).
 
-| Phase | Content | Done when |
-|---|---|---|
-| P0 Foundations | dependency approvals; Postgres checkpointer and store; performance tables (alembic); fix known bugs (validation edge ignored, undeclared state keys, timeout sweep reading `.storage`, Dockerfile requirements path) | graph resumes from Postgres after a restart |
-| P1 Workspace and evidence | workspace manager, GitHub REST, Scrum MCP server script and client, evidence builder, identity map | `evidence/1` for every student of a real team repo, matching the dataset scripts on a known team |
-| P2 Factors | `evaluate.py` for E, C, TC, RF (adapter), merge CO, Co and BP; factor cards; provisional mode and gates | each factor returns score, interval, status and warnings from real evidence |
-| P3 Agent graph | team graph, student subgraph, RF subgraph, audit/debug, HITL, quiz flow, explanation, export | full run on a fixture team with scripted LLM, and on a real repo |
-| P4 Queue, API, events | tasks, locks, endpoints, event writer, SSE | run started from the API; events visible live |
-| P5 Frontend | pipeline canvas, results, review, student quiz | lecturer watches a run node by node and reads the results |
-| P6 Development phase | webhooks, periodic sync, nightly snapshots, trajectory, early warnings; load test with 250 simulated students at one deadline | no worker crash; queue drains; deadline run is incremental |
-| P7 Acceptance | end-to-end on a real team (repo link and board) | marks with justification, report, development view |
+### 2c. Quality criteria/metrics & scoring (proposal §3.2.3, §3.3.1)
+- **Six dimensions**, each scored **0–100** by `dimension_scorer` (Groq, structured JSON with per-dimension rationale), **grounded** by the deterministic smell output + retrieved standards/exemplars (not free-floating LLM guesses).
+- **Composite** = mean of the six (equal weights initially; weights configurable — proposal leaves them experimental).
+- **Gate** (`gates.py`): `≥75 → pass`; `<75 → block + actionable feedback`; **confidence < threshold → trigger DART**.
+- **Confidence (calibrated reliability, §3.6)**: MVP = self-consistency — run scoring over **N independent passes with temperature variation**, measure agreement across diagnosis/scores; low agreement ⇒ low confidence ⇒ DART. Correct, extensible foundation for the later full 4-dimension calibration.
 
-## 13. Dependencies needing approval (nothing installed without asking)
+### 2d. LLM / NLP approach (per decisions)
+- **LLM**: own `llm/groq_client.py` (multi-key round-robin like the reference; env `GROQ_API_KEYS`/`GROQ_MODEL`), structured-JSON prompts in `prompts.py`.
+- **ReAct** via LangGraph `StateGraph` (nodes `reason → execute_tool → reflect → finalize`, conditional edges per proposal §3.2.2). Safety: **max 10 iterations + per-agent timeout → fallback to direct scoring**.
+- **Five tools** (`subagents/quality/tools.py`):
+  | Tool | Impl (MVP, correct) |
+  |---|---|
+  | `smell_detector` | **spaCy** `en_core_web_sm` + regex: vague terms, passive voice, unbounded quantifiers, missing conditions. Deterministic. |
+  | `standard_retriever` | **ChromaDB** collection `ieee830_smart`, SBERT-embedded, seeded with curated clauses. |
+  | `exemplar_retriever` | **ChromaDB** `exemplars` (graded high/med/low requirement examples). |
+  | `dimension_scorer` | **Groq** LLM, one structured call scoring all six dims with rationale. |
+  | `cross_req_checker` | **SBERT** (`all-MiniLM-L6-v2`, 384-d) cosine across the SRS → duplicates/contradictions/overlap (feeds consistency + traceability). |
+  > SBERT serves **both** `cross_req_checker` and the ChromaDB embedding function — one dependency, two uses (efficient + correct).
 
-- **Agent:** `langgraph-checkpoint-postgres`, `mcp` (Python SDK), and `torch`/`transformers`/`scikit-learn`/`joblib` in the agent's environment (Code Ownership), plus the CodeBERT weights (about 500 MB).
-- **Frontend:** `@xyflow/react`, `elkjs`, and optionally `@microsoft/fetch-event-source`.
+### 2e. Where it fits / files to add or modify
+- **Add** (my agent): the whole `project_planning/` tree above. **Modify (1 line):** `app/agents/registry.py`.
+- **Core API — add** `backend/server/app/api/v1/planning.py`; **modify** `app/api/v1/router.py` (mount router); **add** `app/modules/planning/service.py` (persistence/business logic).
+- **Reuse (no change):** `app/clients/ai_backend.py` (`orchestrate`), `app/services/ai_jobs.py` (`start_ai_job`), `app/core/security.py` (auth).
 
-## 14. Verification
+### 2f. API endpoints, data models, DB schema (Core API)
+**Endpoints** (`planning.py`, all `Depends(get_current_user)`; build `requester` from the token, never the body):
+| Method | Path | Mode | Action |
+|---|---|---|---|
+| POST | `/planning/quality` | fast → `orchestrate()` | `planning.analyze_quality` |
+| POST | `/planning/srs` (or `/projects/{id}/srs`) | slow → `start_ai_job()` | `planning.extract_requirements` (+quality) |
+| GET  | `/planning/quality/{project_id}` | — | read persisted results/history |
+| GET  | `/api/v1/jobs/{id}` | — | **existing** job polling (reuse) |
 
-- **Unit tests:** per new module (workspace, MCP client and server, evidence builder against the dataset scripts on one known team, each `evaluate.py`, audit rules, fusion, event writer).
-- **Graph tests:** with `ScriptedLLM` and a fixture repo: normal path, quiz timeout and extension, review interrupt and resume, audit re-run, Collaboration not available, restart from the Postgres checkpointer mid-run.
-- **Server tests:** the existing route-protection test plus endpoint tests; the job is enqueued and a run is created.
-- **Load test:** 250 simulated students sharing one deadline. Check worker memory, queue drain time, and no duplicate runs.
-- **End to end:** a real repo link and the Scrum MCP script. Start tracking, sync, snapshot over several days, final run, answer the quiz, decide a review, read the report and the development view. Watch the pipeline animation in the browser.
+**Persistence (correct method)** — follow `docs/SCHEMA_CHANGE_GUIDE.md` exactly:
+- **Model** `app/models/requirement_quality.py` → `RequirementQualityResult`: `id`, `project_id` (FK), `requirement_ref` (str), `requirement_text`, `overall_score` (int, nullable), `status` (`string_enum` passed/blocked/needs_review), `dimension_scores` (`JSONType`), `smells` (`JSONType`), `suggested_rewrite` (nullable), `confidence` (float, nullable), `dart_triggered` (bool default in Python), `TimestampMixin`. New columns nullable, **no `server_default`**, naming via `base.py` convention. Multiple rows per requirement = history.
+- **Import** it in `app/models/__init__.py` (or Alembic won't see it).
+- **Preflight**: add a `TableSpec` to `APP_TABLES` in `scripts/supabase_preflight.py` (test `test_expected_tables_match_the_models` enforces this).
+- **Migration**: `uv run alembic -x "db_url=$dev" revision --autogenerate -m "add requirement_quality_result"`, then add the **RLS enable + browser-role REVOKE** block after `op.create_table(...)`. Apply **locally** (`upgrade head`) for the demo; **Supabase apply is a coordinated post-PR step** with the foundation owner (never apply to Supabase solo).
+- **Ownership rule honored**: the **Core API** writes this table (AI backend only returns the result); AI backend persists nothing business-level.
 
-## 15. Known limits to keep visible in the product
+### 2g. Frontend changes (`frontend/src/modules/planning/`)
+- **`src/shared/api/endpoints.js`**: add `PLANNING.QUALITY`, `PLANNING.SRS`, `PLANNING.QUALITY_RESULTS(projectId)`, `PLANNING.DECOMPOSITION`.
+- **`services/qualityService.js`** (mirror `planningService.js`) + **React Query hooks** (`hooks/useQuality.js`, mirror `useProjects.js`): `useAnalyzeQuality()`, `useQualityResults(projectId)`.
+- **`pages/student/requirements/SRSQuality.jsx`**: replace mock `rescoreRequirement`/`addRequirement` with the hooks; adapter maps `result.requirements[*]` → existing shape (`overallScore`, `dimensionScores`, `status`, `suggestedRewrite`). Keep all existing components.
+- **Dimension/threshold alignment** (decisions 3 & 5): `data/mockData.js` → `QUALITY_DIMENSIONS` to the **IEEE 830 six**, `QUALITY_GATE_THRESHOLD 70 → 75`; `components/QualityRadarChart.jsx` labels; `statusFromScore`/`dimTier` thresholds reviewed. (Keep `mockData.js` as fallback until wiring is verified.)
 
-- **Weak validation:** factor models were validated on small, mostly assistant-labelled data. None is validated against instructors yet. The UI and report say so.
-- **Code Ownership scope:** the scorer is trained on Python only. Other languages give "not available" unless the lecturer enables unvalidated scoring.
-- **Groq limits:** the RF sub-agent depends on Groq rate limits. Budgets per run and caching matter, and the held-out RF results are still incomplete.
-- **Behavioral Pattern gaps:** Last-minute rusher and Burst worker rarely fire (see its README).
+### 2h. Integration with Decomposition & DART
+- **Decomposition** is the next internal sub-agent in the **same component orchestrator** (`extract → quality → gate → decompose → gate`), same ReAct shape, tools `pattern_retriever` (ChromaDB `decomposition_patterns`), `invest_validator` (rules+Groq), `coverage_analyzer` (SBERT coverage gaps), `decomposition_scorer` (Groq) + its own ≥75 gate. Action `planning.analyze_decomposition`.
+- **DART** sits beside the sub-agents (`dart/arbiter.py`): a sub-agent returning **low confidence / conflict** hands its structured reasoning to DART (gather → categorize → consult → respond → resolve). `COMPOUND → route to decomposition`; `AMBIGUOUS → retrieve standards+exemplars, re-consult`; `STRUCTURAL → re-check consistency`; `NOVEL → flag instructor`. Convergence: **≤2 loops then escalate**; circuit-breaker at 5+ activations/session. To involve the real instructor/other components, return a `NextAction` — never call another agent directly.
 
-## 16. Implementation status (branch `feature/assessment-agent-integration-sadeesha`)
+### 2i. Ordered task breakdown with estimates
+| # | Task | Files | Est. |
+|---|---|---|---|
+| 1 | **Skeleton**: `handle()` returns hard-coded `completed`; register; first schemas; confirm routing ≠ unavailable | `agent.py`, `registry.py`, `schemas.py` | 0.5 d |
+| 2 | Own **Groq client** + env + a smoke call | `llm/groq_client.py`, `.env` | 0.5 d |
+| 3 | **Extraction** (python-docx) + **component orchestrator** (`extract → quality`) + state + gates | `extraction/`, `orchestrator/` | 1 d |
+| 4 | **ChromaDB + SBERT** wiring + seed `ieee830_smart` & `exemplars` + one-off ingest | `knowledge/` | 1 d |
+| 5 | **Quality ReAct sub-agent** + 5 tools + 6-dim scoring + confidence | `subagents/quality/` | 2 d |
+| 6 | **Gate** logic + structured result assembly + evidence | `orchestrator/gates.py`, `agent.py` | 0.5 d |
+| 7 | **Core API**: `planning.py` endpoints + router mount + persistence model + **local migration** | `server/app/...`, `alembic/` | 1.5 d |
+| 8 | **Frontend wiring** + dimension/threshold alignment | `endpoints.js`, `qualityService.js`, `useQuality.js`, `SRSQuality.jsx`, `mockData.js`, `QualityRadarChart.jsx` | 1 d |
+| — | **→ Function 1 demo-ready** | | |
+| 9 | **Decomposition sub-agent** + tools + gate + endpoint + `Decomposition.jsx` | `subagents/decomposition/`, FE | 2 d |
+| — | **→ Function 2 demo-ready (40% viva bar met)** | | |
+| 10 | **DART basic**: gather + categorize + AMBIGUOUS & COMPOUND paths + convergence; trigger from quality low-confidence; wire `ArbitrationOversight.jsx` | `dart/`, FE | 2 d |
+| 11 | Seed data polish, **pytest**, end-to-end rehearsal, slides | `tests/`, demo SRS | 1.5 d |
+| — | Buffer | | 1 d |
 
-Built and tested:
+### 2j. Testing / evaluation (how to prove it for the viva)
+- **Unit (pytest)**: `smell_detector` flags planted smells; `dimension_scorer` returns valid 6-dim JSON; gate boundaries (74/75/76); confidence→DART trigger; DART categorizer on crafted cases.
+- **Integration**: call the orchestrator with `planning.analyze_quality` in `agentic_framework/tests/` and assert `status=completed` + schema.
+- **E2E**: upload a prepared SRS `.docx` → gated results render in `SRSQuality.jsx`.
+- **Demo script**: a hand-crafted SRS mixing clearly-good, clearly-bad (vague/untestable → blocked), a **compound** requirement (forces DART→COMPOUND→decomposition) and an **ambiguous** one (DART→AMBIGUOUS→retrieve). This visibly demonstrates both functions **and** the novelty.
+- **Research metrics** (partial for viva, full post-viva): Cohen's κ vs a small manually-labeled set (NFR-03 ≥0.60); the 4-condition ablation (pipeline / agent / agent+simple-arbitration / agent+DART).
 
-| Phase | What exists | Tests |
-|---|---|---|
-| P0 Foundations | Postgres tables `perf_*` (one DDL file, alembic `a7c3d5e91f02`, checked on a throwaway local database), `PerformanceStore`, in-memory twin, LangGraph Postgres checkpointer helper | store tests on local Postgres |
-| P1 Workspace and evidence | read-only git workspace, GitHub REST, Scrum MCP server and client, evidence builder, identity map | workspace 35, MCP 7, GitHub 7, builder 7 |
-| P2 Factors | `evaluate.py` for Effort, Consistency, Task Complexity (ridge cards), Requirement Fulfillment (sub-agent on real evidence), Code Ownership (production), Collaboration, Behavioral Pattern; factor cards; provisional mode | linear 13, RF 9, factor tests |
-| P3 Agent graph | team graph, student pipeline, audit/retry/escalate, fusion, justification, Code Ownership quiz flow with 48 h + 48 h windows, report | 25 tests incl. end to end on a real repo |
-| P4 Queue, API, events | jobs `assess_team`, `resume_run`, `refuse_student`, `sync_team`, `sync_all`, `snapshot_all`, `quiz_sweep`; `/api/v1/performance/*` incl. SSE and the GitHub webhook | 13 API tests, 3 task tests, route-protection test |
-| P5 Frontend | pipeline canvas (own SVG layout, rotating glow, comet along the edge into the active node, node log drawer), team hub, tracking form, results, day-by-day chart, review queue, identity-mapping form, student page with the code question | model, SSE and roster unit tests; lint and build clean |
+---
 
-Decisions made while building:
-- No new frontend packages: the pipeline view uses plain SVG and CSS instead of `@xyflow/react` and `elkjs` (the graph is small and fixed).
-- The graph topology lives in `shared/performance/topology.py` so the agent and the Core API share it.
-- Checkpoints use one thread per run (`team:{team}:sprint:{sprint}:{run id}`); the cross-run memory is in the result tables.
-- A lecturer's override is stored beside the model's mark and never replaces it.
+## Step 3 — 2-week roadmap (demo milestones)
+- **Week 1 → Milestone A (Function 1):** tasks 1–8. SRS in → Quality agent scores six IEEE 830 dims → ≥75 gate blocks/passes → real results in the UI.
+- **Week 2a → Milestone B (Function 2):** task 9. Decomposition agent + gate wired end-to-end → **40% viva bar met**.
+- **Week 2b → Milestone C (Novelty):** task 10. DART triggers on low confidence/conflict, classifies the category, applies a targeted resolution, shows the reasoning trace in `ArbitrationOversight.jsx`. **This is what demonstrates the novelty** — contrast it live against "re-vote/average" baselines (proposal §3.4.5 Table 3.9).
+- **Close:** task 11 — rehearse, seed, test, slides.
 
-Not done, or not verified:
-- P6 and P7: the 250-student load test and a run on a real team repository with the real board have not been done. Only throwaway repositories and a fake GitHub were used.
-- The pipeline view and the quiz page have not been looked at in a browser here (no Keycloak login in this environment); they are covered by unit tests, lint and a production build only.
-- The alembic migration was applied and reverted on a throwaway local PostgreSQL only; it has not been applied to the shared Supabase database.
-- `GITHUB_WEBHOOK_SECRET`, `GITHUB_TOKEN` and `GROQ_API_KEYS` must be set for webhooks, private repositories and Requirement Fulfillment.
-- Code Ownership needs the CodeBERT weights on the worker (about 500 MB, loaded once per process).
+---
+
+## Step 4 — My manual tasks (checklist)
+> PowerShell on Windows; `py`/`node` confirmed present. `uv` and spaCy model are the likely new installs.
+
+1. **Install toolchain**: `uv` (`pip install uv` or winget), Node already present. Verify: `uv --version`, `node --version`.
+2. **Sync deps (each service)**: from `backend/server/`, `backend/agentic_framework/`, `backend/shared/` run `uv sync`.
+3. **Add my new deps** (from `backend/agentic_framework/` only): `uv add chromadb sentence-transformers spacy python-docx` then `uv run python -m spacy download en_core_web_sm`. *(sentence-transformers pulls torch — sizable download.)*
+4. **Env files**: `cp backend/server/.env.example backend/server/.env`; `cp backend/agentic_framework/.env.example backend/agentic_framework/.env`; `cp .env.example .env.development` + `.env.local`; `cd frontend && cp .env.example .env.development`.
+5. **Groq key**: create a free key at console.groq.com → put `GROQ_API_KEYS=...` (and `GROQ_MODEL=openai/gpt-oss-120b`) in `backend/agentic_framework/.env`.
+6. **Database (local)**: start the dockerized dev DB `docker compose up -d server-postgres` (port 5433) **or** point `SERVER_DATABASE_URL`/`SERVER_DIRECT_URL` at your DB. Verify: from `backend/server/` → `uv run python -c "from app.database import check_db_connection; print(check_db_connection())"`.
+7. **Infra for the frontend login** (Keycloak+Kong): `docker compose --profile infra up -d`. *(See §5 for a no-auth fallback for backend-only demos.)*
+8. **Migrate (local)**: from `backend/server/` → `uv run alembic -x "db_url=$dev" upgrade head` (after the new migration exists).
+9. **Run services** (3 terminals):
+   ```bash
+   # Core API      (backend/server/)
+   uv run uvicorn app.main:app --reload --port 8002
+   # AI Backend    (backend/agentic_framework/)
+   uv run uvicorn app.main:app --reload --port 8003
+   # Worker        (backend/agentic_framework/)
+   uv run python -m worker --queues planning
+   ```
+10. **Run frontend**: `cd frontend && npm install && npm run dev`.
+11. **Verify end-to-end**: open the planning module → upload a sample SRS → confirm gated results; and/or hit AI backend directly (no auth):
+    ```bash
+    curl -X POST http://localhost:8003/api/v1/orchestration -H "Content-Type: application/json" \
+      -d '{"requester":{"user_id":"u-1","role":"student"},"action":"planning.analyze_quality","input":{"requirements":[{"id":"FR-01","text":"The system shall provide a user-friendly login page."}]}}'
+    ```
+12. **Run tests**: `uv run pytest -q` in `backend/server/` and `backend/agentic_framework/`.
+
+---
+
+## Step 5 — What I need from you
+
+### BLOCKING
+1. **Groq API key** (free) — required for any LLM scoring.
+2. **Local DB choice** — use the dockerized `server-postgres:5433`, or your own `SERVER_DATABASE_URL`/`SERVER_DIRECT_URL`? Needed before migrations.
+3. **Sample SRS `.docx` files** — ideally 1–2 real ones plus permission for me to craft a "demo SRS" with planted good/bad/compound/ambiguous requirements.
+4. **Curated seed content** for the knowledge bases (IEEE 830 quality criteria text, SMART definitions, graded exemplars, decomposition patterns, INVEST criteria). I can **draft** these for your review — confirm that's acceptable, or supply your own.
+5. **Branch / foundation state** — confirm you're on the branch where the common foundation (shared contracts + orchestrator) is present and green, and that `project_planning/` is yours to fill (Build Guide confirms it is).
+
+### NICE-TO-HAVE
+- A small **human-labeled** requirement set for the Cohen's κ metric (NFR-03).
+- A **Supabase apply window** coordinated with the foundation owner (only when you want results on the shared DB; local is enough for the viva).
+- PROMISE/Deep-SE dataset access — **only** for the Effort agent (post-viva).
+
+### Ambiguities / contradictions found (flagged, not silently resolved)
+1. **LLM**: proposal says GPT-4o-mini; repo only has **Groq** working → using Groq (decision 1).
+2. **Dimensions**: frontend mock uses *feasibility, scope*; proposal/IEEE 830 uses *correctness, traceability* → aligning to proposal, updating FE (decision 3).
+3. **Gate threshold**: proposal `75` vs frontend mock `70` → `75` configurable (decision 5).
+4. **Ports**: some docs say Core 8000 / AI 8001 (vision) — **implemented** ports are **8002 / 8003**; using those.
+5. **Tooling**: Build Guide assumes ChromaDB/SBERT/spaCy; **none exist in the repo** → net-new deps (expected, planned in task 3–4).
+6. **"Three agents"**: proposal/diagram draw them as separate; Build Guide + code = **one** registered agent with internal modules → following the one-agent rule.
+7. **Groq client location**: the only working client is inside the **teammate's protected folder** → I build **my own** under `project_planning/llm/` (no cross-agent import).
+8. **Redis** (proposal tech stack) — not in compose/code → **skipped** for MVP (not needed).
+9. **DART** appears in **no** team/foundation doc — correct, because it's internal to this agent; no shared-contract change needed.
+
+---
+
+## Verification (end-to-end)
+1. **Routing**: `planning.analyze_quality` returns `completed` (not `unavailable`) after the registry line — prove before any AI logic.
+2. **Backend-only**: the `curl` in manual task 11 returns a valid 6-dimension `result` + `evidence[]`.
+3. **Persistence**: after a `/planning/quality` call, a row exists in `requirement_quality_result` (query the local DB); `GET /planning/quality/{project_id}` returns it.
+4. **Full E2E**: upload demo SRS in the UI → blocked requirements show feedback, passing ones advance, a compound/ambiguous one triggers DART with a visible reasoning trace.
+5. **Tests**: `uv run pytest -q` green in both backend services.
+6. **Demo rehearsal**: run the prepared demo script start-to-finish within NFR timings (single requirement <30 s; DART <60 s).
