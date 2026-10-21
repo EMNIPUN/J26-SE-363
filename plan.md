@@ -262,5 +262,5 @@ Not done, or not verified:
 - P6 and P7: the 250-student load test and a run on a real team repository with the real board have not been done. Only throwaway repositories and a fake GitHub were used.
 - The pipeline view and the quiz page have not been looked at in a browser here (no Keycloak login in this environment); they are covered by unit tests, lint and a production build only.
 - The alembic migration was applied and reverted on a throwaway local PostgreSQL only; it has not been applied to the shared Supabase database.
-- `GITHUB_WEBHOOK_SECRET`, `GITHUB_TOKEN` and `GROQ_API_KEYS` must be set for webhooks, private repositories and Requirement Fulfillment.
+- `GITHUB_WEBHOOK_SECRET`, `GITHUB_TOKEN` and `ASSESSMENT_GROQ_API_KEYS` must be set for webhooks, private repositories and Requirement Fulfillment.
 - Code Ownership needs the CodeBERT weights on the worker (about 500 MB, loaded once per process).

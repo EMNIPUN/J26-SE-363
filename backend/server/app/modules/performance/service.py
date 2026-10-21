@@ -118,14 +118,19 @@ def display_factors(result: dict) -> dict:
     return out
 
 
+def counted(results: list[dict]) -> list[dict]:
+    """The sprint results that count towards the final mark: a sprint whose result is still under review does not until a person has looked at it."""
+    return [r for r in results if not (r["status"] == "pending_review" and not r.get("override"))]
+
+
 def overall(results: list[dict]) -> dict:
-    """A student's standing over every sprint that has a result so far: the mean of the sprint marks and, for each factor, the mean of its scores in the sprints where it was scored.
-    ``results`` are the student's lecturer views, oldest sprint first. A sprint whose result is still under review is not counted until a person has looked at it."""
-    counted = [r for r in results if not (r["status"] == "pending_review" and not r.get("override"))]
-    marks = [m for m in (effective_mark(r) for r in counted) if m is not None]
+    """A student's final result over every sprint that has a result so far: the mean of the sprint marks and, for each factor, the mean of its scores in the sprints where it was scored.
+    ``results`` are the student's lecturer views, oldest sprint first (see ``counted`` for which of them count)."""
+    counted_results = counted(results)
+    marks = [m for m in (effective_mark(r) for r in counted_results) if m is not None]
     factors = {}
     for factor, *_ in FACTORS:
-        shown = [display_factors(r)[factor] for r in counted]
+        shown = [display_factors(r)[factor] for r in counted_results]
         scored = [f for f in shown if f["state"] == "scored"]
         if scored:
             lows = [f["interval"][0] for f in scored if f["interval"]]
@@ -135,9 +140,9 @@ def overall(results: list[dict]) -> dict:
         else:
             last = next((f for f in reversed(shown) if f["state"] != "missing"), {"status": None, "state": "missing", "score": None, "interval": None, "provisional": False})
             factors[factor] = {**last, "sprints": 0}
-    intervals = [r["mark_interval"] for r in counted if r.get("mark_interval") and not r.get("override")]
+    intervals = [r["mark_interval"] for r in counted_results if r.get("mark_interval") and not r.get("override")]
     statuses = [r["status"] for r in results]
-    status = "pending_review" if "pending_review" in statuses and counted != results else "provisional" if any(x != "final" for x in statuses) else "final"
+    status = "pending_review" if "pending_review" in statuses and counted_results != results else "provisional" if any(x != "final" for x in statuses) else "final"
     return {"mark": sum(marks) / len(marks) if marks else None, "mark_interval": [sum(i[0] for i in intervals) / len(intervals), sum(i[1] for i in intervals) / len(intervals)] if intervals and len(intervals) == len(marks) else None,
             "factors": factors, "status": status, "sprints": len(marks)}
 

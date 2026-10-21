@@ -30,7 +30,7 @@ does better. A third experiment adds a second model that checks the agent's verd
 - **Withheld**: the board status (Done, Partially Done) is not shown to any experiment, because the simulator derives it from the truth.
 - **Split**: student-disjoint, fixed in the manifest: 20 development students (84 verifiable tasks), 30 held-out students (131).
   Prompts and the rating rule may be adjusted on the development set only; the held-out set is scored once per experiment (plus the repeat runs below).
-- **Model and settings**: one Groq model for the assessor in every experiment (`GROQ_MODEL`, default `openai/gpt-oss-120b`), temperature 0, reasoning effort
+- **Model and settings**: one Groq model for the assessor in every experiment (`ASSESSMENT_GROQ_MODEL`, default `openai/gpt-oss-120b`), temperature 0, reasoning effort
   low, the same rubric word for word (`rf_bench/rubric.py`, hash printed in every result), no worked examples. The critic of Experiment 3 uses a
   different model family (`qwen/qwen3.8-27b`).
 - **Output and arithmetic**: one verdict per criterion (`met`, `partly`, `not_met`, `cannot_tell`); the task value is the mean of the verdict values

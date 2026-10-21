@@ -109,7 +109,7 @@ class Services:
 
     @classmethod
     def from_environment(cls, store=None, **over):
-        """A worker's services from the environment: SERVER_DIRECT_URL (database), GITHUB_TOKEN, GROQ_API_KEYS (language model), ASSESSMENT_WORKSPACE (clone folder)."""
+        """A worker's services from the environment: SERVER_DIRECT_URL (database), GITHUB_TOKEN, ASSESSMENT_GROQ_API_KEYS (language model), ASSESSMENT_WORKSPACE (clone folder)."""
         import sys
         from app.agents.performance_assessment.com_agent.ingestion.github_rest import GitHubREST
         from app.agents.performance_assessment.com_agent.ingestion.scrum_mcp_client import CoreApiScrumClient, RealScrumMCPClient
@@ -125,7 +125,7 @@ class Services:
         try:
             sys.path.insert(0, str(FACTOR_MODELS / "03_requirement_fulfillment"))
             from rf_bench.llm import GroqPool
-            # the Groq settings live in performance_assessment/.env (git-ignored); only the GROQ_* lines are read from it
+            # the Groq settings live in performance_assessment/.env (git-ignored); only the ASSESSMENT_GROQ_* lines are read from it
             os.environ.setdefault("RF_ENV_FILE", str(FACTOR_MODELS.parent / ".env"))
             llm = GroqPool()
         except Exception:  # no keys: the factor says "not available", the rest of the assessment continues

@@ -32,14 +32,14 @@ class GroqMultiKeyClient:
         fallback_model: str = FALLBACK_MODEL,
         timeout: float = 45.0,
     ):
-        raw_env_keys = os.getenv("GROQ_API_KEYS") or os.getenv("GROQ_API_KEY", "")
+        raw_env_keys = os.getenv("ASSESSMENT_GROQ_API_KEYS") or os.getenv("ASSESSMENT_GROQ_API_KEY", "")
         if raw_env_keys:
             self.api_keys = [k.strip() for k in raw_env_keys.split(",") if k.strip()]
         else:
             self.api_keys = api_keys or []
 
-        self.primary_model = os.getenv('GROQ_MODEL', primary_model)
-        self.fallback_model = os.getenv('GROQ_FALLBACK_MODEL', fallback_model)
+        self.primary_model = os.getenv('ASSESSMENT_GROQ_MODEL', primary_model)
+        self.fallback_model = os.getenv('ASSESSMENT_GROQ_FALLBACK_MODEL', fallback_model)
         self.timeout = timeout
         self._key_index = 0
         self._lock = threading.Lock()

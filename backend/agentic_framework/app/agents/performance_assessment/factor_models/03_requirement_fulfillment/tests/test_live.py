@@ -231,7 +231,7 @@ class Evaluate(unittest.TestCase):
         self.assertTrue(all(k == "llm_call" for k in seen[1:-1]) and len(seen) > 2)  # every model call is reported between them
 
     def test_without_a_language_model_the_score_is_not_available(self):
-        old = {k: os.environ.pop(k, None) for k in ("GROQ_API_KEYS", "RF_ENV_FILE")}
+        old = {k: os.environ.pop(k, None) for k in ("ASSESSMENT_GROQ_API_KEYS", "RF_ENV_FILE")}
         try:
             with self.assertRaises(E.NotEnoughEvidence):
                 E.evaluate(case())

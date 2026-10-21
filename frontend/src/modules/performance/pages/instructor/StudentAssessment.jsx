@@ -50,7 +50,8 @@ const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 <
 function Profile({ result, rows, teamName, sprint, sprintInfo, sprints = [], onSprintChange, login, back, action }) {
   const marks = (rows || []).map((r) => ({ id: r.student_id || r.id, mark: r.effective_mark ?? r.mark })).filter((r) => r.mark != null).sort((a, b) => b.mark - a.mark)
   const mine = result.effective_mark ?? result.mark
-  const rank = mine == null ? null : marks.findIndex((r) => r.id === result.student_id) + 1
+  const overall = result.scope === 'overall'  // the final mark: the average over every sprint
+  const rank = mine == null || !overall ? null : marks.findIndex((r) => r.id === result.student_id) + 1  // the team's marks are final marks too
   const average = marks.length ? marks.reduce((a, r) => a + r.mark, 0) / marks.length : null
   const gap = mine != null && average != null ? Math.round(mine - average) : null
   const chips = [
@@ -62,7 +63,7 @@ function Profile({ result, rows, teamName, sprint, sprintInfo, sprints = [], onS
     <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
       <div className="relative h-28 bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500 @xl:h-32">
         <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" aria-hidden="true" />
-        <Button variant="secondary" size="sm" asChild className="absolute left-4 top-4 bg-white/90 text-foreground backdrop-blur hover:bg-white"><Link to={back}><ArrowLeft className="h-4 w-4" />Team results</Link></Button>
+        <Button variant="secondary" size="sm" asChild className="absolute left-4 top-4 bg-white/90 text-slate-900 backdrop-blur hover:bg-white hover:text-slate-900"><Link to={back}><ArrowLeft className="h-4 w-4" />Team results</Link></Button>
         {action && <div className="absolute right-4 top-4">{action}</div>}
       </div>
       <div className="flex flex-col gap-5 px-6 pb-6 @xl:flex-row @xl:items-end @xl:gap-6">
@@ -78,18 +79,19 @@ function Profile({ result, rows, teamName, sprint, sprintInfo, sprints = [], onS
                 <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
                 <span className="text-muted-foreground">Sprint:</span>
                 <select
-                  value={sprint}
+                  value={overall ? '' : sprint}
                   onChange={(e) => onSprintChange?.(e.target.value)}
                   className="bg-transparent font-semibold cursor-pointer border-none outline-none text-foreground py-0"
                   aria-label="Select sprint"
                 >
+                  <option value="" className="bg-popover text-popover-foreground">Overall (all sprints)</option>
                   {sprints.map((s) => (
                     <option key={s.id} value={s.id} className="bg-popover text-popover-foreground">
                       {s.id}
                     </option>
                   ))}
                 </select>
-                {sprintInfo && <span className="text-muted-foreground text-[11px] ml-1">· {day(sprintInfo.start)} to {day(sprintInfo.end)}</span>}
+                {!overall && sprintInfo && <span className="text-muted-foreground text-[11px] ml-1">· {day(sprintInfo.start)} to {day(sprintInfo.end)}</span>}
               </li>
             ) : (
               <li className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium text-foreground">
@@ -102,7 +104,7 @@ function Profile({ result, rows, teamName, sprint, sprintInfo, sprints = [], onS
         </div>
         <div className="shrink-0 rounded-2xl border bg-muted/30 px-5 py-3 text-center @xl:mb-1">
           <p className={`text-3xl font-bold tabular-nums leading-none ${styleOf(markBand(mine)).text}`}>{markText(mine)}</p>
-          <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">predicted mark</p>
+          <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">{overall ? 'final mark' : 'predicted mark'}</p>
         </div>
       </div>
     </section>
@@ -194,7 +196,12 @@ export default function StudentAssessment() {
         back={back}
         action={latest && !['queued', 'running', 'waiting_human'].includes(latest.status) ? <Button variant="secondary" onClick={evaluateAgain}><RefreshCw className="h-4 w-4" />Re-evaluate</Button> : null}
       />
-      <ResultView result={result} mode="lecturer" trajectory={Array.isArray(traj.data) ? traj.data : null} quiz={quiz.data} quizLoading={quiz.isPending} history={history} currentSprint={sprint} questionsHref={`/teams/${teamId}/performance/students/${studentId}/questions`} onSetMark={() => setDialog(true)} onSeen={onSeen} />
+      {result.scope === 'overall' && (
+        <p className="rounded-lg border bg-card px-4 py-2.5 text-xs text-muted-foreground">
+          Final result: the mark and the factor scores are the average of {result.sprints_counted} sprint{result.sprints_counted === 1 ? '' : 's'}. The agent's brief, reasons and checks below are from {result.narrative_sprint}; pick a sprint above to read another one.
+        </p>
+      )}
+      <ResultView result={result} mode="lecturer" average={result.team_average} trajectory={Array.isArray(traj.data) ? traj.data : null} quiz={quiz.data} quizLoading={quiz.isPending} history={history} currentSprint={result.scope === 'overall' ? '' : sprint} questionsHref={`/teams/${teamId}/performance/students/${studentId}/questions`} onSetMark={result.scope === 'overall' ? undefined : () => setDialog(true)} onSeen={onSeen} />
       {dialog && <MarkDialog open onClose={() => setDialog(false)} result={result} onSave={save} />}
     </div>
   )

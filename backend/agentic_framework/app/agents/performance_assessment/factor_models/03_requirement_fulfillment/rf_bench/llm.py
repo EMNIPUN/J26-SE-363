@@ -1,6 +1,6 @@
 """Language-model access for every experiment: Groq only (plan.md, section 13), plus a scripted model for tests.
 
-Keys are read from the environment (``GROQ_API_KEYS``, comma separated) and are never printed, logged or written to a result; a key is
+Keys are read from the environment (``ASSESSMENT_GROQ_API_KEYS``, comma separated) and are never printed, logged or written to a result; a key is
 identified by its index only. The account limits are the binding constraint (8,000 tokens per minute and 1,000 requests per day per key
 on the account that was checked): every call is paced against them, a request larger than the per-minute limit is sent anyway and the
 refusal is recorded as a ``too_large`` failure of the arm that made it, not hidden and not retried.
@@ -97,23 +97,23 @@ class _Key:
 
 
 def load_env_file(path):
-    """Read only the GROQ_* settings from a dotenv-style file the owner pointed to (``RF_ENV_FILE``). Nothing else is read or kept."""
+    """Read only the ASSESSMENT_GROQ_* settings from a dotenv-style file the owner pointed to (``RF_ENV_FILE``). Nothing else is read or kept."""
     for line in Path(path).read_text(encoding="utf-8").splitlines():
-        m = re.match(r"^\s*(GROQ_[A-Z_]+)\s*=\s*(.*?)\s*$", line)
+        m = re.match(r"^\s*(ASSESSMENT_GROQ_[A-Z_]+)\s*=\s*(.*?)\s*$", line)
         if m and m.group(1) not in os.environ:
             os.environ[m.group(1)] = m.group(2).strip().strip("\"'")
 
 
 class GroqPool(LLM):
     def __init__(self, model=None, fallback=None, tpm=8000, rpd=1000, effort="low", keys=None, timeout=120):
-        if keys is None and not os.environ.get("GROQ_API_KEYS") and os.environ.get("RF_ENV_FILE"):
+        if keys is None and not os.environ.get("ASSESSMENT_GROQ_API_KEYS") and os.environ.get("RF_ENV_FILE"):
             load_env_file(os.environ["RF_ENV_FILE"])
-        raw = keys if keys is not None else [k.strip() for k in os.environ.get("GROQ_API_KEYS", "").split(",") if k.strip()]
+        raw = keys if keys is not None else [k.strip() for k in os.environ.get("ASSESSMENT_GROQ_API_KEYS", "").split(",") if k.strip()]
         if not raw:
-            raise RuntimeError("GROQ_API_KEYS is not set in the environment")
+            raise RuntimeError("ASSESSMENT_GROQ_API_KEYS is not set in the environment")
         self.keys = [_Key(i, k) for i, k in enumerate(raw)]
-        self.model = model or os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
-        self.fallback = fallback or os.environ.get("GROQ_FALLBACK_MODEL", "")
+        self.model = model or os.environ.get("ASSESSMENT_GROQ_MODEL", "openai/gpt-oss-120b")
+        self.fallback = fallback or os.environ.get("ASSESSMENT_GROQ_FALLBACK_MODEL", "")
         self.tpm, self.rpd, self.effort, self.timeout = tpm, rpd, effort, timeout
         self.wait_quota = os.environ.get("RF_WAIT") == "1"  # wait for the daily token limit to refill instead of returning a quota error
         self.lock = threading.Lock()

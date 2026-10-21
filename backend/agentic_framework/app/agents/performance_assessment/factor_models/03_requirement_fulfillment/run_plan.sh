@@ -2,7 +2,7 @@
 # Resumable run of the Requirement Fulfillment experiments (EXPERIMENTS.md). Safe to run again and again: finished items are skipped, and a run
 # pauses by itself when the Groq account's daily token limit is reached (about 1,000,000 tokens a day for gpt-oss-120b across five keys).
 #
-#   RF_ENV_FILE=<dotenv file holding GROQ_API_KEYS / GROQ_MODEL / GROQ_FALLBACK_MODEL> RF_PY=<python with langgraph> bash run_plan.sh [exp1 exp2 exp3 repeat]
+#   RF_ENV_FILE=<dotenv file holding ASSESSMENT_GROQ_API_KEYS / ASSESSMENT_GROQ_MODEL / ASSESSMENT_GROQ_FALLBACK_MODEL> RF_PY=<python with langgraph> bash run_plan.sh [exp1 exp2 exp3 repeat]
 #
 # Each experiment runs from its own branch in a git worktree (default: $TMPDIR/rf_wt), so the checked-out branch of the main folder is never touched.
 # Results go to <branch>/runs/<name>/ ; commit them on that branch when a stage is complete (the script does not commit).

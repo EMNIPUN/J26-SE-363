@@ -5,7 +5,7 @@ SQLite ledger (``logs/groq_usage.sqlite``, git-ignored), and the usage endpoint 
 account (the Limits page of the Groq console; ``MODEL_LIMITS`` below). The ledger is a file so the worker, which makes the
 calls, and the HTTP server, which reports them, can be separate processes.
 
-A key is never stored: only a short fingerprint of it and its position in ``GROQ_API_KEYS`` ("key 1" is the first one).
+A key is never stored: only a short fingerprint of it and its position in ``ASSESSMENT_GROQ_API_KEYS`` ("key 1" is the first one).
 Writing to the ledger can never fail a call to the model: every error here is swallowed.
 """
 
@@ -51,12 +51,12 @@ def fingerprint(secret: str) -> str:
 
 
 def configured_keys() -> list[str]:
-    """The keys in the order the agent uses them: the environment first, then the GROQ_API_KEYS line of the settings file."""
-    raw = os.environ.get("GROQ_API_KEYS") or os.environ.get("GROQ_API_KEY", "")
+    """The keys in the order the agent uses them: the environment first, then the ASSESSMENT_GROQ_API_KEYS line of the settings file."""
+    raw = os.environ.get("ASSESSMENT_GROQ_API_KEYS") or os.environ.get("ASSESSMENT_GROQ_API_KEY", "")
     if not raw:
         try:
             for line in SETTINGS_FILE.read_text(encoding="utf-8").splitlines():
-                m = re.match(r"^\s*GROQ_API_KEYS?\s*=\s*(.*?)\s*$", line)
+                m = re.match(r"^\s*ASSESSMENT_GROQ_API_KEYS?\s*=\s*(.*?)\s*$", line)
                 if m:
                     raw = m.group(1).strip().strip("\"'")
                     break
@@ -67,15 +67,15 @@ def configured_keys() -> list[str]:
 
 def settings_models() -> list[str]:
     """The models the agent is set to use (primary, then fallback), whatever their names are."""
-    values = {"GROQ_MODEL": os.environ.get("GROQ_MODEL"), "GROQ_FALLBACK_MODEL": os.environ.get("GROQ_FALLBACK_MODEL")}
+    values = {"ASSESSMENT_GROQ_MODEL": os.environ.get("ASSESSMENT_GROQ_MODEL"), "ASSESSMENT_GROQ_FALLBACK_MODEL": os.environ.get("ASSESSMENT_GROQ_FALLBACK_MODEL")}
     try:
         for line in SETTINGS_FILE.read_text(encoding="utf-8").splitlines():
-            m = re.match(r"^\s*(GROQ_MODEL|GROQ_FALLBACK_MODEL)\s*=\s*(.*?)\s*$", line)
+            m = re.match(r"^\s*(ASSESSMENT_GROQ_MODEL|ASSESSMENT_GROQ_FALLBACK_MODEL)\s*=\s*(.*?)\s*$", line)
             if m and not values[m.group(1)]:
                 values[m.group(1)] = m.group(2).strip().strip("\"'")
     except OSError:
         pass
-    return [v for v in (values["GROQ_MODEL"], values["GROQ_FALLBACK_MODEL"]) if v]
+    return [v for v in (values["ASSESSMENT_GROQ_MODEL"], values["ASSESSMENT_GROQ_FALLBACK_MODEL"]) if v]
 
 
 # --- writing ----------------------------------------------------------------------------------------------------------

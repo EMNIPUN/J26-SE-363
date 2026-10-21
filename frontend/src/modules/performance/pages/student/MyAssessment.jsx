@@ -70,7 +70,7 @@ export default function MyAssessment() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="My assessment" description="Your predicted mark for each sprint, and why. It is a prediction made from your team's repository and Scrum board, to be checked by your lecturer. You see only your own." />
+      <PageHeader title="My assessment" description="Your final mark (the average of your sprints) and your predicted mark for each sprint, and why. It is a prediction made from your team's repository and Scrum board, to be checked by your lecturer. You see only your own." />
       {needsConnect && (
         <Card className="flex-row flex-wrap items-center justify-between gap-3 border-amber-300/70 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
           <div className="flex items-center gap-3 text-sm"><GithubIcon className="h-5 w-5 shrink-0" /><div><p className="font-medium">Connect your GitHub account to this team</p><p className="text-xs text-muted-foreground">Without it, your commits may not be matched to you and your assessment will be thinner.</p></div></div>
@@ -80,12 +80,26 @@ export default function MyAssessment() {
       {open.map((q) => <Quiz key={q.id} quiz={q} onDone={refresh} />)}
       {reports.isPending ? <div className="space-y-6" aria-busy="true"><PanelSkeleton height={190} title={false} /><PanelSkeleton height={380} /></div> : (reports.data?.reports || []).length === 0 ? (
         <EmptyState icon={Hourglass} title="No assessment yet" description="It appears here after your lecturer runs the first snapshot of your team's sprint." />
-      ) : (reports.data?.reports || []).map((r) => (
-        <section key={`${r.team_ref}-${r.sprint_id}`} className="space-y-3">
-          <h2 className="text-base font-semibold text-foreground">Sprint {r.sprint_id}</h2>
+      ) : (
+        <>
+          {reports.data?.overall && (
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-base font-semibold text-foreground">Your final mark</h2>
+                <p className="text-xs text-muted-foreground">The average of your {reports.data.overall.sprints_counted} sprint{reports.data.overall.sprints_counted === 1 ? '' : 's'} so far. Each sprint is below.</p>
+              </div>
+              <ResultView result={reports.data.overall} mode="student" />
+            </section>
+          )}
+          {(reports.data?.reports || []).length > 0 && reports.data?.overall && <h2 className="pt-2 text-base font-semibold text-foreground">Sprint by sprint</h2>}
+          {(reports.data?.reports || []).map((r) => (
+        <section key={r.sprint?.id} className="space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">Sprint {r.sprint?.id}</h3>
           {r.status === 'under_review' || !r.report ? <Card className="p-5 text-sm">Your lecturer is checking this result before it is shown to you.</Card> : <ResultView result={r.report} mode="student" />}
         </section>
-      ))}
+          ))}
+        </>
+      )}
     </div>
   )
 }

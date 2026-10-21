@@ -14,9 +14,9 @@ KEYS = ["gsk_first_secret", "gsk_second_secret"]
 def ledger(tmp_path, monkeypatch):
     monkeypatch.setattr(groq_usage, "LEDGER", tmp_path / "usage.sqlite")
     monkeypatch.setattr(groq_usage, "SETTINGS_FILE", tmp_path / "none.env")
-    monkeypatch.setenv("GROQ_API_KEYS", ",".join(KEYS))
-    monkeypatch.setenv("GROQ_MODEL", MODEL)
-    monkeypatch.setenv("GROQ_FALLBACK_MODEL", "qwen/qwen3.8-27b")
+    monkeypatch.setenv("ASSESSMENT_GROQ_API_KEYS", ",".join(KEYS))
+    monkeypatch.setenv("ASSESSMENT_GROQ_MODEL", MODEL)
+    monkeypatch.setenv("ASSESSMENT_GROQ_FALLBACK_MODEL", "qwen/qwen3.8-27b")
 
 
 def call(key, tokens, ok=True, **kw):

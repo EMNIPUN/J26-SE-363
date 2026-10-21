@@ -456,6 +456,7 @@ const column = (id, node) => <div key={id} className="mb-6 break-inside-avoid">{
  */
 export default function ResultView({ result, mode = 'lecturer', trajectory, quiz, quizLoading, questionsHref, history, average, currentSprint, onSetMark, onSeen }) {
   const [open, setOpen] = useState({})
+  const [factorSprint, setFactorSprint] = useState(null)  // the sprint whose factor cards are shown; null until the reader picks one
   if (!result) return null
   const j = result.justification || {}
   const factorCards = Array.isArray(result.factors)
@@ -467,10 +468,20 @@ export default function ResultView({ result, mode = 'lecturer', trajectory, quiz
   const overridden = Boolean(result.override?.mark != null || result.overridden)
   const parts = result.contributions || result.hero?.contributions || []
   const pattern = factorById.behavioral_pattern || result.pattern
+  // The factor cards are read one sprint at a time, with what the agent wrote for that sprint. "overall" shows the average scores, which have no explanation of their own.
+  const sprintBlocks = result.sprint_factors || null
+  const sprintIds = sprintBlocks ? Object.keys(sprintBlocks) : []
+  const cardsOf = (factors) => (Array.isArray(factors) ? factors : Object.entries(factors || {}).filter(([id]) => id !== 'behavioral_pattern').map(([id, value]) => ({ id, ...value })))
+  const ownSprint = sprintIds.includes(result.sprint_id) ? result.sprint_id : sprintIds[sprintIds.length - 1]
+  const startSprint = result.scope === 'overall' ? sprintIds[sprintIds.length - 1] : ownSprint
+  const chosenSprint = factorSprint === 'overall' && result.scope === 'overall' ? 'overall' : (factorSprint && sprintBlocks?.[factorSprint] ? factorSprint : (startSprint || 'overall'))
+  const sprintBlock = chosenSprint === 'overall' ? null : sprintBlocks?.[chosenSprint]
+  const shownCards = sprintBlock ? cardsOf(sprintBlock.factors) : factorCards
+  const shownPattern = sprintBlock ? sprintBlock.pattern : pattern
   const audit = result.audit || j.audit || {}
   const flags = result.flags || j.flags || []
-  const allOpen = factorCards.length > 0 && factorCards.every((f) => open[f.id])
-  const setAll = (v) => setOpen(Object.fromEntries(factorCards.map((f) => [f.id, v])))
+  const allOpen = shownCards.length > 0 && shownCards.every((f) => open[f.id])
+  const setAll = (v) => setOpen(Object.fromEntries(shownCards.map((f) => [f.id, v])))
   const hasAudit = audit.actions?.length > 0 || audit.checked?.length > 0 || audit.summary
   const showHistory = lecturer && Boolean(history)
   const jump = [
@@ -487,7 +498,7 @@ export default function ResultView({ result, mode = 'lecturer', trajectory, quiz
     <div className="space-y-6">
       <Reveal delay={0} height={200}>
         <Card className="flex-col gap-6 overflow-hidden border-t-4 p-6 @xl:flex-row @xl:items-center" style={{ borderTopColor: styleOf(markBand(mark)).ring }}>
-          <ScoreRing mark={mark} interval={overridden ? null : result.mark_interval} />
+          <ScoreRing mark={mark} interval={overridden ? null : result.mark_interval} label={result.scope === 'overall' ? 'final mark' : 'predicted mark'} />
           <div className="min-w-0 flex-1 space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <StatusPill status={result.status} />
@@ -523,8 +534,8 @@ export default function ResultView({ result, mode = 'lecturer', trajectory, quiz
               <div className="space-y-2">
                 {flags.map((f, i) => (
                   <div key={i} className="rounded-xl border border-amber-300/70 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
-                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">{f.message}</p>
-                    {f.reason && lecturer && <p className="mt-1 text-xs text-amber-800/80 dark:text-amber-300/80"><span className="font-medium">Agent:</span> {f.action === 'escalate' ? 'left it to you' : f.action === 'accept' ? 'let it stand' : 'looked at it'}. {f.reason}</p>}
+                    <p className="text-[13px] font-medium leading-snug text-amber-900 dark:text-amber-200">{f.message}</p>
+                    {f.reason && lecturer && <p className="mt-1 text-[11.5px] leading-snug text-amber-800/80 dark:text-amber-300/80"><span className="font-medium">Agent:</span> {f.action === 'escalate' ? 'left it to you' : f.action === 'accept' ? 'let it stand' : 'looked at it'}. {f.reason}</p>}
                   </div>
                 ))}
               </div>
@@ -571,13 +582,27 @@ export default function ResultView({ result, mode = 'lecturer', trajectory, quiz
 
       <Reveal id="sec-factors" delay={200} height={320}>
         <Panel
-          title="The factors" icon={BarChart3} hint="Open a card for the detail"
+          title="The factors" icon={BarChart3} hint={sprintIds.length === 0 ? 'Open a card for the detail' : chosenSprint === 'overall' ? 'The average of all sprints; pick a sprint for the explanation' : `${chosenSprint}: open a card for the detail`}
           info="Each bar runs from 0 to 100. The lighter stretch is the range the score is likely to fall in; hatching means the sprint is still running. The arrow on a card opens its explanation."
-          aside={<button type="button" onClick={() => setAll(!allOpen)} className="rounded-lg border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary">{allOpen ? 'Collapse all' : 'Expand all'}</button>}
+          aside={(
+            <div className="flex items-center gap-2">
+              {sprintIds.length > 0 && (
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  Sprint
+                  <select value={chosenSprint} onChange={(e) => setFactorSprint(e.target.value)} aria-label="Sprint shown in the factor cards" className="rounded-lg border bg-background px-2 py-1.5 text-xs font-medium text-foreground">
+                    {sprintIds.map((id) => <option key={id} value={id}>{id}</option>)}
+                    {result.scope === 'overall' && <option value="overall">Overall (scores only)</option>}
+                  </select>
+                </label>
+              )}
+              <button type="button" onClick={() => setAll(!allOpen)} className="rounded-lg border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary">{allOpen ? 'Collapse all' : 'Expand all'}</button>
+            </div>
+          )}
         >
           <Masonry
+            key={chosenSprint}
             items={[
-              ...factorCards.map((m, i) => {
+              ...shownCards.map((m, i) => {
                 const block = m
                 const reasons = (block.reasons || []).filter(Boolean)
                 return {
@@ -589,10 +614,10 @@ export default function ResultView({ result, mode = 'lecturer', trajectory, quiz
               {
                 key: 'pattern', weight: 120,
                 node: (
-                  <Card key="pattern" className="animate-fade-rise gap-2 p-5" style={{ animationDelay: `${factorCards.length * 90}ms` }}>
+                  <Card key="pattern" className="animate-fade-rise gap-2 p-5" style={{ animationDelay: `${shownCards.length * 90}ms` }}>
                     <h4 className="text-base font-semibold text-foreground">Working pattern</h4>
-                    <p className="text-sm">{pattern?.persona ? <span className="font-medium">{pattern.persona}</span> : <span className="text-muted-foreground">Not classified</span>}{pattern && !pattern.applied && <span className="mt-1 block text-xs text-muted-foreground">A tendency for now. It counts once the sprint is final.</span>}</p>
-                    {(pattern?.reasons || []).filter(Boolean).slice(0, 1).map((r, i) => <p key={i} className="line-clamp-2 text-xs text-muted-foreground">{r}</p>)}
+                    <p className="text-sm">{shownPattern?.persona ? <span className="font-medium">{shownPattern.persona}</span> : <span className="text-muted-foreground">Not classified</span>}{shownPattern && !shownPattern.applied && <span className="mt-1 block text-xs text-muted-foreground">A tendency for now. It counts once the sprint is final.</span>}</p>
+                    {(shownPattern?.reasons || []).filter(Boolean).slice(0, 1).map((r, i) => <p key={i} className="line-clamp-2 text-xs text-muted-foreground">{r}</p>)}
                   </Card>
                 ),
               },

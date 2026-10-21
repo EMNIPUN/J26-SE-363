@@ -38,7 +38,7 @@ cd backend/agentic_framework
 uv run python -m worker                 # consumes the queue: assess_team, resume_run, refuse_student, sync_team, and the periodic jobs
 ```
 
-Environment (worker): `SERVER_DIRECT_URL` (database), `GITHUB_TOKEN` (private repositories, review data), `GROQ_API_KEYS` (Requirement Fulfillment and the auditor; without it RF is "not available"), `ASSESSMENT_WORKSPACE` (folder for the read-only clones and run data), `SCRUM_DATA_DIR` (optional; Scrum MCP data folder).
+Environment (worker): `SERVER_DIRECT_URL` (database), `GITHUB_TOKEN` (private repositories, review data), `ASSESSMENT_GROQ_API_KEYS` (Requirement Fulfillment and the auditor; without it RF is "not available"), `ASSESSMENT_WORKSPACE` (folder for the read-only clones and run data), `SCRUM_DATA_DIR` (optional; Scrum MCP data folder).
 Core API: `GITHUB_WEBHOOK_SECRET` for `POST /api/v1/performance/webhooks/github`.
 Schema: `uv run alembic upgrade head` in `backend/server` (revision `a7c3d5e91f02`). Not applied by any code path automatically.
 

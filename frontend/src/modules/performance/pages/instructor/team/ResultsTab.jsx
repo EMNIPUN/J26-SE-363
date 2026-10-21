@@ -29,7 +29,7 @@ function Spread({ rows }) {
     <Card className="gap-3 p-5">
       <div>
         <h3 className="text-sm font-semibold text-foreground">How the work is spread</h3>
-        <p className="text-xs text-muted-foreground">One dot per student. A wide gap inside a team is what this assessment exists to show.</p>
+        <p className="text-xs text-muted-foreground">One dot per student, at their final mark (the average of all sprints so far). A wide gap inside a team is what this assessment exists to show.</p>
       </div>
       <div className="relative h-14">
         <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-rose-200 via-amber-200 to-emerald-200 dark:from-rose-900 dark:via-amber-900 dark:to-emerald-900" />
@@ -58,7 +58,7 @@ export default function ResultsTab({ overview, loading, base }) {
   return (
     <Stagger className="space-y-5">
       <div className="grid gap-3 @xl:grid-cols-2 @5xl:grid-cols-4">
-        <Stat icon={Users} label="Average mark" value={markText(s.average_mark)} hint={s.lowest != null ? `from ${markText(s.lowest)} to ${markText(s.highest)}` : ''} tone="bg-primary/10 text-primary" />
+        <Stat icon={Users} label="Average final mark" value={markText(s.average_mark)} hint={s.lowest != null ? `from ${markText(s.lowest)} to ${markText(s.highest)}` : ''} tone="bg-primary/10 text-primary" />
         <Stat icon={AlertTriangle} label="Need your review" value={s.need_review ?? 0} hint={s.flags ? `${s.flags} points to check` : 'nothing flagged'} tone="bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400" />
         <Stat icon={Clock} label="Waiting for a code answer" value={s.waiting_for_answer ?? 0} hint="marks are provisional until they answer" tone="bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400" />
         <Stat icon={Gauge} label="Provisional" value={s.provisional ?? 0} hint="can still change" tone="bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400" />
@@ -99,7 +99,7 @@ export default function ResultsTab({ overview, loading, base }) {
       </Card>
 
       <Spread rows={rows} />
-      <p className="text-xs text-muted-foreground">Marks and factor scores are the average over every sprint evaluated so far. Hatched bars are to date: a sprint is still running. A dashed bar means the factor could not be measured and is left out of the mark. Marks are predictions to support your decision. <Link to={`${base}/method`} className="font-medium text-primary hover:underline">How the marks are made, and the weights</Link>.</p>
+      <p className="text-xs text-muted-foreground">Every mark and factor score on this page is a final result: the average over every sprint evaluated so far, not the last sprint alone. Hatched bars are to date: a sprint is still running. A dashed bar means the factor could not be measured and is left out of the mark. Marks are predictions to support your decision. <Link to={`${base}/method`} className="font-medium text-primary hover:underline">How the marks are made, and the weights</Link>.</p>
     </Stagger>
   )
 }

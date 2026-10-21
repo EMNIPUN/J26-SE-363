@@ -569,7 +569,7 @@ async def _overview(store, account: Account, team_ref: str, sprint_id: str | Non
     roster_list = (team.get("config") or {}).get("roster", [])
     if not roster_list and group:
         roster_list = links.agent_roster(account.session, group)
-    return {"schema": "team_overview/1", "team": {"ref": ref, "name": ref, "repo": team.get("repo_url")},
+    return {"schema": "team_overview/1", "scope": "overall", "team": {"ref": ref, "name": ref, "repo": team.get("repo_url")},
             "sprints": sprints, "sprint": selected,
             "roster": roster_list,
             "run_state": {"ready": True, "blockers": [], "active_run": active, "latest_run": latest_run,
@@ -666,15 +666,73 @@ async def student_history(team_ref: str, student_id: str, account: Staff, store:
     return {"schema": "student_history/1", "current": selected, "sprints": all_sprint_ids, "marks": aligned_marks, "rows": rows, "enough": enough}
 
 
+def _factor_cards(j: dict, stored: dict, factor_results: list[dict]) -> dict:
+    """The factors of one sprint as cards: score and range, and what the agent wrote for that sprint (what it measured, the reasons, warnings and anomalies)."""
+    by_factor = {fr["factor"]: fr for fr in factor_results}
+    out = {}
+    for factor_tuple in service.FACTORS:
+        fname = factor_tuple[0]
+        fmeta = by_factor.get(fname) or stored.get(fname) or {}
+        out[fname] = {
+            "id": fname,
+            "label": factor_tuple[1],
+            "status": fmeta.get("status", "not_available"),
+            "state": service.factor_state(fmeta),
+            "score": fmeta.get("score"),
+            "interval": fmeta.get("interval"),
+            "provisional": bool(fmeta.get("provisional")),
+            "warnings": fmeta.get("warnings") or [],
+            "reasons": (j.get("factors") or {}).get(fname, {}).get("reasons") or [],
+            "explain": (j.get("factors") or {}).get(fname, {}).get("explain", {}).get("in_short"),
+            "anomalies": [a["message"] for a in ((j.get("anomalies") or {}).get(fname) or []) if a.get("message")],
+            "measures": factor_tuple[4],
+            "tracked": factor_tuple[5],
+        }
+    return out
+
+
+def _pattern_of(j: dict) -> dict:
+    behavioral = (j.get("factors") or {}).get("behavioral_pattern") or {}
+    return {"persona": behavioral.get("persona"), "applied": bool(behavioral.get("applied")), "modifier": behavioral.get("modifier") or 1.0, "reasons": [r for r in behavioral.get("reasons") or [] if r]}
+
+
+async def _results_by_student(store, team_ref: str, configured: list[dict]) -> dict[str, list[dict]]:
+    """Every student's lecturer-view results over all the sprints, oldest sprint first."""
+    out: dict[str, list[dict]] = {}
+    for sp in configured:
+        for r in await db(store.latest_results, team_ref, sp["id"]):
+            out.setdefault(r["student_id"], []).append(service.lecturer_view(r))
+    return out
+
+
+def _team_factor_average(factor_maps: dict[str, dict]) -> dict[str, float]:
+    """The mean score (0 to 1) of each factor over the students who have one. ``factor_maps`` is {student: {factor: {state, score}}}."""
+    out = {}
+    for factor, *_ in service.FACTORS:
+        scores = [f[factor]["score"] for f in factor_maps.values() if f.get(factor, {}).get("state") == "scored" and f[factor].get("score") is not None]
+        if scores:
+            out[factor] = sum(scores) / len(scores)
+    return out
+
+
+def _final_summary(counted: list[dict], mark: float | None) -> str:
+    parts = ", ".join(f"{r['sprint_id']} {round(m)}" for r in counted if (m := service.effective_mark(r)) is not None)
+    return f"Final mark {round(mark)}: the average of the sprint marks ({parts})." if mark is not None else "There is no mark to show yet."
+
+
 @router.get("/teams/{team_ref}/students/{student_id}/report")
 async def student_report(team_ref: str, student_id: str, account: Staff, store: Store, sprint: str | None = None):
+    """One student's report. Without ``sprint`` (or with ``sprint=overall``) it is the final result: the mark and the factor scores are the average over every
+    sprint that has a result. With a sprint id it is that sprint alone. The agent's brief, reasons and checks are always those of one sprint (``narrative_sprint``)."""
     team = await own_team(store, account, team_ref)
     configured = _sprints(team)
-    selected = sprint or (configured[-1]["id"] if configured else "")
+    overall_scope = sprint in (None, "", "overall")
+    requested = None if overall_scope else sprint
+    selected = requested or (configured[-1]["id"] if configured else "")
 
     results = await db(store.latest_results, team_ref, selected)
     current = next((r for r in results if r["student_id"] == student_id), None)
-    if not current and not sprint:
+    if not current and not requested:
         for sp in reversed(configured):
             sp_results = await db(store.latest_results, team_ref, sp["id"])
             sp_curr = next((r for r in sp_results if r["student_id"] == student_id), None)
@@ -698,51 +756,59 @@ async def student_report(team_ref: str, student_id: str, account: Staff, store: 
     student_name = (member.user.name if member else None) or (person.get("names") or [student_id])[0]
     student_picture = avatars.picture_of(member.user) if member else None
 
-    cohort_marks = [service.effective_mark(r) for r in results if service.effective_mark(r) is not None]
-    average = round(sum(cohort_marks) / len(cohort_marks), 2) if cohort_marks else None
+    total = None
+    by_student = await _results_by_student(store, team_ref, configured)
+    mine = by_student.get(student_id) or [service.lecturer_view(current)]
+    if overall_scope:
+        overalls = {sid: service.overall(rs) for sid, rs in by_student.items()}
+        total = service.overall(mine)
+        team_average = _team_factor_average({sid: o["factors"] for sid, o in overalls.items()})
+    else:
+        team_average = _team_factor_average({r["student_id"]: service.display_factors(r) for r in results})
     hist = await _student_history(store, team_ref, student_id, selected)
 
     j = current.get("justification") or {}
     mark = service.effective_mark(current)
+    status = current.get("status")
+    interval = None if current.get("override") else current.get("mark_interval")
+    overridden, override = bool(current.get("override")), current.get("override")
+    summary = j.get("friendly_summary") or j.get("summary")
     flags = [{"message": f.get("message", f) if isinstance(f, dict) else str(f), "action": f.get("action"), "reason": f.get("reason")} for f in (current.get("flags") or [])]
 
-    stored_factors = current.get("factors") or {}
-    factor_results = await db(store.list_factor_results, current["run_id"], student_id)
-    factor_meta_map = {fr["factor"]: fr for fr in factor_results}
+    factors_out = _factor_cards(j, current.get("factors") or {}, await db(store.list_factor_results, current["run_id"], student_id))
+    # Each sprint's own cards, so the report can show the factors of any sprint with the agent's explanation for it.
+    sprint_factors = {}
+    for r in mine:
+        rj = r.get("justification") or {}
+        cards = factors_out if r["sprint_id"] == selected else _factor_cards(rj, r.get("factors") or {}, await db(store.list_factor_results, r["run_id"], student_id))
+        sprint_factors[r["sprint_id"]] = {"factors": {k: dict(v) for k, v in cards.items()}, "pattern": _pattern_of(rj), "mark": service.effective_mark(r), "status": r.get("status")}
 
-    factors_out = {}
-    for factor_tuple in service.FACTORS:
-        fname = factor_tuple[0]
-        fmeta = factor_meta_map.get(fname) or stored_factors.get(fname) or {}
-        score = fmeta.get("score")
-        factors_out[fname] = {
-            "id": fname,
-            "label": factor_tuple[1],
-            "status": fmeta.get("status", "not_available"),
-            "state": service.factor_state(fmeta),
-            "score": score,
-            "interval": fmeta.get("interval"),
-            "provisional": bool(fmeta.get("provisional")),
-            "warnings": fmeta.get("warnings") or [],
-            "reasons": (j.get("factors") or {}).get(fname, {}).get("reasons") or [],
-            "explain": (j.get("factors") or {}).get(fname, {}).get("explain", {}).get("in_short"),
-            "anomalies": [a["message"] for a in ((j.get("anomalies") or {}).get(fname) or []) if a.get("message")],
-            "measures": factor_tuple[4],
-            "tracked": factor_tuple[5],
-        }
+    if total is not None:
+        # The final result: every number comes from the average over the sprints; the sprint's own explanations stay with that sprint.
+        counted = service.counted(mine)
+        mark, status, interval, overridden, override = total["mark"], total["status"], total["mark_interval"], False, None
+        summary = _final_summary(counted, mark)
+        for fname, f in total["factors"].items():
+            factors_out[fname].update(status=f["status"], state=f["state"], score=f["score"], interval=f["interval"], provisional=f["provisional"],
+                                      warnings=[], reasons=[], explain=None, anomalies=[], sprints_scored=f.get("sprints", 0))
+        flags = [{"message": f"{r['sprint_id']}: {f.get('message', f) if isinstance(f, dict) else str(f)}", "action": f.get("action") if isinstance(f, dict) else None,
+                  "reason": f.get("reason") if isinstance(f, dict) else None} for r in counted for f in (r.get("flags") or [])]
 
     sprint_info = next((s for s in configured if s["id"] == selected), {"id": selected})
 
     return {
         "schema": "student_report/1",
+        "scope": "overall" if overall_scope else "sprint",
+        "sprints_counted": total["sprints"] if total else 1,
+        "narrative_sprint": selected,
         "student_id": student_id,
         "sprint_id": selected,
-        "status": current.get("status"),
+        "status": status,
         "mark": mark,
-        "mark_interval": None if current.get("override") else current.get("mark_interval"),
+        "mark_interval": interval,
         "effective_mark": mark,
-        "overridden": bool(current.get("override")),
-        "override": current.get("override"),
+        "overridden": overridden,
+        "override": override,
         "student": {
             "id": student_id,
             "name": student_name,
@@ -757,13 +823,15 @@ async def student_report(team_ref: str, student_id: str, account: Staff, store: 
         },
         "hero": {
             "mark": mark,
-            "summary": j.get("friendly_summary") or j.get("summary"),
-            "override": (current.get("override") or {}).get("reason"),
+            "summary": summary,
+            "override": (override or {}).get("reason"),
             "contributions": (j.get("fused") or {}).get("contributions") or [],
         },
         "factors": factors_out,
         "flags": flags,
         "history": hist,
+        "team_average": team_average,
+        "sprint_factors": sprint_factors,
         "radar": {
             "axes": [
                 {
@@ -771,7 +839,7 @@ async def student_report(team_ref: str, student_id: str, account: Staff, store: 
                     "factor": f[1],
                     "short": f[1].replace("Requirement Fulfillment", "Requirements").replace("Task Complexity", "Complexity").replace("Code Ownership", "Ownership"),
                     "score": round(factors_out.get(f[0], {}).get("score") * 100) if (factors_out.get(f[0], {}).get("score") is not None and (factors_out.get(f[0], {}).get("state") == "scored" or factors_out.get(f[0], {}).get("status") == "completed")) else 0,
-                    "average": round(average, 1) if average is not None else None,
+                    "average": round(team_average[f[0]] * 100, 1) if f[0] in team_average else None,
                     "measured": factors_out.get(f[0], {}).get("score") is not None and (factors_out.get(f[0], {}).get("state") == "scored" or factors_out.get(f[0], {}).get("status") == "completed"),
                     "state": factors_out.get(f[0], {}).get("state") or factors_out.get(f[0], {}).get("status") or "not measured",
                 }
@@ -779,7 +847,7 @@ async def student_report(team_ref: str, student_id: str, account: Staff, store: 
             ]
         },
         "justification": j,
-        "can_override": True,
+        "can_override": not overall_scope,
         "all_sprints": configured,
         **service.report_sections(j, factors_out),
         "generated": j.get("generated") or {},
@@ -1226,6 +1294,12 @@ async def _student_history(store, team_ref: str, student_id: str, sprint: str | 
     return {"schema": "student_history/1", "current": selected, "sprints": all_sprint_ids, "marks": aligned_marks, "rows": rows, "enough": enough}
 
 
+def _student_factors(result: dict) -> dict:
+    """The factor fields a student may read for one sprint."""
+    allowed = ("status", "score", "interval", "provisional", "band", "headline", "reasons", "warnings", "explain", "measures", "how_much_to_trust")
+    return {factor: {key: raw[key] for key in allowed if key in raw} for factor, raw in (result.get("factors") or {}).items() if isinstance(raw, dict)}
+
+
 def _student_report(result: dict, team: dict, sprint: dict, account: Account, cohort: list[dict], history: dict) -> dict:
     """Build the student-safe subset of the lecturer report.
 
@@ -1235,16 +1309,9 @@ def _student_report(result: dict, team: dict, sprint: dict, account: Account, co
     j = result.get("justification") or {}
     mark = service.effective_mark(result)
     average = None
-    cohort_marks = [service.effective_mark(r) for r in cohort if service.effective_mark(r) is not None]
-    if len(cohort_marks) >= service.performance_meta()["limits"]["min_cohort_for_average"]:
-        average = round(sum(cohort_marks) / len(cohort_marks), 2)
     flags = [{"message": f.get("message", f) if isinstance(f, dict) else str(f)} for f in (result.get("flags") or [])]
     status = result.get("status")
-    allowed_factor_fields = ("status", "score", "interval", "provisional", "band", "headline", "reasons", "warnings", "explain", "measures", "how_much_to_trust")
-    factors = {
-        factor: {key: raw[key] for key in allowed_factor_fields if key in raw}
-        for factor, raw in (result.get("factors") or {}).items() if isinstance(raw, dict)
-    }
+    factors = _student_factors(result)
     report = {
         "schema": "student_report/1",
         "student_id": result["student_id"], "sprint_id": result["sprint_id"], "status": status,
@@ -1268,6 +1335,31 @@ def _student_report(result: dict, team: dict, sprint: dict, account: Account, co
     return report
 
 
+async def _overall_student_report(store, m: dict, tracked: dict, configured: list[dict], account: Account) -> dict | None:
+    """The student's final result: the average over every sprint that is shown to them, in the same shape as a sprint report. None while no sprint can be shown yet."""
+    by_student = await _results_by_student(store, m["team_ref"], configured)
+    counted = service.counted(by_student.get(m["student_id"], []))
+    if not counted:
+        return None
+    overalls = {sid: service.overall(rs) for sid, rs in by_student.items()}
+    total = overalls[m["student_id"]]
+    latest = counted[-1]
+    span = {"id": "overall", "start": configured[0].get("start") if configured else None, "end": configured[-1].get("end") if configured else None}
+    history = await _student_history(store, m["team_ref"], m["student_id"], latest["sprint_id"])
+    report = _student_report(latest, tracked, span, account, [{"mark": o["mark"], "override": None} for o in overalls.values()], history)
+    allowed = ("status", "score", "interval", "provisional")
+    report.update(scope="overall", sprints_counted=total["sprints"], mark=total["mark"], mark_interval=total["mark_interval"], status=total["status"], overridden=False, can_override=False)
+    report["factors"] = {f: {k: v[k] for k in allowed if k in v} for f, v in total["factors"].items()}
+    report["hero"] = {"mark": total["mark"], "summary": _final_summary(counted, total["mark"]), "override": None}
+    report["flags"] = [{"message": f"{r['sprint_id']}: {f.get('message', f) if isinstance(f, dict) else str(f)}"} for r in counted for f in (r.get("flags") or [])]
+    average = _team_factor_average({sid: o["factors"] for sid, o in overalls.items()})
+    shown = len(overalls) >= service.performance_meta()["limits"]["min_cohort_for_average"]
+    report["radar"] = {"axes": [{"factor": f[0], "score": total["factors"][f[0]]["score"], **({"team_average": average[f[0]]} if shown and f[0] in average else {})} for f in service.FACTORS]}
+    report["generated"]["mode"] = "final" if total["status"] == "final" else "snapshot"
+    report["sprint_factors"] = {r["sprint_id"]: {"factors": _student_factors(r), "pattern": _pattern_of(r.get("justification") or {}), "mark": service.effective_mark(r), "status": r.get("status")} for r in counted}
+    return report
+
+
 @router.get("/me/results")
 async def my_results(account: StudentAccount, store: Store):
     out = []
@@ -1287,7 +1379,7 @@ async def my_reports(account: StudentAccount, store: Store, team: str | None = N
     matches = [m for m in await db(_mine, store, account) if team is None or m["team_ref"].lower() == team.strip().lower()]
     if team is not None and not matches:
         raise not_found("Team is not available")
-    reports = []
+    reports, overall = [], None
     for m in matches:
         if not m["release"]:
             continue
@@ -1304,8 +1396,10 @@ async def my_reports(account: StudentAccount, store: Store, team: str | None = N
             history = await _student_history(store, m["team_ref"], m["student_id"], sprint["id"])
             reports.append({"sprint": sprint, "status": current["status"], "report": _student_report(
                 current, tracked, sprint, account, await db(store.latest_results, m["team_ref"], sprint["id"]), history)})
+        if overall is None:
+            overall = await _overall_student_report(store, m, tracked, configured, account)
     needs_connect = any(team is not None and m["team_ref"].lower() == team.strip().lower() and not (account.user.github_username or "") for m in matches)
-    return {"schema": "my_reports/1", "github": {"needs_connect": needs_connect}, "reports": reports}
+    return {"schema": "my_reports/1", "github": {"needs_connect": needs_connect}, "overall": overall, "reports": reports}
 
 
 @router.get("/me/quizzes")

@@ -6,7 +6,7 @@
 (LangGraph, with a critic of another model family; see EXPERIMENTS.md) judges each task's acceptance criteria from the student's own changed lines; the arithmetic is plain code
 (rf_bench.schema: criterion verdict values met 1, partly 0.5, not met / cannot tell 0; task value = mean; sprint score = mean over the student's tasks). The model never does arithmetic.
 
-``context["llm"]`` is the language-model client (a GroqPool built from GROQ_API_KEYS if absent; ScriptedLLM in tests). Without a client or keys the score is "not available", never a guess.
+``context["llm"]`` is the language-model client (a GroqPool built from ASSESSMENT_GROQ_API_KEYS if absent; ScriptedLLM in tests). Without a client or keys the score is "not available", never a guess.
 ``context["on_event"]``, if given, is called with ``(type, message, payload)`` for each task, so the live pipeline can show progress.
 
 The sprint score has a rough band only: on the 10-task development smoke the critic version's task-level MAE was 0.34 (EXPERIMENTS.md); no held-out run was finished.
