@@ -28,7 +28,6 @@ export const assessmentApi = {
   report: (team, sprint, student) => apiClient.get(`${P}/teams/${team}/students/${student}/report`, { params: { sprint } }),
   trajectoryAll: (team, student) => apiClient.get(`${P}/teams/${team}/students/${student}/trajectory`),
   history: (team, student) => apiClient.get(`${P}/teams/${team}/students/${student}/history`),
-  trajectory: (team, sprint, student) => apiClient.get(`${P}/teams/${team}/sprints/${sprint}/students/${student}/trajectory`),
   questions: (team, sprint, student, include = 'list') => apiClient.get(`${P}/teams/${team}/sprints/${sprint}/students/${student}/questions`, { params: { include } }),
   setMark: (team, sprint, student, body) => apiClient.put(`${P}/teams/${team}/sprints/${sprint}/students/${student}/override`, body),
   method: (team) => apiClient.get(`${P}/teams/${team}/method`),
