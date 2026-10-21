@@ -20,6 +20,12 @@ from pathlib import Path
 
 from .schema import est_tokens
 
+try:
+    from app.core.groq_usage import record as record_usage  # what each key has used, for the usage endpoint of the service
+except ImportError:  # the experiments run on their own, outside the service: nothing is recorded
+    def record_usage(*args, **kwargs):
+        return None
+
 URL = "https://api.groq.com/openai/v1/chat/completions"
 PRECHECK_FACTOR = 1.3  # estimated prompt tokens above this many times the per-minute limit are certain to be refused (the estimate is within about +-20%)
 USAGE_FILE = Path(__file__).resolve().parents[1] / ".runs" / "groq_usage.json"
@@ -28,6 +34,7 @@ USAGE_FILE = Path(__file__).resolve().parents[1] / ".runs" / "groq_usage.json"
 @dataclass
 class Reply:
     text: str = ""
+    reasoning: str = ""
     prompt_tokens: int = 0
     completion_tokens: int = 0
     latency: float = 0.0
@@ -65,7 +72,13 @@ class ScriptedLLM(LLM):
         if self.limit and prompt > self.limit:
             return Reply(error=f"request too large ({prompt} tokens)", error_kind="too_large", prompt_tokens=prompt, model=self.model, attempts=1)
         text = self.responder(messages, tag)
-        return Reply(text=text, prompt_tokens=prompt, completion_tokens=est_tokens(text), model=self.model, attempts=1, latency=0.0)
+        reasoning = ""
+        if isinstance(text, str) and "<think>" in text:
+            m = re.search(r"<think>(.*?)</think>", text, flags=re.DOTALL)
+            if m:
+                reasoning = m.group(1).strip()
+                text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+        return Reply(text=text, reasoning=reasoning, prompt_tokens=prompt, completion_tokens=est_tokens(text), model=self.model, attempts=1, latency=0.0)
 
 
 # --- Groq ---------------------------------------------------------------------------------------------------------------
@@ -174,7 +187,7 @@ class GroqPool(LLM):
         if "gpt-oss" in use:
             body["reasoning_effort"] = self.effort
         if "qwen" in use:
-            body["reasoning_format"] = "hidden"  # keep the thinking out of the reply
+            body["reasoning_format"] = "parsed"  # expose model reasoning for live trace
         t0, attempts = time.time(), 0
         last = Reply(model=self.model, error="no key available", error_kind="no_key")
         while attempts < 6:
@@ -218,6 +231,7 @@ class GroqPool(LLM):
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 data = json.loads(resp.read().decode())
                 u = data.get("usage", {})
+                record_usage(key.secret, body["model"], ok=True, status=resp.status, usage=u, headers=resp.headers, source="requirement_fulfillment")
                 msg = data["choices"][0]["message"]
                 calls = []
                 for c in msg.get("tool_calls") or []:
@@ -225,7 +239,14 @@ class GroqPool(LLM):
                         calls.append({"name": c["function"]["name"], "arguments": json.loads(c["function"].get("arguments") or "{}")})
                     except Exception:
                         calls.append({"name": c.get("function", {}).get("name", ""), "arguments": {}})
-                return Reply(text=msg.get("content") or "", prompt_tokens=u.get("prompt_tokens", 0), tool_calls=calls,
+                reasoning = (msg.get("reasoning") or msg.get("reasoning_content") or "").strip()
+                content_text = msg.get("content") or ""
+                if not reasoning and "<think>" in content_text:
+                    m = re.search(r"<think>(.*?)</think>", content_text, flags=re.DOTALL)
+                    if m:
+                        reasoning = m.group(1).strip()
+                        content_text = re.sub(r"<think>.*?</think>", "", content_text, flags=re.DOTALL).strip()
+                return Reply(text=content_text, reasoning=reasoning, prompt_tokens=u.get("prompt_tokens", 0), tool_calls=calls,
                              completion_tokens=u.get("completion_tokens", 0), model=data.get("model", body["model"]))
         except urllib.error.HTTPError as e:
             text = ""
@@ -239,8 +260,10 @@ class GroqPool(LLM):
             if e.code == 413 or "request too large" in low or "request_too_large" in low:
                 return Reply(model=body["model"], error=f"HTTP {e.code}: {msg[:300]}", error_kind="too_large")
             if e.code == 429 and re.search(r"per day|\(tpd\)|\(rpd\)", low):
+                record_usage(key.secret, body["model"], ok=False, status=429, headers=e.headers, error_kind="quota", error_text=msg, source="requirement_fulfillment")
                 return Reply(model=body["model"], error=f"HTTP 429: {msg[:200]}", error_kind="quota", meta={"retry_after": after})
             if e.code == 429:
+                record_usage(key.secret, body["model"], ok=False, status=429, headers=e.headers, error_kind="rate_limited", error_text=msg, source="requirement_fulfillment")
                 return Reply(model=body["model"], error=f"HTTP 429: {msg[:200]}", error_kind="rate_limited", meta={"retry_after": after})
             if e.code == 400:
                 return Reply(model=body["model"], error=f"HTTP 400: {msg[:300]}", error_kind="bad_request")
