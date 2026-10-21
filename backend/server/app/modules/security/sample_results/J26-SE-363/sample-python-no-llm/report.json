@@ -1,0 +1,920 @@
+{
+  "report_version": "assessment-v1",
+  "meta": {
+    "source": "vuln_py_repo",
+    "commit_sha": null,
+    "threshold": 0.7,
+    "llm_model": null,
+    "temperature": null,
+    "interpreter_prompt": "interpreter-v4",
+    "trace_prompt": "trace-v1",
+    "risk_version": "risk-v1",
+    "requirements_file": null,
+    "tasks_file": null,
+    "governance": "enforce"
+  },
+  "run": {
+    "complete": false,
+    "incomplete_reasons": [
+      "stage interpret skipped: --allow-external-llm was not given: nothing was sent to any LLM",
+      "stage trace skipped: needs interpret",
+      "stage risk skipped: needs interpret",
+      "stage questions skipped: needs interpret"
+    ],
+    "stages": [
+      {
+        "stage": "fetch",
+        "status": "completed",
+        "detail": "local folder",
+        "seconds": 0.11
+      },
+      {
+        "stage": "scan",
+        "status": "completed",
+        "detail": "reused saved findings (python_full.json); nothing was scanned now; agent loop (review, no tool can run): 1 step(s), goal met: every category is FULL or has nothing to scan, and there is no coverage gap",
+        "seconds": 0.06
+      },
+      {
+        "stage": "governance",
+        "status": "completed",
+        "detail": "enforcing; tool allow-list ok; 4 README/commit message(s) scanned, 0 prompt-injection indicator(s) logged (an indicator, not proof)",
+        "seconds": 0.17
+      },
+      {
+        "stage": "interpret",
+        "status": "skipped",
+        "detail": "--allow-external-llm was not given: nothing was sent to any LLM",
+        "seconds": 0.0
+      },
+      {
+        "stage": "trace",
+        "status": "skipped",
+        "detail": "needs interpret",
+        "seconds": 0.0
+      },
+      {
+        "stage": "risk",
+        "status": "skipped",
+        "detail": "needs interpret",
+        "seconds": 0.0
+      },
+      {
+        "stage": "guidance",
+        "status": "completed",
+        "detail": "10 standard fix entr(ies) apply",
+        "seconds": 0.0
+      },
+      {
+        "stage": "questions",
+        "status": "skipped",
+        "detail": "needs interpret",
+        "seconds": 0.0
+      }
+    ],
+    "llm_refused": true
+  },
+  "scan": {
+    "languages": [
+      "python"
+    ],
+    "complete": true,
+    "skipped_tools": [],
+    "warnings": [],
+    "reused": true,
+    "coverage_gaps": [],
+    "tool_runs": [
+      {
+        "tool": "config-scan",
+        "status": "succeeded",
+        "reason": null,
+        "tool_version": "builtin",
+        "duration_s": 0.1,
+        "findings_count": 4
+      },
+      {
+        "tool": "gitleaks",
+        "status": "succeeded",
+        "reason": null,
+        "tool_version": "8.24.0",
+        "duration_s": 0.6,
+        "findings_count": 1
+      },
+      {
+        "tool": "trufflehog",
+        "status": "succeeded",
+        "reason": null,
+        "tool_version": "trufflehog 3.88.0",
+        "duration_s": 4.2,
+        "findings_count": 1
+      },
+      {
+        "tool": "osv-scanner",
+        "status": "succeeded",
+        "reason": null,
+        "tool_version": "osv-scanner version: 2.0.0",
+        "duration_s": 5.1,
+        "findings_count": 1
+      },
+      {
+        "tool": "npm-audit",
+        "status": "not_applicable",
+        "reason": "no javascript/typescript files in repository",
+        "tool_version": null,
+        "duration_s": 0.0,
+        "findings_count": 0
+      },
+      {
+        "tool": "pip-audit",
+        "status": "succeeded",
+        "reason": null,
+        "tool_version": "pip-audit 2.10.1",
+        "duration_s": 3.0,
+        "findings_count": 1
+      },
+      {
+        "tool": "actionlint",
+        "status": "succeeded",
+        "reason": null,
+        "tool_version": "1.7.7",
+        "duration_s": 0.2,
+        "findings_count": 0
+      },
+      {
+        "tool": "zizmor",
+        "status": "succeeded",
+        "reason": null,
+        "tool_version": "zizmor 1.5.2",
+        "duration_s": 0.4,
+        "findings_count": 2
+      },
+      {
+        "tool": "codeql",
+        "status": "succeeded",
+        "reason": null,
+        "tool_version": "CodeQL command-line toolchain release 2.20.0.",
+        "duration_s": 212.0,
+        "findings_count": 2
+      }
+    ],
+    "coverage": {
+      "V1": {
+        "level": "FULL",
+        "note": "codeql ran",
+        "tools": {
+          "codeql": "ran",
+          "config-scan": "ran"
+        }
+      },
+      "V2": {
+        "level": "FULL",
+        "note": "codeql ran",
+        "tools": {
+          "codeql": "ran"
+        }
+      },
+      "V3": {
+        "level": "FULL",
+        "note": "codeql, config-scan ran",
+        "tools": {
+          "codeql": "ran",
+          "config-scan": "ran"
+        }
+      },
+      "V4": {
+        "level": "FULL",
+        "note": "gitleaks, trufflehog ran",
+        "tools": {
+          "gitleaks": "ran",
+          "trufflehog": "ran",
+          "codeql": "ran"
+        }
+      },
+      "V5": {
+        "level": "FULL",
+        "note": "osv-scanner, pip-audit, actionlint, zizmor ran",
+        "tools": {
+          "osv-scanner": "ran",
+          "npm-audit": "not applicable",
+          "pip-audit": "ran",
+          "actionlint": "ran",
+          "zizmor": "ran"
+        }
+      }
+    }
+  },
+  "interpretation": null,
+  "llm_usage": {
+    "interpret": {
+      "calls": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0
+    },
+    "link_proposals": {
+      "calls": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0
+    },
+    "total_tokens": 0,
+    "model": null,
+    "seed": null
+  },
+  "decision_trail": {
+    "Analysis Orchestrator": [
+      {
+        "component": "orchestrator",
+        "step": 1,
+        "subject": null,
+        "policy": "rules",
+        "state": {
+          "pass_done": true,
+          "statuses": {
+            "config-scan": "succeeded",
+            "gitleaks": "succeeded",
+            "trufflehog": "succeeded",
+            "osv-scanner": "succeeded",
+            "npm-audit": "not_applicable",
+            "pip-audit": "succeeded",
+            "actionlint": "succeeded",
+            "zizmor": "succeeded",
+            "codeql": "succeeded"
+          },
+          "retries_used": {},
+          "coverage": {
+            "V1": "FULL",
+            "V2": "FULL",
+            "V3": "FULL",
+            "V4": "FULL",
+            "V5": "FULL"
+          },
+          "open_gaps": 0,
+          "recorded_gaps": 0,
+          "steps_used": 0,
+          "max_steps": 20
+        },
+        "options": [
+          "stop"
+        ],
+        "chosen": "stop",
+        "reason": "goal met: every category is FULL or has nothing to scan, and there is no coverage gap",
+        "rejected": null,
+        "outcome": "stopped after 1 step(s); coverage {'V1': 'FULL', 'V2': 'FULL', 'V3': 'FULL', 'V4': 'FULL', 'V5': 'FULL'}"
+      }
+    ],
+    "Governance": []
+  },
+  "findings": [
+    {
+      "group_id": "G01",
+      "kind": "single",
+      "package": null,
+      "category": "V1",
+      "rule_id": "security-assistant/py/missing-ownership-check",
+      "tool": "codeql",
+      "file_path": "app.py",
+      "line": 22,
+      "severity_tool": "7.5",
+      "findings_in_group": 1,
+      "status": "not interpreted",
+      "confidence": null,
+      "rationale": "",
+      "evidence_ids": [],
+      "recommendation": "",
+      "introducing_commit": null,
+      "links": [],
+      "rejected_links": [],
+      "trace_notes": [],
+      "risk": null,
+      "cwe": "CWE-639",
+      "message": "Route handler 'orders' uses parameter 'user_id' in a SQL query without checking the authenticated user.",
+      "snippet": "    19 | def orders(user_id):  # V1: no check that user_id is the logged-in user\n    20 |     db = sqlite3.connect(\"shop.db\")\n    21 |     name = request.args.get(\"name\")\n>   22 |     db.execute(\"SELECT * FROM orders WHERE user_id = \" + user_id + \" AND name = '\" + name + \"'\")  # V2\n    23 |     return \"ok\"",
+      "original_status": null,
+      "downgrade_reason": null,
+      "fix_guidance": {
+        "id": "ownership-check",
+        "title": "Check that the logged-in user owns the record",
+        "steps": [
+          "Find the query that uses the id from the request (path variable, query string or body).",
+          "Get the current user from the session or token, never from a value the client sends.",
+          "Make the query match both the id and the owner (or compare the owner to the current user), and answer 403 or 404 when it does not match.",
+          "Add a test: user B asks for user A's record and must be refused."
+        ],
+        "example": {
+          "language": "python",
+          "code": "order = Order.query.filter_by(id=order_id, user_id=current_user.id).first_or_404()"
+        },
+        "references": [
+          "https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/639.html"
+        ]
+      },
+      "probe": null
+    },
+    {
+      "group_id": "G02",
+      "kind": "single",
+      "package": null,
+      "category": "V2",
+      "rule_id": "py/sql-injection",
+      "tool": "codeql",
+      "file_path": "app.py",
+      "line": 22,
+      "severity_tool": "8.8",
+      "findings_in_group": 1,
+      "status": "not interpreted",
+      "confidence": null,
+      "rationale": "",
+      "evidence_ids": [],
+      "recommendation": "",
+      "introducing_commit": null,
+      "links": [],
+      "rejected_links": [],
+      "trace_notes": [],
+      "risk": null,
+      "cwe": "CWE-89",
+      "message": "This SQL query depends on a user-provided value.",
+      "snippet": "    19 | def orders(user_id):  # V1: no check that user_id is the logged-in user\n    20 |     db = sqlite3.connect(\"shop.db\")\n    21 |     name = request.args.get(\"name\")\n>   22 |     db.execute(\"SELECT * FROM orders WHERE user_id = \" + user_id + \" AND name = '\" + name + \"'\")  # V2\n    23 |     return \"ok\"",
+      "original_status": null,
+      "downgrade_reason": null,
+      "fix_guidance": {
+        "id": "sql-injection",
+        "title": "Use parameterised queries instead of building SQL text",
+        "steps": [
+          "Never build SQL with +, f-strings or string formatting from request input.",
+          "Put a placeholder (? or :name) in the query and pass the values separately.",
+          "Use an ORM's query methods where possible and validate the type of ids (for example convert to int)."
+        ],
+        "example": {
+          "language": "python",
+          "code": "db.execute(\"SELECT * FROM orders WHERE user_id = ? AND name = ?\", (user_id, name))"
+        },
+        "references": [
+          "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/89.html"
+        ]
+      },
+      "probe": null
+    },
+    {
+      "group_id": "G03",
+      "kind": "single",
+      "package": null,
+      "category": "V3",
+      "rule_id": "security-assistant-cfg-005",
+      "tool": "config-scan",
+      "file_path": "app.py",
+      "line": 13,
+      "severity_tool": null,
+      "findings_in_group": 1,
+      "status": "not interpreted",
+      "confidence": null,
+      "rationale": "",
+      "evidence_ids": [],
+      "recommendation": "",
+      "introducing_commit": null,
+      "links": [],
+      "rejected_links": [],
+      "trace_notes": [],
+      "risk": null,
+      "cwe": "CWE-916",
+      "message": "Weak or unsalted password hashing / password encoder",
+      "snippet": "    10 | \n    11 | @app.route(\"/login\", methods=[\"POST\"])\n    12 | def login():\n>   13 |     pw = hashlib.md5(request.form[\"password\"].encode()).hexdigest()  # V3: weak hash\n    14 |     token = jwt.encode({\"user\": request.form[\"user\"]}, \"key\", algorithm=\"HS256\")  # V3: no exp\n    15 |     return token\n    16 | ",
+      "original_status": null,
+      "downgrade_reason": null,
+      "fix_guidance": {
+        "id": "weak-password-hash",
+        "title": "Hash passwords with bcrypt or Argon2",
+        "steps": [
+          "Use a slow password hashing function with a built-in salt: bcrypt, Argon2 or PBKDF2 from a library.",
+          "Never write your own hashing; do not use MD5/SHA-1 for passwords and do not use NoOpPasswordEncoder.",
+          "Change the stored hashes: re-hash each password the next time its user logs in."
+        ],
+        "example": {
+          "language": "python",
+          "code": "import bcrypt\nhashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())\nok = bcrypt.checkpw(password.encode(), hashed)"
+        },
+        "references": [
+          "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/916.html"
+        ]
+      },
+      "probe": null
+    },
+    {
+      "group_id": "G04",
+      "kind": "single",
+      "package": null,
+      "category": "V3",
+      "rule_id": "security-assistant-cfg-001",
+      "tool": "config-scan",
+      "file_path": "app.py",
+      "line": 14,
+      "severity_tool": null,
+      "findings_in_group": 1,
+      "status": "not interpreted",
+      "confidence": null,
+      "rationale": "",
+      "evidence_ids": [],
+      "recommendation": "",
+      "introducing_commit": null,
+      "links": [],
+      "rejected_links": [],
+      "trace_notes": [],
+      "risk": null,
+      "cwe": "CWE-613",
+      "message": "JWT issued without an expiry",
+      "snippet": "    11 | @app.route(\"/login\", methods=[\"POST\"])\n    12 | def login():\n    13 |     pw = hashlib.md5(request.form[\"password\"].encode()).hexdigest()  # V3: weak hash\n>   14 |     token = jwt.encode({\"user\": request.form[\"user\"]}, \"key\", algorithm=\"HS256\")  # V3: no exp\n    15 |     return token\n    16 | \n    17 | ",
+      "original_status": null,
+      "downgrade_reason": null,
+      "fix_guidance": {
+        "id": "token-expiry",
+        "title": "Give tokens and sessions an expiry",
+        "steps": [
+          "Add an expiry claim (exp) of minutes or hours to every token you issue and check it when the token is used.",
+          "For sessions set a timeout of minutes to a few hours, not days.",
+          "Use short-lived access tokens with a separate refresh mechanism if users must stay logged in."
+        ],
+        "example": {
+          "language": "python",
+          "code": "payload = {\"user\": user_id, \"exp\": datetime.now(timezone.utc) + timedelta(minutes=30)}\ntoken = jwt.encode(payload, SECRET, algorithm=\"HS256\")"
+        },
+        "references": [
+          "https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/613.html"
+        ]
+      },
+      "probe": null
+    },
+    {
+      "group_id": "G05",
+      "kind": "single",
+      "package": null,
+      "category": "V3",
+      "rule_id": "security-assistant-cfg-003",
+      "tool": "config-scan",
+      "file_path": "app.py",
+      "line": 8,
+      "severity_tool": null,
+      "findings_in_group": 1,
+      "status": "not interpreted",
+      "confidence": null,
+      "rationale": "",
+      "evidence_ids": [],
+      "recommendation": "",
+      "introducing_commit": null,
+      "links": [],
+      "rejected_links": [],
+      "trace_notes": [],
+      "risk": null,
+      "cwe": "CWE-614",
+      "message": "Session cookie sent without the Secure flag",
+      "snippet": "     5 | from flask import Flask, request\n     6 | \n     7 | app = Flask(__name__)\n>    8 | app.config[\"SESSION_COOKIE_SECURE\"] = False\n     9 | \n    10 | \n    11 | @app.route(\"/login\", methods=[\"POST\"])",
+      "original_status": null,
+      "downgrade_reason": null,
+      "fix_guidance": {
+        "id": "cookie-flags",
+        "title": "Set the Secure and HttpOnly flags on session cookies",
+        "steps": [
+          "Turn on Secure and HttpOnly (and SameSite) for the session cookie.",
+          "Use HTTPS everywhere so Secure cookies work."
+        ],
+        "example": {
+          "language": "python",
+          "code": "app.config.update(SESSION_COOKIE_SECURE=True, SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE=\"Lax\")"
+        },
+        "references": [
+          "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/614.html"
+        ]
+      },
+      "probe": null
+    },
+    {
+      "group_id": "G06",
+      "kind": "single",
+      "package": null,
+      "category": "V3",
+      "rule_id": "security-assistant-cfg-007",
+      "tool": "config-scan",
+      "file_path": "app.py",
+      "line": 11,
+      "severity_tool": null,
+      "findings_in_group": 1,
+      "status": "not interpreted",
+      "confidence": null,
+      "rationale": "",
+      "evidence_ids": [],
+      "recommendation": "",
+      "introducing_commit": null,
+      "links": [],
+      "rejected_links": [],
+      "trace_notes": [],
+      "risk": null,
+      "cwe": "CWE-307",
+      "message": "Login route found but no rate limiting library or middleware in the repository",
+      "snippet": "     8 | app.config[\"SESSION_COOKIE_SECURE\"] = False\n     9 | \n    10 | \n>   11 | @app.route(\"/login\", methods=[\"POST\"])\n    12 | def login():\n    13 |     pw = hashlib.md5(request.form[\"password\"].encode()).hexdigest()  # V3: weak hash\n    14 |     token = jwt.encode({\"user\": request.form[\"user\"]}, \"key\", algorithm=\"HS256\")  # V3: no exp",
+      "original_status": null,
+      "downgrade_reason": null,
+      "fix_guidance": {
+        "id": "login-rate-limit",
+        "title": "Limit how often the login can be tried",
+        "steps": [
+          "Add rate limiting to the login route (per IP and per account).",
+          "Lock or slow down the account after repeated failures, and log them."
+        ],
+        "example": {
+          "language": "python",
+          "code": "limiter = Limiter(get_remote_address, app=app)\n@app.route(\"/login\", methods=[\"POST\"])\n@limiter.limit(\"5 per minute\")\ndef login(): ..."
+        },
+        "references": [
+          "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/307.html"
+        ]
+      },
+      "probe": null
+    },
+    {
+      "group_id": "G07",
+      "kind": "location",
+      "package": null,
+      "category": "V4",
+      "rule_id": "aws-access-token",
+      "tool": "gitleaks",
+      "file_path": "settings_old.py",
+      "line": 1,
+      "severity_tool": null,
+      "findings_in_group": 2,
+      "status": "not interpreted",
+      "confidence": null,
+      "rationale": "",
+      "evidence_ids": [],
+      "recommendation": "",
+      "introducing_commit": null,
+      "links": [],
+      "rejected_links": [],
+      "trace_notes": [],
+      "risk": null,
+      "cwe": "CWE-798",
+      "message": "Identified a pattern that may indicate AWS credentials",
+      "snippet": null,
+      "original_status": null,
+      "downgrade_reason": null,
+      "fix_guidance": {
+        "id": "hardcoded-secret",
+        "title": "Remove the secret, rotate it, and keep secrets out of code",
+        "steps": [
+          "Treat the secret as leaked: revoke or rotate it first (create a new key and disable the old one).",
+          "Remove it from the code and load it from an environment variable or a secret manager; add .env to .gitignore.",
+          "Remove it from the Git history too (git filter-repo or BFG) if it was committed, then force-push and ask others to re-clone.",
+          "Add a secret scanner (for example Gitleaks) as a pre-commit hook or CI step."
+        ],
+        "example": {
+          "language": "python",
+          "code": "import os\nAWS_ACCESS_KEY_ID = os.environ[\"AWS_ACCESS_KEY_ID\"]   # set outside the code"
+        },
+        "references": [
+          "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/798.html"
+        ]
+      },
+      "probe": null
+    },
+    {
+      "group_id": "G08",
+      "kind": "package",
+      "package": "requests",
+      "category": "V5",
+      "rule_id": "PYSEC-2018-28",
+      "tool": "osv-scanner",
+      "file_path": "requirements.txt",
+      "line": null,
+      "severity_tool": null,
+      "findings_in_group": 2,
+      "status": "not interpreted",
+      "confidence": null,
+      "rationale": "",
+      "evidence_ids": [],
+      "recommendation": "",
+      "introducing_commit": null,
+      "links": [],
+      "rejected_links": [],
+      "trace_notes": [],
+      "risk": null,
+      "cwe": "CWE-1104",
+      "message": "CVE-2018-18074: Authorization header leaked on redirect",
+      "snippet": null,
+      "original_status": null,
+      "downgrade_reason": null,
+      "fix_guidance": {
+        "id": "dependency-upgrade",
+        "title": "Upgrade the vulnerable package",
+        "steps": [
+          "Look at the advisory for the fixed version (the scanner message often shows it, for example \"fix: <version>\").",
+          "Change the version in your manifest to the fixed version or newer, update the lockfile and run your tests.",
+          "If no fixed version exists, use another package or avoid the affected function.",
+          "Run the scanner again; also enable Dependabot or similar so this is flagged earlier."
+        ],
+        "example": {
+          "language": "python",
+          "code": "# requirements.txt: use the fixed version named in the advisory\nrequests>=<fixed version>"
+        },
+        "references": [
+          "https://cheatsheetseries.owasp.org/cheatsheets/Vulnerable_Dependency_Management_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/1104.html"
+        ]
+      },
+      "probe": null
+    },
+    {
+      "group_id": "G09",
+      "kind": "single",
+      "package": null,
+      "category": "V5",
+      "rule_id": "zizmor:dangerous-triggers",
+      "tool": "zizmor",
+      "file_path": ".github/workflows/ci.yml",
+      "line": 1,
+      "severity_tool": "High",
+      "findings_in_group": 1,
+      "status": "not interpreted",
+      "confidence": null,
+      "rationale": "",
+      "evidence_ids": [],
+      "recommendation": "",
+      "introducing_commit": null,
+      "links": [],
+      "rejected_links": [],
+      "trace_notes": [],
+      "risk": null,
+      "cwe": "CWE-829",
+      "message": "use of fundamentally insecure workflow trigger",
+      "snippet": ">    1 | on: pull_request_target\n     2 | jobs:\n     3 |   build:\n     4 |     runs-on: ubuntu-latest",
+      "original_status": null,
+      "downgrade_reason": null,
+      "fix_guidance": {
+        "id": "workflow-trigger",
+        "title": "Do not run untrusted pull request code with secrets",
+        "steps": [
+          "Use the pull_request trigger for workflows that build or test pull request code.",
+          "If pull_request_target is really needed, do not check out or run the pull request's code in it.",
+          "Do not pass secrets to steps that run code you do not control."
+        ],
+        "example": {
+          "language": "ci",
+          "code": "on: pull_request            # instead of pull_request_target\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@<full commit sha>\n      - run: ./build.sh"
+        },
+        "references": [
+          "https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions",
+          "https://cwe.mitre.org/data/definitions/829.html"
+        ]
+      },
+      "probe": null
+    },
+    {
+      "group_id": "G10",
+      "kind": "single",
+      "package": null,
+      "category": "V5",
+      "rule_id": "zizmor:unpinned-uses",
+      "tool": "zizmor",
+      "file_path": ".github/workflows/ci.yml",
+      "line": 6,
+      "severity_tool": "Low",
+      "findings_in_group": 1,
+      "status": "not interpreted",
+      "confidence": null,
+      "rationale": "",
+      "evidence_ids": [],
+      "recommendation": "",
+      "introducing_commit": null,
+      "links": [],
+      "rejected_links": [],
+      "trace_notes": [],
+      "risk": null,
+      "cwe": "CWE-829",
+      "message": "unpinned action reference",
+      "snippet": "     3 |   build:\n     4 |     runs-on: ubuntu-latest\n     5 |     steps:\n>    6 |       - uses: actions/checkout@latest\n     7 |         with:\n     8 |           ref: ${{ github.event.pull_request.head.sha }}\n     9 |       - run: ./build.sh",
+      "original_status": null,
+      "downgrade_reason": null,
+      "fix_guidance": {
+        "id": "workflow-pinning",
+        "title": "Pin actions to a full commit SHA",
+        "steps": [
+          "Replace the tag or @latest with the full commit SHA of the release you reviewed (keep the version as a comment).",
+          "Let Dependabot update the pinned SHA."
+        ],
+        "example": {
+          "language": "ci",
+          "code": "- uses: actions/checkout@<full 40-character commit sha>   # v4.x.y"
+        },
+        "references": [
+          "https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions",
+          "https://cwe.mitre.org/data/definitions/829.html"
+        ]
+      },
+      "probe": null
+    }
+  ],
+  "dismissed": [],
+  "guidance": [
+    {
+      "id": "ownership-check",
+      "title": "Check that the logged-in user owns the record",
+      "why": "If the id from the URL goes straight into a query, any logged-in user (or anyone, if there is no login) can read or change other people's data by changing the number in the URL.",
+      "steps": [
+        "Find the query that uses the id from the request (path variable, query string or body).",
+        "Get the current user from the session or token, never from a value the client sends.",
+        "Make the query match both the id and the owner (or compare the owner to the current user), and answer 403 or 404 when it does not match.",
+        "Add a test: user B asks for user A's record and must be refused."
+      ],
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/639.html"
+      ]
+    },
+    {
+      "id": "sql-injection",
+      "title": "Use parameterised queries instead of building SQL text",
+      "why": "When request input is glued into a SQL string, an attacker can add their own SQL (read, change or delete data).",
+      "steps": [
+        "Never build SQL with +, f-strings or string formatting from request input.",
+        "Put a placeholder (? or :name) in the query and pass the values separately.",
+        "Use an ORM's query methods where possible and validate the type of ids (for example convert to int)."
+      ],
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/89.html"
+      ]
+    },
+    {
+      "id": "weak-password-hash",
+      "title": "Hash passwords with bcrypt or Argon2",
+      "why": "MD5, SHA-1 and plain SHA-256 are fast, so stolen hashes can be cracked quickly; unsalted or no-op encoders store passwords almost in plain text.",
+      "steps": [
+        "Use a slow password hashing function with a built-in salt: bcrypt, Argon2 or PBKDF2 from a library.",
+        "Never write your own hashing; do not use MD5/SHA-1 for passwords and do not use NoOpPasswordEncoder.",
+        "Change the stored hashes: re-hash each password the next time its user logs in."
+      ],
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/916.html"
+      ]
+    },
+    {
+      "id": "token-expiry",
+      "title": "Give tokens and sessions an expiry",
+      "why": "A token without an expiry stays valid forever: if it leaks, the attacker keeps access.",
+      "steps": [
+        "Add an expiry claim (exp) of minutes or hours to every token you issue and check it when the token is used.",
+        "For sessions set a timeout of minutes to a few hours, not days.",
+        "Use short-lived access tokens with a separate refresh mechanism if users must stay logged in."
+      ],
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/613.html"
+      ]
+    },
+    {
+      "id": "cookie-flags",
+      "title": "Set the Secure and HttpOnly flags on session cookies",
+      "why": "Without Secure the cookie can travel over plain HTTP; without HttpOnly a script on the page can read it.",
+      "steps": [
+        "Turn on Secure and HttpOnly (and SameSite) for the session cookie.",
+        "Use HTTPS everywhere so Secure cookies work."
+      ],
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/614.html"
+      ]
+    },
+    {
+      "id": "login-rate-limit",
+      "title": "Limit how often the login can be tried",
+      "why": "Without a limit an attacker can try thousands of passwords per minute.",
+      "steps": [
+        "Add rate limiting to the login route (per IP and per account).",
+        "Lock or slow down the account after repeated failures, and log them."
+      ],
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/307.html"
+      ]
+    },
+    {
+      "id": "hardcoded-secret",
+      "title": "Remove the secret, rotate it, and keep secrets out of code",
+      "why": "A key or password committed to Git can be found by anyone who can read the repository, and it stays in the history even after you delete the file.",
+      "steps": [
+        "Treat the secret as leaked: revoke or rotate it first (create a new key and disable the old one).",
+        "Remove it from the code and load it from an environment variable or a secret manager; add .env to .gitignore.",
+        "Remove it from the Git history too (git filter-repo or BFG) if it was committed, then force-push and ask others to re-clone.",
+        "Add a secret scanner (for example Gitleaks) as a pre-commit hook or CI step."
+      ],
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/798.html"
+      ]
+    },
+    {
+      "id": "dependency-upgrade",
+      "title": "Upgrade the vulnerable package",
+      "why": "The package version you use has known security problems that are public, so attackers know how to use them.",
+      "steps": [
+        "Look at the advisory for the fixed version (the scanner message often shows it, for example \"fix: <version>\").",
+        "Change the version in your manifest to the fixed version or newer, update the lockfile and run your tests.",
+        "If no fixed version exists, use another package or avoid the affected function.",
+        "Run the scanner again; also enable Dependabot or similar so this is flagged earlier."
+      ],
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Vulnerable_Dependency_Management_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/1104.html"
+      ]
+    },
+    {
+      "id": "workflow-trigger",
+      "title": "Do not run untrusted pull request code with secrets",
+      "why": "pull_request_target runs with the repository's permissions and secrets. If the workflow then checks out and runs the pull request's code, a stranger's code runs with those permissions.",
+      "steps": [
+        "Use the pull_request trigger for workflows that build or test pull request code.",
+        "If pull_request_target is really needed, do not check out or run the pull request's code in it.",
+        "Do not pass secrets to steps that run code you do not control."
+      ],
+      "references": [
+        "https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions",
+        "https://cwe.mitre.org/data/definitions/829.html"
+      ]
+    },
+    {
+      "id": "workflow-pinning",
+      "title": "Pin actions to a full commit SHA",
+      "why": "A reference such as @latest or @v4 can change without you noticing, so a hijacked action would run in your pipeline.",
+      "steps": [
+        "Replace the tag or @latest with the full commit SHA of the release you reviewed (keep the version as a comment).",
+        "Let Dependabot update the pinned SHA."
+      ],
+      "references": [
+        "https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions",
+        "https://cwe.mitre.org/data/definitions/829.html"
+      ]
+    }
+  ],
+  "questions": null,
+  "limitations": [
+    "The report lists scanner findings and the LLM's opinion of them. The LLM can be wrong; 'dismissed' is an argument for a false positive, not proof. No student code was executed, so nothing was confirmed by running an exploit.",
+    "Scanner coverage is limited to what the tools support. A category with 0 findings only means something when its coverage is FULL (see the coverage table).",
+    "The scan was reused from a saved findings.json: line numbers and commit ids refer to the repository that was scanned then (a history lookup finds nothing if they do not exist in the fetched copy), and the coverage table describes that earlier run.",
+    "No requirements or sprint-task file was given, so findings are linked to commits only, not to stories or tasks.",
+    "Requirements and tasks come from local files, not from the Requirements agent; a link is 'verified' only when a simple rule supports it (commit message or task names the id, or the file/endpoint appears in one story/task).",
+    "The 'introducing commit' is the commit that added the line. It shows where the code came from, not who is at fault.",
+    "The risk score is a rule-based ranking with weights chosen by the developers; it is not a measured probability and it does not know whether a vulnerable dependency's code is actually called.",
+    "A probe question is built from the flagged function with simple extraction (Python ast; text search for Java and JS/TS); it can pick the wrong function in unusual code.",
+    "Only https://github.com repositories can be fetched. Gradle dependencies are only read with a gradle.lockfile; Maven transitive dependencies need the registry to be reachable."
+  ],
+  "governance": {
+    "mode": "enforce",
+    "audit_file": "audit.jsonl",
+    "audit_lines": 4,
+    "calls_checked": 0,
+    "calls_blocked": 0,
+    "violations_allowed_in_warn_only": 0,
+    "tool_check": {
+      "source": "the reused findings.json",
+      "tools": [
+        "actionlint",
+        "codeql",
+        "config-scan",
+        "gitleaks",
+        "npm-audit",
+        "osv-scanner",
+        "pip-audit",
+        "trufflehog",
+        "zizmor"
+      ],
+      "rejected": []
+    },
+    "injection_indicators": [],
+    "repo_sources_scanned": 4,
+    "prompt_indicator_patterns": {},
+    "report_items_removed": 0,
+    "pattern_ids": [
+      "ignore-previous-instructions",
+      "disregard-instructions",
+      "mark-findings-dismissed",
+      "answer-with-status",
+      "role-change",
+      "fake-system-message",
+      "addresses-the-reviewer",
+      "tell-not-to-report"
+    ],
+    "scrutiny": {
+      "level": "normal",
+      "score": 0,
+      "elevated_at": 3,
+      "high_at": 6,
+      "second_checks": 0,
+      "second_check_blocks": 0,
+      "escalated": false,
+      "escalation_reason": null,
+      "history": []
+    }
+  }
+}

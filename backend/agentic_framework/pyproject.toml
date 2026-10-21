@@ -51,3 +51,9 @@ testpaths = ["app", "tests"]
 pythonpath = ["."]
 # the factor packages have their own unittest suites (run from factor_models/, they need pandas and use their own import paths)
 norecursedirs = ["factor_models", ".venv", "node_modules"]
+markers = [
+    "integration: runs real scanner binaries (CodeQL, Gitleaks, ...); slow, only on request",
+    "live: calls a real LLM API and needs an API key; only on request",
+]
+# Default = fast suite. Real scanners and live LLM calls run only with: pytest -m integration / pytest -m live
+addopts = "-m 'not integration and not live'"

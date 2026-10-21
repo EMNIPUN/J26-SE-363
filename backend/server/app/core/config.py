@@ -106,6 +106,12 @@ class Settings(BaseSettings):
     # backend/agentic_framework/.env (AI_BACKEND_INTERNAL_TOKEN).
     AI_BACKEND_INTERNAL_TOKEN: Optional[str] = None
 
+    # Security Assistant result folders the Security Assistant pages read (read-only), see app/modules/security.
+    # Unset: backend/agentic_framework/scan_output/results (git-ignored).
+    SECURITY_ASSISTANT_RESULTS_DIR: Optional[str] = None
+    # Serve the checked-in sample run instead of the result folders. Off by default, never turned on automatically.
+    SECURITY_ASSISTANT_DEMO_MODE: bool = False
+
     model_config = SettingsConfigDict(
         env_file=SERVER_ENV_FILE,
         env_file_encoding="utf-8",
@@ -143,6 +149,11 @@ class Settings(BaseSettings):
                     f"{self.SERVER_POSTGRES_DB}"
                 )
         return self
+
+    @property
+    def security_assistant_results_dir(self) -> Path:
+        default = Path(__file__).resolve().parents[3] / "agentic_framework" / "scan_output" / "results"
+        return Path(self.SECURITY_ASSISTANT_RESULTS_DIR) if self.SECURITY_ASSISTANT_RESULTS_DIR else default
 
     @property
     def keycloak_issuer(self) -> str:

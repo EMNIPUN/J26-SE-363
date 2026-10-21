@@ -166,7 +166,7 @@ export const STUDENTS = [
     specializationId: 'spec-se',
     name: 'Eric Croos',
     email: 'eric@lms.edu',
-    roleInGroup: 'Security Lead & AEGIS Inspector',
+    roleInGroup: 'Security Lead & Security Assistant Inspector',
     assignedComponent: 'security',
     avatar: 'EC',
     currentScore: 7.9,

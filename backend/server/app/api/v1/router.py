@@ -21,6 +21,7 @@ from app.api.v1.teams import router as teams_router
 from app.api.v1.terms import router as terms_router
 from app.api.v1.users import router as users_router
 from app.core.security import get_current_user
+from app.modules.security.router import router as security_assistant_router
 
 # Nothing is public today: login happens in Keycloak, not in this API.
 public_router = APIRouter()
@@ -40,6 +41,7 @@ protected_router.include_router(invitations_router)
 protected_router.include_router(performance_router)
 protected_router.include_router(github_router)
 protected_router.include_router(jobs_router)  # additionally admin-only (see jobs.py)
+protected_router.include_router(security_assistant_router)  # read-only Security Assistant results, team members only
 
 api_router = APIRouter()
 api_router.include_router(public_router)

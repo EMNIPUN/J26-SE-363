@@ -59,7 +59,7 @@ export const SPRINT_GUIDANCE = [
     id: 'g3',
     agent: 'learning',
     title: 'Understand the hardcoded-secret finding',
-    detail: 'AEGIS flagged config.py — learn why it matters before fixing it.',
+    detail: 'Security Assistant flagged config.py — learn why it matters before fixing it.',
     prompt: 'Why is a hardcoded secret in config.py a security risk?',
   },
 ]

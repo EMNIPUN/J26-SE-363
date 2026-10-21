@@ -1,0 +1,374 @@
+{
+  "findings": [
+    {
+      "attempt_log": [
+        [
+          1,
+          0,
+          "In `orders` (app.py:22), `user_id` comes from the request. Suppose two different customers, A and B, are both logged in and A types B's identifier into the address. Walk through the code line by line: what does it return, and which line, if any, tells A apart from B?",
+          0.34,
+          "open"
+        ],
+        [
+          2,
+          1,
+          "Start from `user_id` in `orders` (app.py:22). Where does its value come from, which line first uses it to pick the data that is returned, and what does the code know about who is asking at that line?",
+          0.49,
+          "open"
+        ],
+        [
+          3,
+          2,
+          "Answer in three short parts about app.py:22: (1) which value does an outsider control, (2) which line uses it first, (3) what is the worst thing that could happen with a value they choose, and why does nothing in this code get in the way?",
+          0.64,
+          "open"
+        ]
+      ],
+      "cwe": "CWE-639",
+      "downgrade_reason": null,
+      "example": {
+        "code": "order = Order.query.filter_by(id=order_id, user_id=current_user.id).first_or_404()",
+        "language": "python"
+      },
+      "group": "G01",
+      "message": "Route handler 'orders' uses parameter 'user_id' in a SQL query without checking the authenticated user.",
+      "original_status": null,
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/639.html"
+      ],
+      "snippet": "    19 | def orders(user_id):  # V1: no check that user_id is the logged-in user\n    20 |     db = sqlite3.connect(\"shop.db\")\n    21 |     name = request.args.get(\"name\")\n>   22 |     db.execute(\"SELECT * FROM orders WHERE user_id = \" + user_id + \" AND name = '\" + name + \"'\")  # V2\n    23 |     return \"ok\""
+    },
+    {
+      "attempt_log": [
+        [
+          1,
+          0,
+          "On app.py:22, the text of a database query is put together in `orders` using `user_id`. If that value contained a quote character followed by more SQL, what exactly would the database receive? Which part of the statement could the person typing it change?",
+          0.59,
+          "open"
+        ],
+        [
+          2,
+          1,
+          "Find the line in `orders` where the query text is assembled (app.py:22). Which pieces come from `user_id` and which are text you typed in the code? Write the final text the database would receive for the input O'Brien, and then for the input ' OR '1'='1.",
+          0.74,
+          "closed"
+        ]
+      ],
+      "cwe": "CWE-89",
+      "downgrade_reason": null,
+      "example": {
+        "code": "db.execute(\"SELECT * FROM orders WHERE user_id = ? AND name = ?\", (user_id, name))",
+        "language": "python"
+      },
+      "group": "G02",
+      "message": "This SQL query depends on a user-provided value.",
+      "original_status": null,
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/89.html"
+      ],
+      "snippet": "    19 | def orders(user_id):  # V1: no check that user_id is the logged-in user\n    20 |     db = sqlite3.connect(\"shop.db\")\n    21 |     name = request.args.get(\"name\")\n>   22 |     db.execute(\"SELECT * FROM orders WHERE user_id = \" + user_id + \" AND name = '\" + name + \"'\")  # V2\n    23 |     return \"ok\""
+    },
+    {
+      "attempt_log": [
+        [
+          1,
+          0,
+          "app.py:13 stores a value derived from the password. If an attacker got a copy of the stored values and could try a billion guesses per second, what could they learn, and how long would it take? Explain your reasoning about the function used here.",
+          0.53,
+          "open"
+        ],
+        [
+          2,
+          1,
+          "Name the function used at app.py:13. What do you know about how fast it is, and whether two identical passwords give the same stored value? What does that mean for someone holding a copy of the stored values?",
+          0.68,
+          "open"
+        ],
+        [
+          3,
+          2,
+          "Answer in three short parts about app.py:13: (1) which value does an outsider control, (2) which line uses it first, (3) what is the worst thing that could happen with a value they choose, and why does nothing in this code get in the way?",
+          0.83,
+          "closed"
+        ]
+      ],
+      "cwe": "CWE-916",
+      "downgrade_reason": null,
+      "example": {
+        "code": "import bcrypt\nhashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())\nok = bcrypt.checkpw(password.encode(), hashed)",
+        "language": "python"
+      },
+      "group": "G03",
+      "message": "Weak or unsalted password hashing / password encoder",
+      "original_status": null,
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/916.html"
+      ],
+      "snippet": "    10 | \n    11 | @app.route(\"/login\", methods=[\"POST\"])\n    12 | def login():\n>   13 |     pw = hashlib.md5(request.form[\"password\"].encode()).hexdigest()  # V3: weak hash\n    14 |     token = jwt.encode({\"user\": request.form[\"user\"]}, \"key\", algorithm=\"HS256\")  # V3: no exp\n    15 |     return token\n    16 | "
+    },
+    {
+      "attempt_log": [
+        [
+          1,
+          0,
+          "A token is created at app.py:14. Suppose one is stolen on Monday. Using only this code, until when can the thief use it, and who or what could stop them?",
+          0.42,
+          "open"
+        ],
+        [
+          2,
+          1,
+          "List every claim or setting that the token at app.py:14 carries. Does any of them limit how long it keeps working? What would you expect to find in the token if a limit existed?",
+          0.57,
+          "open"
+        ],
+        [
+          3,
+          2,
+          "Answer in three short parts about app.py:14: (1) which value does an outsider control, (2) which line uses it first, (3) what is the worst thing that could happen with a value they choose, and why does nothing in this code get in the way?",
+          0.72,
+          "closed"
+        ]
+      ],
+      "cwe": "CWE-613",
+      "downgrade_reason": null,
+      "example": {
+        "code": "payload = {\"user\": user_id, \"exp\": datetime.now(timezone.utc) + timedelta(minutes=30)}\ntoken = jwt.encode(payload, SECRET, algorithm=\"HS256\")",
+        "language": "python"
+      },
+      "group": "G04",
+      "message": "JWT issued without an expiry",
+      "original_status": null,
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/613.html"
+      ],
+      "snippet": "    11 | @app.route(\"/login\", methods=[\"POST\"])\n    12 | def login():\n    13 |     pw = hashlib.md5(request.form[\"password\"].encode()).hexdigest()  # V3: weak hash\n>   14 |     token = jwt.encode({\"user\": request.form[\"user\"]}, \"key\", algorithm=\"HS256\")  # V3: no exp\n    15 |     return token\n    16 | \n    17 | "
+    },
+    {
+      "attempt_log": [
+        [
+          1,
+          0,
+          "app.py:8 configures how the browser handles the session. Describe an attack by a malicious web page or a person on the same Wi-Fi that this configuration allows. What would the victim see?",
+          0.3,
+          "open"
+        ],
+        [
+          2,
+          1,
+          "Write down each browser-side setting at app.py:8 with its name and value. For each one, what could a script on the page or someone watching the network do because of that setting?",
+          0.45,
+          "open"
+        ],
+        [
+          3,
+          2,
+          "Answer in three short parts about app.py:8: (1) which value does an outsider control, (2) which line uses it first, (3) what is the worst thing that could happen with a value they choose, and why does nothing in this code get in the way?",
+          0.6,
+          "open"
+        ]
+      ],
+      "cwe": "CWE-614",
+      "downgrade_reason": null,
+      "example": {
+        "code": "app.config.update(SESSION_COOKIE_SECURE=True, SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE=\"Lax\")",
+        "language": "python"
+      },
+      "group": "G05",
+      "message": "Session cookie sent without the Secure flag",
+      "original_status": null,
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/614.html"
+      ],
+      "snippet": "     5 | from flask import Flask, request\n     6 | \n     7 | app = Flask(__name__)\n>    8 | app.config[\"SESSION_COOKIE_SECURE\"] = False\n     9 | \n    10 | \n    11 | @app.route(\"/login\", methods=[\"POST\"])"
+    },
+    {
+      "attempt_log": [
+        [
+          1,
+          0,
+          "this code (app.py:11) accepts login attempts. How many passwords per minute could one person try against one account with this code, and what in the code would slow them down?",
+          0.51,
+          "open"
+        ],
+        [
+          2,
+          1,
+          "Count the lines in this code (app.py:11) between a request arriving and the password being compared. Is there anything there that remembers earlier attempts from the same person?",
+          0.66,
+          "open"
+        ],
+        [
+          3,
+          2,
+          "Answer in three short parts about app.py:11: (1) which value does an outsider control, (2) which line uses it first, (3) what is the worst thing that could happen with a value they choose, and why does nothing in this code get in the way?",
+          0.81,
+          "closed"
+        ]
+      ],
+      "cwe": "CWE-307",
+      "downgrade_reason": null,
+      "example": {
+        "code": "limiter = Limiter(get_remote_address, app=app)\n@app.route(\"/login\", methods=[\"POST\"])\n@limiter.limit(\"5 per minute\")\ndef login(): ...",
+        "language": "python"
+      },
+      "group": "G06",
+      "message": "Login route found but no rate limiting library or middleware in the repository",
+      "original_status": null,
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/307.html"
+      ],
+      "snippet": "     8 | app.config[\"SESSION_COOKIE_SECURE\"] = False\n     9 | \n    10 | \n>   11 | @app.route(\"/login\", methods=[\"POST\"])\n    12 | def login():\n    13 |     pw = hashlib.md5(request.form[\"password\"].encode()).hexdigest()  # V3: weak hash\n    14 |     token = jwt.encode({\"user\": request.form[\"user\"]}, \"key\", algorithm=\"HS256\")  # V3: no exp"
+    },
+    {
+      "attempt_log": [
+        [
+          1,
+          0,
+          "the value on that line (settings_old.py:1) is written in the code. Who can read it today, including people who only have an old copy of the repository, and what could they do with it?",
+          0.7,
+          "closed"
+        ]
+      ],
+      "cwe": "CWE-798",
+      "downgrade_reason": null,
+      "example": {
+        "code": "import os\nAWS_ACCESS_KEY_ID = os.environ[\"AWS_ACCESS_KEY_ID\"]   # set outside the code",
+        "language": "python"
+      },
+      "group": "G07",
+      "message": "Identified a pattern that may indicate AWS credentials",
+      "original_status": null,
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/798.html"
+      ],
+      "snippet": null
+    },
+    {
+      "attempt_log": [
+        [
+          1,
+          0,
+          "The project depends on requests (requirements.txt). Which of your features call into it, and what would an attacker gain if that package had a flaw that runs code when it reads their input?",
+          0.39,
+          "open"
+        ],
+        [
+          2,
+          1,
+          "Open requirements.txt and find the exact version of requests. Which of its functions does your code call, and with data that comes from where?",
+          0.54,
+          "open"
+        ],
+        [
+          3,
+          2,
+          "Answer in three short parts about requirements.txt: (1) which value does an outsider control, (2) which line uses it first, (3) what is the worst thing that could happen with a value they choose, and why does nothing in this code get in the way?",
+          0.69,
+          "open"
+        ]
+      ],
+      "cwe": "CWE-1104",
+      "downgrade_reason": null,
+      "example": {
+        "code": "# requirements.txt: use the fixed version named in the advisory\nrequests>=<fixed version>",
+        "language": "python"
+      },
+      "group": "G08",
+      "message": "CVE-2018-18074: Authorization header leaked on redirect",
+      "original_status": null,
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Vulnerable_Dependency_Management_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/1104.html"
+      ],
+      "snippet": null
+    },
+    {
+      "attempt_log": [
+        [
+          1,
+          0,
+          ".github/workflows/ci.yml:1 defines an automated workflow. Who can start it, which secrets or token permissions does it have while it runs, and what could a stranger's pull request make it do?",
+          0.3,
+          "open"
+        ],
+        [
+          2,
+          1,
+          "List the events that start the workflow at .github/workflows/ci.yml:1 and the secrets it can read. Who can trigger each event?",
+          0.45,
+          "open"
+        ],
+        [
+          3,
+          2,
+          "Answer in three short parts about .github/workflows/ci.yml:1: (1) which value does an outsider control, (2) which line uses it first, (3) what is the worst thing that could happen with a value they choose, and why does nothing in this code get in the way?",
+          0.6,
+          "open"
+        ]
+      ],
+      "cwe": "CWE-829",
+      "downgrade_reason": null,
+      "example": {
+        "code": "on: pull_request            # instead of pull_request_target\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@<full commit sha>\n      - run: ./build.sh",
+        "language": "ci"
+      },
+      "group": "G09",
+      "message": "use of fundamentally insecure workflow trigger",
+      "original_status": null,
+      "references": [
+        "https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions",
+        "https://cwe.mitre.org/data/definitions/829.html"
+      ],
+      "snippet": ">    1 | on: pull_request_target\n     2 | jobs:\n     3 |   build:\n     4 |     runs-on: ubuntu-latest"
+    },
+    {
+      "attempt_log": [
+        [
+          1,
+          0,
+          ".github/workflows/ci.yml:6 defines an automated workflow. Who can start it, which secrets or token permissions does it have while it runs, and what could a stranger's pull request make it do?",
+          0.42,
+          "open"
+        ],
+        [
+          2,
+          1,
+          "List the events that start the workflow at .github/workflows/ci.yml:6 and the secrets it can read. Who can trigger each event?",
+          0.57,
+          "open"
+        ],
+        [
+          3,
+          2,
+          "Answer in three short parts about .github/workflows/ci.yml:6: (1) which value does an outsider control, (2) which line uses it first, (3) what is the worst thing that could happen with a value they choose, and why does nothing in this code get in the way?",
+          0.72,
+          "closed"
+        ]
+      ],
+      "cwe": "CWE-829",
+      "downgrade_reason": null,
+      "example": {
+        "code": "- uses: actions/checkout@<full 40-character commit sha>   # v4.x.y",
+        "language": "ci"
+      },
+      "group": "G10",
+      "message": "unpinned action reference",
+      "original_status": null,
+      "references": [
+        "https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions",
+        "https://cwe.mitre.org/data/definitions/829.html"
+      ],
+      "snippet": "     3 |   build:\n     4 |     runs-on: ubuntu-latest\n     5 |     steps:\n>    6 |       - uses: actions/checkout@latest\n     7 |         with:\n     8 |           ref: ${{ github.event.pull_request.head.sha }}\n     9 |       - run: ./build.sh"
+    }
+  ],
+  "meta_temperature": 0.0
+}

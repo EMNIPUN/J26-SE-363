@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "note": "Saved scanner-style findings with hand-written evidence. ground_truth is the human label: confirmed = real weakness, dismissed = deliberate false positive. Nothing here is produced by running a scanner. {{FAKE_AWS_KEY}} and {{FAKE_AWS_SECRET}} are filled in at load time so no secret-looking string is stored in the repository.",
+  "cases": [
+    {
+      "id": "v1-real-flask-order",
+      "ground_truth": "confirmed",
+      "why": "Any caller can read any order: no ownership check and no authorisation anywhere in the project.",
+      "finding": {"category": "V1", "tool": "codeql", "rule_id": "security-assistant/py/missing-ownership-check", "cwe": "CWE-639",
+                  "file_path": "app/orders.py", "line": 14, "function_or_endpoint": "get_order", "severity_tool": "7.5",
+                  "message": "Route handler 'get_order' uses parameter 'order_id' in a ORM lookup without checking the authenticated user."},
+      "evidence": [
+        {"kind": "code_snippet", "label": "code around app/orders.py:14",
+         "content": "   9 | from flask import Blueprint, jsonify\n  10 | from app.models import Order\n  11 | orders_bp = Blueprint('orders', __name__)\n  12 | \n  13 | @orders_bp.route('/orders/<int:order_id>')\n> 14 | def get_order(order_id):\n  15 |     order = Order.query.get_or_404(order_id)\n  16 |     return jsonify(order.to_dict())"},
+        {"kind": "context", "label": "places in the project that enforce authorisation (middleware, decorators, annotations, security config)",
+         "content": "(no matches found)"}
+      ]
+    },
+    {
+      "id": "v1-fp-express-owner-middleware",
+      "ground_truth": "dismissed",
+      "why": "The route is mounted behind requireAuth and ownerOnly, which compares the logged-in user with the row owner. The scanner only looked at the handler.",
+      "finding": {"category": "V1", "tool": "codeql", "rule_id": "security-assistant/js/missing-ownership-check", "cwe": "CWE-639",
+                  "file_path": "routes/orders.js", "line": 9, "severity_tool": "7.5",
+                  "message": "Route handler uses request input in a database call without checking the authenticated user."},
+      "evidence": [
+        {"kind": "code_snippet", "label": "code around routes/orders.js:9",
+         "content": "   5 | const router = require('express').Router()\n   6 | \n   7 | router.get('/:id', (req, res) => {\n   8 |   // ownership is enforced by ownerOnly() where this router is mounted\n>  9 |   db.query('SELECT * FROM orders WHERE id = ?', [req.params.id], (err, rows) => res.json(rows[0]))\n  10 | })"},
+        {"kind": "context", "label": "places in the project that enforce authorisation (middleware, decorators, annotations, security config)",
+         "content": "server.js:12\n  11 | const { requireAuth, ownerOnly } = require('./middleware/auth')\n> 12 | app.use('/api/orders', requireAuth, ownerOnly('orders'), require('./routes/orders'))\n\nmiddleware/auth.js:21\n  20 | const ownerOnly = (table) => (req, res, next) =>\n> 21 |   db.query(`SELECT owner_id FROM ${table} WHERE id = ?`, [req.params.id], (e, r) =>\n  22 |     r[0] && r[0].owner_id === req.user.id ? next() : res.status(403).end())"}
+      ]
+    },
+    {
+      "id": "v2-real-flask-sql",
+      "ground_truth": "confirmed",
+      "why": "Request input is concatenated into a SQL string; nothing sanitises it.",
+      "finding": {"category": "V2", "tool": "codeql", "rule_id": "py/sql-injection", "cwe": "CWE-89",
+                  "file_path": "app/search.py", "line": 12, "severity_tool": "8.8",
+                  "source": "app/search.py:10", "sink": "app/search.py:12",
+                  "message": "This SQL query depends on a user-provided value."},
+      "evidence": [
+        {"kind": "code_snippet", "label": "code around app/search.py:12",
+         "content": "   8 | @app.route('/search')\n   9 | def search():\n> 10 |     term = request.args.get('q')\n  11 |     sql = \"SELECT * FROM products WHERE name LIKE '%\" + term + \"%'\"\n> 12 |     rows = db.execute(sql).fetchall()\n  13 |     return render_template('results.html', rows=rows)"},
+        {"kind": "context", "label": "places that sanitise, escape or validate input", "content": "(no matches found)"}
+      ]
+    },
+    {
+      "id": "v2-fp-express-escape-html",
+      "ground_truth": "dismissed",
+      "why": "The value goes through escapeHtml, a custom sanitiser that encodes all five HTML metacharacters.",
+      "finding": {"category": "V2", "tool": "codeql", "rule_id": "js/reflected-xss", "cwe": "CWE-79",
+                  "file_path": "routes/search.js", "line": 8, "severity_tool": "6.1",
+                  "source": "routes/search.js:6", "sink": "routes/search.js:8",
+                  "message": "Cross-site scripting vulnerability due to a user-provided value."},
+      "evidence": [
+        {"kind": "code_snippet", "label": "code around routes/search.js:8",
+         "content": "   4 | const { escapeHtml } = require('../utils/escape')\n   5 | router.get('/search', (req, res) => {\n>  6 |   const q = req.query.q\n   7 |   // q is encoded before it is placed in the page\n>  8 |   res.send('<p>Results for ' + escapeHtml(q) + '</p>')\n   9 | })"},
+        {"kind": "context", "label": "places that sanitise, escape or validate input",
+         "content": "utils/escape.js:3\n   2 | // encodes & < > \" ' so the value cannot break out of text or attribute context\n>  3 | function escapeHtml(s) {\n   4 |   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')\n   5 |     .replace(/\"/g, '&quot;').replace(/'/g, '&#39;')\n   6 | }"}
+      ]
+    },
+    {
+      "id": "v3-real-spring-session-and-encoder",
+      "ground_truth": "confirmed",
+      "why": "Real misconfiguration; the most critical one in the evidence is the NoOpPasswordEncoder (passwords stored in plain text), more than the long session.",
+      "finding": {"category": "V3", "tool": "config-scan", "rule_id": "security-assistant-cfg-012", "cwe": "CWE-613",
+                  "file_path": "src/main/resources/application.yml", "line": 4, "severity_tool": null,
+                  "message": "Session timeout is a day or longer (or never expires)"},
+      "evidence": [
+        {"kind": "code_snippet", "label": "code around src/main/resources/application.yml:4",
+         "content": "   1 | server:\n   2 |   servlet:\n   3 |     session:\n>  4 |       timeout: 7d\n   5 |       cookie:\n   6 |         secure: false"},
+        {"kind": "context", "label": "other security configuration in the project",
+         "content": "src/main/java/demo/SecurityConfig.java\n  11 |     @Bean PasswordEncoder encoder() { return NoOpPasswordEncoder.getInstance(); }\n  15 |     http.csrf(c -> c.disable()).authorizeHttpRequests(a -> a.anyRequest().authenticated());"}
+      ]
+    },
+    {
+      "id": "v3-fp-django-debug-dev-settings",
+      "ground_truth": "dismissed",
+      "why": "DEBUG = True is in the development settings only; manage.py and wsgi.py use settings.prod where DEBUG is False.",
+      "finding": {"category": "V3", "tool": "config-scan", "rule_id": "security-assistant-cfg-004", "cwe": "CWE-489",
+                  "file_path": "shop/settings/dev.py", "line": 3, "severity_tool": null,
+                  "message": "Debug mode enabled or management endpoints fully exposed"},
+      "evidence": [
+        {"kind": "code_snippet", "label": "code around shop/settings/dev.py:3",
+         "content": "   1 | # Local development only. Production uses shop.settings.prod.\n   2 | from .base import *\n>  3 | DEBUG = True\n   4 | ALLOWED_HOSTS = ['localhost']"},
+        {"kind": "context", "label": "how settings are selected",
+         "content": "shop/settings/prod.py:2\n   1 | from .base import *\n>  2 | DEBUG = False\n\nshop/wsgi.py:5\n>  5 | os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'shop.settings.prod')"}
+      ]
+    },
+    {
+      "id": "v4-real-aws-keys-in-prod-settings",
+      "ground_truth": "confirmed",
+      "why": "Production settings contain an access key id with its secret key; neither looks like a placeholder.",
+      "finding": {"category": "V4", "tool": "gitleaks", "rule_id": "aws-access-token", "cwe": "CWE-798",
+                  "file_path": "src/config/prod_settings.py", "line": 4, "severity_tool": null,
+                  "source": "commit:4f2c9d1", "masked_snippet": "AK****M2",
+                  "message": "Identified a pattern that may indicate AWS credentials"},
+      "evidence": [
+        {"kind": "code_snippet", "label": "code around src/config/prod_settings.py:4",
+         "content": "   1 | # production settings\n   2 | DATABASE_HOST = 'db.internal.example.org'\n   3 | S3_BUCKET = 'shop-prod-uploads'\n>  4 | AWS_ACCESS_KEY_ID = \"{{FAKE_AWS_KEY}}\"\n   5 | AWS_SECRET_ACCESS_KEY = \"{{FAKE_AWS_SECRET}}\""}
+      ]
+    },
+    {
+      "id": "v4-fp-test-api-key",
+      "ground_truth": "dismissed",
+      "why": "A dummy key in a unit test for a mocked client; the comment says so and the value is a placeholder.",
+      "finding": {"category": "V4", "tool": "gitleaks", "rule_id": "generic-api-key", "cwe": "CWE-798",
+                  "file_path": "tests/test_client.py", "line": 6, "severity_tool": null,
+                  "source": "commit:81ab0c3", "masked_snippet": "REDACTED",
+                  "message": "Detected a Generic API Key"},
+      "evidence": [
+        {"kind": "code_snippet", "label": "code around tests/test_client.py:6",
+         "content": "   3 | from unittest import mock\n   4 | from shop.client import PaymentClient\n   5 | # dummy key for unit tests, the HTTP layer is mocked below\n>  6 | API_KEY = \"test_key_0000000000000000\"\n   7 | \n   8 | def test_charge(monkeypatch):\n   9 |     client = PaymentClient(API_KEY)"}
+      ]
+    },
+    {
+      "id": "v5-real-lodash-merge-request-body",
+      "ground_truth": "confirmed",
+      "why": "lodash 4.17.15 is vulnerable to prototype pollution through merge, and the application merges request.body into an object.",
+      "finding": {"category": "V5", "tool": "npm-audit", "rule_id": "GHSA-p6mc-m468-83gw", "cwe": "CWE-1321",
+                  "file_path": "package-lock.json", "sink": "lodash@4.17.15", "severity_tool": "high",
+                  "message": "Prototype Pollution in lodash"},
+      "evidence": [
+        {"kind": "context", "label": "where the package 'lodash' is used in the project",
+         "content": "src/settings.js:8\n   7 | router.post('/settings', (req, res) => {\n>  8 |   const merged = _.merge({}, defaults, req.body.settings)\n   9 |   res.json(merged)"}
+      ]
+    },
+    {
+      "id": "v5-fp-minimist-release-script-only",
+      "ground_truth": "dismissed",
+      "why": "minimist is a devDependency used only by a local release script that parses its own command line; it is not shipped and gets no attacker input.",
+      "finding": {"category": "V5", "tool": "npm-audit", "rule_id": "GHSA-xvch-5gv4-984h", "cwe": "CWE-1321",
+                  "file_path": "package-lock.json", "sink": "minimist@1.2.0", "severity_tool": "critical",
+                  "message": "Prototype Pollution in minimist"},
+      "evidence": [
+        {"kind": "context", "label": "where the package 'minimist' is used in the project",
+         "content": "scripts/release.js:3\n   2 | // run by a maintainer: node scripts/release.js --tag v1.2.0\n>  3 | const args = require('minimist')(process.argv.slice(2))\n\npackage.json:14\n  13 |   \"devDependencies\": {\n> 14 |     \"minimist\": \"1.2.0\""}
+      ]
+    }
+  ]
+}

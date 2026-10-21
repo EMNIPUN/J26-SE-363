@@ -49,11 +49,11 @@ def test_agent_request_rejects_malformed_action(action):
 
 def test_failed_response_requires_error():
     with pytest.raises(ValidationError, match="error is required"):
-        AgentResponse(request_id="r1", agent_name=AgentName.AEGIS, status=ResultStatus.FAILED)
+        AgentResponse(request_id="r1", agent_name=AgentName.SECURITY_ASSISTANT, status=ResultStatus.FAILED)
 
     response = AgentResponse(
         request_id="r1",
-        agent_name=AgentName.AEGIS,
+        agent_name=AgentName.SECURITY_ASSISTANT,
         status=ResultStatus.FAILED,
         error=ErrorInfo(code="scanner_unavailable", message="Gitleaks is not installed"),
     )

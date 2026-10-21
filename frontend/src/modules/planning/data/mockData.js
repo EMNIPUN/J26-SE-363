@@ -491,7 +491,7 @@ export const GROUPS = [
   {
     id: 'g07',
     name: 'Group 07',
-    project: 'AEGIS - Security Vulnerability Assistant',
+    project: 'Security Assistant - Vulnerability Detection',
     batch: 'Y4.1',
     members: 4,
     qualityGate: 92,
