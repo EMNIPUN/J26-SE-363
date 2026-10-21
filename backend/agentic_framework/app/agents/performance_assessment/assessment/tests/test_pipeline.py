@@ -118,7 +118,8 @@ async def test_final_run_produces_a_result_with_a_justification_for_every_studen
     # factor rows and the report are stored
     assert len(sv.store.list_factor_results(rid, "STU-1")) >= 6
     assert "| STU-1 |" in sv.store.get_run(rid)["summary"]["report_markdown"]
-    assert len(sv.store.trajectory("T9", "T9-S1", "STU-1")) == 1
+    points = sv.store.trajectory("T9", "T9-S1", "STU-1")
+    assert len(points) > 1 and points[-1]["sprint_elapsed"] == 1.0  # a mark for every day of the sprint, the final one last
 
 
 @pytest.mark.asyncio
@@ -154,7 +155,7 @@ async def test_a_snapshot_is_provisional_and_applies_no_behavioral_adjustment(wo
         assert r["factors"]["behavioral_pattern"]["applied"] is False
         assert r["factors"]["code_ownership"]["status"] == "pending"
     snap = sv.store.trajectory("T9", "T9-S1", "STU-1")
-    assert len(snap) == 1 and 0.4 < snap[0]["sprint_elapsed"] < 0.7
+    assert len(snap) >= 1 and 0.4 < snap[-1]["sprint_elapsed"] < 0.7  # the days before it, then the snapshot itself
     eff = {r["student_id"]: r["factors"]["effort"] for r in sv.store.latest_results("T9", "T9-S1")}["STU-1"]
     assert eff["provisional"] is True
 
@@ -217,7 +218,8 @@ async def test_quiz_answer_completes_code_ownership_and_recomposes_the_mark(worl
                 "removed": {}, "tasks": None, "model": "fake"}
 
     monkeypatch.setattr(quiz_flow, "score_answer", fake_score)
-    res = await runner.answer_quiz(sv, quiz["id"], "STU-1", "It builds the total of the two numbers and returns it.", now=sv.clock["now"] + timedelta(hours=1))
+    for q in sv.store.list_quizzes("T9", "T9-S1", "STU-1"):  # a batch of questions: the mark is composed again once every one is answered
+        res = await runner.answer_quiz(sv, q["id"], "STU-1", "It builds the total of the two numbers and returns it.", now=sv.clock["now"] + timedelta(hours=1))
     assert res["accepted"] and res["result"]["status"] in ("final", "pending_review")
     after = {r["student_id"]: r for r in sv.store.latest_results("T9", "T9-S1")}["STU-1"]
     assert after["factors"]["code_ownership"]["score"] == 0.9
@@ -238,9 +240,9 @@ async def test_unanswered_quiz_gets_a_second_window_then_counts_as_zero(world):
         pytest.skip("the throwaway repository has no function the quiz generator accepts")
     t0 = quiz["deadline_at"]
     assert (await runner.sweep_quizzes(sv, t0 - timedelta(hours=1))) == {"extended": 0, "expired": 0}
-    assert (await runner.sweep_quizzes(sv, t0 + timedelta(hours=1))) == {"extended": 1, "expired": 0}
+    assert (await runner.sweep_quizzes(sv, t0 + timedelta(hours=1)))["extended"] >= len(sv.store.list_quizzes("T9", "T9-S1", "STU-1"))
     assert sv.store.get_quiz("T9", "T9-S1", "STU-1")["status"] == "extended"
-    assert (await runner.sweep_quizzes(sv, t0 + timedelta(hours=60)))["expired"] == 1
+    assert (await runner.sweep_quizzes(sv, t0 + timedelta(hours=60)))["expired"] >= len(sv.store.list_quizzes("T9", "T9-S1", "STU-1"))
     r = {r["student_id"]: r for r in sv.store.latest_results("T9", "T9-S1")}["STU-1"]
     assert r["factors"]["code_ownership"]["score"] == 0.0 and r["factors"]["code_ownership"]["status"] == "completed"
     assert r["status"] in ("final", "pending_review")

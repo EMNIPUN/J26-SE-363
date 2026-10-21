@@ -1,4 +1,4 @@
-﻿"""
+"""
 Performance Assessment Tasks — registered with the Procrastinate job queue.
 
 Each function decorated with @app.task is a trigger point the server can enqueue.
@@ -152,11 +152,121 @@ async def _with_checkpointer(sv, fn):
 
 @app.task(name="performance.assess_team", queue="performance")
 async def assess_team(payload: dict[str, Any]) -> dict[str, Any]:
-    """Run the team graph for one run row (snapshot or final). payload: {run_id}."""
+    """Run the team graph for one run row (snapshot or final). payload: {run_id, options?}.
+
+    When a *final* run succeeds the task automatically queues final runs for any
+    sprint that still has no succeeded or active run, so the agent self-chains
+    through all configured sprints without any manual intervention.
+    """
     from app.agents.performance_assessment.assessment.runner import run_assessment
 
     sv = _get_services()
-    return await _with_checkpointer(sv, lambda: run_assessment(sv, payload["run_id"]))
+    blocker = _blocking_sprint(sv, payload["run_id"])
+    if blocker:
+        # A sprint is assessed only after the ones before it: the agent carries what it learned from them (marks, flags, trends) into the next. While an earlier sprint is waiting for a person or has failed, this one waits too.
+        run = sv.store.get_run(payload["run_id"])
+        if not any(e["type"] == "run_blocked" and blocker[0] in e["message"] for e in sv.store.list_events(payload["run_id"], limit=200)):
+            sv.store.add_event(payload["run_id"], "run_blocked", f"waiting for {blocker[0]} ({blocker[1]}) to be evaluated first", level="warn")
+        await assess_team.configure(lock=run["team_ref"], schedule_in={"seconds": 60}).defer_async(payload=payload)
+        return {"status": "blocked", "waiting_for": blocker[0]}
+    result = await _with_checkpointer(sv, lambda: run_assessment(sv, payload["run_id"], options=payload.get("options")))
+
+    # Auto-chain: if this final run succeeded, start runs for every sprint that
+    # has not yet been assessed (no succeeded / running / queued / waiting_human run).
+    if result.get("status") == "succeeded":
+        await _enqueue_missing_sprints(sv, payload["run_id"])
+
+    return result
+
+
+def _blocking_sprint(sv, run_id: str):
+    """(sprint id, state) of the earliest earlier sprint that has final runs but none finished, or None when this run may go ahead. Only final runs are ordered; an earlier sprint nobody has run does not block."""
+    run = sv.store.get_run(run_id)
+    if not run or run.get("mode") != "final" or run.get("status") != "queued":
+        return None
+    team = sv.store.get_tracked_team(run["team_ref"])
+    sprints = sorted(((team or {}).get("config") or {}).get("sprints") or [], key=lambda x: x.get("start", ""))
+    mine = next((x for x in sprints if x["id"] == run["sprint_id"]), None)
+    if not mine:
+        return None
+    for sp in sprints:
+        if sp.get("start", "") >= mine.get("start", ""):
+            break
+        finals = [r for r in sv.store.list_runs(run["team_ref"], sp["id"]) if r["mode"] == "final"]
+        if finals and not any(r["status"] == "succeeded" for r in finals):
+            return sp["id"], finals[0]["status"].replace("_", " ")
+    return None
+
+
+# ---- Sprint auto-chaining ---------------------------------------------------------------------------------------------------------------
+
+#: States that mean a sprint is already covered — don't start another run for it.
+_ACTIVE_OR_DONE = {"succeeded", "running", "queued", "waiting_human"}
+
+
+async def _enqueue_missing_sprints(sv, completed_run_id: str) -> None:
+    """Queue a final run for every sprint that has no succeeded or active run yet.
+
+    Called automatically after a final run succeeds so the agent chains through
+    all configured sprints without the lecturer having to click 'run' for each one.
+    Snapshot runs are never chained — only final runs trigger the chain.
+    """
+    from shared.performance import RunAlreadyActive
+
+    run = sv.store.get_run(completed_run_id)
+    if not run or run.get("mode") != "final":
+        return  # snapshots do not trigger chaining
+
+    team_ref = run["team_ref"]
+    team = sv.store.get_tracked_team(team_ref)
+    if not team or team.get("status") != "active":
+        return
+
+    configured_sprints = (team.get("config") or {}).get("sprints", [])
+    if not configured_sprints:
+        return
+
+    queued = 0
+    for sprint in configured_sprints:
+        sprint_id = sprint["id"]
+        if sprint_id == run["sprint_id"]:
+            continue  # the one we just finished — skip
+
+        existing = sv.store.list_runs(team_ref, sprint_id)
+        if any(r["status"] in _ACTIVE_OR_DONE for r in existing):
+            continue  # already has an active or completed run — skip
+
+        try:
+            new_run = sv.store.create_run(team_ref, sprint_id, "final", requested_by="agent")
+        except RunAlreadyActive:
+            continue  # race condition: another worker just created it
+
+        try:
+            # The team lock ensures only one sprint runs at a time; the others wait in the queue.
+            await assess_team.configure(lock=team_ref).defer_async(payload={"run_id": str(new_run["id"])})
+            queued += 1
+            logger.info("[performance] auto-chained sprint %s for team %s (run %s)", sprint_id, team_ref, new_run["id"])
+        except Exception:
+            logger.exception("[performance] could not queue sprint %s for team %s", sprint_id, team_ref)
+
+    if queued:
+        logger.info("[performance] %d sprint(s) auto-queued for team %s after run %s", queued, team_ref, completed_run_id)
+
+
+@app.task(name="performance.queue_ping", queue="performance")
+async def queue_ping(payload: dict[str, Any]) -> dict[str, Any]:
+    """A harmless check that the queue and the worker are connected: appends the payload to the file named in it. payload: {file, n, note?}."""
+    import json
+    import os
+    from pathlib import Path
+
+    path = Path(payload["file"])
+    if path.suffix != ".log" or "queue-ping" not in path.name or Path(os.environ.get("TEMP", "/tmp")) not in path.parents:
+        return {"ok": False, "reason": "only queue-ping .log files in the temp folder"}  # the task writes nowhere else
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps({"n": payload.get("n"), "note": payload.get("note"), "at": datetime.now(timezone.utc).isoformat()}) + chr(10))
+    return {"ok": True, "n": payload.get("n")}
 
 
 @app.task(name="performance.resume_run", queue="performance")
@@ -165,7 +275,10 @@ async def resume_run(payload: dict[str, Any]) -> dict[str, Any]:
     from app.agents.performance_assessment.assessment.runner import run_assessment
 
     sv = _get_services()
-    return await _with_checkpointer(sv, lambda: run_assessment(sv, payload["run_id"], resume=payload.get("resume") or {}))
+    result = await _with_checkpointer(sv, lambda: run_assessment(sv, payload["run_id"], resume=payload.get("resume") or {}))
+    if result.get("status") == "succeeded":
+        await _enqueue_missing_sprints(sv, payload["run_id"])
+    return result
 
 
 @app.task(name="performance.refuse_student", queue="performance")

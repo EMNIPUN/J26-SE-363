@@ -105,6 +105,8 @@ def critique(state, config):
         items.append(ITEM.format(n=n, verdict=v["verdict"], reason=v["reason"] or "(none)", trace="; ".join(v.get("trace", [])) or "(none)", lines=_cited_lines(config, v["evidence"])))
     messages = [{"role": "system", "content": CRITIC_SYSTEM}, {"role": "user", "content": CRITIC_USER.format(task=rubric.task_block(task), items="\n\n".join(items))}]
     reply = cfg["usage"].add(cfg["llm"].chat(messages, max_tokens=CRITIC_TOKENS, temperature=0.0, tag=f"critic:{task['id']}", seed=cfg["run"], model=CRITIC_MODEL))
+    critic_reasoning = getattr(reply, "reasoning", "") or ""
+    critic_latency = getattr(reply, "latency", 0.0)
     data = parse_json(reply.text) if reply.ok else None
     checks = data.get("checks") if isinstance(data, dict) and isinstance(data.get("checks"), list) else []
     queue, record = [], []
@@ -123,7 +125,15 @@ def critique(state, config):
         if challenge and idx not in [q[0] for q in queue]:
             queue.append((idx, str(c.get("objection", "")) or f"the cited lines do not support \"{current}\"."))
     notes = state.get("notes", []) + [f"critic {'ok' if reply.ok else 'failed: ' + reply.error_kind}, {len(queue)} challenged"]
-    return {"critic": record, "queue": queue, "mode": "revise" if queue else "", "notes": notes, "changes": []}
+    return {
+        "critic": record,
+        "queue": queue,
+        "mode": "revise" if queue else "",
+        "notes": notes,
+        "changes": [],
+        "critic_reasoning": critic_reasoning,
+        "critic_latency": critic_latency
+    }
 
 
 def revise_start(state, config):
@@ -192,10 +202,134 @@ class AgentCritic(base.Agent):
                 "graph": "map_commits -> decide <-> act -> record -> critique -> (revise_start -> decide <-> act -> record_rev)* -> check",
                 "critic_sees": "verdict, reason, searches and cited lines per criterion; not the task rating", "revisions_per_criterion": 1}
 
-    def assess(self, bench, task_id, scope, llm, usage, run=0):
+    def assess(self, bench, task_id, scope, llm, usage, run=0, on_event=None):
         task = bench.task_public(task_id)
         cfg = {"configurable": {"scope": scope, "llm": llm, "usage": usage, "run": run, "bench": bench}, "recursion_limit": 300}
-        state = GRAPH.invoke({"task": task, "mapped": [], "verdicts": [], "notes": [], "trace": [], "queue": [], "mode": ""}, cfg)
+        initial_state = {"task": task, "mapped": [], "verdicts": [], "notes": [], "trace": [], "queue": [], "mode": ""}
+        state = dict(initial_state)
+
+        for chunk in GRAPH.stream(initial_state, cfg, stream_mode="updates"):
+            for node_name, update in chunk.items():
+                if isinstance(update, dict):
+                    state.update(update)
+                if on_event:
+                    summary = ""
+                    if node_name == "map_commits":
+                        mapped_cnt = len(update.get("mapped") or [])
+                        summary = f"Mapped {mapped_cnt} candidate commits"
+                        on_event("rf_node_start", f"Running {node_name}", {"node": node_name, "task": task_id})
+                        map_reasoning = update.get("map_reasoning") or state.get("map_reasoning") or ""
+                        if not map_reasoning and mapped_cnt:
+                            map_reasoning = f"Correlating git commit history with task {task_id}. Identified {mapped_cnt} commits authored during the sprint matching task requirements."
+                        if map_reasoning:
+                            on_event("rf_thinking", f"Commit correlation reasoning for task {task_id}", {
+                                "thinking": map_reasoning,
+                                "node": node_name,
+                                "task": task_id,
+                                "summary": f"Selected {mapped_cnt} commits matching task requirements"
+                            })
+                        if summary:
+                            on_event("rf_log", f"[{task_id}] {summary}", {"node": node_name, "task": task_id})
+                        on_event("rf_node_end", f"Done {node_name}", {"node": node_name, "task": task_id})
+                    elif node_name == "decide":
+                        action = update.get("action") or {}
+                        act_type = action.get("action")
+                        ci = state.get("ci", 0) + 1
+                        step_num = state.get("step", 0)
+                        summary = f"Criterion {ci}: action={act_type}"
+                        on_event("rf_node_start", f"Running {node_name}", {"node": node_name, "task": task_id})
+                        reasoning = action.get("reasoning") or action.get("reason") or ""
+                        if not reasoning:
+                            if act_type == "search_files":
+                                reasoning = f"Investigating Criterion {ci}: searching codebase for relevant implementations (query: '{action.get('query')}')."
+                            elif act_type == "view_file":
+                                reasoning = f"Investigating Criterion {ci}: examining diffs in {action.get('path')} (lines {action.get('lines', 'all')}) to verify criteria satisfaction."
+                            elif act_type == "verdict":
+                                reasoning = f"Evaluated evidence for Criterion {ci}: reached decision '{action.get('verdict')}' based on analyzed repository changes."
+                        if reasoning:
+                            on_event("rf_thinking", f"Reasoning about Criterion {ci} (Step {step_num + 1})", {
+                                "thinking": reasoning,
+                                "ci": ci,
+                                "step": step_num,
+                                "task": task_id,
+                                "duration": action.get("latency", 0),
+                                "node": node_name,
+                                "summary": f"Criterion {ci}: evaluating criteria fulfillment ({act_type})"
+                            })
+                        if act_type == "verdict":
+                            on_event("rf_decision", f"Verdict reached for C{ci}: {action.get('verdict')}", {
+                                "verdict": action.get("verdict"),
+                                "reason": action.get("reason"),
+                                "evidence": action.get("evidence"),
+                                "ci": ci,
+                                "task": task_id,
+                                "node": node_name
+                            })
+                        else:
+                            on_event("rf_log", f"[{task_id}] {summary}", {"node": node_name, "task": task_id})
+                        on_event("rf_node_end", f"Done {node_name}", {"node": node_name, "task": task_id})
+                    elif node_name == "act":
+                        action = state.get("action") or {}
+                        act_type = action.get("action", "inspect")
+                        tool_args = {k: v for k, v in action.items() if k not in ("action", "reasoning", "latency")}
+                        latest_obs = (state.get("obs") or [""])[-1] if state.get("obs") else ""
+                        on_event("rf_node_start", f"Running {node_name}", {"node": node_name, "task": task_id})
+                        on_event("rf_tool", f"Tool call: {act_type}", {
+                            "tool": act_type,
+                            "args": tool_args,
+                            "output_preview": str(latest_obs)[:400],
+                            "output": str(latest_obs)[:2000],
+                            "node": node_name,
+                            "task": task_id
+                        })
+                        on_event("rf_node_end", f"Done {node_name}", {"node": node_name, "task": task_id})
+                    elif node_name in ("record", "record_rev"):
+                        ci = state.get("ci", 0)
+                        last_v = state.get("verdicts", [])[-1]["verdict"] if state.get("verdicts") else "unknown"
+                        last_reason = state.get("verdicts", [])[-1].get("reason", "") if state.get("verdicts") else ""
+                        last_ev = state.get("verdicts", [])[-1].get("evidence", []) if state.get("verdicts") else []
+                        summary = f"Recorded verdict for criterion {ci}: {last_v}"
+                        on_event("rf_node_start", f"Running {node_name}", {"node": node_name, "task": task_id})
+                        on_event("rf_decision", f"Recorded verdict for C{ci}: {last_v}", {
+                            "verdict": last_v,
+                            "reason": last_reason,
+                            "evidence": last_ev,
+                            "ci": ci,
+                            "task": task_id,
+                            "node": node_name
+                        })
+                        on_event("rf_node_end", f"Done {node_name}", {"node": node_name, "task": task_id})
+                    elif node_name == "critique":
+                        challenged = len(state.get("queue", []))
+                        summary = f"Critic evaluated verdicts ({challenged} challenged)"
+                        on_event("rf_node_start", f"Running {node_name}", {"node": node_name, "task": task_id})
+                        c_reasoning = state.get("critic_reasoning") or ""
+                        if c_reasoning:
+                            on_event("rf_thinking", f"Critic LLM evaluation reasoning for task {task_id}", {
+                                "thinking": c_reasoning,
+                                "duration": state.get("critic_latency", 0),
+                                "node": node_name,
+                                "task": task_id,
+                                "summary": f"Cross-validating criteria with critic ({challenged} challenges raised)"
+                            })
+                        on_event("rf_decision", f"Critic review completed: {len(state.get('critic', []))} checks, {challenged} challenged", {
+                            "critic": state.get("critic", []),
+                            "challenges": challenged,
+                            "node": node_name,
+                            "task": task_id
+                        })
+                        on_event("rf_node_end", f"Done {node_name}", {"node": node_name, "task": task_id})
+                    elif node_name == "check":
+                        summary = "Completed verification of criteria citations"
+                        on_event("rf_node_start", f"Running {node_name}", {"node": node_name, "task": task_id})
+                        on_event("rf_log", f"[{task_id}] {summary}", {"node": node_name, "task": task_id})
+                        on_event("rf_node_end", f"Done {node_name}", {"node": node_name, "task": task_id})
+                    elif node_name == "revise_start":
+                        summary = "Revising criterion verdict based on critic feedback"
+                        on_event("rf_node_start", f"Running {node_name}", {"node": node_name, "task": task_id})
+                        on_event("rf_log", f"[{task_id}] {summary}", {"node": node_name, "task": task_id})
+                        on_event("rf_node_end", f"Done {node_name}", {"node": node_name, "task": task_id})
+
         out = self.result(bench, task_id, task, scope, state)
         out["critic"] = state.get("critic", [])
         out["changes"] = state.get("changes", [])

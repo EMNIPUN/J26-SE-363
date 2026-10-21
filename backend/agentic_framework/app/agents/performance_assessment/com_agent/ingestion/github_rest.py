@@ -79,6 +79,14 @@ class GitHubREST:
             url, q = nxt, None
         return out
 
+    async def upstream_of(self, repo_url: str) -> Optional[str]:
+        """The repository a fork was made from (https URL), or None. Pull requests of a fork are normally opened in that original repository, not in the fork."""
+        info = (await self._get(f"{self.base}/repos/{owner_repo(repo_url)}")).json()
+        if not info.get("fork"):
+            return None
+        origin = (info.get("source") or info.get("parent") or {}).get("full_name")
+        return f"https://github.com/{origin}" if origin else None
+
     async def pulls_bundle(self, repo_url: str, since: Optional[str] = None, max_prs: int = 150) -> List[Dict[str, Any]]:
         """Pull requests updated since ``since`` with their reviews, comments, commit SHAs and merger."""
         slug = owner_repo(repo_url)

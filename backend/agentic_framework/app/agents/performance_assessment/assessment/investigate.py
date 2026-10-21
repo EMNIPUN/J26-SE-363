@@ -52,7 +52,7 @@ def _tool_inspect(evidence, args):
 
 
 def run(llm, found, cards, results, evidence, history=None):
-    """Investigate one student's findings. Returns {"decisions": {finding id: {"action", "reason"}}, "summary", "model", "trace": [...], "overrides": {factor: reason}} or None when there is nothing to decide, no model, or no usable answer."""
+    """Investigate one student's findings. Returns {"decisions": {finding id: {"action", "reason"}}, "summary", "model", "trace": [...], "overrides": {factor: reason}, "thinking": the model's reasoning text, empty when it gave none} or None when there is nothing to decide, no model, or no usable answer."""
     actionable = [f for f in found if f["severity"] != "info"]
     if not actionable or llm is None:
         return None
@@ -61,11 +61,13 @@ def run(llm, found, cards, results, evidence, history=None):
              "cards": {n: {k: cards[n].get(k) for k in ("title", "measures", "limits", "typical_problems", "allowed_remedies")} for n in involved}}
     messages = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": json.dumps(brief, ensure_ascii=False)[:14000]}]
     ids = {f["id"] for f in actionable}
-    trace, overrides = [], {}
+    trace, overrides, thoughts = [], {}, []
     for step in range(MAX_STEPS + 1):
         reply = llm.chat(messages, max_tokens=900, temperature=0.0, tag="audit" if step == 0 else f"audit:step{step}", json_mode=True)
         if not getattr(reply, "ok", True):
             return None
+        if str(getattr(reply, "reasoning", "") or "").strip():
+            thoughts.append(str(reply.reasoning).strip())  # the model's own reasoning, for the live trace
         m = re.search(r"\{.*\}", reply.text or "", re.S)
         try:
             data = json.loads(m.group(0)) if m else None
@@ -80,7 +82,7 @@ def run(llm, found, cards, results, evidence, history=None):
             for d in data["decisions"]:
                 if isinstance(d, dict) and d.get("finding") in ids and d.get("action") in ("accept", "retry", "escalate"):
                     decisions[d["finding"]] = {"action": d["action"], "reason": str(d.get("reason", ""))[:400]}
-            return {"decisions": decisions, "summary": str(data.get("summary", ""))[:500], "model": getattr(llm, "model", ""), "trace": trace, "overrides": overrides}
+            return {"decisions": decisions, "summary": str(data.get("summary", ""))[:500], "model": getattr(llm, "model", ""), "trace": trace, "overrides": overrides, "thinking": "\n\n".join(thoughts)[:4000]}
         tool, args = data.get("tool"), data.get("args") if isinstance(data.get("args"), dict) else {}
         if step >= MAX_STEPS:
             messages += [{"role": "assistant", "content": json.dumps(data)[:300]}, {"role": "user", "content": "No more tool calls. Give the final decisions now."}]

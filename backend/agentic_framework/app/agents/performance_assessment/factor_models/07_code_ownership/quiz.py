@@ -27,7 +27,8 @@ def _load(name, file):
 
 cleaning = _load("ko_cleaning", "cleaning.py")
 questions = _load("ko_questions", "questions.py")
-QUIZ_VERSION = "ko_quiz/1"
+QUIZ_VERSION = "ko_quiz/2"
+MAX_SNIPPET_LINES = 60  # longer functions are asked about last: a student should be able to read the code in a minute
 PARAMS = re.compile(r"\(([^()]*)\)")
 
 
@@ -66,22 +67,32 @@ def _generic_question(name, header):
     return (f"In your own words, what does {name} do, and what do {ps} control?", ["Says what the function is for", "Says what each named parameter changes about the result"])
 
 
-def candidates(files):
+def candidates(files, blocks=False):
+    """Whole functions the student wrote; with ``blocks`` also runs of real code in the same files that are not inside one of those functions (used when there are too few functions)."""
     out = []
     for f in files:
         path, text = f["path"], f.get("text", "")
-        for c in cleaning.snippet_candidates(path, text):
+        found = cleaning.snippet_candidates(path, text)
+        for c in found:
             out.append({**c, "path": path, "text": text})
+        if blocks:
+            for b in cleaning.block_candidates(path, text):
+                if not any(b["start"] < c["end"] and c["start"] < b["end"] for c in found):
+                    out.append({**b, "path": path, "text": text})
     return out
 
 
-def generate(files, student_id="", sprint_id="", salt=""):
+def generate(files, student_id="", sprint_id="", salt="", forced_kind=None):
     """The quiz for one student and sprint, or ``None`` when no file has a function worth asking about."""
     cands = candidates(files)
     if not cands:
         return None
     cands.sort(key=lambda c: _h(f"{student_id}|{sprint_id}|{salt}|{c['path']}|{c['name']}|{c['start']}"))
-    c = cands[0]
+    return _build(cands[0], student_id, sprint_id, salt, forced_kind)
+
+
+def _build(c, student_id, sprint_id, salt="", forced_kind=None):
+    """The question for one chosen candidate."""
     lines = c["text"].splitlines()
     warnings = []
     if c["path"].endswith(".py"):
@@ -91,7 +102,7 @@ def generate(files, student_id="", sprint_id="", salt=""):
         if node is not None:
             facts = questions.facts(node)
             kinds = questions.available_types(facts)
-            kind = sorted(kinds, key=lambda k: _h(f"{student_id}|{sprint_id}|{salt}|{k}"))[0]
+            kind = forced_kind if forced_kind in kinds else sorted(kinds, key=lambda k: _h(f"{student_id}|{sprint_id}|{salt}|{k}"))[0]
             q, crit = questions.make_question(facts, kind)
             code = display_code(node, lines)
             meta = {"node_type": "FunctionDef", "name": c["name"], "cyclomatic_complexity": cyclomatic_complexity(node), "token_count": len(re.findall(r"\w+|[^\w\s]", code)), "language": "python"}
@@ -101,5 +112,28 @@ def generate(files, student_id="", sprint_id="", salt=""):
     q, crit = _generic_question(c["name"], lines[c["start"] - 1] if c["start"] - 1 < len(lines) else "")
     warnings.append("no parser for this language: general question only; the answer scorer was trained on Python and is not validated here")
     return {"file_path": c["path"], "line_range": [c["start"], c["end"]], "code_snippet": code, "question": q, "question_type": "purpose", "reference_criteria": crit, "facts": None,
-            "ast_metadata": {"node_type": "function", "name": c["name"], "cyclomatic_complexity": None, "token_count": len(re.findall(r"\w+|[^\w\s]", code)), "language": "other"},
+            "ast_metadata": {"node_type": c.get("kind", "function"), "name": c["name"], "cyclomatic_complexity": None, "token_count": len(re.findall(r"\w+|[^\w\s]", code)), "language": "other"},
             "warnings": warnings, "version": QUIZ_VERSION}
+
+
+def generate_many(files, student_id="", sprint_id="", count=10, salt=""):
+    """Select distinct snippets of the student's own code, at most three per file; when the files have too few whole functions, runs of real code fill the rest so the count is met whenever the code allows it."""
+    count = max(0, min(int(count), 20))
+    kinds = ["explain_behaviour", "predict_output", "edge_case", "spot_risk", "why_design"]
+    out, per_file, snippets = [], {}, set()
+    for blocks, cap in ((False, 3), (True, 5)):
+        ranked = candidates(files, blocks=blocks)
+        ranked.sort(key=lambda c: (c.get("kind") == "block", c.get("lines", 0) > MAX_SNIPPET_LINES, -min(c.get("lines", 0), MAX_SNIPPET_LINES), _h(f"{student_id}|{sprint_id}|{c['path']}|{c['name']}|{c['start']}")))
+        for c in ranked:
+            if len(out) >= count:
+                break
+            if per_file.get(c["path"], 0) >= cap:
+                continue
+            q = _build(c, student_id, sprint_id, salt=f"{salt}:{len(out)}", forced_kind=kinds[len(out) % len(kinds)])
+            if q and q["code_snippet"] not in snippets:
+                out.append(q)
+                snippets.add(q["code_snippet"])
+                per_file[c["path"]] = per_file.get(c["path"], 0) + 1
+        if len(out) >= count:
+            break
+    return out

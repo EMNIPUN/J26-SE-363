@@ -94,26 +94,133 @@ def snippet_candidates(path, text):
                 if n >= SNIPPET_MIN_LINES:
                     out.append({"name": node.name, "start": node.lineno, "end": node.end_lineno, "lines": n})
         return out
-    lines = text.splitlines()
-    head = re.compile(r"(?:function\s+(\w+)\s*\(|(?:public|private|protected|static|async|\s)+[\w<>\[\],\s]+\s+(\w+)\s*\([^;{]*\)\s*(?:throws [\w, ]+)?\s*\{|(?:const|let)\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{)")
-    i = 0
-    while i < len(lines):
-        m = head.search(lines[i])
-        name = next((g for g in m.groups() if g), None) if m else None
-        if name and lines[i].rstrip().endswith("{") and not TRIVIAL_NAME.match(name):
-            depth, j = 0, i
-            while j < len(lines):
-                depth += lines[j].count("{") - lines[j].count("}")
-                if depth <= 0 and j >= i:
-                    break
-                j += 1
-            state = State()
-            n = sum(1 for ln in lines[i:j + 1] if classify_line(ln, style, state) == "code")
-            if n >= SNIPPET_MIN_LINES:
-                out.append({"name": name, "start": i + 1, "end": j + 1, "lines": n})
-            i = j + 1
+    return _brace_functions(text, style)
+
+
+JS_KEYWORDS = {"if", "for", "while", "switch", "catch", "function", "return", "else", "with", "do", "try", "finally", "new", "typeof", "await", "super", "throw", "yield", "delete", "void", "in", "of"}
+_NAME = r"[A-Za-z_$][\w$]*"
+FUNCTION_HEADS = [
+    re.compile(rf"\bfunction\s*\*?\s*({_NAME})\s*\("),                                                                    # function name(
+    re.compile(rf"\b(?:const|let|var)\s+({_NAME})\s*=\s*(?:async\s*)?(?:function\b[^(]*\(|\()"),                          # const name = (...) =>  /  = function (
+    re.compile(rf"\b(?:const|let|var)\s+({_NAME})\s*=\s*(?:async\s+)?{_NAME}\s*=>"),                                      # const name = arg =>
+    re.compile(rf"\b(?:module\.)?exports\.({_NAME})\s*=\s*(?:async\s*)?(?:function\b[^(]*\(|\()"),                      # exports.name = (...)
+    re.compile(rf"^\s*({_NAME})\s*:\s*(?:async\s*)?(?:function\b[^(]*\(|\()"),                                          # name: async (...) =>  (object member)
+    re.compile(rf"^\s*(?:export\s+)?(?:default\s+)?(?:(?:public|private|protected|static|async|final|override|abstract|synchronized|get|set)\s+)*(?:([\w<>\[\],.?]+)\s+)?({_NAME})\s*\("),  # method of a class
+]
+
+
+def _function_name(line):
+    for k, rx in enumerate(FUNCTION_HEADS):
+        m = rx.search(line)
+        if not m:
+            continue
+        if k == len(FUNCTION_HEADS) - 1:
+            kind_token, name = m.group(1), m.group(2)
+            if kind_token in JS_KEYWORDS:
+                continue
         else:
+            name = m.group(1)
+        if name not in JS_KEYWORDS and not TRIVIAL_NAME.match(name):
+            return name, m.start()
+    return None, 0
+
+
+def _body_start(lines, i, col):
+    """Where the body of a function whose header starts at lines[i][col:] opens: (line index, column) of its '{', or None for a header that is a call, a declaration or an expression body."""
+    depth, seen_close = 0, False
+    for k in range(i, min(i + 6, len(lines))):
+        text = lines[k][col:] if k == i else lines[k]
+        c = 0
+        while c < len(text):
+            ch = text[c]
+            if ch in "'\"":
+                c = text.find(ch, c + 1)
+                if c < 0:
+                    break
+            elif ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                seen_close = True
+            elif ch == ";" and depth == 0:
+                return None
+            elif ch == "=" and text[c:c + 2] == "=>" and depth == 0:
+                tail = text[c + 2:]
+                if tail.strip():
+                    return (k, c + 2 + len(tail) - len(tail.lstrip())) if tail.lstrip().startswith("{") else None
+                nxt = lines[k + 1] if k + 1 < len(lines) else ""
+                return (k + 1, len(nxt) - len(nxt.lstrip())) if nxt.lstrip().startswith("{") else None
+            elif ch == "{" and depth == 0:
+                return (k, c) if seen_close else None
+            c += 1
+    return None
+
+
+def _body_end(lines, k, c):
+    depth, j = 0, k
+    while j < len(lines) and j - k < 400:
+        text = lines[j][c:] if j == k else lines[j]
+        i = 0
+        while i < len(text):
+            ch = text[i]
+            if ch in "'\"":
+                i = text.find(ch, i + 1)
+                if i < 0:
+                    break
+            elif ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return j
             i += 1
+        j += 1
+    return None
+
+
+def _brace_functions(text, style):
+    """Functions of a brace language (JavaScript, TypeScript, Java and similar): declarations, arrow functions, object members and class methods, including headers split over several lines."""
+    lines = text.splitlines()
+    out, i = [], 0
+    while i < len(lines):
+        name, col = _function_name(lines[i])
+        found = _body_start(lines, i, col) if name else None
+        if found:
+            end = _body_end(lines, found[0], found[1])
+            if end is not None:
+                state = State()
+                n = sum(1 for ln in lines[i:end + 1] if classify_line(ln, style, state) == "code")
+                if n >= SNIPPET_MIN_LINES:
+                    out.append({"name": name, "start": i + 1, "end": end + 1, "lines": n})
+                i = end + 1
+                continue
+        i += 1
+    return out
+
+
+def block_candidates(path, text, span=24):
+    """When a file has too few whole functions, runs of real code (about ``span`` lines, ending at a blank line once there is enough) to ask about: [{name, start, end, lines, kind: 'block'}]."""
+    if classify_path(path) not in SOURCE_KINDS:
+        return []
+    style, state = style_for(path), State()
+    lines = text.splitlines()
+    kinds = [classify_line(ln, style, state) for ln in lines]
+    base = path.rsplit("/", 1)[-1]
+    out, i = [], 0
+    while i < len(lines):
+        if kinds[i] != "code":
+            i += 1
+            continue
+        j, n = i, 0
+        while j < len(lines) and j - i < span:
+            if kinds[j] == "code":
+                n += 1
+            elif not lines[j].strip() and n >= SNIPPET_MIN_LINES:
+                break
+            j += 1
+        if n >= SNIPPET_MIN_LINES:
+            out.append({"name": f"{base} lines {i + 1}-{j}", "start": i + 1, "end": j, "lines": n, "kind": "block"})
+        i = j + 1
     return out
 
 

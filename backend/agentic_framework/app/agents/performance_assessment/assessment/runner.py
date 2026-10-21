@@ -31,7 +31,7 @@ def postgres_checkpointer_cm(dsn: str):
     return AsyncPostgresSaver.from_conn_string(dsn)
 
 
-async def run_assessment(sv, run_id: str, resume=None) -> dict:
+async def run_assessment(sv, run_id: str, resume=None, options=None) -> dict:
     store = sv.store
     run = store.get_run(run_id)
     if run is None:
@@ -43,12 +43,23 @@ async def run_assessment(sv, run_id: str, resume=None) -> dict:
     ev = Events(store, run_id)
     await asyncio.to_thread(store.update_run, run_id, status="running")
     ev.emit("run_start" if resume is None else "run_resume", f"{run['mode']} run for team {run['team_ref']}, sprint {run['sprint_id']}")
+    if resume is None:
+        # the first thing the live trace shows, so it is busy from the first second (the plan is what the run does, nothing guessed)
+        ev.thinking("team", "Planning the assessment", thinking=(
+            f"{str(run['mode']).capitalize()} assessment of team {run['team_ref']} for {run['sprint_id']}.\n\n"
+            "1. Read the repository and the Scrum board for the sprint.\n"
+            "2. Match each student's commits and tasks to them.\n"
+            "3. Score effort, consistency, requirement fulfillment, collaboration and task complexity.\n"
+            "4. Check my own results, then write the explanation for each student."))
     try:
         try:
             if resume is not None:
                 out = await asyncio.wait_for(graph.ainvoke(Command(resume=resume), config), RUN_TIMEOUT)
             else:
-                out = await asyncio.wait_for(graph.ainvoke({"run_id": run_id, "team_ref": run["team_ref"], "sprint_id": run["sprint_id"], "mode": run["mode"]}, config), RUN_TIMEOUT)
+                init_state = {"run_id": run_id, "team_ref": run["team_ref"], "sprint_id": run["sprint_id"], "mode": run["mode"]}
+                if options:
+                    init_state["options"] = options
+                out = await asyncio.wait_for(graph.ainvoke(init_state, config), RUN_TIMEOUT)
         except asyncio.CancelledError:
             await asyncio.to_thread(store.update_run, run_id, status="cancelled")
             ev.emit("run_end", "cancelled", level="warn")
@@ -94,7 +105,7 @@ async def refuse_student(sv, team_ref: str, sprint_id: str, student_id: str) -> 
     ev = Events(store, run["id"])
     path = f"student:{student_id}/ownership_quiz"
     async with ev.node(path) as n:
-        quiz = store.get_quiz(team_ref, sprint_id, student_id)
+        quiz = store.list_quizzes(team_ref, sprint_id, student_id)
         r = await quiz_flow.factor_for(store, quiz)
         results["code_ownership"] = r
         store.save_factor_result(run["id"], student_id, "code_ownership", score=r["score"], status=r["status"], interval=r["interval"], provisional=r["provisional"], features=r["features"],

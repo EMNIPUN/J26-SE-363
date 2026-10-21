@@ -110,5 +110,67 @@ class Generate(unittest.TestCase):
         self.assertEqual(QS.facts(node)["guards"][0]["raises"], "ValueError")
 
 
+JS_SAMPLE = r'''
+export const createCert = async (req, res) => {
+  const { name, hotel } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: 'name' });
+  }
+  const cert = await Cert.create({
+    name,
+    hotel,
+  });
+  await log(cert);
+  res.json(cert);
+};
+const multi = async (
+  a,
+  b
+) => {
+  const x = a + b;
+  const y = x * 2;
+  const z = y - 1;
+  const w = z / 3;
+  console.log(w);
+  await save(w);
+  return w;
+};
+class Svc {
+  async renew(
+    id,
+    opts
+  ) {
+    const c = await this.repo.find(id);
+    if (!c) { throw new Error('x'); }
+    c.expires = addYears(c.expires, 1);
+    c.history.push('renewed');
+    await c.save();
+    return c;
+  }
+}
+'''
+
+
+class TestBatchOfQuestions(unittest.TestCase):
+    def test_javascript_functions_are_found_whatever_their_form(self):
+        names = [c["name"] for c in Q.cleaning.snippet_candidates("src/a.js", JS_SAMPLE)]
+        self.assertEqual(names, ["createCert", "multi", "renew"])  # arrow functions, a header split over lines and a class method; never an `if`
+
+    def test_no_question_is_about_a_keyword(self):
+        for q in Q.generate_many([{"path": "src/a.js", "text": JS_SAMPLE}], "s", "sp", 10):
+            self.assertNotRegex(q["question"], r"what does (if|for|while|switch|catch) ")
+
+    def test_runs_of_code_fill_up_the_batch_when_there_are_too_few_functions(self):
+        body = "\n".join(f"const v{i} = compute({i});\nlog(v{i});" for i in range(60))
+        qs = Q.generate_many([{"path": "src/b.js", "text": body}], "s", "sp", 10)
+        self.assertGreaterEqual(len(qs), 5)
+        self.assertEqual(len({q["code_snippet"] for q in qs}), len(qs))
+
+    def test_a_batch_has_distinct_questions_up_to_the_count(self):
+        files = [{"path": f"src/f{i}.js", "text": JS_SAMPLE.replace("createCert", f"createCert{i}").replace("multi", f"multi{i}").replace("renew", f"renew{i}")} for i in range(4)]
+        qs = Q.generate_many(files, "s", "sp", 10)
+        self.assertEqual(len(qs), 10)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -103,13 +103,36 @@ class NodeLog:
         self.events.emit("log", message, node_path=self.path, level=level, payload=payload)
 
     def tool(self, name, summary="", **payload):
-        self.events.emit("tool", f"{name}: {summary}" if summary else name, node_path=self.path, payload={"tool": name, **payload})
+        p = {"tool": name}
+        if summary:
+            p["summary"] = summary
+            if "output" not in payload and "output_preview" not in payload:
+                p["output"] = summary
+        p.update(payload)
+        self.events.emit("tool", f"{name}: {summary}" if summary else name, node_path=self.path, payload=p)
 
     def llm(self, summary, **payload):
         self.events.emit("llm", summary, node_path=self.path, payload=payload)
 
+    def thinking(self, summary="", thinking="", duration=None, tokens=None, **payload):
+        self.events.emit("thinking", summary or "Agent Reasoning", node_path=self.path,
+                         payload={"thinking": thinking, "duration": duration, "tokens": tokens, **payload})
+
+    def decision(self, summary="", **payload):
+        self.events.emit("decision", summary or "Agent Decision", node_path=self.path, payload=payload)
+
+    def produce(self, field, *, verified=False, fallback=False, message=""):
+        self.events.emit("produce", message or field, node_path=self.path,
+                         payload={"field": field, "verified": bool(verified), "fallback": bool(fallback)})
+
     def result(self, **payload):
         self.payload = payload
+        self.events.emit("result", "", node_path=self.path, payload=payload)
+
+    def task(self, event, task, **payload):
+        """Record typed Requirement Fulfillment progress without encoding it in log text."""
+        self.events.emit("task", "", node_path=self.path,
+                         payload={"event": event, "task": task, **payload})
 
 
 class Events:
@@ -119,6 +142,20 @@ class Events:
 
     def emit(self, type, message="", *, node_path="", level="info", payload=None):
         self._w.put(("event", {"type": type, "message": message, "node_path": node_path, "level": level, "payload": payload or {}}))
+
+    def llm(self, node_path, summary, **payload):
+        self.emit("llm", summary, node_path=node_path, payload=payload)
+
+    def thinking(self, node_path, summary="", thinking="", duration=None, tokens=None, **payload):
+        self.emit("thinking", summary or "Agent Reasoning", node_path=node_path,
+                  payload={"thinking": thinking, "duration": duration, "tokens": tokens, **payload})
+
+    def decision(self, node_path, summary="", **payload):
+        self.emit("decision", summary or "Agent Decision", node_path=node_path, payload=payload)
+
+    def task(self, node_path, event, task, **payload):
+        self.emit("task", "", node_path=node_path,
+                  payload={"event": event, "task": task, **payload})
 
     def flush(self, timeout=60.0):
         return self._w.flush(timeout)
@@ -138,4 +175,4 @@ class Events:
                 raise
             self.emit("node_error", f"{type(e).__name__}: {str(e)[:300]}", node_path=path, level="error", payload={"seconds": round(time.time() - t0, 2)})
             raise
-        self.emit("node_end", path.split("/")[-1], node_path=path, payload={"seconds": round(time.time() - t0, 2), **n.payload})
+        self.emit("node_end", path.split("/")[-1], node_path=path, payload={"seconds": round(time.time() - t0, 2), "result": n.payload, **n.payload})

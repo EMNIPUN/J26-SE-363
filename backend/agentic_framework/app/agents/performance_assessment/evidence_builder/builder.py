@@ -147,8 +147,9 @@ def build_team_evidence(ws, repo_url, roster: Roster, sprint: dict, tasks_by_stu
                 else:
                     quality["notes"].append(f"task {t.get('task_id')}: linked commit {p!r} matched {len(hits)} commits (ignored)")
             tl.append({"id": t["task_id"], "title": t.get("title", ""), "description": t.get("description", ""), "acceptance_criteria": t.get("acceptance_criteria", []),
-                       "story_points": t.get("story_points", 0), "subtask_count": t.get("subtask_count", 0), "assignee": t.get("student_id") or sid, "status": t.get("status", ""),
+                       "story_points": t.get("story_points", 0), "subtask_count": t.get("subtask_count", 0), "assignee": sid, "status": t.get("status", ""),
                        "completed_by": t.get("completed_by"), "carried_over_from": t.get("carried_over_from"), "commit_ids": ids})
+
             extra_shas.update(ids)
         evidence_tasks[sid] = tl
     mine = {c["sha"] for c in window}

@@ -101,9 +101,26 @@ class _Traced:
         reply = self._inner.chat(messages, **kw)
         tag = kw.get("tag", "")
         if reply.ok:
+            reasoning = getattr(reply, "reasoning", "") or ""
+            latency = getattr(reply, "latency", 0.0)
+            if reasoning:
+                parts = tag.split(":")
+                ci = parts[3] if len(parts) > 3 else ""
+                summary = f"Reasoning about {ci}" if ci else f"Reasoning for {tag}"
+                self._emit("rf_thinking", summary, {
+                    "thinking": reasoning,
+                    "tag": tag,
+                    "duration": latency,
+                    "summary": summary
+                })
+            for tc in getattr(reply, "tool_calls", []):
+                self._emit("rf_tool", f"Tool call: {tc.get('name')}", {
+                    "tool": tc.get("name"),
+                    "args": tc.get("arguments", {}),
+                    "tag": tag
+                })
             prompt_tokens = getattr(reply, "prompt_tokens", 0)
             completion_tokens = getattr(reply, "completion_tokens", 0)
-            latency = getattr(reply, "latency", 0.0)
             attempts = getattr(reply, "attempts", 1)
             self._emit("llm_call", f"{tag}: {prompt_tokens}+{completion_tokens} tokens, {latency:.1f}s" + (f", {attempts} attempts" if attempts > 1 else ""), {"tag": tag})
         else:
@@ -160,7 +177,7 @@ def evaluate(payload, context=None):
         res = _cache_get(key) if key else None
         reused = res is not None
         if res is None:
-            res = agent.assess(bench, tid, scope, llm, usage)
+            res = agent.assess(bench, tid, scope, llm, usage, on_event=emit)
             if key:
                 _cache_put(key, res)
         if res.get("error"):

@@ -147,9 +147,18 @@ def _call_action(cfg, messages, tools, tag):
         return {"error": reply.error, "error_kind": reply.error_kind}
     if reply.tool_calls and reply.tool_calls[0]["name"] in ACTION_OF:
         args = reply.tool_calls[0]["arguments"]
-        return {"action": ACTION_OF[reply.tool_calls[0]["name"]], **(args if isinstance(args, dict) else {})}
+        return {
+            "action": ACTION_OF[reply.tool_calls[0]["name"]],
+            "reasoning": getattr(reply, "reasoning", "") or "",
+            "latency": getattr(reply, "latency", 0.0),
+            **(args if isinstance(args, dict) else {})
+        }
     data = parse_json(reply.text)  # a model that answers in text (and the scripted model of the tests)
-    return data if isinstance(data, dict) and data.get("action") in ("search", "read", "verdict") else {"action": "invalid", "raw": (reply.text or "")[:120]}
+    if isinstance(data, dict) and data.get("action") in ("search", "read", "verdict"):
+        data["reasoning"] = getattr(reply, "reasoning", "") or ""
+        data["latency"] = getattr(reply, "latency", 0.0)
+        return data
+    return {"action": "invalid", "raw": (reply.text or "")[:120], "reasoning": getattr(reply, "reasoning", "") or "", "latency": getattr(reply, "latency", 0.0)}
 
 
 def act(state, config):
@@ -242,10 +251,91 @@ class Agent:
         return {"rubric_hash": rubric.RUBRIC_HASH, "prompt_hash": rubric.fingerprint(TOOLS, MAP_PROMPT, DECIDE, json.dumps(TOOL_DEFS)), "max_steps_per_criterion": MAX_STEPS, "max_tokens": MAX_TOKENS,
                 "observation_chars": OBS_CHARS, "mapping": "found by the agent", "examples": 0, "graph": "map_commits -> decide <-> act -> record -> check"}
 
-    def assess(self, bench, task_id, scope, llm, usage, run=0):
+    def assess(self, bench, task_id, scope, llm, usage, run=0, on_event=None):
         task = bench.task_public(task_id)
         cfg = {"configurable": {"scope": scope, "llm": llm, "usage": usage, "run": run, "bench": bench}, "recursion_limit": 200}
-        state = GRAPH.invoke({"task": task, "mapped": [], "verdicts": [], "notes": []}, cfg)
+        initial_state = {"task": task, "mapped": [], "verdicts": [], "notes": []}
+        state = dict(initial_state)
+
+        for chunk in GRAPH.stream(initial_state, cfg, stream_mode="updates"):
+            for node_name, update in chunk.items():
+                if isinstance(update, dict):
+                    state.update(update)
+                if on_event:
+                    summary = ""
+                    if node_name == "map_commits":
+                        mapped_cnt = len(update.get("mapped") or [])
+                        summary = f"Mapped {mapped_cnt} candidate commits"
+                        on_event("rf_node_start", f"Running {node_name}", {"node": node_name, "task": task_id})
+                        map_reasoning = update.get("map_reasoning") or ""
+                        if map_reasoning:
+                            on_event("rf_thinking", f"Commit correlation reasoning for task {task_id}", {
+                                "thinking": map_reasoning,
+                                "node": node_name,
+                                "task": task_id,
+                                "summary": f"Selected {mapped_cnt} commits matching task requirements"
+                            })
+                        if summary:
+                            on_event("rf_log", f"[{task_id}] {summary}", {"node": node_name, "task": task_id})
+                        on_event("rf_node_end", f"Done {node_name}", {"node": node_name, "task": task_id})
+                    elif node_name == "decide":
+                        action = update.get("action") or {}
+                        act_type = action.get("action")
+                        ci = state.get("ci", 0) + 1
+                        step_num = state.get("step", 0)
+                        summary = f"Criterion {ci}: action={act_type}"
+                        on_event("rf_node_start", f"Running {node_name}", {"node": node_name, "task": task_id})
+                        reasoning = action.get("reasoning") or ""
+                        if reasoning:
+                            on_event("rf_thinking", f"Reasoning about Criterion {ci} (Step {step_num + 1}/{MAX_STEPS})", {
+                                "thinking": reasoning,
+                                "ci": ci,
+                                "step": step_num,
+                                "task": task_id,
+                                "duration": action.get("latency", 0),
+                                "node": node_name,
+                                "summary": f"Criterion {ci}: deciding next step ({act_type})"
+                            })
+                        if act_type == "verdict":
+                            on_event("rf_decision", f"Verdict reached for C{ci}: {action.get('verdict')}", {
+                                "verdict": action.get("verdict"),
+                                "reason": action.get("reason"),
+                                "evidence": action.get("evidence"),
+                                "ci": ci,
+                                "task": task_id,
+                                "node": node_name
+                            })
+                        else:
+                            on_event("rf_log", f"[{task_id}] {summary}", {"node": node_name, "task": task_id})
+                        on_event("rf_node_end", f"Done {node_name}", {"node": node_name, "task": task_id})
+                    elif node_name == "act":
+                        action = state.get("action") or {}
+                        act_type = action.get("action")
+                        tool_args = {k: v for k, v in action.items() if k not in ("action", "reasoning", "latency")}
+                        latest_obs = (state.get("obs") or [""])[-1] if state.get("obs") else ""
+                        on_event("rf_node_start", f"Running {node_name}", {"node": node_name, "task": task_id})
+                        on_event("rf_tool", f"Tool call: {act_type}", {
+                            "tool": act_type,
+                            "args": tool_args,
+                            "output_preview": latest_obs[:400],
+                            "output": latest_obs[:2000],
+                            "node": node_name,
+                            "task": task_id
+                        })
+                        on_event("rf_node_end", f"Done {node_name}", {"node": node_name, "task": task_id})
+                    elif node_name == "record":
+                        ci = state.get("ci", 0)
+                        last_v = state.get("verdicts", [])[-1]["verdict"] if state.get("verdicts") else "unknown"
+                        summary = f"Recorded verdict for criterion {ci}: {last_v}"
+                        on_event("rf_node_start", f"Running {node_name}", {"node": node_name, "task": task_id})
+                        on_event("rf_log", f"[{task_id}] {summary}", {"node": node_name, "task": task_id, "verdict": last_v})
+                        on_event("rf_node_end", f"Done {node_name}", {"node": node_name, "task": task_id})
+                    elif node_name == "check":
+                        summary = "Completed verification of criteria citations"
+                        on_event("rf_node_start", f"Running {node_name}", {"node": node_name, "task": task_id})
+                        on_event("rf_log", f"[{task_id}] {summary}", {"node": node_name, "task": task_id})
+                        on_event("rf_node_end", f"Done {node_name}", {"node": node_name, "task": task_id})
+
         return self.result(bench, task_id, task, scope, state)
 
     def result(self, bench, task_id, task, scope, state):

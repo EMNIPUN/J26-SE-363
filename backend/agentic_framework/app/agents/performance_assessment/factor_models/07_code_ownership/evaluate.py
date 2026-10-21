@@ -95,3 +95,8 @@ async def async_evaluate(payload, context=None):
     duration = 0.01 if "pytest" in sys.modules else None
     sim = _load("ko_simulate", "simulate.py")
     return await sim.async_simulate(payload=payload, mode=mode, duration_seconds=duration)
+
+
+def generate_many(files, student_id="", sprint_id="", count=10):
+    """Phase 1 for a whole batch: up to ``count`` distinct questions about the student's own code."""
+    return _quiz.generate_many(files or [], student_id, sprint_id, count)

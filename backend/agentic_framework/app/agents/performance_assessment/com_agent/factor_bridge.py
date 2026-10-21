@@ -209,6 +209,21 @@ async def generate_quiz_via_bridge(
         return None
 
 
+async def generate_quizzes_via_bridge(payload, context=None):
+    resolved = _resolve_factor_module("code_ownership")
+    if not resolved:
+        return []
+    mod, tier = resolved
+    if tier != "production":
+        return []
+    try:
+        if hasattr(mod, "generate_many"):
+            return mod.generate_many(payload.get("files") or [], payload.get("student_id", ""), payload.get("sprint_id", ""), payload.get("count", 10))
+        one = await generate_quiz_via_bridge(payload, context)
+        return [one] if one else []
+    except Exception as e:
+        logger.warning("Code Ownership quiz batch generation failed: %s", e)
+        return []
 async def classify_persona_via_bridge(
     factor_scores: Dict[str, float],
     context: Optional[Dict[str, Any]] = None,

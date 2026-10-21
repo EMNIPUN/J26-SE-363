@@ -82,7 +82,7 @@ class Services:
     token: str | None = None
     github_app: Any = None                        # shared.github_app.GitHubApp: mints a short-lived token for the repository a team linked; None when the App is not configured
     work_dir: Path = field(default_factory=lambda: Path(tempfile.gettempdir()) / "assessment-runs")
-    parallel_students: int = 4
+    parallel_students: int = field(default_factory=lambda: max(1, int(os.environ.get("ASSESSMENT_PARALLEL_STUDENTS", 4))))  # students assessed at the same time; 1 means one after another
     checkpointer: Any = None
     now: Callable[[], datetime] = lambda: datetime.now(timezone.utc)
     cards: dict = field(default_factory=load_cards)
@@ -112,7 +112,7 @@ class Services:
         """A worker's services from the environment: SERVER_DIRECT_URL (database), GITHUB_TOKEN, GROQ_API_KEYS (language model), ASSESSMENT_WORKSPACE (clone folder)."""
         import sys
         from app.agents.performance_assessment.com_agent.ingestion.github_rest import GitHubREST
-        from app.agents.performance_assessment.com_agent.ingestion.scrum_mcp_client import RealScrumMCPClient
+        from app.agents.performance_assessment.com_agent.ingestion.scrum_mcp_client import CoreApiScrumClient, RealScrumMCPClient
         from app.agents.performance_assessment.workspace import WorkspaceManager
         from shared.performance import PerformanceStore
 
@@ -131,8 +131,13 @@ class Services:
         except Exception:  # no keys: the factor says "not available", the rest of the assessment continues
             llm = None
         base = Path(os.environ.get("ASSESSMENT_WORKSPACE") or (Path(tempfile.gettempdir()) / "assessment-workspace"))
+        os.environ.setdefault("RF_CACHE_DIR", str(base / "rf_cache"))  # verdicts of unchanged tasks are reused (factor_models/03_requirement_fulfillment/evaluate.py)
         # GitHub works without a token for public repositories, within its 60 requests an hour
-        args = dict(store=store or PerformanceStore(), ws=WorkspaceManager(base / "repos"), scrum=lambda data_dir=None: RealScrumMCPClient(command=sys.executable, args=[str(server)], env=({"SCRUM_DATA_DIR": str(data_dir)} if data_dir else {k: os.environ[k] for k in ("SCRUM_DATA_DIR",) if k in os.environ}) or None),
+        def scrum_client(data_dir=None, repo_url=None, team_ref=None):
+            if os.environ.get("SCRUM_SIMULATOR_VIA_CORE_API", "").lower() in ("1", "true", "yes") and repo_url and team_ref:
+                return CoreApiScrumClient(repo_url, team_ref)
+            return RealScrumMCPClient(command=sys.executable, args=[str(server)], env=({"SCRUM_DATA_DIR": str(data_dir)} if data_dir else {k: os.environ[k] for k in ("SCRUM_DATA_DIR",) if k in os.environ}) or None)
+        args = dict(store=store or PerformanceStore(), ws=WorkspaceManager(base / "repos"), scrum=scrum_client,
                     github=None, github_app=GitHubApp(app_cfg) if app_cfg.configured else None, llm=llm, token=token, work_dir=base / "runs")
         args.update(over)
         return cls(**args)
