@@ -13,8 +13,12 @@ def _coverage(failed=()):
     return CoverageAnalysis(gate=CoverageGateResult(checks=checks, passed=not failed))
 
 
-def test_structural_coverage_failure_caps_component_at_two():
-    assert compute_components(_coverage(("C1",)), [], []).coverage == 2.0
+def test_single_structural_failure_caps_component_at_three():
+    assert compute_components(_coverage(("C1",)), [], []).coverage == 3.0
+
+
+def test_two_structural_failures_cap_component_at_two():
+    assert compute_components(_coverage(("C1", "C6")), [], []).coverage == 2.0
 
 
 def test_non_structural_coverage_failure_caps_component_at_three():

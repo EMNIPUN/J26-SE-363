@@ -29,6 +29,13 @@ logger = logging.getLogger(__name__)
 _VAGUE_TITLE_RE = re.compile(
     r"^(do|fix|handle|work on|improve|update|misc|stuff|todo)\b", re.IGNORECASE
 )
+_STORY_LIKE_RE = re.compile(
+    r"\b(as a |as an |as the |so that |in order to |user can |user should )", re.IGNORECASE
+)
+_SAVED_IMPL_RE = re.compile(
+    r"\b(implement|set up|create|develop|build|design|configure|integrate)\s+(the\s+)?\w+(\s+\w+)?$",
+    re.IGNORECASE,
+)
 
 
 def _normalize_title(title: str) -> str:
@@ -52,9 +59,15 @@ def detect_task_signals(tasks: list[dict]) -> dict[str, dict]:
         description = task.get("description", "")
 
         too_vague = len(title.strip()) < 6 or bool(_VAGUE_TITLE_RE.match(title.strip()))
+        is_story_like = bool(_STORY_LIKE_RE.search(f"{title} {description}"))
+        is_saved_impl = bool(_SAVED_IMPL_RE.match(title.strip())) and len(title.strip().split()) <= 5
         actionability = (
             {"signal": "fail", "note": "Title is too short or generic to act on — name a concrete action."}
             if too_vague
+            else {"signal": "fail", "note": "Task reads like a user story, not an actionable implementation step. Rewrite as a concrete dev task."}
+            if is_story_like
+            else {"signal": "fail", "note": "Task is a broad implementation label — break it into specific steps (e.g., 'Create login form component' instead of 'Implement authentication')."}
+            if is_saved_impl
             else {"signal": "pass", "note": "Title names a concrete action."}
         )
 
@@ -71,7 +84,6 @@ def detect_task_signals(tasks: list[dict]) -> dict[str, dict]:
             "actionability": actionability,
             "duplication": duplication,
         }
-        del description  # not used by the deterministic signals, kept for symmetry with invest.py's shape
     return signals
 
 
@@ -284,6 +296,8 @@ async def validate_task_sets(
             results.append(TaskValidationItem(task_id=task.get("id", ""), task_ready=all(c.result in _READY_RESULTS for c in criteria.values()), **criteria))
         coverage = TaskSetCoverage(coverage_percentage=max(0, min(100, float(item.get("coverage_percentage", 0) or 0))), missing_work_items=[str(x) for x in (item.get("missing_work_items") or [])])
         ready = bool(tasks) and bool(results) and all(r.task_ready for r in results) and not coverage.missing_work_items
-        quality = sum(sum(1 if getattr(r, c).result == TaskCriterionOutcome.PASS else .75 if getattr(r, c).result == TaskCriterionOutcome.NEEDS_IMPROVEMENT else 0 for c in TASK_CRITERIA) / len(TASK_CRITERIA) for r in results) / max(len(results), 1)
+        criteria_quality = sum(sum(1 if getattr(r, c).result == TaskCriterionOutcome.PASS else .75 if getattr(r, c).result == TaskCriterionOutcome.NEEDS_IMPROVEMENT else .25 if getattr(r, c).result == TaskCriterionOutcome.CANNOT_ASSESS else 0 for c in TASK_CRITERIA) / len(TASK_CRITERIA) for r in results) / max(len(results), 1)
+        coverage_factor = coverage.coverage_percentage / 100.0
+        quality = criteria_quality * 0.7 + coverage_factor * 0.3
         summaries.append(DecompositionTaskSummary(story_id=sid, tasks=results, coverage=coverage, quality_score=round(quality * 4, 2), ready=ready))
     return summaries

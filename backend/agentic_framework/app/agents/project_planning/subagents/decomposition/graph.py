@@ -73,11 +73,17 @@ async def _run(payload: AnalyzeDecompositionInput):
         for story in stories
     ]
     # A missing cache entry must be evaluated rather than silently omitted.
-    missing_ids = {
-        story["id"]
-        for story, invest_result, task_result in zip(stories, invest, task_summaries)
-        if invest_result is None or task_result is None
-    }
+    # Also catch stale cached results where the story content has changed but
+    # the server-side hash comparison missed it (e.g., frontend race condition).
+    missing_ids = set()
+    for story, invest_result, task_result in zip(stories, invest, task_summaries):
+        if invest_result is None or task_result is None:
+            missing_ids.add(story["id"])
+        elif story["id"] not in fresh_invest_by_story and invest_result is not None:
+            actual_text = f"{story.get('title', '')} {story.get('description', '')}".strip()
+            if invest_result.story_text != actual_text:
+                logger.warning("Stale cached result for %s: story_text mismatch", story["id"])
+                missing_ids.add(story["id"])
     if missing_ids:
         logger.warning("Missing cached story analysis for %s; evaluating it", sorted(missing_ids))
         fallback_stories = [story for story in stories if story["id"] in missing_ids]

@@ -1249,7 +1249,7 @@ async def patch_story(
         )
     if row.status == StoryStatus.IN_BACKLOG and any(
         field in patch
-        for field in ("title", "as_a", "i_want", "so_that", "description")
+        for field in ("title", "as_a", "i_want", "so_that", "description", "acceptance_criteria")
     ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -1267,7 +1267,7 @@ async def patch_story(
             changed = True
     if changed and any(
         field in patch
-        for field in ("title", "as_a", "i_want", "so_that", "description")
+        for field in ("title", "as_a", "i_want", "so_that", "description", "acceptance_criteria")
     ) and row.status not in (StoryStatus.IN_BACKLOG, StoryStatus.ESTIMATED):
         row.status = StoryStatus.DRAFT
     if changed:

@@ -7,7 +7,10 @@ _INVEST = ("independent", "negotiable", "valuable", "estimable", "small", "testa
 _STRUCTURAL = {"C1", "C6", "C7", "C8", "C9"}
 
 def _value(result: InvestResult) -> float:
-    return 1.0 if result == InvestResult.PASS else .75 if result == InvestResult.PASS_WITH_NOTE else 0.0
+    if result == InvestResult.PASS: return 1.0
+    if result == InvestResult.PASS_WITH_NOTE: return .75
+    if result == InvestResult.CANNOT_ASSESS: return .25
+    return 0.0
 
 def quality_band(score: float) -> QualityBand:
     if score >= 3.5: return QualityBand.EXCELLENT
@@ -20,7 +23,13 @@ def compute_components(coverage: CoverageAnalysis, stories: list[StoryInvest], t
     checks = list(coverage.gate.checks.values())
     coverage_score = sum(c.result == CheckResult.PASS for c in checks) / max(len(checks), 1) * 4
     failures = {c.check_id for c in checks if c.result == CheckResult.FAIL}
-    coverage_score = min(coverage_score, 2.0 if failures & _STRUCTURAL else 3.0) if failures else coverage_score
+    structural_count = len(failures & _STRUCTURAL)
+    if structural_count >= 2:
+        coverage_score = min(coverage_score, 2.0)
+    elif structural_count == 1:
+        coverage_score = min(coverage_score, 3.0)
+    elif failures:
+        coverage_score = min(coverage_score, 3.0)
     story_score = sum((sum(_value(getattr(s, c).result) for c in _INVEST) + _value(s.acceptance_criteria_readiness.result)) / 7 for s in stories) / max(len(stories), 1) * 4
     task_score = sum(t.quality_score / 4 for t in tasks) / max(len(tasks), 1) * 4
     return DecompositionScoreComponents(coverage=round(coverage_score, 2), story_acceptance=round(story_score, 2), task_quality=round(task_score, 2))
@@ -35,13 +44,28 @@ def build_feedback(coverage: CoverageAnalysis, stories: list[StoryInvest], tasks
     for c in sorted(coverage.gate.checks.values(), key=lambda x: x.check_id):
         if c.result == CheckResult.FAIL: feedback.append(f"{c.check_id}: {c.rationale}" + (f" → {c.suggestion}" if c.suggestion else ""))
     for s in stories:
-        if s.acceptance_criteria_readiness.result not in (InvestResult.PASS, InvestResult.PASS_WITH_NOTE): feedback.append(f"{s.story_id} acceptance criteria: " + "; ".join(s.acceptance_criteria_readiness.issues or [s.acceptance_criteria_readiness.suggestion]))
+        ac_failing = s.acceptance_criteria_readiness.result not in (InvestResult.PASS, InvestResult.PASS_WITH_NOTE)
+        if ac_failing: feedback.append(f"{s.story_id} acceptance criteria: " + "; ".join(s.acceptance_criteria_readiness.issues or [s.acceptance_criteria_readiness.suggestion]))
         for c in _INVEST:
             criterion = getattr(s, c)
-            if criterion.result in (InvestResult.FAIL, InvestResult.CANNOT_ASSESS): feedback.append(f"{s.story_id} {c.title()}: {criterion.note}")
+            if criterion.result in (InvestResult.FAIL, InvestResult.CANNOT_ASSESS):
+                if ac_failing and c in ("estimable", "testable") and criterion.note.startswith("[AC-derived]"):
+                    continue
+                feedback.append(f"{s.story_id} {c.title()}: {criterion.note}")
     for t in tasks:
         if not t.tasks: feedback.append(f"{t.story_id} tasks: Add concrete implementation tasks; this story currently has none.")
         feedback.extend(f"{t.story_id} tasks: add work for {work}." for work in t.coverage.missing_work_items)
+    structural_failures = sorted(
+        c.check_id for c in coverage.gate.checks.values()
+        if c.result == CheckResult.FAIL and c.check_id in _STRUCTURAL
+    )
+    if structural_failures:
+        feedback.append(
+            f"Structural issue{'s' if len(structural_failures) > 1 else ''} "
+            f"({', '.join(structural_failures)}) cap the coverage score "
+            f"— resolve {'them' if len(structural_failures) > 1 else 'it'} "
+            f"to unlock a higher quality band."
+        )
     return feedback or ["All coverage, story, acceptance-criteria, and task checks passed."]
 
 def build_result(requirement_ref: str, coverage: CoverageAnalysis, stories: list[StoryInvest], invest_gate: InvestGateResult, tasks: list[DecompositionTaskSummary], readiness: DecompositionReadiness, readiness_reason: str, patterns: list[dict], tools_used: list[str], improvement_plan: list[dict] | None = None) -> DecompositionResult:

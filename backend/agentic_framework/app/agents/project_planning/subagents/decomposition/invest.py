@@ -22,12 +22,22 @@ from app.agents.project_planning.schemas import (
 
 logger = logging.getLogger(__name__)
 
-_DEPENDENCY_RE = re.compile(r"\b(after|once|depends on|requires that|only once|prerequisite)\b", re.IGNORECASE)
+_DEPENDENCY_RE = re.compile(
+    r"\b(depends on|requires that|only once|prerequisite|after\s+(?:completing|finishing|the\s+\w+\s+(?:is|has)))\b",
+    re.IGNORECASE,
+)
 _IMPLEMENTATION_RE = re.compile(r"\b(api|endpoint|database|sql|react|button color|css|json payload|http)\b", re.IGNORECASE)
 _ROLE_GOAL_RE = re.compile(r"as\s+(a|an|the)\s+.+i\s+want", re.IGNORECASE)
 _BENEFIT_RE = re.compile(r"(so\s+that|in\s+order\s+to)\s+\S+", re.IGNORECASE)
 _AMBIGUOUS_RE = re.compile(
     r"\b(various|some|several|many|few|appropriate|adequate|fast|efficient|user-friendly|easy|nice|good)\b", re.IGNORECASE
+)
+_NFR_CONTEXT_RE = re.compile(
+    r"\b(security|secure|performance|compliance|encryption|encrypted|hashing|backup|"
+    r"availability|latency|throughput|reliability|scalability|disaster recovery|failover|"
+    r"response time|uptime|authentication|authorization|"
+    r"accessibility|usability|user interface|ui|ux|wcag|aria|screen reader)\b",
+    re.IGNORECASE,
 )
 
 
@@ -42,13 +52,19 @@ def detect_invest_signals(title: str, description: str) -> dict[str, dict]:
         else {"signal": "pass", "note": "No hard dependency language found."}
     )
 
+    impl_match = _IMPLEMENTATION_RE.search(combined)
+    nfr_context = _NFR_CONTEXT_RE.search(combined) if impl_match else None
     negotiable = (
         {"signal": "fail", "note": "Locks in an implementation detail instead of describing the outcome."}
-        if _IMPLEMENTATION_RE.search(combined)
-        else {"signal": "pass", "note": "Describes the outcome, not a fixed implementation."}
+        if impl_match and not nfr_context
+        else {"signal": "pass", "note": (
+            "Technical terms appear in a non-functional requirement context — not an implementation lock-in."
+            if impl_match and nfr_context
+            else "Describes the outcome, not a fixed implementation."
+        )}
     )
 
-    has_role = bool(_ROLE_GOAL_RE.search(title))
+    has_role = bool(_ROLE_GOAL_RE.search(combined))
     has_benefit = bool(_BENEFIT_RE.search(combined))
     valuable = (
         {"signal": "pass", "note": "States who wants this and why."}
@@ -57,11 +73,13 @@ def detect_invest_signals(title: str, description: str) -> dict[str, dict]:
     )
 
     ambiguous = _AMBIGUOUS_RE.findall(combined)
-    estimable = (
-        {"signal": "fail", "note": f"Vague wording makes this hard to size: {', '.join(set(ambiguous))}."}
-        if ambiguous
-        else {"signal": "pass", "note": "Concrete enough to size with reasonable confidence."}
-    )
+    nfr_in_estimable = _NFR_CONTEXT_RE.search(combined) if ambiguous else None
+    if ambiguous and not nfr_in_estimable:
+        estimable = {"signal": "fail", "note": f"Vague wording makes this hard to size: {', '.join(set(ambiguous))}. Replace with measurable terms (e.g., 'within 3 seconds' instead of 'fast', 'at most 5 fields' instead of 'few')."}
+    elif ambiguous and nfr_in_estimable:
+        estimable = {"signal": "pass", "note": f"Vague terms ({', '.join(set(ambiguous))}) appear in an NFR context — consider adding measurable thresholds."}
+    else:
+        estimable = {"signal": "pass", "note": "Concrete enough to size with reasonable confidence."}
 
     too_long = len(title) > 140 or bool(re.search(r"\band\b.*\band\b", title, re.IGNORECASE))
     small = (
@@ -71,11 +89,12 @@ def detect_invest_signals(title: str, description: str) -> dict[str, dict]:
     )
 
     has_observable_outcome = bool(re.search(r"\b(can|able to|view|receive|create|update|delete|submit|display|store|send|access|download|upload|validate)\b", combined, re.IGNORECASE))
-    testable = (
-        {"signal": "pass", "note": "The story describes an observable behavior that can be verified."}
-        if len(description.strip()) >= 20 and has_observable_outcome
-        else {"signal": "fail", "note": "Describe a concrete, observable outcome so the story can be verified."}
-    )
+    if len(description.strip()) >= 20 and has_observable_outcome:
+        testable = {"signal": "pass", "note": "The story describes an observable behavior that can be verified."}
+    elif len(description.strip()) < 20:
+        testable = {"signal": "fail", "note": "Description is too brief — add at least one observable outcome (e.g., 'user can view…', 'system displays…', 'error message is shown')."}
+    else:
+        testable = {"signal": "fail", "note": "Name a specific observable outcome verb (e.g., 'user can view…', 'system displays…', 'data is stored…') so a tester can verify pass/fail."}
 
     return {
         "independent": independent,
@@ -122,7 +141,11 @@ Rubric (pass rule -> fail example):
 explicitly declared and justified dependency -> fails on "After US-3 is finished, implement this" or an \
 unclear dependency.
   - Negotiable: the story describes an outcome or need, not a fixed technical design -> fails on "Use \
-MySQL triggers to update the inventory table".
+MySQL triggers to update the inventory table". A non-functional requirement specifying a security \
+standard (e.g. "computationally expensive password hashing"), performance target, compliance rule, or \
+availability constraint describes a legitimate need, not a fixed technical design. Fail Negotiable \
+only when the story prescribes a specific library, framework, SQL dialect, or UI technology rather \
+than describing a desired security/performance outcome.
   - Valuable: the story identifies a user, stakeholder, or system value -> fails on "As a developer, I \
 want to create a database table" with no user value.
   - Estimable: the title, description, and acceptance criteria contain enough information for a reasonable estimate -> \
@@ -239,7 +262,7 @@ async def validate_invest(
             )
             # A compact per-criterion verdict is sufficient for the UI. Keep
             # one batched request small to reduce provider load and latency.
-            max_tokens = min(1800, max(600, 260 * len(stories)))
+            max_tokens = min(3000, max(600, 260 * len(stories)))
             llm_results = await client.complete_json(_INVEST_SYSTEM, user_prompt, max_tokens=max_tokens)
         except Exception:
             logger.exception(
@@ -310,12 +333,14 @@ async def validate_invest(
                     )
 
         # Weak criteria directly make estimate and test confidence weak.
+        # The "[AC-derived]" prefix lets build_feedback skip these when the AC
+        # readiness failure is already reported, avoiding redundant feedback.
         if acceptance.result not in _READY_RESULTS:
             for criterion in ("estimable", "testable"):
                 if criteria[criterion].result in _READY_RESULTS:
                     criteria[criterion] = InvestCriterionResult(
-                        result=InvestResult.FAIL,
-                        note="Acceptance criteria are not ready for estimation and verification.",
+                        result=InvestResult.PASS_WITH_NOTE,
+                        note="[AC-derived] Estimability depends on acceptance criteria, which need improvement.",
                         evidence="; ".join(acceptance.evidence),
                     )
 

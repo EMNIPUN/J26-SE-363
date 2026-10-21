@@ -550,7 +550,7 @@ function StoryInvestImprovementGuidance({ story, onEdit }) {
       <p className="text-[11px] font-semibold text-foreground mb-2">
         INVEST improvement guidance for {story.id}
       </p>
-      <ul className="space-y-2 text-[11px] text-muted-foreground leading-relaxed">
+      <ul className="space-y-2 text-xs text-muted-foreground leading-relaxed">
         {failedCriteria.map(({ key, label }) => (
           <li key={key}>
             <span className="font-semibold text-foreground">{label}: </span>
@@ -808,7 +808,7 @@ function StoryCard({
         <div className="mb-3 space-y-1.5">
           <p className="text-xs font-semibold text-foreground leading-snug">{story.title}</p>
           {normalizeAcceptanceCriteria(story.acceptanceCriteria).length > 0 && (
-            <div className="text-[11px] text-muted-foreground leading-relaxed p-2.5 rounded-lg bg-muted/30 border border-border/60">
+            <div className="text-xs text-muted-foreground leading-relaxed p-2.5 rounded-lg bg-muted/30 border border-border/60">
               <span className="font-semibold text-foreground block mb-1">Acceptance Criteria:</span>
               <ul className="list-disc pl-4 space-y-0.5">
                 {normalizeAcceptanceCriteria(story.acceptanceCriteria).map((criterion, index) => <li key={`${story.id}-ac-${index}`}>{criterion}</li>)}
@@ -1347,7 +1347,7 @@ function CoverageAndInvestSection({ evaluation, onAddGapStory, showAggregateInve
                     <tr className="border-t border-amber-500/20 bg-amber-500/5">
                       <td colSpan={8} className="px-3 py-3">
                         <p className="text-[11px] font-semibold text-foreground mb-2">How {storyRef} can become INVEST-ready</p>
-                        <ul className="space-y-2 text-[11px] text-muted-foreground">
+                        <ul className="space-y-2 text-xs text-muted-foreground">
                           {failedCriteria.map(({ key, label }) => (
                             <li key={key}>
                               <span className="font-semibold text-foreground">{label}: </span>

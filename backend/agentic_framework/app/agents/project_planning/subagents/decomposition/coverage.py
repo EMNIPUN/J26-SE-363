@@ -233,15 +233,18 @@ async def analyze_coverage(
     # C10 is evaluated above because it needs the acceptance-criteria text;
     # C1/C6 still deterministically enforce structural traceability.
 
-    # C9 — no out-of-scope behavior: cross-check the LLM's judgment against the
-    # Python-computed orphan set. A disagreement is treated as Fail and both
-    # signals are surfaced — never silently resolved in either direction.
-    out_of_scope_signal = sorted(set(orphan_stories) | llm_out_of_scope)
+    # C9 — no out-of-scope behavior (LLM judgment).
+    # Orphan stories (C6) are a separate structural linkage check and are NOT
+    # unioned here — a story can be an orphan (no element mapped to it by the
+    # LLM) without introducing out-of-scope behavior.  Unioning them caused
+    # C6 failures to cascade automatically into C9 failures, doubling the
+    # penalty for a single element-mapping gap.
+    out_of_scope_signal = sorted(llm_out_of_scope)
     checks["C9"] = CoverageCheck(
         check_id="C9",
         result=CheckResult.FAIL if out_of_scope_signal else CheckResult.PASS,
         rationale=(
-            "Potential out-of-scope or unlinked "
+            "Potential out-of-scope "
             f"stor{'y' if len(out_of_scope_signal) == 1 else 'ies'}: "
             f"{', '.join(out_of_scope_signal)}"
             if out_of_scope_signal
@@ -259,13 +262,13 @@ async def analyze_coverage(
 
     gate_passed = all(c.result == CheckResult.PASS for c in checks.values())
 
-    if checks:
+    # coverage_percentage reflects element coverage directly.  Check pass rate
+    # is already used by gate.py (via the failed_checks count), so conflating
+    # it with element coverage via min() double-penalized decompositions where
+    # most elements were covered but a few judgment checks failed.
+    if not required_elements and checks:
         passed_count = sum(1 for c in checks.values() if c.result == CheckResult.PASS)
-        check_percentage = round((passed_count / len(checks)) * 100, 2)
-        if required_elements:
-            coverage_percentage = round(min(coverage_percentage, check_percentage), 2)
-        else:
-            coverage_percentage = check_percentage
+        coverage_percentage = round((passed_count / len(checks)) * 100, 2)
 
     return CoverageAnalysis(
         elements=elements,
