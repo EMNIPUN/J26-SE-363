@@ -1,0 +1,7 @@
+criterion,value,minimum,target,verdict,note
+MAE / mean-guess MAE,0.7511812901006749,<= 0.8,<= 0.65,minimum met,"MAE 0.111, 95% interval 0.104-0.119"
+Pearson and Spearman,0.618 / 0.607,>= 0.5 both,>= 0.7 / 0.7,minimum met,
+Beats mean,gain +0.037 (+25%),interval of the gain excludes 0,>= 20% lower,target met,95% interval +0.004 to +0.055
+Bias,-0.012787859589354751,within +-0.05,within +-0.03,target met,
+Calibration slope,0.8781897499321922,0.5-1.5,0.8-1.2,target met,
+Rubric bands within one,0.9791666666666666,>= 85%,>= 90%,target met,exact 51%

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/scrum-simulator.json",
+  "title": "SELVIA Scrum simulator fixture",
+  "type": "object",
+  "required": ["schema_version", "github_repo_url", "project", "students", "sprints", "tasks"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"type": "string", "const": "1"},
+    "github_repo_url": {"type": "string", "format": "uri", "pattern": "^https://github\\.com/[^/]+/[^/]+/?$"},
+    "project": {
+      "type": "object",
+      "required": ["project_id", "project_name"],
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {"type": "string", "minLength": 1},
+        "project_name": {"type": "string", "minLength": 1},
+        "project_domain": {"type": "string"}
+      }
+    },
+    "students": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["student_id", "email"],
+        "additionalProperties": false,
+        "properties": {
+          "student_id": {"type": "string", "minLength": 1},
+          "name": {"type": "string"},
+          "email": {"type": "string", "description": "Platform email used to map this fixture student to the linked team member."}
+        }
+      }
+    },
+    "sprints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sprint_id", "name", "start_date", "end_date", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "sprint_id": {"type": "string", "minLength": 1},
+          "name": {"type": "string", "minLength": 1},
+          "goal": {"type": "string"},
+          "start_date": {"type": "string", "format": "date"},
+          "end_date": {"type": "string", "format": "date"},
+          "status": {"type": "string"}
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["task_id", "sprint_id", "title", "status", "assignee_ids"],
+        "additionalProperties": false,
+        "properties": {
+          "task_id": {"type": "string", "minLength": 1},
+          "sprint_id": {"type": "string", "minLength": 1},
+          "title": {"type": "string", "minLength": 1},
+          "description": {"type": "string"},
+          "status": {"type": "string"},
+          "priority": {"type": "string"},
+          "assignee_ids": {"type": "array", "items": {"type": "string"}},
+          "acceptance_criteria": {"type": "array", "items": {"type": "string"}},
+          "labels": {"type": "array", "items": {"type": "string"}},
+          "story_points": {"type": "integer", "minimum": 0},
+          "subtask_count": {"type": "integer", "minimum": 0},
+          "linked_commits": {"type": "array", "items": {"type": "string"}},
+          "completed_by": {"type": ["string", "null"]},
+          "carried_over_from": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "status_history": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["status"],
+          "additionalProperties": false,
+          "properties": {
+            "status": {"type": "string"},
+            "at": {"type": ["string", "null"]},
+            "source": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

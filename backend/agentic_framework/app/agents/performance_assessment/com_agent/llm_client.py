@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import time
 import logging
@@ -11,6 +12,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+try:
+    from app.core.groq_usage import record as record_usage  # what each key has used, for the usage endpoint
+except ImportError:  # run outside the service: nothing is recorded
+    def record_usage(*args, **kwargs):
+        return None
 
 DEFAULT_MODEL = "openai/gpt-oss-120b"
 FALLBACK_MODEL = "qwen/qwen3.8-27b"
@@ -95,6 +102,7 @@ class GroqMultiKeyClient:
 
                 if response.status_code == 200:
                     data = response.json()
+                    record_usage(key, target_model, ok=True, status=200, usage=data.get('usage'), headers=response.headers, source='com_agent')
                     choice = data['choices'][0]
                     content = choice['message'].get('content', '')
                     reasoning = choice['message'].get('reasoning')
@@ -118,6 +126,9 @@ class GroqMultiKeyClient:
 
                 elif response.status_code in (429, 401, 503):
                     err_msg = response.text[:200]
+                    quota = response.status_code == 429 and bool(re.search(r'per day|\(tpd\)|\(rpd\)', err_msg.lower()))
+                    record_usage(key, target_model, ok=False, status=response.status_code, headers=response.headers, error_text=err_msg, source='com_agent',
+                                 error_kind='quota' if quota else 'rate_limited' if response.status_code == 429 else 'auth' if response.status_code == 401 else 'server')
                     logger.warning(
                         f'Groq API error HTTP {response.status_code} on key {key_idx + 1}: {err_msg}'
                     )

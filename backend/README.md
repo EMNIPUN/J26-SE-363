@@ -23,7 +23,7 @@ backend/
     requirements.txt       # generated from uv.lock, never edited by hand
     app/main.py            # AI Backend app: POST /api/v1/orchestration
     app/orchestrator/      # Main Orchestrator (graph, state, router, executor)
-    app/agents/<agent>/    # project_planning, performance_assessment, adaptive_tutor, aegis
+    app/agents/<agent>/    # project_planning, performance_assessment, adaptive_tutor, security_assistant
     app/agents/registry.py # where each agent is registered with the orchestrator
     app/integrations/      # clients for external systems (MCP, GitHub, scanners)
     app/tasks/             # queue tasks; orchestration_tasks.py sends jobs to the orchestrator

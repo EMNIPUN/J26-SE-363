@@ -1,0 +1,36 @@
+team_id,sprint_id,author_id,pr_author_id,day,is_reply,mentions,body
+S01,S01-S1,SYN-001,SYN-001,6,1,0,"Thanks, the 400 should be a 409; I will change it next sprint."
+S01,S01-S1,SYN-003,SYN-001,7,1,1,Agreed on the 409. @SYN-001 can you also return the seats left in the body?
+S01,S01-S1,SYN-003,SYN-005,10,0,0,"Fixed the effect dependency, thanks for catching it."
+S01,S01-S2,SYN-003,SYN-005,9,1,1,Good catch on the finally block. @SYN-003 could you re-check after my next push?
+S01,S01-S2,SYN-005,SYN-003,11,1,1,"Thanks @SYN-003, the finally block is in."
+S02,S02-S1,SYN-008,SYN-006,6,1,1,"Good point about the rollback, I will fix it. @SYN-008 can you re-check?"
+S02,S02-S2,SYN-008,SYN-006,5,1,1,"I think a fine should accrue while it is out, let us ask the lecturer. @SYN-006"
+S02,S02-S2,SYN-008,SYN-007,9,1,0,"Thanks, will fix."
+S02,S02-S3,SYN-008,SYN-006,3,1,1,"Yes, I'll split it before merge. @SYN-006"
+S02,S02-S3,SYN-008,SYN-010,10,1,1,"That one is serious, thanks. @SYN-010 please push the fix today."
+S04,S04-S1,SYN-018,SYN-016,7,1,1,"Added the handler, thanks for the 409 point. @SYN-018"
+S04,S04-S2,SYN-018,SYN-017,5,1,1,"You are right about midnight, I will fix it. @SYN-018"
+S04,S04-S2,SYN-018,SYN-020,8,1,0,Added a test for the overlap case.
+S04,S04-S3,SYN-018,SYN-017,5,1,1,"Agreed, I'll move it into a shared validator. @SYN-018"
+S04,S04-S4,SYN-018,SYN-016,4,1,1,Will add the notification today. @SYN-018
+S04,S04-S4,SYN-018,SYN-020,6,1,0,Added the comment and the test.
+S05,S05-S3,SYN-023,SYN-021,13,1,1,"Good point, I'll make attempt creation idempotent. @SYN-023"
+S05,S05-S4,SYN-023,SYN-021,11,1,1,"Yes, I will fix the best attempt filter. @SYN-023"
+S06,S06-S1,SYN-028,SYN-026,7,1,1,Will map it to 409. @SYN-028 thanks
+S06,S06-S2,SYN-028,SYN-026,3,1,1,"Added the key, please look again @SYN-028"
+S06,S06-S2,SYN-028,SYN-027,13,1,0,Will do.
+S06,S06-S3,SYN-028,SYN-026,4,1,1,Will group by id. @SYN-028
+S08,S08-S1,SYN-038,SYN-037,3,1,1,"Fixed in the next commit, thanks @SYN-038"
+S08,S08-S1,SYN-038,SYN-036,13,1,0,Yes next sprint.
+S08,S08-S2,SYN-038,SYN-037,5,1,1,"Good catch on mass assignment, I'll whitelist title, description, price. @SYN-038"
+S08,S08-S2,SYN-038,SYN-036,13,1,0,Will add error.tsx.
+S08,S08-S3,SYN-038,SYN-037,3,1,1,Agree. I'll add a magic-bytes check next sprint and note it in the README. @SYN-038
+S08,S08-S4,SYN-038,SYN-040,4,1,1,Will handle 429 in the client. @SYN-038
+S08,S08-S5,SYN-038,SYN-037,3,1,1,Will mark listings sold in the same transaction. @SYN-038
+S09,S09-S1,SYN-042,SYN-041,5,1,1,"Yes, I'll change it. @SYN-042"
+S09,S09-S2,SYN-042,SYN-041,3,1,1,Added a tie test. @SYN-042
+S09,S09-S2,SYN-042,SYN-044,6,1,0,"I'll quote names, thanks."
+S09,S09-S3,SYN-042,SYN-041,4,1,1,Will note it. @SYN-042
+S09,S09-S3,SYN-045,SYN-041,5,1,1,"Good point, I'll add the rate-3.3 test. @SYN-045"
+S10,S10-S2,SYN-050,SYN-048,7,1,0,"Good point, thanks. Will check the serializer."

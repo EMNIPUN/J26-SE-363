@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/my_reports/1",
+  "title": "Student reports",
+  "type": "object",
+  "required": ["schema", "github", "reports"],
+  "properties": {"schema": {"const": "my_reports/1"}, "github": {"type": "object", "required": ["needs_connect"]}, "reports": {"type": "array"}}
+}

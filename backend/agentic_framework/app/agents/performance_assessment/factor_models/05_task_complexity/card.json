@@ -1,0 +1,19 @@
+{
+  "factor": "task_complexity",
+  "title": "Task Complexity",
+  "measures": "How demanding the tasks assigned to the student were, so that a student who took on hard tasks is not compared with one who took easy ones.",
+  "inputs": ["story points and subtasks of the student's tasks", "files the tasks touch and how many files depend on them before the sprint (import graph)", "total story points of the sprint"],
+  "computation": "Ridge on the proposal's five features plus the total story points assigned in the sprint (log). Score 0-1.",
+  "output_scale": "0 = trivial workload, 1 = very demanding workload.",
+  "gates": ["Available as soon as tasks are assigned (it describes the plan and the code before the work)."],
+  "validation": "144 real student-sprints, student-disjoint 5-fold CV against assistant-written ratings: MAE 0.087 (mean predictor 0.145). All of the signal is the sprint's total story points; the model is NOT shown to beat that one feature (gain 0.004, interval [-0.001, 0.010]); the code-based features add nothing measurable. The rater saw story points, so the relation may reflect the rubric as much as difficulty.",
+  "limits": ["Story points are the team's own estimates and can be inflated.", "Import-graph reach works for relative imports in JavaScript/TypeScript/Dart and by class name in Java/Kotlin; monorepos and aliases are missed."],
+  "warnings": {
+    "not shown to beat": "The score is, in effect, the story-point total; do not read more into it."
+  },
+  "typical_problems": [
+    {"symptom": "complexity high for a student with few tasks", "likely_cause": "one task with many story points", "remedy": "none"},
+    {"symptom": "no code-based features", "likely_cause": "tasks have no linked commits", "remedy": "refetch_evidence"}
+  ],
+  "allowed_remedies": ["refetch_evidence", "mark_not_available", "escalate_to_human"]
+}

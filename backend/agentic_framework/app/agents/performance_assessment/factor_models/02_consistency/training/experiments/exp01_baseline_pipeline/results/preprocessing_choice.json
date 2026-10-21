@@ -1,0 +1,14 @@
+{
+  "variant": "3 features (no CV)",
+  "label_source": "rated + propagated (real)",
+  "pseudo_weight": 1.0,
+  "zero_rule": false,
+  "features": [
+    "C_AWR",
+    "C_DC",
+    "C_LI_norm"
+  ],
+  "validation_MAE": 0.0749,
+  "standard_error": 0.0102,
+  "rule": "lowest validation MAE, then simplest within one bootstrap SE"
+}

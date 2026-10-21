@@ -1,0 +1,3 @@
+**Encoders.** UniXcoder-base, CodeBERT-base (the proposal's choices) and all-mpnet-base-v2 (a general text control), frozen, mean-pooled, L2-normalised; 768 dimensions each. CodeT5+ was not used (its loader runs downloaded code).
+
+**The raw cosine similarities carry almost no signal.** Spearman with the written level of the cosine between the answer and the reference is 0.11 to 0.16, and to the question 0.10 to 0.24. CodeBERT's cosines sit at 0.87 to 0.97 for every level (the unfine-tuned mean-pooled space is crowded), so the similarity features are nearly constant; whatever the encoders add comes from the answer embedding itself, which the learned head reads.

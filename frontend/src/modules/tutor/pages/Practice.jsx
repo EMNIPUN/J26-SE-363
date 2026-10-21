@@ -138,7 +138,7 @@ export default function Practice() {
               />
             )}
             <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={submit} disabled={submitting || !String(answer).trim()}>
+              <Button type="button" onClick={submit} loading={submitting} disabled={!String(answer).trim()}>
                 {submitting ? 'Checking…' : 'Submit answer'}
               </Button>
               <Button

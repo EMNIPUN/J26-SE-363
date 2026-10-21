@@ -84,7 +84,17 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     volumes:
       - ./docker/keycloak/themes:/opt/keycloak/themes:ro
+      # The plugin that links accounts by emailed code (python docker/keycloak/build_provider.py).
+      - ./docker/keycloak/providers:/opt/keycloak/providers:ro
       - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    # Keycloak keeps gzip copies of the theme CSS/JS in data/tmp/kc-gzip-cache, keyed by a
+    # version hash and not by file content. On disk that cache survives container restarts and
+    # keeps serving the OLD stylesheet after a theme change (login page renders unstyled).
+    # In RAM it is emptied whenever the container starts. Cache only: nothing to back up.
+    # mode=1777 because Keycloak does not run as root: a root-owned tmpfs makes every
+    # compressed CSS/JS request fail with a 500 (unstyled pages).
+    tmpfs:
+      - /opt/keycloak/data/tmp:mode=1777
     depends_on:
       postgres:
         condition: service_healthy
@@ -121,6 +131,23 @@ services:
       - ./docker/kong/kong.yml:/etc/kong/kong.yml:ro
     depends_on:
       - keycloak
+    networks:
+      - selvia-net
+
+  # Development mail catcher: accepts any message on SMTP port 1025 and shows it in a web
+  # inbox on http://localhost:8025. Nothing is delivered. Start it with:
+  #   docker compose --profile dev up -d mailpit
+  # then set EMAIL_BACKEND=smtp, SMTP_HOST=localhost, SMTP_PORT=1025, SMTP_SECURITY=none
+  # in backend/server/.env. The 'dev' profile keeps it off the VPS.
+  mailpit:
+    image: axllent/mailpit:v1.21
+    container_name: selvia_mailpit
+    restart: unless-stopped
+    profiles:
+      - dev
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_WEB_PORT:-8025}:8025"
     networks:
       - selvia-net
 

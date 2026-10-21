@@ -1,0 +1,17 @@
+thresholds,labels,n,accuracy,kappa
+proposal,simulated classes (all),175,0.314,0.142
+proposal,reference pattern (all),299,0.197,0.059
+proposal,"reference pattern, Collaboration available",131,0.252,0.132
+proposal,anchors (20),20,0.2,0.0
+calibrated_v1,simulated classes (all),175,0.417,0.274
+calibrated_v1,reference pattern (all),299,0.328,0.206
+calibrated_v1,"reference pattern, Collaboration available",131,0.412,0.308
+calibrated_v1,anchors (20),20,0.4,0.25
+calibrated_AB,simulated classes (all),175,0.491,0.371
+calibrated_AB,reference pattern (all),299,0.485,0.385
+calibrated_AB,"reference pattern, Collaboration available",131,0.458,0.357
+calibrated_AB,anchors (20),20,0.8,0.739
+calibrated,simulated classes (all),175,0.44,0.304
+calibrated,reference pattern (all),299,0.452,0.347
+calibrated,"reference pattern, Collaboration available",131,0.412,0.308
+calibrated,anchors (20),20,0.65,0.556

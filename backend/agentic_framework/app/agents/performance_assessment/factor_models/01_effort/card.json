@@ -1,0 +1,22 @@
+{
+  "factor": "effort",
+  "title": "Effort",
+  "measures": "How much real work the student put into the sprint: commits that carry code, net code lines, files changed and tasks finished. Counted on real source lines only (comments, blank lines, formatting-only changes, generated and documentation files do not count).",
+  "inputs": ["commits with clean line statistics (code / comment / blank / format-only)", "tasks completed by the student"],
+  "computation": "Ridge model on four log features (E_CC commits, E_LOC_net_capped lines, E_FC files, E_CT tasks done) after a guard: a commit counts only as far as it carries lines (one per 100 lines), at most 5 files are credited per commit, zero commits give zero. Score 0-1.",
+  "output_scale": "0 = no real work, about 0.5 = a typical active student, 1 = heavy contribution.",
+  "gates": ["Provisional scores need at least 1 day of the sprint; before that: not available."],
+  "validation": "144 real student-sprints, student-disjoint 5-fold CV against assistant-written rubric ratings: MAE 0.064 (commit-count baseline 0.087), Pearson 0.95. Library dumps and micro-commit spam stay below 0.35 by test. Labels are not human ratings.",
+  "limits": ["Language coverage follows file extensions; unusual languages count as configuration and give no effort.", "A student who commits through a shared account or whose e-mail is not mapped appears to have done nothing.", "The score measures volume of real change, not quality."],
+  "warnings": {
+    "provisional": "Counts are to date; the score will normally rise.",
+    "feature .* missing": "A feature could not be computed and the training median was used; look at the evidence.",
+    "no activity": "The student has no counted commit; the score is 0 by rule."
+  },
+  "typical_problems": [
+    {"symptom": "score near 0 but the student is known to have worked", "likely_cause": "commits authored under an e-mail or name that is not mapped to the student", "remedy": "identity_mapping"},
+    {"symptom": "very high score from one huge commit", "likely_cause": "imported or generated files counted as code", "remedy": "exclude_generated_commits"},
+    {"symptom": "score far below the student's earlier sprints without a visible reason", "likely_cause": "sprint window or branch missing from the evidence", "remedy": "refetch_evidence"}
+  ],
+  "allowed_remedies": ["identity_mapping", "exclude_generated_commits", "refetch_evidence", "mark_not_available", "escalate_to_human"]
+}

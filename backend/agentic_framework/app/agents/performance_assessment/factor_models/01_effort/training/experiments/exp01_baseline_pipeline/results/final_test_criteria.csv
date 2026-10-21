@@ -1,0 +1,10 @@
+criterion,result,minimum (works),target,meets minimum,meets target
+MAE,0.069,<= 0.11,<= 0.08,True,True
+Pearson,0.931,>= 0.80,>= 0.90,True,True
+Spearman,0.931,>= 0.80,>= 0.85,True,True
+Beats commit count alone,gain -0.015 (95% CI -0.052 to 0.011),interval excludes 0,and >= 10% lower MAE,False,False
+Bias,-0.010,within +-0.05,within +-0.03,True,True
+Calibration slope,1.15,0.7 - 1.3,0.8 - 1.2,True,True
+Rubric bands within one,100%,>= 85%,>= 90%,True,True
+Rubric bands exact,55%,-,>= 50%,True,True
+"MAE, records with activity",0.081,<= 0.12,<= 0.10,True,True

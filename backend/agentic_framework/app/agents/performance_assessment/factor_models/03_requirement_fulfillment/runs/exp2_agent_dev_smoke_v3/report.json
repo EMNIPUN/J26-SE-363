@@ -1,0 +1,165 @@
+{
+ "meta": {
+  "experiment": "agent",
+  "config": {
+   "rubric_hash": "72fa752e353c",
+   "prompt_hash": "ba3e42038643",
+   "max_steps_per_criterion": 4,
+   "max_tokens": 1200,
+   "observation_chars": 3200,
+   "mapping": "found by the agent",
+   "examples": 0,
+   "graph": "map_commits -> decide <-> act -> record -> check"
+  },
+  "model": "openai/gpt-oss-120b",
+  "split": "dev",
+  "per_bucket": 2,
+  "runs": 1,
+  "items": 10,
+  "benchmark_sha256": "8e0b51c7d4a8560ef579c269cdaf1daeaaa2b50fdce3859401b0dd90e0a10d10",
+  "code_commit": "d88c279",
+  "dry": false,
+  "started": "2026-10-19 04:02:12"
+ },
+ "overall": {
+  "tasks": 10,
+  "completed": 10,
+  "failure_rate": 0.0,
+  "completed_only": {
+   "task": {
+    "n": 10,
+    "MAE": 0.8083333333333332,
+    "RMSE": 0.8337498958853842,
+    "bias": -0.8083333333333332,
+    "pearson": NaN,
+    "spearman": NaN,
+    "calib_slope": NaN,
+    "kappa_w": 0.0,
+    "band_within_1": 0.0
+   },
+   "criterion": {
+    "n": 31,
+    "accuracy": 0.1935483870967742,
+    "not_met_precision": 0.1935483870967742,
+    "not_met_recall": 1.0,
+    "verdict_share": {
+     "met": 0.0,
+     "partly": 0.0,
+     "not_met": 0.06451612903225806,
+     "cannot_tell": 0.9354838709677419
+    }
+   }
+  },
+  "failures_as_no_credit": {
+   "task": {
+    "n": 10,
+    "MAE": 0.8083333333333332,
+    "RMSE": 0.8337498958853842,
+    "bias": -0.8083333333333332,
+    "pearson": NaN,
+    "spearman": NaN,
+    "calib_slope": NaN,
+    "kappa_w": 0.0,
+    "band_within_1": 0.0
+   },
+   "criterion": {
+    "n": 31,
+    "accuracy": 0.1935483870967742,
+    "not_met_precision": 0.1935483870967742,
+    "not_met_recall": 1.0,
+    "verdict_share": {
+     "met": 0.0,
+     "partly": 0.0,
+     "not_met": 0.06451612903225806,
+     "cannot_tell": 0.9354838709677419
+    }
+   }
+  },
+  "sprint_level": {
+   "n": 9,
+   "MAE": 0.8055555555555556,
+   "RMSE": 0.8300862665268852,
+   "bias": -0.8055555555555556,
+   "pearson": NaN,
+   "spearman": NaN,
+   "calib_slope": NaN,
+   "kappa_w": 0.0,
+   "band_within_1": 0.0
+  },
+  "cost": {
+   "tokens_per_task": 2030.1,
+   "calls_per_task": 13.4,
+   "seconds_per_task": 229.86099999999996,
+   "error_kinds": {},
+   "coverage_mean": 0.0
+  }
+ },
+ "intervals": {
+  "task_MAE_no_credit": [
+   0.8083333333333332,
+   0.712962962962963,
+   0.898148148148148
+  ],
+  "task_MAE_completed": [
+   0.8083333333333332,
+   0.712962962962963,
+   0.898148148148148
+  ],
+  "criterion_accuracy_all": [
+   0.1935483870967742,
+   0.12,
+   0.2608695652173913
+  ],
+  "pearson_completed": [
+   NaN,
+   NaN,
+   NaN
+  ]
+ },
+ "by_bucket": {
+  "<=4k": {
+   "tasks": 2,
+   "failure_rate": 0.0,
+   "task_MAE_completed": 0.75,
+   "task_MAE_no_credit": 0.75,
+   "criterion_accuracy_completed": 0.2,
+   "criterion_accuracy_all": 0.2
+  },
+  "4-8k": {
+   "tasks": 2,
+   "failure_rate": 0.0,
+   "task_MAE_completed": 1.0,
+   "task_MAE_no_credit": 1.0,
+   "criterion_accuracy_completed": 0.0,
+   "criterion_accuracy_all": 0.0
+  },
+  "8-16k": {
+   "tasks": 2,
+   "failure_rate": 0.0,
+   "task_MAE_completed": 0.6666666666666666,
+   "task_MAE_no_credit": 0.6666666666666666,
+   "criterion_accuracy_completed": 0.3333333333333333,
+   "criterion_accuracy_all": 0.3333333333333333
+  },
+  "16-32k": {
+   "tasks": 2,
+   "failure_rate": 0.0,
+   "task_MAE_completed": 0.625,
+   "task_MAE_no_credit": 0.625,
+   "criterion_accuracy_completed": 0.375,
+   "criterion_accuracy_all": 0.375
+  },
+  ">32k": {
+   "tasks": 2,
+   "failure_rate": 0.0,
+   "task_MAE_completed": 1.0,
+   "task_MAE_no_credit": 1.0,
+   "criterion_accuracy_completed": 0.0,
+   "criterion_accuracy_all": 0.0
+  }
+ },
+ "real_share_weighted_task_MAE_no_credit": 0.7794573643410854,
+ "repeatability": {
+  "items": 0
+ }
+}

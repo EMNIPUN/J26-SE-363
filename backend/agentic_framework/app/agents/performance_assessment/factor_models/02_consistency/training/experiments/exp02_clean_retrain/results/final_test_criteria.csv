@@ -1,0 +1,8 @@
+criterion,value,minimum,target,verdict,note
+MAE / mean-guess MAE,0.36025999640199025,<= 0.5,<= 0.35,minimum met,"MAE 0.069, 95% interval 0.039-0.091"
+Pearson and Spearman,0.893 / 0.803,>= 0.8 both,>= 0.9 / 0.85,minimum met,
+"Beats active days (AWR, linear)",gain +0.023 (+25%),interval of the gain excludes 0,>= 10% lower,NOT MET,95% interval -0.003 to +0.062
+Bias,0.007770327937395507,within +-0.05,within +-0.03,target met,
+Calibration slope,1.0372486173985167,0.7-1.3,0.8-1.2,target met,
+Rubric bands within one,1.0,>= 85%,">= 90%, exact >= 50%",target met,exact 90%
+"MAE, students with activity",0.08408555157405588,<= 0.12,<= 0.1,target met,n = 15

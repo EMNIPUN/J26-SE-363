@@ -1,0 +1,22 @@
+{
+ "experiment": "agent",
+ "config": {
+  "rubric_hash": "72fa752e353c",
+  "prompt_hash": "ee8d911bf1cc",
+  "max_steps_per_criterion": 4,
+  "max_tokens": 1200,
+  "observation_chars": 3200,
+  "mapping": "found by the agent",
+  "examples": 0,
+  "graph": "map_commits -> decide <-> act -> record -> check"
+ },
+ "model": "openai/gpt-oss-120b",
+ "split": "dev",
+ "per_bucket": 2,
+ "runs": 1,
+ "items": 10,
+ "benchmark_sha256": "8e0b51c7d4a8560ef579c269cdaf1daeaaa2b50fdce3859401b0dd90e0a10d10",
+ "code_commit": "24e7e8f",
+ "dry": false,
+ "started": "2026-10-19 04:12:37"
+}

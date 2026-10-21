@@ -16,13 +16,23 @@ import { toast } from 'sonner'
  */
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+<<<<<<< HEAD
   timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 45000,
+=======
+  timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 60000,
+>>>>>>> 28f368287251c65852ddd979d24c9796336443da
   withCredentials: true, // Forwards HttpOnly session/refresh cookies automatically
   headers: {
     'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest', // Anti-CSRF protection
   },
 })
+
+// Development only: ?demo=1 on any page shows sample data on the performance pages (see src/preview/demoMode.js). The import below is removed from production builds.
+if (import.meta.env.DEV) {
+  const real = axios.getAdapter(apiClient.defaults.adapter)
+  apiClient.defaults.adapter = async (config) => (await import('../../preview/demoMode.js')).answer(config, real)
+}
 
 // ---------------------------------------------------------------------------
 // Request Interceptor: Auth Token & Trace Header Injection
@@ -92,12 +102,17 @@ apiClient.interceptors.response.use(
       case 502:
       case 503:
       case 504:
-        // Server infrastructure errors
-        toast.error('Server Error: Our team has been notified. Please try again shortly.')
+        // Server infrastructure errors - suppressed generic 'developer notified' toast
         break
 
       default:
-        if (apiError.isNetworkError) {
+        // Suppress timeout and canceled error popups
+        if (
+          apiError.isNetworkError &&
+          apiError.code !== 'REQUEST_TIMEOUT' &&
+          error?.name !== 'CanceledError' &&
+          !error?.message?.includes('timeout')
+        ) {
           toast.error(apiError.message)
         }
         break

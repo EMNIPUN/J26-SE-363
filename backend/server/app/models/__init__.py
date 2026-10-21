@@ -2,6 +2,7 @@
 which is what Alembic compares against (see alembic/env.py)."""
 
 from app.models.agent_run import AgentRun, AgentRunStatus
+<<<<<<< HEAD
 from app.models.backlog_readiness_passport import BacklogReadinessPassport
 from app.models.dart import DartEscalation, DartEvidence, DartIteration, DartSession
 from app.models.decomposition_assessment import (
@@ -42,7 +43,17 @@ from app.models.retrieval_log import RetrievalLog
 from app.models.sprint import Sprint
 from app.models.sprint_backlog import SprintBacklogItem
 from app.models.srs_document import SrsDocument
+=======
+from app.models.github import TeamGithub, TeamGithubAccess, UserGithubAccount
+from app.models.group import Group, GroupMember, MemberRole, TeamStatus
+from app.models.notification import Notification
+from app.models.notification_preference import NotificationPreference
+from app.models.project import Project, ProjectDocument
+from app.models.team_invitation import InvitationStatus, TeamInvitation
+from app.models.term import Term
+>>>>>>> 28f368287251c65852ddd979d24c9796336443da
 from app.models.user import User
+from app.models.user_avatar import UserAvatar
 
 __all__ = [
     "AgentRun",
@@ -63,6 +74,7 @@ __all__ = [
     "Feedback",
     "Group",
     "GroupMember",
+<<<<<<< HEAD
     "InstructorAlert",
     "InvestValidation",
     "PipelineSession",
@@ -87,4 +99,20 @@ __all__ = [
     "User",
     "UserStory",
     "UserStoryTask",
+=======
+    "InvitationStatus",
+    "MemberRole",
+    "TeamGithub",
+    "TeamGithubAccess",
+    "UserGithubAccount",
+    "Notification",
+    "NotificationPreference",
+    "Project",
+    "ProjectDocument",
+    "TeamInvitation",
+    "TeamStatus",
+    "Term",
+    "User",
+    "UserAvatar",
+>>>>>>> 28f368287251c65852ddd979d24c9796336443da
 ]

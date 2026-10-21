@@ -1,0 +1,401 @@
+name,outer_test,inner_val,record_id,y,pred
+mean,A,B,T07-S2-STU-018,0.65,0.2277777777777778
+mean,A,B,T07-S2-STU-013,0.4,0.2277777777777778
+mean,A,B,T09-S1-STU-001,0.7,0.2277777777777778
+mean,A,B,T09-S1-STU-007,0.65,0.2277777777777778
+median,A,B,T07-S2-STU-018,0.65,0.1
+median,A,B,T07-S2-STU-013,0.4,0.1
+median,A,B,T09-S1-STU-001,0.7,0.1
+median,A,B,T09-S1-STU-007,0.65,0.1
+"commit count (log, linear)",A,B,T07-S2-STU-018,0.65,0.6643285024667347
+"commit count (log, linear)",A,B,T07-S2-STU-013,0.4,0.43473213242197595
+"commit count (log, linear)",A,B,T09-S1-STU-001,0.7,0.7555146835078238
+"commit count (log, linear)",A,B,T09-S1-STU-007,0.65,0.6987136837444929
+tasks done (linear),A,B,T07-S2-STU-018,0.65,0.5065115756475995
+tasks done (linear),A,B,T07-S2-STU-013,0.4,0.2513147250440722
+tasks done (linear),A,B,T09-S1-STU-001,0.7,0.5065115756475995
+tasks done (linear),A,B,T09-S1-STU-007,0.65,0.5065115756475995
+ridge (5 proposal features),A,B,T07-S2-STU-018,0.65,0.5946116051354327
+ridge (5 proposal features),A,B,T07-S2-STU-013,0.4,0.39846824121076774
+ridge (5 proposal features),A,B,T09-S1-STU-001,0.7,0.600135665818897
+ridge (5 proposal features),A,B,T09-S1-STU-007,0.65,0.516258712292551
+mean,A,C,T04-S2-STU-027,0.1,0.4277777777777778
+mean,A,C,T04-S3-STU-010,0.05,0.4277777777777778
+mean,A,C,T05-S1-STU-012,0.45,0.4277777777777778
+mean,A,C,T05-S3-STU-022,0.0,0.4277777777777778
+median,A,C,T04-S2-STU-027,0.1,0.45
+median,A,C,T04-S3-STU-010,0.05,0.45
+median,A,C,T05-S1-STU-012,0.45,0.45
+median,A,C,T05-S3-STU-022,0.0,0.45
+"commit count (log, linear)",A,C,T04-S2-STU-027,0.1,0.0
+"commit count (log, linear)",A,C,T04-S3-STU-010,0.05,0.0
+"commit count (log, linear)",A,C,T05-S1-STU-012,0.45,0.4159477874192368
+"commit count (log, linear)",A,C,T05-S3-STU-022,0.0,0.0
+tasks done (linear),A,C,T04-S2-STU-027,0.1,0.0
+tasks done (linear),A,C,T04-S3-STU-010,0.05,0.0
+tasks done (linear),A,C,T05-S1-STU-012,0.45,0.6303546307800031
+tasks done (linear),A,C,T05-S3-STU-022,0.0,0.0
+ridge (5 proposal features),A,C,T04-S2-STU-027,0.1,0.0
+ridge (5 proposal features),A,C,T04-S3-STU-010,0.05,0.0
+ridge (5 proposal features),A,C,T05-S1-STU-012,0.45,0.5133641023751817
+ridge (5 proposal features),A,C,T05-S3-STU-022,0.0,0.0
+mean,A,D,T08-S1-STU-008,0.45,0.3
+mean,A,D,T08-S2-STU-025,0.4,0.3
+mean,A,D,T14-S1-STU-016,0.6,0.3
+median,A,D,T08-S1-STU-008,0.45,0.25
+median,A,D,T08-S2-STU-025,0.4,0.25
+median,A,D,T14-S1-STU-016,0.6,0.25
+"commit count (log, linear)",A,D,T08-S1-STU-008,0.45,0.3566122204315805
+"commit count (log, linear)",A,D,T08-S2-STU-025,0.4,0.28949722579757636
+"commit count (log, linear)",A,D,T14-S1-STU-016,0.6,0.6488764522332975
+tasks done (linear),A,D,T08-S1-STU-008,0.45,0.475488750216347
+tasks done (linear),A,D,T08-S2-STU-025,0.4,0.475488750216347
+tasks done (linear),A,D,T14-S1-STU-016,0.6,0.6000000000000002
+ridge (5 proposal features),A,D,T08-S1-STU-008,0.45,0.4092161520704008
+ridge (5 proposal features),A,D,T08-S2-STU-025,0.4,0.3542866825142847
+ridge (5 proposal features),A,D,T14-S1-STU-016,0.6,0.6477868047475074
+mean,A,E,T06-S1-STU-004,0.0,0.40454545454545454
+mean,A,E,T06-S1-STU-029,0.0,0.40454545454545454
+median,A,E,T06-S1-STU-004,0.0,0.45
+median,A,E,T06-S1-STU-029,0.0,0.45
+"commit count (log, linear)",A,E,T06-S1-STU-004,0.0,0.0
+"commit count (log, linear)",A,E,T06-S1-STU-029,0.0,0.0
+tasks done (linear),A,E,T06-S1-STU-004,0.0,0.0
+tasks done (linear),A,E,T06-S1-STU-029,0.0,0.0
+ridge (5 proposal features),A,E,T06-S1-STU-004,0.0,0.0
+ridge (5 proposal features),A,E,T06-S1-STU-029,0.0,0.0
+mean,B,A,T01-S1-STU-009,0.45,0.2277777777777778
+mean,B,A,T01-S2-STU-021,0.35,0.2277777777777778
+mean,B,A,T03-S2-STU-011,0.15,0.2277777777777778
+mean,B,A,T03-S3-STU-019,0.45,0.2277777777777778
+mean,B,A,T11-S2-STU-017,0.7,0.2277777777777778
+mean,B,A,T13-S2-STU-003,0.5,0.2277777777777778
+mean,B,A,T13-S2-STU-006,0.75,0.2277777777777778
+median,B,A,T01-S1-STU-009,0.45,0.1
+median,B,A,T01-S2-STU-021,0.35,0.1
+median,B,A,T03-S2-STU-011,0.15,0.1
+median,B,A,T03-S3-STU-019,0.45,0.1
+median,B,A,T11-S2-STU-017,0.7,0.1
+median,B,A,T13-S2-STU-003,0.5,0.1
+median,B,A,T13-S2-STU-006,0.75,0.1
+"commit count (log, linear)",B,A,T01-S1-STU-009,0.45,0.3811137800231014
+"commit count (log, linear)",B,A,T01-S2-STU-021,0.35,0.31198770109896506
+"commit count (log, linear)",B,A,T03-S2-STU-011,0.15,0.21455996489977475
+"commit count (log, linear)",B,A,T03-S3-STU-019,0.45,0.5155818224503914
+"commit count (log, linear)",B,A,T11-S2-STU-017,0.7,0.7425230675448087
+"commit count (log, linear)",B,A,T13-S2-STU-003,0.5,0.43473213242197595
+"commit count (log, linear)",B,A,T13-S2-STU-006,0.75,0.6012859475453027
+tasks done (linear),B,A,T01-S1-STU-009,0.45,0.5065115756475995
+tasks done (linear),B,A,T01-S2-STU-021,0.35,0.0
+tasks done (linear),B,A,T03-S2-STU-011,0.15,0.0
+tasks done (linear),B,A,T03-S3-STU-019,0.45,0.2513147250440722
+tasks done (linear),B,A,T11-S2-STU-017,0.7,0.40059531294927486
+tasks done (linear),B,A,T13-S2-STU-003,0.5,0.40059531294927486
+tasks done (linear),B,A,T13-S2-STU-006,0.75,0.5886666115836479
+ridge (5 proposal features),B,A,T01-S1-STU-009,0.45,0.47343809579042107
+ridge (5 proposal features),B,A,T01-S2-STU-021,0.35,0.3294908146031731
+ridge (5 proposal features),B,A,T03-S2-STU-011,0.15,0.2666725007066042
+ridge (5 proposal features),B,A,T03-S3-STU-019,0.45,0.4082204655694073
+ridge (5 proposal features),B,A,T11-S2-STU-017,0.7,0.6329245737658435
+ridge (5 proposal features),B,A,T13-S2-STU-003,0.5,0.4365836304959568
+ridge (5 proposal features),B,A,T13-S2-STU-006,0.75,0.5722075225791872
+mean,B,C,T04-S2-STU-027,0.1,0.39999999999999997
+mean,B,C,T04-S3-STU-010,0.05,0.39999999999999997
+mean,B,C,T05-S1-STU-012,0.45,0.39999999999999997
+mean,B,C,T05-S3-STU-022,0.0,0.39999999999999997
+median,B,C,T04-S2-STU-027,0.1,0.45
+median,B,C,T04-S3-STU-010,0.05,0.45
+median,B,C,T05-S1-STU-012,0.45,0.45
+median,B,C,T05-S3-STU-022,0.0,0.45
+"commit count (log, linear)",B,C,T04-S2-STU-027,0.1,0.0
+"commit count (log, linear)",B,C,T04-S3-STU-010,0.05,0.0
+"commit count (log, linear)",B,C,T05-S1-STU-012,0.45,0.446987956110615
+"commit count (log, linear)",B,C,T05-S3-STU-022,0.0,0.0
+tasks done (linear),B,C,T04-S2-STU-027,0.1,0.0
+tasks done (linear),B,C,T04-S3-STU-010,0.05,0.0
+tasks done (linear),B,C,T05-S1-STU-012,0.45,0.6012620306657883
+tasks done (linear),B,C,T05-S3-STU-022,0.0,0.0
+ridge (5 proposal features),B,C,T04-S2-STU-027,0.1,0.0
+ridge (5 proposal features),B,C,T04-S3-STU-010,0.05,0.0
+ridge (5 proposal features),B,C,T05-S1-STU-012,0.45,0.48713746832132676
+ridge (5 proposal features),B,C,T05-S3-STU-022,0.0,0.0
+mean,B,D,T08-S1-STU-008,0.45,0.3038461538461539
+mean,B,D,T08-S2-STU-025,0.4,0.3038461538461539
+mean,B,D,T14-S1-STU-016,0.6,0.3038461538461539
+median,B,D,T08-S1-STU-008,0.45,0.35
+median,B,D,T08-S2-STU-025,0.4,0.35
+median,B,D,T14-S1-STU-016,0.6,0.35
+"commit count (log, linear)",B,D,T08-S1-STU-008,0.45,0.39351693302916396
+"commit count (log, linear)",B,D,T08-S2-STU-025,0.4,0.3187611289499673
+"commit count (log, linear)",B,D,T14-S1-STU-016,0.6,0.7190544343144055
+tasks done (linear),B,D,T08-S1-STU-008,0.45,0.47481292903901773
+tasks done (linear),B,D,T08-S2-STU-025,0.4,0.47481292903901773
+tasks done (linear),B,D,T14-S1-STU-016,0.6,0.5760401400050111
+ridge (5 proposal features),B,D,T08-S1-STU-008,0.45,0.535986634452089
+ridge (5 proposal features),B,D,T08-S2-STU-025,0.4,0.589332407612156
+ridge (5 proposal features),B,D,T14-S1-STU-016,0.6,0.6431176594679024
+mean,B,E,T06-S1-STU-004,0.0,0.3857142857142857
+mean,B,E,T06-S1-STU-029,0.0,0.3857142857142857
+median,B,E,T06-S1-STU-004,0.0,0.45
+median,B,E,T06-S1-STU-029,0.0,0.45
+"commit count (log, linear)",B,E,T06-S1-STU-004,0.0,0.0
+"commit count (log, linear)",B,E,T06-S1-STU-029,0.0,0.0
+tasks done (linear),B,E,T06-S1-STU-004,0.0,0.0
+tasks done (linear),B,E,T06-S1-STU-029,0.0,0.0
+ridge (5 proposal features),B,E,T06-S1-STU-004,0.0,0.0
+ridge (5 proposal features),B,E,T06-S1-STU-029,0.0,0.0
+mean,C,A,T01-S1-STU-009,0.45,0.4277777777777778
+mean,C,A,T01-S2-STU-021,0.35,0.4277777777777778
+mean,C,A,T03-S2-STU-011,0.15,0.4277777777777778
+mean,C,A,T03-S3-STU-019,0.45,0.4277777777777778
+mean,C,A,T11-S2-STU-017,0.7,0.4277777777777778
+mean,C,A,T13-S2-STU-003,0.5,0.4277777777777778
+mean,C,A,T13-S2-STU-006,0.75,0.4277777777777778
+median,C,A,T01-S1-STU-009,0.45,0.45
+median,C,A,T01-S2-STU-021,0.35,0.45
+median,C,A,T03-S2-STU-011,0.15,0.45
+median,C,A,T03-S3-STU-019,0.45,0.45
+median,C,A,T11-S2-STU-017,0.7,0.45
+median,C,A,T13-S2-STU-003,0.5,0.45
+median,C,A,T13-S2-STU-006,0.75,0.45
+"commit count (log, linear)",C,A,T01-S1-STU-009,0.45,0.3649537662984191
+"commit count (log, linear)",C,A,T01-S2-STU-021,0.35,0.2992110388376119
+"commit count (log, linear)",C,A,T03-S2-STU-011,0.15,0.20655186869870887
+"commit count (log, linear)",C,A,T03-S3-STU-019,0.45,0.49284031798880973
+"commit count (log, linear)",C,A,T11-S2-STU-017,0.7,0.7086740041759353
+"commit count (log, linear)",C,A,T13-S2-STU-003,0.5,0.4159477874192368
+"commit count (log, linear)",C,A,T13-S2-STU-006,0.75,0.5743496850189471
+tasks done (linear),C,A,T01-S1-STU-009,0.45,0.6303546307800031
+tasks done (linear),C,A,T01-S2-STU-021,0.35,0.004910986411425488
+tasks done (linear),C,A,T03-S2-STU-011,0.15,0.004910986411425488
+tasks done (linear),C,A,T03-S3-STU-019,0.45,0.3176328085957143
+tasks done (linear),C,A,T11-S2-STU-017,0.7,0.5005633477307125
+tasks done (linear),C,A,T13-S2-STU-003,0.5,0.5005633477307125
+tasks done (linear),C,A,T13-S2-STU-006,0.75,0.7310285712254956
+ridge (5 proposal features),C,A,T01-S1-STU-009,0.45,0.5044515599981316
+ridge (5 proposal features),C,A,T01-S2-STU-021,0.35,0.24741994762535072
+ridge (5 proposal features),C,A,T03-S2-STU-011,0.15,0.18720156131101678
+ridge (5 proposal features),C,A,T03-S3-STU-019,0.45,0.42731262391503844
+ridge (5 proposal features),C,A,T11-S2-STU-017,0.7,0.6581371287674003
+ridge (5 proposal features),C,A,T13-S2-STU-003,0.5,0.4675494847234034
+ridge (5 proposal features),C,A,T13-S2-STU-006,0.75,0.6383155810372089
+mean,C,B,T07-S2-STU-018,0.65,0.39999999999999997
+mean,C,B,T07-S2-STU-013,0.4,0.39999999999999997
+mean,C,B,T09-S1-STU-001,0.7,0.39999999999999997
+mean,C,B,T09-S1-STU-007,0.65,0.39999999999999997
+median,C,B,T07-S2-STU-018,0.65,0.45
+median,C,B,T07-S2-STU-013,0.4,0.45
+median,C,B,T09-S1-STU-001,0.7,0.45
+median,C,B,T09-S1-STU-007,0.65,0.45
+"commit count (log, linear)",C,B,T07-S2-STU-018,0.65,0.6850730174565617
+"commit count (log, linear)",C,B,T07-S2-STU-013,0.4,0.446987956110615
+"commit count (log, linear)",C,B,T09-S1-STU-001,0.7,0.7796305555519507
+"commit count (log, linear)",C,B,T09-S1-STU-007,0.65,0.7207294957898674
+tasks done (linear),C,B,T07-S2-STU-018,0.65,0.6012620306657883
+tasks done (linear),C,B,T07-S2-STU-013,0.4,0.3676489015580674
+tasks done (linear),C,B,T09-S1-STU-001,0.7,0.6012620306657883
+tasks done (linear),C,B,T09-S1-STU-007,0.65,0.6012620306657883
+ridge (5 proposal features),C,B,T07-S2-STU-018,0.65,0.6535474690890279
+ridge (5 proposal features),C,B,T07-S2-STU-013,0.4,0.4096632738705107
+ridge (5 proposal features),C,B,T09-S1-STU-001,0.7,0.6876637373343344
+ridge (5 proposal features),C,B,T09-S1-STU-007,0.65,0.6049775820711942
+mean,C,D,T08-S1-STU-008,0.45,0.4423076923076923
+mean,C,D,T08-S2-STU-025,0.4,0.4423076923076923
+mean,C,D,T14-S1-STU-016,0.6,0.4423076923076923
+median,C,D,T08-S1-STU-008,0.45,0.45
+median,C,D,T08-S2-STU-025,0.4,0.45
+median,C,D,T14-S1-STU-016,0.6,0.45
+"commit count (log, linear)",C,D,T08-S1-STU-008,0.45,0.371706215373353
+"commit count (log, linear)",C,D,T08-S2-STU-025,0.4,0.3009446973696033
+"commit count (log, linear)",C,D,T14-S1-STU-016,0.6,0.6798498845082255
+tasks done (linear),C,D,T08-S1-STU-008,0.45,0.542709460039354
+tasks done (linear),C,D,T08-S2-STU-025,0.4,0.542709460039354
+tasks done (linear),C,D,T14-S1-STU-016,0.6,0.6486653702747556
+ridge (5 proposal features),C,D,T08-S1-STU-008,0.45,0.531993217998884
+ridge (5 proposal features),C,D,T08-S2-STU-025,0.4,0.571178332465119
+ridge (5 proposal features),C,D,T14-S1-STU-016,0.6,0.6527598696914417
+mean,C,E,T06-S1-STU-004,0.0,0.5142857142857143
+mean,C,E,T06-S1-STU-029,0.0,0.5142857142857143
+median,C,E,T06-S1-STU-004,0.0,0.475
+median,C,E,T06-S1-STU-029,0.0,0.475
+"commit count (log, linear)",C,E,T06-S1-STU-004,0.0,0.0
+"commit count (log, linear)",C,E,T06-S1-STU-029,0.0,0.0
+tasks done (linear),C,E,T06-S1-STU-004,0.0,0.0
+tasks done (linear),C,E,T06-S1-STU-029,0.0,0.0
+ridge (5 proposal features),C,E,T06-S1-STU-004,0.0,0.0
+ridge (5 proposal features),C,E,T06-S1-STU-029,0.0,0.0
+mean,D,A,T01-S1-STU-009,0.45,0.3
+mean,D,A,T01-S2-STU-021,0.35,0.3
+mean,D,A,T03-S2-STU-011,0.15,0.3
+mean,D,A,T03-S3-STU-019,0.45,0.3
+mean,D,A,T11-S2-STU-017,0.7,0.3
+mean,D,A,T13-S2-STU-003,0.5,0.3
+mean,D,A,T13-S2-STU-006,0.75,0.3
+median,D,A,T01-S1-STU-009,0.45,0.25
+median,D,A,T01-S2-STU-021,0.35,0.25
+median,D,A,T03-S2-STU-011,0.15,0.25
+median,D,A,T03-S3-STU-019,0.45,0.25
+median,D,A,T11-S2-STU-017,0.7,0.25
+median,D,A,T13-S2-STU-003,0.5,0.25
+median,D,A,T13-S2-STU-006,0.75,0.25
+"commit count (log, linear)",D,A,T01-S1-STU-009,0.45,0.3566122204315805
+"commit count (log, linear)",D,A,T01-S2-STU-021,0.35,0.28949722579757636
+"commit count (log, linear)",D,A,T03-S2-STU-011,0.15,0.1949039537071977
+"commit count (log, linear)",D,A,T03-S3-STU-019,0.45,0.4871681855089147
+"commit count (log, linear)",D,A,T11-S2-STU-017,0.7,0.7075070313367205
+"commit count (log, linear)",D,A,T13-S2-STU-003,0.5,0.4086706546656984
+"commit count (log, linear)",D,A,T13-S2-STU-006,0.75,0.5703789213900813
+tasks done (linear),D,A,T01-S1-STU-009,0.45,0.6000000000000002
+tasks done (linear),D,A,T01-S2-STU-021,0.35,1.5747075964660478e-17
+tasks done (linear),D,A,T03-S2-STU-011,0.15,1.5747075964660478e-17
+tasks done (linear),D,A,T03-S3-STU-019,0.45,0.3000000000000001
+tasks done (linear),D,A,T11-S2-STU-017,0.7,0.475488750216347
+tasks done (linear),D,A,T13-S2-STU-003,0.5,0.475488750216347
+tasks done (linear),D,A,T13-S2-STU-006,0.75,0.6965784284662089
+ridge (5 proposal features),D,A,T01-S1-STU-009,0.45,0.44819856653529555
+ridge (5 proposal features),D,A,T01-S2-STU-021,0.35,0.2571960409629946
+ridge (5 proposal features),D,A,T03-S2-STU-011,0.15,0.1802620795384537
+ridge (5 proposal features),D,A,T03-S3-STU-019,0.45,0.4483071981234707
+ridge (5 proposal features),D,A,T11-S2-STU-017,0.7,0.6796080677001878
+ridge (5 proposal features),D,A,T13-S2-STU-003,0.5,0.44121952371820367
+ridge (5 proposal features),D,A,T13-S2-STU-006,0.75,0.6118735887178663
+mean,D,B,T07-S2-STU-018,0.65,0.3038461538461539
+mean,D,B,T07-S2-STU-013,0.4,0.3038461538461539
+mean,D,B,T09-S1-STU-001,0.7,0.3038461538461539
+mean,D,B,T09-S1-STU-007,0.65,0.3038461538461539
+median,D,B,T07-S2-STU-018,0.65,0.35
+median,D,B,T07-S2-STU-013,0.4,0.35
+median,D,B,T09-S1-STU-001,0.7,0.35
+median,D,B,T09-S1-STU-007,0.65,0.35
+"commit count (log, linear)",D,B,T07-S2-STU-018,0.65,0.6997970610626929
+"commit count (log, linear)",D,B,T07-S2-STU-013,0.4,0.4515020395094339
+"commit count (log, linear)",D,B,T09-S1-STU-001,0.7,0.7984095730224545
+"commit count (log, linear)",D,B,T09-S1-STU-007,0.65,0.736982619897135
+tasks done (linear),D,B,T07-S2-STU-018,0.65,0.5760401400050111
+tasks done (linear),D,B,T07-S2-STU-013,0.4,0.3321411883635747
+tasks done (linear),D,B,T09-S1-STU-001,0.7,0.5760401400050111
+tasks done (linear),D,B,T09-S1-STU-007,0.65,0.5760401400050111
+ridge (5 proposal features),D,B,T07-S2-STU-018,0.65,0.6508763556513233
+ridge (5 proposal features),D,B,T07-S2-STU-013,0.4,0.4064463450831327
+ridge (5 proposal features),D,B,T09-S1-STU-001,0.7,0.6935095280167651
+ridge (5 proposal features),D,B,T09-S1-STU-007,0.65,0.6067185771136081
+mean,D,C,T04-S2-STU-027,0.1,0.4423076923076923
+mean,D,C,T04-S3-STU-010,0.05,0.4423076923076923
+mean,D,C,T05-S1-STU-012,0.45,0.4423076923076923
+mean,D,C,T05-S3-STU-022,0.0,0.4423076923076923
+median,D,C,T04-S2-STU-027,0.1,0.45
+median,D,C,T04-S3-STU-010,0.05,0.45
+median,D,C,T05-S1-STU-012,0.45,0.45
+median,D,C,T05-S3-STU-022,0.0,0.45
+"commit count (log, linear)",D,C,T04-S2-STU-027,0.1,0.0
+"commit count (log, linear)",D,C,T04-S3-STU-010,0.05,0.0
+"commit count (log, linear)",D,C,T05-S1-STU-012,0.45,0.42659311287506546
+"commit count (log, linear)",D,C,T05-S3-STU-022,0.0,0.0
+tasks done (linear),D,C,T04-S2-STU-027,0.1,0.0
+tasks done (linear),D,C,T04-S3-STU-010,0.05,0.0
+tasks done (linear),D,C,T05-S1-STU-012,0.45,0.6486653702747556
+tasks done (linear),D,C,T05-S3-STU-022,0.0,0.0
+ridge (5 proposal features),D,C,T04-S2-STU-027,0.1,0.0
+ridge (5 proposal features),D,C,T04-S3-STU-010,0.05,0.0
+ridge (5 proposal features),D,C,T05-S1-STU-012,0.45,0.49501499033962465
+ridge (5 proposal features),D,C,T05-S3-STU-022,0.0,0.0
+mean,D,E,T06-S1-STU-004,0.0,0.4233333333333334
+mean,D,E,T06-S1-STU-029,0.0,0.4233333333333334
+median,D,E,T06-S1-STU-004,0.0,0.45
+median,D,E,T06-S1-STU-029,0.0,0.45
+"commit count (log, linear)",D,E,T06-S1-STU-004,0.0,0.0
+"commit count (log, linear)",D,E,T06-S1-STU-029,0.0,0.0
+tasks done (linear),D,E,T06-S1-STU-004,0.0,0.0
+tasks done (linear),D,E,T06-S1-STU-029,0.0,0.0
+ridge (5 proposal features),D,E,T06-S1-STU-004,0.0,0.0
+ridge (5 proposal features),D,E,T06-S1-STU-029,0.0,0.0
+mean,E,A,T01-S1-STU-009,0.45,0.40454545454545454
+mean,E,A,T01-S2-STU-021,0.35,0.40454545454545454
+mean,E,A,T03-S2-STU-011,0.15,0.40454545454545454
+mean,E,A,T03-S3-STU-019,0.45,0.40454545454545454
+mean,E,A,T11-S2-STU-017,0.7,0.40454545454545454
+mean,E,A,T13-S2-STU-003,0.5,0.40454545454545454
+mean,E,A,T13-S2-STU-006,0.75,0.40454545454545454
+median,E,A,T01-S1-STU-009,0.45,0.45
+median,E,A,T01-S2-STU-021,0.35,0.45
+median,E,A,T03-S2-STU-011,0.15,0.45
+median,E,A,T03-S3-STU-019,0.45,0.45
+median,E,A,T11-S2-STU-017,0.7,0.45
+median,E,A,T13-S2-STU-003,0.5,0.45
+median,E,A,T13-S2-STU-006,0.75,0.45
+"commit count (log, linear)",E,A,T01-S1-STU-009,0.45,0.37868980302307775
+"commit count (log, linear)",E,A,T01-S2-STU-021,0.35,0.31628113624813725
+"commit count (log, linear)",E,A,T03-S2-STU-011,0.15,0.22832106072056313
+"commit count (log, linear)",E,A,T03-S3-STU-019,0.45,0.5000907472446244
+"commit count (log, linear)",E,A,T11-S2-STU-017,0.7,0.7049786963807405
+"commit count (log, linear)",E,A,T13-S2-STU-003,0.5,0.42709772576313504
+"commit count (log, linear)",E,A,T13-S2-STU-006,0.75,0.5774664680656497
+tasks done (linear),E,A,T01-S1-STU-009,0.45,0.5887053681708558
+tasks done (linear),E,A,T01-S2-STU-021,0.35,0.0
+tasks done (linear),E,A,T03-S2-STU-011,0.15,0.0
+tasks done (linear),E,A,T03-S3-STU-019,0.45,0.2921113995384186
+tasks done (linear),E,A,T11-S2-STU-017,0.7,0.4656077491284613
+tasks done (linear),E,A,T13-S2-STU-003,0.5,0.4656077491284613
+tasks done (linear),E,A,T13-S2-STU-006,0.75,0.6841872994477785
+ridge (5 proposal features),E,A,T01-S1-STU-009,0.45,0.4600488698871387
+ridge (5 proposal features),E,A,T01-S2-STU-021,0.35,0.28356428961188757
+ridge (5 proposal features),E,A,T03-S2-STU-011,0.15,0.20796154329833644
+ridge (5 proposal features),E,A,T03-S3-STU-019,0.45,0.44628702786759733
+ridge (5 proposal features),E,A,T11-S2-STU-017,0.7,0.6765816735701976
+ridge (5 proposal features),E,A,T13-S2-STU-003,0.5,0.4447126752057178
+ridge (5 proposal features),E,A,T13-S2-STU-006,0.75,0.6278369124496422
+mean,E,B,T07-S2-STU-018,0.65,0.3857142857142857
+mean,E,B,T07-S2-STU-013,0.4,0.3857142857142857
+mean,E,B,T09-S1-STU-001,0.7,0.3857142857142857
+mean,E,B,T09-S1-STU-007,0.65,0.3857142857142857
+median,E,B,T07-S2-STU-018,0.65,0.45
+median,E,B,T07-S2-STU-013,0.4,0.45
+median,E,B,T09-S1-STU-001,0.7,0.45
+median,E,B,T09-S1-STU-007,0.65,0.45
+"commit count (log, linear)",E,B,T07-S2-STU-018,0.65,0.6778947013641489
+"commit count (log, linear)",E,B,T07-S2-STU-013,0.4,0.4513062579390725
+"commit count (log, linear)",E,B,T09-S1-STU-001,0.7,0.7678862583733024
+"commit count (log, linear)",E,B,T09-S1-STU-007,0.65,0.7118294046919823
+tasks done (linear),E,B,T07-S2-STU-018,0.65,0.5638612318497584
+tasks done (linear),E,B,T07-S2-STU-013,0.4,0.34389223958594284
+tasks done (linear),E,B,T09-S1-STU-001,0.7,0.5638612318497584
+tasks done (linear),E,B,T09-S1-STU-007,0.65,0.5638612318497584
+ridge (5 proposal features),E,B,T07-S2-STU-018,0.65,0.645651631935165
+ridge (5 proposal features),E,B,T07-S2-STU-013,0.4,0.4079100522047086
+ridge (5 proposal features),E,B,T09-S1-STU-001,0.7,0.6844728641294138
+ridge (5 proposal features),E,B,T09-S1-STU-007,0.65,0.6039412203530045
+mean,E,C,T04-S2-STU-027,0.1,0.5142857142857143
+mean,E,C,T04-S3-STU-010,0.05,0.5142857142857143
+mean,E,C,T05-S1-STU-012,0.45,0.5142857142857143
+mean,E,C,T05-S3-STU-022,0.0,0.5142857142857143
+median,E,C,T04-S2-STU-027,0.1,0.475
+median,E,C,T04-S3-STU-010,0.05,0.475
+median,E,C,T05-S1-STU-012,0.45,0.475
+median,E,C,T05-S3-STU-022,0.0,0.475
+"commit count (log, linear)",E,C,T04-S2-STU-027,0.1,0.0
+"commit count (log, linear)",E,C,T04-S3-STU-010,0.05,0.0
+"commit count (log, linear)",E,C,T05-S1-STU-012,0.45,0.4506198624594551
+"commit count (log, linear)",E,C,T05-S3-STU-022,0.0,0.0
+tasks done (linear),E,C,T04-S2-STU-027,0.1,0.0
+tasks done (linear),E,C,T04-S3-STU-010,0.05,0.0
+tasks done (linear),E,C,T05-S1-STU-012,0.45,0.6134812726133222
+tasks done (linear),E,C,T05-S3-STU-022,0.0,0.0
+ridge (5 proposal features),E,C,T04-S2-STU-027,0.1,0.0
+ridge (5 proposal features),E,C,T04-S3-STU-010,0.05,0.0
+ridge (5 proposal features),E,C,T05-S1-STU-012,0.45,0.4711821705970482
+ridge (5 proposal features),E,C,T05-S3-STU-022,0.0,0.0
+mean,E,D,T08-S1-STU-008,0.45,0.4233333333333334
+mean,E,D,T08-S2-STU-025,0.4,0.4233333333333334
+mean,E,D,T14-S1-STU-016,0.6,0.4233333333333334
+median,E,D,T08-S1-STU-008,0.45,0.45
+median,E,D,T08-S2-STU-025,0.4,0.45
+median,E,D,T14-S1-STU-016,0.6,0.45
+"commit count (log, linear)",E,D,T08-S1-STU-008,0.45,0.38332314061356665
+"commit count (log, linear)",E,D,T08-S2-STU-025,0.4,0.31609732126393314
+"commit count (log, linear)",E,D,T14-S1-STU-016,0.6,0.6760699784343219
+tasks done (linear),E,D,T08-S1-STU-008,0.45,0.5084060883487426
+tasks done (linear),E,D,T08-S2-STU-025,0.4,0.5084060883487426
+tasks done (linear),E,D,T14-S1-STU-016,0.6,0.6086649220784679
+ridge (5 proposal features),E,D,T08-S1-STU-008,0.45,0.5303746079743207
+ridge (5 proposal features),E,D,T08-S2-STU-025,0.4,0.57956023048744
+ridge (5 proposal features),E,D,T14-S1-STU-016,0.6,0.6516186098180381

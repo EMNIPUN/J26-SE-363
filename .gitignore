@@ -18,6 +18,10 @@ backend/agentic_framework/app/agents/performance_assessment/PROPOSAL.md
 .langgraph_api/
 *.pckl
 
+# Requirement Fulfillment working plan (kept local)
+**/03_requirement_fulfillment/plan.md
+**/03_requirement_fulfillment/.runs/
+
 # Assessment Mock Context & Output Data
 backend/agentic_framework/app/agents/performance_assessment/com_agent/mock_context/
 **/mock_context/**/*.json
@@ -39,3 +43,25 @@ ENV/
 
 # ChromaDB local vector store (planning knowledge base)
 **/.chroma/
+# Keycloak plugin build output (docker/keycloak/build_provider.py)
+docker/keycloak/providers/*.jar
+docker/keycloak/providers-src/**/target/
+
+# Assessment dataset: student identities and raw (identifiable) evidence never leave this machine
+**/factor_models/dataset/private/
+
+# Collaboration: public datasets (GPL/MIT, downloaded by download_data.py) and large training caches stay local
+**/04_collaboration/training/dataset/
+**/04_collaboration/training/experiments/*/results/*.pkl
+**/04_collaboration/training/experiments/*/results/*.npz
+**/04_collaboration/training/experiments/*/results/*.joblib
+
+# Code Ownership: downloaded encoder weights, embedding cache, tuning pickles
+**/07_code_ownership/training/dataset/cache/
+**/07_code_ownership/training/experiments/*/results/*.pkl
+**/07_code_ownership/training/experiments/*/results/*.log
+
+# Database backups
+docker/backup/
+*.sql
+

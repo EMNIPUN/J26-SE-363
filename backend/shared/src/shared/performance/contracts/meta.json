@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/meta/1",
+  "title": "Performance metadata",
+  "type": "object",
+  "required": ["schema", "version", "factors", "bands", "status", "limits", "weights"],
+  "properties": {
+    "schema": {"const": "meta/1"},
+    "version": {"type": "string", "minLength": 1},
+    "factors": {"type": "array", "items": {"$ref": "#/$defs/factor"}},
+    "bands": {"type": "object", "required": ["low_below", "medium_below"], "properties": {"low_below": {"type": "number"}, "medium_below": {"type": "number"}}},
+    "status": {"type": "object"},
+    "limits": {"type": "object"},
+    "weights": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}}
+  },
+  "$defs": {
+    "factor": {
+      "type": "object",
+      "required": ["id", "label", "short", "colour", "question", "measures", "validation", "limits", "tracked_by_sprint"],
+      "properties": {
+        "id": {"type": "string"}, "label": {"type": "string"}, "short": {"type": "string"}, "colour": {"type": "string"},
+        "question": {"type": "string"}, "measures": {"type": "string"}, "validation": {"type": "string"}, "limits": {"type": "string"},
+        "tracked_by_sprint": {"type": "boolean"}, "why_not_tracked": {"type": ["string", "null"]}, "default_weight": {"type": "number"}
+      }
+    }
+  }
+}

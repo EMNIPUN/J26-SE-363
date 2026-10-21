@@ -1,42 +1,54 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import RequireRole from '@/shared/auth/RequireRole'
-
-import MyProgress from './pages/student/MyProgress.jsx'
-import InstructorDashboard from './pages/instructor/Dashboard.jsx'
-import StudentDetail from './pages/instructor/StudentDetail.jsx'
-import Assessments from './pages/instructor/Assessments.jsx'
-import Reports from './pages/instructor/Reports.jsx'
-
 import { useAuth } from '@/shared/auth/useAuth'
+
+import MyAssessment from './pages/student/MyAssessment.jsx'
+import TeamAssessment from './pages/instructor/TeamAssessment.jsx'
+import StudentAssessment from './pages/instructor/StudentAssessment.jsx'
+import StudentQuestions from './pages/instructor/StudentQuestions.jsx'
+import RunPage from './pages/instructor/RunPage.jsx'
+import Method from './pages/instructor/Method.jsx'
 
 function PerformanceIndex() {
   const { user } = useAuth()
-  if (user?.role === 'instructor' || user?.role === 'admin') {
-    return <Navigate to="dashboard" replace />
-  }
-  return <Navigate to="my-progress" replace />
+  return <Navigate to={user?.role === 'instructor' || user?.role === 'admin' ? 'team/results' : 'my-assessment'} replace />
 }
 
+/** The earlier address of the team page (?tab=runs) goes to the address of that tab. */
+function LegacyAssessment() {
+  const [params] = useSearchParams()
+  const rest = new URLSearchParams(params)
+  const tab = rest.get('tab') || 'results'
+  rest.delete('tab')
+  return <Navigate to={`../team/${tab}${rest.toString() ? `?${rest}` : ''}`} replace />
+}
+
+/**
+ * Performance assessment, inside a team. Lecturers (and administrators) see the whole team and the pipeline of every run;
+ * a student sees only their own assessment. The API enforces the same rule: these guards are only the first line.
+ */
 export default function PerformanceRoutes() {
   return (
     <Routes>
       <Route index element={<PerformanceIndex />} />
-      <Route path="my-progress" element={<MyProgress />} />
+      <Route path="my-assessment" element={<MyAssessment />} />
 
-      {/* Instructor & Admin restricted routes */}
       <Route element={<RequireRole allowedRoles={['instructor', 'admin']} />}>
-        <Route path="dashboard" element={<InstructorDashboard />} />
-        <Route path="students" element={<StudentDetail />} />
-        <Route path="assessments" element={<Assessments />} />
-        <Route path="reports" element={<Reports />} />
+        <Route path="team" element={<Navigate to="results" replace />} />
+        <Route path="team/:tab" element={<TeamAssessment />} />
+        <Route path="assessment" element={<LegacyAssessment />} />
+        <Route path="students/:studentId" element={<StudentAssessment />} />
+        <Route path="students/:studentId/questions" element={<StudentQuestions />} />
+        <Route path="runs/:runId" element={<RunPage />} />
+        <Route path="method" element={<Method />} />
       </Route>
 
-      {/* Backward compatibility redirects for legacy /student/* and /instructor/* links */}
-      <Route path="student/my-progress" element={<Navigate to="../my-progress" replace />} />
-      <Route path="instructor/dashboard" element={<Navigate to="../dashboard" replace />} />
-      <Route path="instructor/student-detail" element={<Navigate to="../students" replace />} />
-      <Route path="instructor/assessments" element={<Navigate to="../assessments" replace />} />
-      <Route path="instructor/reports" element={<Navigate to="../reports" replace />} />
+      {/* links from the earlier prototype pages */}
+      <Route path="my-progress" element={<Navigate to="../my-assessment" replace />} />
+      <Route path="dashboard" element={<Navigate to="../team/results" replace />} />
+      <Route path="students" element={<Navigate to="../team/results" replace />} />
+      <Route path="assessments" element={<Navigate to="../team/results" replace />} />
+      <Route path="reports" element={<Navigate to="../team/runs" replace />} />
     </Routes>
   )
 }

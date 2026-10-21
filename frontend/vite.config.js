@@ -14,7 +14,8 @@ export default defineConfig(({ mode }) => {
     env.VITE_GATEWAY_URL ||
     env.GATEWAY_PUBLIC_URL ||
     env.VITE_BACKEND_TARGET ||
-    'http://localhost:8000'
+    env.VITE_API_PROXY_TARGET ||
+    'http://127.0.0.1:8002'
 
   // When /api is pointed straight at the local Core API (bypassing Kong), its
   // routes live under /api/v1, so rewrite the prefix. For a real gateway (which
@@ -23,6 +24,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
+    test: { exclude: ['e2e/**', 'node_modules/**'] }, // the browser checks in e2e/ run with Playwright, not Vitest
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, './src'),
@@ -30,8 +32,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
-        // Zero-domain local development reverse proxy:
-        // Maps /api/* calls directly to the gateway (localhost or VPS) without CORS issues
+        // Zero-domain local development reverse proxy (no CORS issues):
+        // /api/* goes to the Core API, e.g. /api/auth/me -> http://127.0.0.1:8002/api/v1/auth/me
+        // Keycloak traffic does not use this proxy: it goes to VITE_KEYCLOAK_URL directly.
         '/api': {
           target: gatewayUrl,
           changeOrigin: true,

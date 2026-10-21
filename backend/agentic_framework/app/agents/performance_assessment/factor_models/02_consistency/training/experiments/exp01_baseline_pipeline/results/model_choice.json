@@ -1,0 +1,10 @@
+{
+  "model": "Ridge",
+  "feature_set": "proposal 4",
+  "reason": "no forest or boosting model passes protocol conditions 1-3 against Ridge",
+  "validation_MAE": 0.0751,
+  "best_simple_baseline": {
+    "name": "ridge (4 proposal features) + zero rule",
+    "MAE": 0.0664
+  }
+}

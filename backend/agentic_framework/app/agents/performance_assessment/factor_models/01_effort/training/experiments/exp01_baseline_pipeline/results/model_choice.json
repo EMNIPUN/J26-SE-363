@@ -1,0 +1,6 @@
+{
+  "model": "Ridge",
+  "feature_set": "3 features (chosen)",
+  "reason": "no forest or boosting model passes protocol conditions 1-3 against Ridge",
+  "validation_MAE": 0.0774
+}

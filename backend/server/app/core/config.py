@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -56,8 +56,45 @@ class Settings(BaseSettings):
     # Browser origins allowed to call the Core API, as a JSON list.
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
+    # Email (invitations and notifications; Keycloak sends its own verification and reset mail,
+    # configured separately in the realm, see docker/keycloak/README.md).
+    # "console" only logs messages, which is enough for development. "smtp" delivers them
+    # through any SMTP provider; backend/server/.env.example lists the variables.
+    EMAIL_BACKEND: Literal["console", "smtp"] = "console"
+    EMAIL_FROM_ADDRESS: str = "no-reply@selvia.local"
+    EMAIL_FROM_NAME: str = "SELVIA"
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    # "starttls" (port 587), "ssl" (port 465) or "none" (a local test server such as Mailpit).
+    SMTP_SECURITY: Literal["starttls", "ssl", "none"] = "starttls"
+    # The web app that links in emails open when the request does not say which one the person
+    # uses. Normally the link follows the request's Origin (localhost in development, the deployed
+    # address in production) as long as it is in CORS_ORIGINS; see app/services/email/service.py.
+    APP_BASE_URL: str = "http://localhost:5173"
+    # How long an invitation link stays valid.
+    INVITATION_TTL_DAYS: int = 14
+    # Invitations only match an account whose email address Keycloak has verified. Turn this
+    # off only for local development, where the realm does not verify addresses.
+    REQUIRE_VERIFIED_EMAIL: bool = True
+
     # GitHub Ingestion Settings
     GITHUB_TOKEN: Optional[str] = None
+
+    # The GitHub App that links a team repository and proves who owns a GitHub account
+    # (see docs/GITHUB_APP.md). Leave empty to switch the linking off.
+    GITHUB_APP_ID: str = ""
+    GITHUB_APP_SLUG: str = ""
+    GITHUB_APP_CLIENT_ID: str = ""
+    GITHUB_APP_CLIENT_SECRET: str = ""
+    GITHUB_APP_PRIVATE_KEY: str = ""
+    GITHUB_APP_PRIVATE_KEY_PATH: str = ""
+    # Signs the short-lived state that GitHub hands back to us; defaults to the App's client secret.
+    GITHUB_STATE_SECRET: str = ""
+    # Where GitHub sends the browser back to: the web app's /api prefix (the dev server and the
+    # gateway forward it to this API). Register <this>/github/callback and <this>/github/installed.
+    GITHUB_CALLBACK_BASE: str = "http://localhost:5173/api"
 
     # Agent Job Queue Retention (Clean up finished/failed jobs older than X hours)
     AGENT_JOB_RETENTION_HOURS: int = 24
@@ -65,6 +102,15 @@ class Settings(BaseSettings):
     # AI Backend (internal service that runs the Main Orchestrator)
     AI_BACKEND_URL: str = "http://localhost:8003"
     AI_BACKEND_TIMEOUT_SECONDS: float = 60.0
+    # Shared secret sent to the AI Backend as `X-Internal-Token`; must equal the value in
+    # backend/agentic_framework/.env (AI_BACKEND_INTERNAL_TOKEN).
+    AI_BACKEND_INTERNAL_TOKEN: Optional[str] = None
+
+    # Security Assistant result folders the Security Assistant pages read (read-only), see app/modules/security.
+    # Unset: backend/agentic_framework/scan_output/results (git-ignored).
+    SECURITY_ASSISTANT_RESULTS_DIR: Optional[str] = None
+    # Serve the checked-in sample run instead of the result folders. Off by default, never turned on automatically.
+    SECURITY_ASSISTANT_DEMO_MODE: bool = False
 
     # Jira Cloud Integration Settings
     JIRA_BASE_URL: Optional[str] = None
@@ -89,6 +135,12 @@ class Settings(BaseSettings):
         return value
 
     @model_validator(mode="after")
+    def smtp_needs_a_host(self) -> "Settings":
+        if self.EMAIL_BACKEND == "smtp" and not self.SMTP_HOST:
+            raise ValueError("EMAIL_BACKEND=smtp needs SMTP_HOST")
+        return self
+
+    @model_validator(mode="after")
     def resolve_database_url(self) -> "Settings":
         """Resolve database URL strictly from env without hardcoding."""
         if not self.SERVER_DATABASE_URL:
@@ -105,6 +157,11 @@ class Settings(BaseSettings):
                     f"{self.SERVER_POSTGRES_DB}"
                 )
         return self
+
+    @property
+    def security_assistant_results_dir(self) -> Path:
+        default = Path(__file__).resolve().parents[3] / "agentic_framework" / "scan_output" / "results"
+        return Path(self.SECURITY_ASSISTANT_RESULTS_DIR) if self.SECURITY_ASSISTANT_RESULTS_DIR else default
 
     @property
     def keycloak_issuer(self) -> str:

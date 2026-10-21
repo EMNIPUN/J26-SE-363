@@ -27,7 +27,7 @@ own agent:
 | `backend/core-api` (FastAPI, SQLAlchemy, PostgreSQL) | `backend/server` | Keep folder name, reorganize by business domain |
 | `backend/ai-backend` (FastAPI, LangGraph, Neo4j, MCP) | `backend/agentic_framework` | Keep folder name, add internal AI API + orchestrator |
 | Main Orchestrator | `app/orchestrator/*.py` (empty files) | Fill as the single coordination point |
-| 4 agents | `app/agents/{project_planning,adaptive_tutor,performance_assessment,aegis}` | Keep; tutor gets internal modules (still ONE agent) |
+| 4 agents | `app/agents/{project_planning,adaptive_tutor,performance_assessment,security_assistant}` | Keep; tutor gets internal modules (still ONE agent) |
 | `neo4j/` | `backend/agentic_framework/neo4j/` (README only) | Keep for Cypher schema/seed; Python access in `app/knowledge_graph/` |
 | `mcp/` | `backend/agentic_framework/mcp/` (README only) | Move to `app/integrations/mcp/` (external systems only) |
 | `database/` | `backend/server/alembic/` (README only) | Alembic in the Core Backend; no separate top-level folder |
@@ -88,7 +88,7 @@ AI BACKEND  backend/agentic_framework  (FastAPI · LangGraph · Neo4j · MCP)
    MAIN ORCHESTRATOR  (LangGraph)  ── routes, passes SelviaContext, combines results
         │        │          │           │
         ▼        ▼          ▼           ▼
-   Planning   Adaptive   Performance   AEGIS        ← agents never call each other
+   Planning   Adaptive   Performance   Security Assistant        ← agents never call each other
               Tutor (1 agent, internal modules)
         │
         ├── Neo4j (course + student knowledge graphs)
@@ -103,7 +103,7 @@ Rules:
 2. The Core Backend never imports AI code and has no LLM libraries.
 3. Every AI request enters through the Orchestrator. Known actions route deterministically (no LLM
    needed); open questions (lecturer chat) use the LLM router.
-4. Agent-to-agent work (e.g. AEGIS → Tutor → AEGIS) is an Orchestrator workflow.
+4. Agent-to-agent work (e.g. Security Assistant → Tutor → Security Assistant) is an Orchestrator workflow.
 5. The Core Backend owns the database schema (Alembic). The AI Backend writes only to: agent run
    results, LangGraph checkpoints, and Neo4j.
 
@@ -180,7 +180,7 @@ J26-SE-363/
 │   │   │   │   │       context, knowledge_identification, evidence, learner_model,
 │   │   │   │   │       decision_engine, assessment, feedback, adaptation
 │   │   │   │   ├── performance_assessment/    (protected, unchanged)
-│   │   │   │   └── aegis/  agent.py, schemas.py
+│   │   │   │   └── security_assistant/  agent.py, schemas.py
 │   │   │   ├── knowledge_graph/               NEW  Neo4j client + course/student graph access
 │   │   │   ├── integrations/mcp/              MOVE from agentic_framework/mcp/
 │   │   │   ├── tasks/                         background job handlers → orchestrator/agents
@@ -257,16 +257,16 @@ Worker: @agent_task wrapper → mark running → Orchestrator/Agent → save out
 React polls GET /api/v1/agent-runs/{run_id}; Core stores the result in its domain tables
 ```
 
-### 7.4 Agent-to-agent (example: AEGIS finding → Tutor → AEGIS)
+### 7.4 Agent-to-agent (example: Security Assistant finding → Tutor → Security Assistant)
 
 ```text
-AEGIS result says "student must understand SQL injection"
+Security Assistant result says "student must understand SQL injection"
   → Orchestrator workflow security_learning:
        Tutor.create_comprehension_check → (student answers later) → Tutor.evaluate
-       → AEGIS.update_finding(remediation_understood=True)
+       → SecurityAssistant.update_finding(remediation_understood=True)
 ```
 
-AEGIS only returns a result; it never imports or calls the Tutor.
+Security Assistant only returns a result; it never imports or calls the Tutor.
 
 ## 8. Ownership
 
@@ -284,7 +284,7 @@ AEGIS only returns a result; it never imports or calls the Tutor.
 | Performance assessment | Sadeesha Sathsara |
 | Adaptive tutor | Nipun Dhananjaya |
 | Project planning | ? |
-| AEGIS security | ? |
+| Security Assistant security | ? |
 
 ## 9. Protected performance folder
 

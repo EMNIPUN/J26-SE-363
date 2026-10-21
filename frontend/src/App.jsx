@@ -10,11 +10,27 @@ import { AuthProvider } from './shared/auth/AuthContext.jsx'
 import { ScopeProvider } from './shared/context/ScopeContext.jsx'
 import { useAuth } from './shared/auth/useAuth.js'
 import RequireAuth from './shared/auth/RequireAuth.jsx'
+import RequireAccount from './shared/auth/RequireAccount.jsx'
 import RequireRole from './shared/auth/RequireRole.jsx'
 import DashboardShell from './shared/layout/DashboardShell.jsx'
+import HubLayout from './shared/layout/HubLayout.jsx'
 import TeamScopeGuard from './shared/layout/TeamScopeGuard.jsx'
+import TeamAccessPage from './shared/github/TeamAccessPage.jsx'
+import GithubPopupDone from './shared/github/GithubPopupDone.jsx'
 import TeamScopeRedirect from './shared/layout/TeamScopeRedirect.jsx'
 import NotFound from './shared/pages/NotFound.jsx'
+import OnboardingPage from './shared/pages/onboarding/OnboardingPage.jsx'
+import HomePage from './shared/pages/home/HomePage.jsx'
+import TeamSetupPage from './shared/pages/teams/TeamSetupPage.jsx'
+import TeamMembersPage from './shared/pages/teams/TeamMembersPage.jsx'
+import InvitationPage from './shared/pages/invitations/InvitationPage.jsx'
+import TeamsPage from './shared/pages/teams/TeamsPage.jsx'
+import ProfileLayout from './shared/pages/profile/ProfileLayout.jsx'
+import ProfilePage from './shared/pages/profile/ProfilePage.jsx'
+import SecurityPage from './shared/pages/profile/SecurityPage.jsx'
+import MyTeamsPage from './shared/pages/profile/MyTeamsPage.jsx'
+import NotificationSettingsPage from './shared/pages/profile/NotificationSettingsPage.jsx'
+import NotificationsPage from './shared/pages/notifications/NotificationsPage.jsx'
 import StudentHome from './shared/pages/dashboards/StudentHome.jsx'
 import InstructorHome from './shared/pages/dashboards/InstructorHome.jsx'
 import AdminHome from './shared/pages/dashboards/AdminHome.jsx'
@@ -37,7 +53,7 @@ function RootRedirect() {
     return <div className="min-h-screen bg-background" />
   }
 
-  return <Navigate to="/app" replace />
+  return <Navigate to="/home" replace />
 }
 
 function RoleDashboard() {
@@ -61,13 +77,42 @@ function AppContent() {
       <SplashScreen isBuffering={isBuffering} />
       <Routes>
         <Route path="/login" element={<RootRedirect />} />
+        {/* The small window GitHub ends on; it reports back to the window that opened it and closes */}
+        <Route path="/github/popup-done" element={<GithubPopupDone />} />
 
         <Route element={<RequireAuth />}>
+          {/* First sign-in: choose student or lecturer and give the details */}
+          <Route element={<RequireAccount onboarding />}>
+            <Route path="/onboarding" element={<OnboardingPage />} />
+          </Route>
+
+          <Route element={<RequireAccount />}>
+          {/* The check in front of a team: GitHub sends people back here, and a student reaches the dashboard only through it */}
+          <Route path="/teams/:teamId/access" element={<TeamAccessPage />} />
+          {/* Before a team's workspace: the team list, creating a team, invitations, profile */}
+          <Route element={<HubLayout />}>
+            <Route path="/home" element={<HomePage />} />
+            <Route path="/teams" element={<TeamsPage />} />
+            <Route element={<RequireRole allowedRoles={['instructor']} />}>
+              <Route path="/teams/new" element={<TeamSetupPage />} />
+              <Route path="/teams/new/:code" element={<TeamSetupPage />} />
+            </Route>
+            <Route path="/invitations" element={<InvitationPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/profile" element={<ProfileLayout />}>
+              <Route index element={<ProfilePage />} />
+              <Route path="security" element={<SecurityPage />} />
+              <Route path="teams" element={<MyTeamsPage />} />
+              <Route path="notifications" element={<NotificationSettingsPage />} />
+            </Route>
+          </Route>
+
           <Route element={<DashboardShell />}>
             {/* Team-Scoped Core Application Routes */}
             <Route path="/teams/:teamId" element={<TeamScopeGuard />}>
               <Route index element={<RoleDashboard />} />
               <Route path="app" element={<RoleDashboard />} />
+              <Route path="members" element={<TeamMembersPage />} />
               <Route path="planning/*" element={<PlanningRoutes />} />
               <Route path="performance/*" element={<PerformanceRoutes />} />
               <Route path="tutor/*" element={<TutorRoutes />} />
@@ -91,6 +136,7 @@ function AppContent() {
             <Route path="/instructor" element={<Navigate to="/app" replace />} />
 
             <Route path="*" element={<NotFound />} />
+          </Route>
           </Route>
         </Route>
 

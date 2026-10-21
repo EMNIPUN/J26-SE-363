@@ -1,0 +1,24 @@
+{
+ "final": [
+  "roberta",
+  "emb",
+  "logistic",
+  "7"
+ ],
+ "params": {
+  "C": 31.622776601683793
+ },
+ "rule": {
+  "best logistic": "roberta",
+  "best complex": "roberta + forest",
+  "AUC gain": 0.0036,
+  "95% interval": [
+   -0.0089,
+   0.0175
+  ],
+  "folds better (of 5)": 4,
+  "keep complex head": false
+ },
+ "external_auc": 0.5567250519134653,
+ "cv_auc": 0.7006840016708438
+}

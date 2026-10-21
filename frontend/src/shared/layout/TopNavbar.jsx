@@ -1,10 +1,11 @@
 import { Fragment, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ChevronRight, Search, LogOut, Menu } from 'lucide-react'
 import { useAuth } from '../auth/useAuth.js'
 import { getRoleLabel } from '../constants/roles.js'
 import Avatar from '../components/Avatar.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
-import NotificationDropdown from '../components/NotificationDropdown.jsx'
+import NotificationBell from '../components/NotificationBell.jsx'
 import CommandPalette from '../components/CommandPalette.jsx'
 import SelviaLogo from '../components/SelviaLogo.jsx'
 import ScopeSelector from '../components/ScopeSelector.jsx'
@@ -43,7 +44,9 @@ export default function TopNavbar({ onToggleMobileMenu, sidebarCollapsed = false
           </ShadcnButton>
         )}
 
-        <SelviaLogo size={32} showText={!sidebarCollapsed} />
+        <Link to="/home" aria-label="All teams" className="outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
+          <SelviaLogo size={32} showText={!sidebarCollapsed} />
+        </Link>
       </div>
 
       <div className="h-5 w-px bg-border/60 hidden md:block" />
@@ -91,7 +94,7 @@ export default function TopNavbar({ onToggleMobileMenu, sidebarCollapsed = false
 
         <ThemeToggle />
 
-        <NotificationDropdown />
+        <NotificationBell />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -100,13 +103,13 @@ export default function TopNavbar({ onToggleMobileMenu, sidebarCollapsed = false
               className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted/60 transition-all duration-150 active:scale-[0.98] cursor-pointer outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="Account menu"
             >
-              <Avatar name={user?.name} size={32} />
+              <Avatar name={user?.name} picture={user?.picture} size={32} />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64 animate-scale-in">
             <DropdownMenuLabel className="font-normal">
               <div className="flex items-center gap-3 py-1">
-                <Avatar name={user?.name} size={36} />
+                <Avatar name={user?.name} picture={user?.picture} size={36} />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-foreground">{user?.name}</p>
                   {user?.email && (

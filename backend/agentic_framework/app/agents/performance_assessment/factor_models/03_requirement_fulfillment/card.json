@@ -1,0 +1,22 @@
+{
+  "factor": "requirement_fulfillment",
+  "title": "Requirement Fulfillment",
+  "measures": "Whether the code the student wrote for each of their tasks meets the task's acceptance criteria.",
+  "inputs": ["the student's tasks with acceptance criteria (Scrum board)", "the student's own cleaned changed lines (never a teammate's code)"],
+  "computation": "A LangGraph sub-agent judges every criterion with student-only tools (search their changes, read a hunk) and gives a verdict (met / partly / not met / cannot tell) citing the lines it saw; a critic of another model family challenges verdicts; plain code rejects a 'met' or 'partly' without valid cited lines. Criterion values met 1, partly 0.5, otherwise 0; task value = mean; sprint score = mean over the student's tasks. Tasks not started cost no model call and count 0.",
+  "output_scale": "0 = nothing of the criteria implemented, 1 = every criterion met.",
+  "gates": ["Provisional: only tasks that are Done or In Review are judged.", "Not available without a language-model client or when no task has acceptance criteria."],
+  "validation": "Development smoke on 10 tasks of a synthetic benchmark only: the critic version had task-level MAE 0.34. No held-out run was completed (language-model daily limits). The band reported is therefore rough, and the score should be read as an AI judgement to be sampled by a lecturer.",
+  "limits": ["Depends on a language model; verdicts can be wrong or inconsistent between runs.", "Sees only the student's changes, not the code around them, so a criterion implemented in a teammate's file is not credited.", "Acceptance criteria written vaguely produce vague verdicts."],
+  "warnings": {
+    "could not be decided": "Some criteria came back 'cannot tell': the agent was not shown enough code.",
+    "not judged": "A task failed (model quota or error) and is not in the score.",
+    "provisional": "Only finished tasks were judged."
+  },
+  "typical_problems": [
+    {"symptom": "task value 0 although the student says it is done", "likely_cause": "commits are not linked to the task, or the work is in a teammate's commits", "remedy": "refetch_evidence"},
+    {"symptom": "many cannot-tell verdicts", "likely_cause": "large diffs or generated files hide the relevant code", "remedy": "exclude_generated_commits"},
+    {"symptom": "score changes a lot between two runs on the same evidence", "likely_cause": "model variance on borderline criteria", "remedy": "escalate_to_human"}
+  ],
+  "allowed_remedies": ["refetch_evidence", "exclude_generated_commits", "mark_not_available", "escalate_to_human"]
+}

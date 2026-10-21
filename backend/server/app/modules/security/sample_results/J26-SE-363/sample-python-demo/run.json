@@ -1,0 +1,60 @@
+{
+  "manifest_version": "run-manifest-v1",
+  "repo": "vuln_py_repo",
+  "commit_sha": null,
+  "trigger": "manual",
+  "scan_type": "reused-scan",
+  "started_at": "2026-10-20T16:03:26Z",
+  "finished_at": "2026-10-20T16:03:28Z",
+  "checkout": {
+    "kind": "local-folder",
+    "read_only": true,
+    "deleted_after": false,
+    "code_executed": false
+  },
+  "tools": [
+    {
+      "tool": "config-scan",
+      "version": "builtin"
+    },
+    {
+      "tool": "gitleaks",
+      "version": "8.24.0"
+    },
+    {
+      "tool": "trufflehog",
+      "version": "trufflehog 3.88.0"
+    },
+    {
+      "tool": "osv-scanner",
+      "version": "osv-scanner version: 2.0.0"
+    },
+    {
+      "tool": "npm-audit",
+      "version": null
+    },
+    {
+      "tool": "pip-audit",
+      "version": "pip-audit 2.10.1"
+    },
+    {
+      "tool": "actionlint",
+      "version": "1.7.7"
+    },
+    {
+      "tool": "zizmor",
+      "version": "zizmor 1.5.2"
+    },
+    {
+      "tool": "codeql",
+      "version": "CodeQL command-line toolchain release 2.20.0."
+    }
+  ],
+  "llm": {
+    "model": "mock-model",
+    "temperature": 0.0,
+    "seed": null,
+    "interpreter_prompt": "interpreter-v4",
+    "trace_prompt": "trace-v1"
+  }
+}

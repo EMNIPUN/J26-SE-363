@@ -164,7 +164,7 @@ export default function Chat() {
                   <div className="max-w-[90%] rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-sm text-primary-foreground whitespace-pre-line">
                     {message.content}
                   </div>
-                  <Avatar name={user?.name} size={32} />
+                  <Avatar name={user?.name} picture={user?.picture} size={32} />
                 </div>
               ),
             )}
@@ -202,7 +202,8 @@ export default function Chat() {
                   key={prompt}
                   type="button"
                   onClick={() => send(prompt)}
-                  className="shrink-0 rounded-full border border-border px-3 py-1 text-xs hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                  disabled={Boolean(pending)}
+                  className="shrink-0 disabled:pointer-events-none disabled:opacity-50 rounded-full border border-border px-3 py-1 text-xs hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {prompt}
                 </button>
@@ -233,7 +234,13 @@ export default function Chat() {
                 placeholder="Ask a software engineering question, or ask about the sample task."
                 className="min-h-11 flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
-              <Button type="submit" size="icon" disabled={!input.trim() || Boolean(pending)} aria-label="Send message">
+              <Button
+                type="submit"
+                size="icon"
+                loading={Boolean(pending)}
+                disabled={!input.trim()}
+                aria-label="Send message"
+              >
                 <SendHorizontal className="h-4 w-4" />
               </Button>
             </form>

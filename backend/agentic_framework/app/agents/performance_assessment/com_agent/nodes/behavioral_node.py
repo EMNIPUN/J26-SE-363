@@ -3,89 +3,65 @@
 Strictly aligned with:
 - BOARD.md T5.6 (T5.6.1)
 - PLAN.md Section 9 Node 7 (run_behavioral_pattern_node)
-- User Constraint: Uses RAW uncapped code ownership (ko_raw_score), never capped score.
+
+The node only gathers the inputs and writes the result into the state. The rules, the thresholds and the modifier live in ``factor_models/06_behavioral_pattern``
+(``rules.py``, ``thresholds.json``) and are reached through the factor bridge; nothing about the patterns is decided here.
+
+A score the agent could not compute (the factor fell back or is missing, for example Collaboration when nobody in the team reviewed in the sprint) is passed on as ``None``:
+the rules that need it are then reported as not testable, never fed a typical value.
 """
 
 import logging
-from typing import Dict, Any, Tuple
-from app.agents.performance_assessment.com_agent.state import FactorOutput
+from typing import Any, Dict, Optional
+
 from app.agents.performance_assessment.com_agent.factor_bridge import classify_persona_via_bridge
 
 logger = logging.getLogger(__name__)
 
 
-def classify_persona(signals: Dict[str, float]) -> Tuple[str, float]:
-    """Classify student into one of 5 contributor archetypes.
+def _score_or_none(factor_scores: Dict[str, Any], name: str) -> Optional[float]:
+    """The factor's score, or None when it is absent or was not really computed (fallback / missing)."""
+    val = factor_scores.get(name)
+    if val is None:
+        return None
+    status = getattr(val, "status", None) if not isinstance(val, dict) else val.get("status")
+    if status in ("fallback_applied", "missing"):
+        return None
+    score = getattr(val, "score", None) if not isinstance(val, (dict, int, float)) else (val.get("score") if isinstance(val, dict) else val)
+    return None if score is None else float(score)
 
-    Returns:
-        (persona_name, bp_modifier) where bp_modifier in [0.80, 1.20]
-    """
-    effort = signals.get("effort", 0.5)
-    consistency = signals.get("consistency", 0.5)
-    collaboration = signals.get("collaboration", 0.5)
-    ko_raw = signals.get("ko_raw", 0.5)
 
-    if effort >= 0.70 and consistency >= 0.60 and ko_raw >= 0.65:
-        return "Consistent Builder", 1.10
-    elif collaboration >= 0.70 and effort >= 0.45:
-        return "Collaborative Harmonizer", 1.05
-    elif effort >= 0.60 and consistency < 0.35:
-        return "Deadline Rusher", 0.90
-    elif effort < 0.30 and collaboration < 0.30:
-        return "Disengaged Contributor", 0.85
-    else:
-        return "Balanced Contributor", 1.00
+def _bimodal_flag(factor_scores: Dict[str, Any]) -> Optional[int]:
+    val = factor_scores.get("consistency")
+    feats = getattr(val, "features", None) if not isinstance(val, dict) else val.get("features")
+    for key in ("C_bimodal", "is_bimodal", "bimodal"):
+        if isinstance(feats, dict) and feats.get(key) in (0, 1, True, False):
+            return int(bool(feats[key]))
+    return None
+
+
+def _late_churn(factor_scores: Dict[str, Any]) -> Optional[float]:
+    """The Consistency package's late-churn share (C_DC), only for a student who had activity (no activity gives the worst value by construction)."""
+    val = factor_scores.get("consistency")
+    feats = getattr(val, "features", None) if not isinstance(val, dict) else val.get("features")
+    if not isinstance(feats, dict) or feats.get("C_no_activity") in (1, True) or feats.get("C_DC") is None:
+        return None
+    return float(feats["C_DC"])
 
 
 async def run_behavioral_pattern_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    """T5.6.1: Node 7 — Behavioral Pattern Persona Classifier.
-
-    Collects effort, consistency, collaboration, and RAW uncapped ko_raw_score.
-    Determines contributor archetype and sets behavioral_modifier in [0.80, 1.20].
-    """
+    """T5.6.1: Node 7 — Behavioral Pattern classifier. Sets behavioral_persona and behavioral_modifier (within 0.80-1.20, enforced by the rules)."""
     factor_scores: Dict[str, Any] = state.get("factor_scores", {})
-
-    def _get_score(name: str) -> float:
-        val = factor_scores.get(name)
-        if val is None:
-            return 0.5
-        if hasattr(val, "score"):
-            return float(getattr(val, "score"))
-        if isinstance(val, dict):
-            return float(val.get("score", 0.5))
-        return float(val)
-
-    effort = _get_score("effort")
-    consistency = _get_score("consistency")
-    collaboration = _get_score("collaboration")
-
-    # Explicitly use RAW uncapped score per design specification
-    ko_raw = state.get("ko_raw_score")
-    if ko_raw is None:
-        ko_val = factor_scores.get("code_ownership")
-        if ko_val and hasattr(ko_val, "features"):
-            ko_raw = ko_val.features.get("ko_raw_score")
-        elif isinstance(ko_val, dict):
-            ko_raw = ko_val.get("features", {}).get("ko_raw_score")
-        if ko_raw is None:
-            ko_raw = _get_score("code_ownership")
-
-    ko_raw = float(ko_raw) if ko_raw is not None else 0.5
-
     signals = {
-        "effort": effort,
-        "consistency": consistency,
-        "collaboration": collaboration,
-        "ko_raw": ko_raw,
+        "effort": _score_or_none(factor_scores, "effort"),
+        "consistency": _score_or_none(factor_scores, "consistency"),
+        "collaboration": _score_or_none(factor_scores, "collaboration"),
+        "is_bimodal": _bimodal_flag(factor_scores),
+        "late_churn": _late_churn(factor_scores),
     }
-
-    persona, modifier = classify_persona(signals)
-
-    # Clamping guarantee [0.80, 1.20]
-    modifier = max(0.80, min(1.20, float(modifier)))
-
+    persona, modifier, _rationale = await classify_persona_via_bridge(signals, context=state)
     return {
         "behavioral_persona": persona,
-        "behavioral_modifier": round(modifier, 4),
+        "behavioral_modifier": round(max(0.80, min(1.20, float(modifier))), 4),
         "current_step": "behavioral_pattern_classified",
     }

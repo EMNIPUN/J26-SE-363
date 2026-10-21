@@ -1,0 +1,20 @@
+{
+  "scan": {"source": "vuln_py_repo", "commit_sha": null, "started_at": "2026-10-19 09:00:00 UTC", "languages": ["python", "javascript"],
+           "complete": true, "skipped_tools": [], "warnings": []},
+  "coverage": {},
+  "runs": [
+    {"tool": "osv-scanner", "status": "succeeded", "tool_version": "2.0.0", "started_at": "2026-10-19T09:00:07Z", "duration_s": 5.1, "findings_count": 4},
+    {"tool": "pip-audit", "status": "succeeded", "tool_version": "2.10.1", "started_at": "2026-10-19T09:00:12Z", "duration_s": 3.0, "findings_count": 2},
+    {"tool": "npm-audit", "status": "succeeded", "tool_version": "9.2.0", "started_at": "2026-10-19T09:00:12Z", "duration_s": 3.0, "findings_count": 1}
+  ],
+  "findings": [
+    {"category": "V5", "tool": "osv-scanner", "rule_id": "PYSEC-2018-28", "cwe": "CWE-1104", "file_path": "requirements.txt", "sink": "requests@2.19.0 (PyPI)", "message": "CVE-2018-18074: Authorization header leaked on redirect"},
+    {"category": "V5", "tool": "osv-scanner", "rule_id": "GHSA-x84v-xcm2-53pg", "cwe": "CWE-522", "file_path": "requirements.txt", "sink": "requests@2.19.0 (PyPI)", "severity_tool": "HIGH", "message": "Requests vulnerable to credential leak"},
+    {"category": "V5", "tool": "pip-audit", "rule_id": "PYSEC-2018-28", "cwe": "CWE-1104", "file_path": "requirements.txt", "sink": "requests==2.19.0", "message": "CVE-2018-18074: leak (fix: 2.20.0)"},
+    {"category": "V5", "tool": "osv-scanner", "rule_id": "PYSEC-2023-62", "cwe": "CWE-1104", "file_path": "requirements.txt", "sink": "flask@1.0 (PyPI)", "message": "CVE-2023-30861: cookie set on cached responses"},
+    {"category": "V5", "tool": "pip-audit", "rule_id": "PYSEC-2023-62", "cwe": "CWE-1104", "file_path": "requirements.txt", "sink": "flask==1.0", "message": "CVE-2023-30861: cookie (fix: 2.2.5)"},
+    {"category": "V5", "tool": "npm-audit", "rule_id": "1106913", "cwe": "CWE-1321", "file_path": "package-lock.json", "sink": "lodash <4.17.21", "severity_tool": "high", "message": "Prototype Pollution in lodash"},
+    {"category": "V5", "tool": "osv-scanner", "rule_id": "GHSA-p6mc-m468-83gw", "cwe": "CWE-1321", "file_path": "package-lock.json", "sink": "lodash@4.17.15 (npm)", "severity_tool": "HIGH", "message": "Prototype Pollution in lodash"},
+    {"category": "V3", "tool": "config-scan", "rule_id": "security-assistant-cfg-005", "cwe": "CWE-916", "file_path": "app.py", "line": 13, "message": "Weak or unsalted password hashing / password encoder"}
+  ]
+}

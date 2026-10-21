@@ -1,0 +1,7 @@
+ref_pattern,n,E_median,C_median,C_p25,Co_available,Co_median,bimodal_share
+Balanced contributor,43,0.324,0.331,0.248,0.442,0.25,0.14
+Burst worker,65,0.492,0.33,0.27,0.354,0.25,0.323
+Consistent deep contributor,56,0.583,0.544,0.467,0.482,0.25,0.018
+Free rider,56,0.021,0.0,0.0,0.232,0.0,0.0
+Last-minute rusher,52,0.358,0.21,0.124,0.519,0.25,0.019
+Reviewer or coordinator,27,0.362,0.204,0.028,0.815,0.732,0.111

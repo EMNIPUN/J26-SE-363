@@ -1,0 +1,2 @@
+pr_id,team_id,kind,author_id,pr_author_id,created_at,sprint_id,is_reply,mentions,body,body_words
+a5e1e34647,T11,discussion,STU-017,STU-017,2026-04-16T17:33:11Z,T11-S2,0,1,@user resolve the merge conflicts in this pull request,9

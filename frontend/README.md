@@ -125,7 +125,7 @@ src/
 │   ├── planning/        # Requirements engineering & estimation
 │   ├── performance/     # Student progress & instructor assessments
 │   ├── tutor/           # Adaptive AI tutoring
-│   ├── security/        # AEGIS security reviews
+│   ├── security/        # Security Assistant reviews
 │   └── admin/           # Platform user & settings management
 ├── lib/
 │   └── utils.js         # cn() utility helper (clsx + tailwind-merge)

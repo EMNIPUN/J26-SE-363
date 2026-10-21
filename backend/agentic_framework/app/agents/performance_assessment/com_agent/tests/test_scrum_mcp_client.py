@@ -56,16 +56,30 @@ async def test_mock_scrum_client_task_status_history():
     assert missing_history == []
 
 @pytest.mark.asyncio
-async def test_real_scrum_client_raises_not_implemented():
-    client = RealScrumMCPClient()
-    with pytest.raises(NotImplementedError):
-        await client.get_sprint_details("sprint-02")
-    with pytest.raises(NotImplementedError):
-        await client.get_student_tasks("sprint-02", "STU-001")
-    with pytest.raises(NotImplementedError):
-        await client.get_task_acceptance_criteria("TASK-101")
-    with pytest.raises(NotImplementedError):
-        await client.get_task_status_history("TASK-101")
+async def test_real_scrum_client_talks_to_the_mcp_server_over_stdio():
+    """Starts the real Scrum MCP server script as a subprocess and calls every tool through the MCP protocol (data: the course dataset)."""
+    async with RealScrumMCPClient() as scrum:
+        roster = await scrum.get_team_roster("T01")
+        assert {"student_id": "STU-014", "team_id": "T01"} in roster
+        sprints = await scrum.list_sprints("T01")
+        assert sprints and sprints[0]["sprint_id"] == "T01-S1" and sprints[0]["start_date"]
+        details = await scrum.get_sprint_details("T01-S1")
+        assert details["total_story_points"] >= details["completed_story_points"] > 0
+        tasks = await scrum.get_student_tasks("T01-S1", "STU-014")
+        assert tasks and all(t["student_id"] == "STU-014" for t in tasks)
+        crit = await scrum.get_task_acceptance_criteria("T01-001")
+        assert len(crit["acceptance_criteria"]) == 4 and crit["acceptance_criteria"][1].startswith("Passwords are hashed")
+        hist = await scrum.get_task_status_history("T01-001")
+        assert hist[0]["source"] == "final_status_only"  # the export has no transitions and says so
+        assert (await scrum.get_student_tasks("T01-S1", "STU-NOBODY")) == []
+        assert (await scrum.get_task_acceptance_criteria("NOPE"))["acceptance_criteria"] == []
+
+
+@pytest.mark.asyncio
+async def test_real_scrum_client_works_without_a_long_lived_session():
+    roster = await RealScrumMCPClient().get_team_roster("T02")
+    assert roster and all(r["team_id"] == "T02" for r in roster)
+
 
 def test_scrum_client_factory():
     client_dev = get_scrum_client(is_dev=True)

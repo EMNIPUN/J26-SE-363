@@ -44,6 +44,8 @@ def main(queues: list[str] | None = None) -> None:
             worker = app.run_worker_async(
                 queues=queues,
                 install_signal_handlers=True,
+                listen_notify=False,
+                fetch_job_polling_interval=2.0,
             )
             await worker
 

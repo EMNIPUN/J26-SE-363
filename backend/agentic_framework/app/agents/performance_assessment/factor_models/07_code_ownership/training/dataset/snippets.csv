@@ -1,0 +1,515 @@
+snippet_id,source,function,counted_lines,question_type,code,question,reference_criteria,facts
+K001,cpython/Lib/_pydatetime.py,fromutc,20,guard,"    def fromutc(self, dt):
+
+        if not isinstance(dt, datetime):
+            raise TypeError(""fromutc() requires a datetime argument"")
+        if dt.tzinfo is not self:
+            raise ValueError(""dt.tzinfo is not self"")
+
+        dtoff = dt.utcoffset()
+        if dtoff is None:
+            raise ValueError(""fromutc() requires a non-None utcoffset() ""
+                             ""result"")
+
+        dtdst = dt.dst()
+        if dtdst is None:
+            raise ValueError(""fromutc() requires a non-None dst() result"")
+        delta = dtoff - dtdst
+        if delta:
+            dt += delta
+            dtdst = dt.dst()
+            if dtdst is None:
+                raise ValueError(""fromutc(): dt.dst gave inconsistent ""
+                                 ""results; cannot convert"")
+        return dt + dtdst","In fromutc, what happens when `not isinstance(dt, datetime)` is true, and why is that case rejected?","[""Says that TypeError is raised when not isinstance(dt, datetime)"", ""Explains why that input cannot be processed or would give a wrong result""]","{""name"": ""fromutc"", ""params"": [""dt""], ""guards"": [{""cond"": ""not isinstance(dt, datetime)"", ""raises"": ""TypeError""}, {""cond"": ""dt.tzinfo is not self"", ""raises"": ""ValueError""}, {""cond"": ""dtoff is None"", ""raises"": ""ValueError""}, {""cond"": ""dtdst is None"", ""raises"": ""ValueError""}, {""cond"": ""dtdst is None"", ""raises"": ""ValueError""}], ""handlers"": [], ""early_returns"": [], ""loops"": [], ""calls"": [""TypeError"", ""ValueError"", ""dt.utcoffset"", ""dt.dst""], ""returns"": [""dt + dtdst""], ""recursive"": false}"
+K002,cpython/Lib/wsgiref/handlers.py,_validate_status,9,guard,"    def _validate_status(self, status):
+        if _name_disallowed_re.search(status):
+            raise ValueError(""Control characters are not allowed in status"")
+        if len(status) < 4:
+            raise AssertionError(""Status must be at least 4 characters"")
+        if not status[:3].isdigit():
+            raise AssertionError(""Status message must begin w/3-digit code"")
+        if status[3] != "" "":
+            raise AssertionError(""Status message must have a space after code"")","In _validate_status, what happens when `_name_disallowed_re.search(status)` is true, and why is that case rejected?","[""Says that ValueError is raised when _name_disallowed_re.search(status)"", ""Explains why that input cannot be processed or would give a wrong result""]","{""name"": ""_validate_status"", ""params"": [""status""], ""guards"": [{""cond"": ""_name_disallowed_re.search(status)"", ""raises"": ""ValueError""}, {""cond"": ""len(status) < 4"", ""raises"": ""AssertionError""}, {""cond"": ""not status[:3].isdigit()"", ""raises"": ""AssertionError""}, {""cond"": ""status[3] != ' '"", ""raises"": ""AssertionError""}], ""handlers"": [], ""early_returns"": [], ""loops"": [], ""calls"": [""_name_disallowed_re.search"", ""ValueError"", ""AssertionError"", ""status[:3].isdigit""], ""returns"": [], ""recursive"": false}"
+K003,cpython/Lib/multiprocessing/sharedctypes.py,Value,10,guard,"def Value(typecode_or_type, *args, lock=True, ctx=None):
+    obj = RawValue(typecode_or_type, *args)
+    if lock is False:
+        return obj
+    if lock in (True, None):
+        ctx = ctx or get_context()
+        lock = ctx.RLock()
+    if not hasattr(lock, 'acquire'):
+        raise AttributeError(""%r has no method 'acquire'"" % lock)
+    return synchronized(obj, lock, ctx=ctx)","In Value, what happens when `not hasattr(lock, 'acquire')` is true, and why is that case rejected?","[""Says that AttributeError is raised when not hasattr(lock, 'acquire')"", ""Explains why that input cannot be processed or would give a wrong result""]","{""name"": ""Value"", ""params"": [""typecode_or_type"", ""lock"", ""ctx""], ""guards"": [{""cond"": ""not hasattr(lock, 'acquire')"", ""raises"": ""AttributeError""}], ""handlers"": [], ""early_returns"": [{""cond"": ""lock is False"", ""value"": ""obj""}], ""loops"": [], ""calls"": [""RawValue"", ""get_context"", ""ctx.RLock"", ""hasattr"", ""AttributeError"", ""synchronized""], ""returns"": [""obj"", ""synchronized(obj, lock, ctx=ctx)""], ""recursive"": false}"
+K004,cpython/Lib/bdb.py,get_bpbynumber,14,guard,"    def get_bpbynumber(self, arg):
+        if not arg:
+            raise ValueError('Breakpoint number expected')
+        try:
+            number = int(arg)
+        except ValueError:
+            raise ValueError('Non-numeric breakpoint number %s' % arg) from None
+        try:
+            bp = Breakpoint.bpbynumber[number]
+        except IndexError:
+            raise ValueError('Breakpoint number %d out of range' % number) from None
+        if bp is None:
+            raise ValueError('Breakpoint %d already deleted' % number)
+        return bp","In get_bpbynumber, what happens when `not arg` is true, and why is that case rejected?","[""Says that ValueError is raised when not arg"", ""Explains why that input cannot be processed or would give a wrong result""]","{""name"": ""get_bpbynumber"", ""params"": [""arg""], ""guards"": [{""cond"": ""not arg"", ""raises"": ""ValueError""}, {""cond"": ""bp is None"", ""raises"": ""ValueError""}], ""handlers"": [{""exc"": ""ValueError"", ""then"": ""re-raises""}, {""exc"": ""IndexError"", ""then"": ""re-raises""}], ""early_returns"": [], ""loops"": [], ""calls"": [""ValueError""], ""returns"": [""bp""], ""recursive"": false}"
+K005,cpython/Lib/importlib/util.py,_find_spec_from_path,15,guard,"def _find_spec_from_path(name, path=None):
+    if name not in sys.modules:
+        return _find_spec(name, path)
+    else:
+        module = sys.modules[name]
+        if module is None:
+            return None
+        try:
+            spec = module.__spec__
+        except AttributeError:
+            raise ValueError(f'{name}.__spec__ is not set') from None
+        else:
+            if spec is None:
+                raise ValueError(f'{name}.__spec__ is None')
+            return spec","In _find_spec_from_path, what happens when `spec is None` is true, and why is that case rejected?","[""Says that ValueError is raised when spec is None"", ""Explains why that input cannot be processed or would give a wrong result""]","{""name"": ""_find_spec_from_path"", ""params"": [""name"", ""path""], ""guards"": [{""cond"": ""spec is None"", ""raises"": ""ValueError""}], ""handlers"": [{""exc"": ""AttributeError"", ""then"": ""re-raises""}], ""early_returns"": [{""cond"": ""name not in sys.modules"", ""value"": ""_find_spec(name, path)""}, {""cond"": ""module is None"", ""value"": ""None""}], ""loops"": [], ""calls"": [""_find_spec"", ""ValueError""], ""returns"": [""_find_spec(name, path)"", ""None"", ""spec""], ""recursive"": false}"
+K006,cpython/Lib/pickletools.py,read_stringnl,18,guard,"def read_stringnl(f, decode=True, stripquotes=True, *, encoding='latin-1'):
+
+    data = f.readline()
+    if not data.endswith(b'\n'):
+        raise ValueError(""no newline found when trying to read stringnl"")
+    data = data[:-1]    # lose the newline
+
+    if stripquotes:
+        for q in (b'""', b""'""):
+            if data.startswith(q):
+                if not data.endswith(q):
+                    raise ValueError(""string quote %r not found at both ""
+                                     ""ends of %r"" % (q, data))
+                data = data[1:-1]
+                break
+        else:
+            raise ValueError(""no string quotes around %r"" % data)
+
+    if decode:
+        data = codecs.escape_decode(data)[0].decode(encoding)
+    return data","In read_stringnl, what happens when `not data.endswith(b'\n')` is true, and why is that case rejected?","[""Says that ValueError is raised when not data.endswith(b'\\n')"", ""Explains why that input cannot be processed or would give a wrong result""]","{""name"": ""read_stringnl"", ""params"": [""f"", ""decode"", ""stripquotes"", ""encoding""], ""guards"": [{""cond"": ""not data.endswith(b'\\n')"", ""raises"": ""ValueError""}, {""cond"": ""not data.endswith(q)"", ""raises"": ""ValueError""}], ""handlers"": [], ""early_returns"": [], ""loops"": [{""target"": ""q"", ""iter"": ""(b'\""', b\""'\"")""}], ""calls"": [""f.readline"", ""data.endswith"", ""ValueError"", ""data.startswith"", ""codecs.escape_decode(data)[0].decode"", ""codecs.escape_decode""], ""returns"": [""data""], ""recursive"": false}"
+K007,cpython/Lib/email/message.py,attach,9,handler,"    def attach(self, payload):
+        if self._payload is None:
+            self._payload = [payload]
+        else:
+            try:
+                self._payload.append(payload)
+            except AttributeError:
+                raise TypeError(""Attach is not valid on a message with a""
+                                "" non-multipart payload"")","Why does attach catch AttributeError, and what happens to the call after it is caught?","[""Says what situation raises AttributeError"", ""Says that the function re-raises afterwards""]","{""name"": ""attach"", ""params"": [""payload""], ""guards"": [], ""handlers"": [{""exc"": ""AttributeError"", ""then"": ""re-raises""}], ""early_returns"": [], ""loops"": [], ""calls"": [""self._payload.append"", ""TypeError""], ""returns"": [], ""recursive"": false}"
+K008,cpython/Lib/pickle.py,load_appends,13,handler,"    def load_appends(self):
+        items = self.pop_mark()
+        list_obj = self.stack[-1]
+        try:
+            extend = list_obj.extend
+        except AttributeError:
+            pass
+        else:
+            extend(items)
+            return
+        append = list_obj.append
+        for item in items:
+            append(item)","Why does load_appends catch AttributeError, and what happens to the call after it is caught?","[""Says what situation raises AttributeError"", ""Says that the function carries on afterwards""]","{""name"": ""load_appends"", ""params"": [], ""guards"": [], ""handlers"": [{""exc"": ""AttributeError"", ""then"": ""carries on""}], ""early_returns"": [], ""loops"": [{""target"": ""item"", ""iter"": ""items""}], ""calls"": [""self.pop_mark"", ""extend"", ""append""], ""returns"": [], ""recursive"": false}"
+K009,cpython/Lib/ssl.py,_inet_paton,20,handler,"def _inet_paton(ipname):
+    try:
+        addr = _socket.inet_aton(ipname)
+    except OSError:
+        pass
+    else:
+        if _socket.inet_ntoa(addr) == ipname:
+            return addr
+        else:
+            raise ValueError(
+                ""{!r} is not a quad-dotted IPv4 address."".format(ipname)
+            )
+
+    try:
+        return _socket.inet_pton(_socket.AF_INET6, ipname)
+    except OSError:
+        raise ValueError(""{!r} is neither an IPv4 nor an IP6 ""
+                         ""address."".format(ipname))
+    except AttributeError:
+        pass
+
+    raise ValueError(""{!r} is not an IPv4 address."".format(ipname))","Why does _inet_paton catch OSError, and what happens to the call after it is caught?","[""Says what situation raises OSError"", ""Says that the function carries on afterwards""]","{""name"": ""_inet_paton"", ""params"": [""ipname""], ""guards"": [], ""handlers"": [{""exc"": ""OSError"", ""then"": ""carries on""}, {""exc"": ""OSError"", ""then"": ""re-raises""}, {""exc"": ""AttributeError"", ""then"": ""carries on""}], ""early_returns"": [{""cond"": ""_socket.inet_ntoa(addr) == ipname"", ""value"": ""addr""}], ""loops"": [], ""calls"": [""_socket.inet_aton"", ""_socket.inet_ntoa"", ""ValueError"", ""'{!r} is not a quad-dotted IPv4 address.'.format"", ""_socket.inet_pton"", ""'{!r} is neither an IPv4 nor an IP6 address.'.format"", ""'{!r} is not an IPv4 address.'.format""], ""returns"": [""addr"", ""_socket.inet_pton(_socket.AF_INET6, ipname)""], ""recursive"": false}"
+K010,cpython/Lib/dis.py,_get_code_array,20,handler,"def _get_code_array(co, adaptive):
+    if adaptive:
+        code = co._co_code_adaptive
+        res = []
+        found = False
+        for i in range(0, len(code), 2):
+            op, arg = code[i], code[i+1]
+            if op == ENTER_EXECUTOR:
+                try:
+                    ex = get_executor(co, i)
+                except (ValueError, RuntimeError):
+                    ex = None
+
+                if ex:
+                    op, arg = ex.get_opcode(), ex.get_oparg()
+                    found = True
+
+            res.append(op.to_bytes())
+            res.append(arg.to_bytes())
+        return code if not found else b''.join(res)
+    else:
+        return co.co_code","Why does _get_code_array catch (ValueError, RuntimeError), and what happens to the call after it is caught?","[""Says what situation raises (ValueError, RuntimeError)"", ""Says that the function carries on afterwards""]","{""name"": ""_get_code_array"", ""params"": [""co"", ""adaptive""], ""guards"": [], ""handlers"": [{""exc"": ""(ValueError, RuntimeError)"", ""then"": ""carries on""}], ""early_returns"": [], ""loops"": [{""target"": ""i"", ""iter"": ""range(0, len(code), 2)""}], ""calls"": [""get_executor"", ""ex.get_opcode"", ""ex.get_oparg"", ""res.append"", ""op.to_bytes"", ""arg.to_bytes"", ""b''.join""], ""returns"": [""code if not found else b''.join(res)"", ""co.co_code""], ""recursive"": false}"
+K011,cpython/Lib/urllib/request.py,_is_local_authority,17,handler,"def _is_local_authority(authority, resolve):
+    if not authority or authority == 'localhost':
+        return True
+    try:
+        hostname = socket.gethostname()
+    except (socket.gaierror, AttributeError):
+        pass
+    else:
+        if authority == hostname:
+            return True
+    if not resolve:
+        return False
+    try:
+        address = socket.gethostbyname(authority)
+    except (socket.gaierror, AttributeError, UnicodeEncodeError):
+        return False
+    return address in FileHandler().get_names()","Why does _is_local_authority catch (socket.gaierror, AttributeError), and what happens to the call after it is caught?","[""Says what situation raises (socket.gaierror, AttributeError)"", ""Says that the function carries on afterwards""]","{""name"": ""_is_local_authority"", ""params"": [""authority"", ""resolve""], ""guards"": [], ""handlers"": [{""exc"": ""(socket.gaierror, AttributeError)"", ""then"": ""carries on""}, {""exc"": ""(socket.gaierror, AttributeError, UnicodeEncodeError)"", ""then"": ""returns False""}], ""early_returns"": [{""cond"": ""not authority or authority == 'localhost'"", ""value"": ""True""}, {""cond"": ""authority == hostname"", ""value"": ""True""}, {""cond"": ""not resolve"", ""value"": ""False""}], ""loops"": [], ""calls"": [""socket.gethostname"", ""socket.gethostbyname"", ""FileHandler().get_names"", ""FileHandler""], ""returns"": [""True"", ""False"", ""address in FileHandler().get_names()""], ""recursive"": false}"
+K012,cpython/Lib/mailbox.py,update,15,handler,"    def update(self, arg=None):
+        if hasattr(arg, 'iteritems'):
+            source = arg.iteritems()
+        elif hasattr(arg, 'items'):
+            source = arg.items()
+        else:
+            source = arg
+        bad_key = False
+        for key, message in source:
+            try:
+                self[key] = message
+            except KeyError:
+                bad_key = True
+        if bad_key:
+            raise KeyError('No message with key(s)')","Why does update catch KeyError, and what happens to the call after it is caught?","[""Says what situation raises KeyError"", ""Says that the function carries on afterwards""]","{""name"": ""update"", ""params"": [""arg""], ""guards"": [{""cond"": ""bad_key"", ""raises"": ""KeyError""}], ""handlers"": [{""exc"": ""KeyError"", ""then"": ""carries on""}], ""early_returns"": [], ""loops"": [{""target"": ""(key, message)"", ""iter"": ""source""}], ""calls"": [""hasattr"", ""arg.iteritems"", ""arg.items"", ""KeyError""], ""returns"": [], ""recursive"": false}"
+K013,cpython/Lib/inspect.py,_signature_is_functionlike,11,early_return,"def _signature_is_functionlike(obj):
+
+    if not callable(obj) or isclass(obj):
+        return False
+
+    name = getattr(obj, '__name__', None)
+    code = getattr(obj, '__code__', None)
+    defaults = getattr(obj, '__defaults__', _void) # Important to use _void ...
+    kwdefaults = getattr(obj, '__kwdefaults__', _void) # ... and not None here
+
+    return (isinstance(code, types.CodeType) and
+            isinstance(name, str) and
+            (defaults is None or isinstance(defaults, tuple)) and
+            (kwdefaults is None or isinstance(kwdefaults, dict)))","What does _signature_is_functionlike return when `not callable(obj) or isclass(obj)` holds, and why can it return at that point?","[""Says that it returns False in that case"", ""Explains why nothing more has to be done in that case""]","{""name"": ""_signature_is_functionlike"", ""params"": [""obj""], ""guards"": [], ""handlers"": [], ""early_returns"": [{""cond"": ""not callable(obj) or isclass(obj)"", ""value"": ""False""}], ""loops"": [], ""calls"": [""callable"", ""isclass"", ""getattr""], ""returns"": [""False"", ""isinstance(code, types.CodeType) and isinstance(name, str) and (defaults is None or isinstance(defaults, tuple)) and (kwdefaults is None or isinstance(kwdefaults, dict))""], ""recursive"": false}"
+K014,cpython/Lib/http/cookiejar.py,path_return_ok,11,early_return,"    def path_return_ok(self, path, request):
+        _debug(""- checking cookie path=%s"", path)
+        req_path = request_path(request)
+        pathlen = len(path)
+        if req_path == path:
+            return True
+        elif (req_path.startswith(path) and
+              (path.endswith(""/"") or req_path[pathlen:pathlen+1] == ""/"")):
+            return True
+
+        _debug(""  %s does not path-match %s"", req_path, path)
+        return False","What does path_return_ok return when `req_path == path` holds, and why can it return at that point?","[""Says that it returns True in that case"", ""Explains why nothing more has to be done in that case""]","{""name"": ""path_return_ok"", ""params"": [""path"", ""request""], ""guards"": [], ""handlers"": [], ""early_returns"": [{""cond"": ""req_path == path"", ""value"": ""True""}, {""cond"": ""req_path.startswith(path) and (path.endswith('/') or req_path[pathlen:pathlen + 1] == '/')"", ""value"": ""True""}], ""loops"": [], ""calls"": [""_debug"", ""request_path"", ""req_path.startswith"", ""path.endswith""], ""returns"": [""True"", ""False""], ""recursive"": false}"
+K015,cpython/Lib/linecache.py,lazycache,9,early_return,"def lazycache(filename, module_globals):
+    entry = cache.get(filename, None)
+    if entry is not None:
+        return len(entry) == 1
+
+    lazy_entry = _make_lazycache_entry(filename, module_globals)
+    if lazy_entry is not None:
+        cache[filename] = lazy_entry
+        return True
+    return False","What does lazycache return when `entry is not None` holds, and why can it return at that point?","[""Says that it returns len(entry) == 1 in that case"", ""Explains why nothing more has to be done in that case""]","{""name"": ""lazycache"", ""params"": [""filename"", ""module_globals""], ""guards"": [], ""handlers"": [], ""early_returns"": [{""cond"": ""entry is not None"", ""value"": ""len(entry) == 1""}], ""loops"": [], ""calls"": [""cache.get"", ""_make_lazycache_entry""], ""returns"": [""len(entry) == 1"", ""True"", ""False""], ""recursive"": false}"
+K016,cpython/Lib/multiprocessing/managers.py,convert_to_error,14,early_return,"def convert_to_error(kind, result):
+    if kind == '#ERROR':
+        return result
+    elif kind in ('#TRACEBACK', '#UNSERIALIZABLE'):
+        if not isinstance(result, str):
+            raise TypeError(
+                ""Result {0!r} (kind '{1}') type is {2}, not str"".format(
+                    result, kind, type(result)))
+        if kind == '#UNSERIALIZABLE':
+            return RemoteError('Unserializable message: %s\n' % result)
+        else:
+            return RemoteError(result)
+    else:
+        return ValueError('Unrecognized message type {!r}'.format(kind))","What does convert_to_error return when `kind == '#ERROR'` holds, and why can it return at that point?","[""Says that it returns result in that case"", ""Explains why nothing more has to be done in that case""]","{""name"": ""convert_to_error"", ""params"": [""kind"", ""result""], ""guards"": [{""cond"": ""not isinstance(result, str)"", ""raises"": ""TypeError""}], ""handlers"": [], ""early_returns"": [{""cond"": ""kind == '#ERROR'"", ""value"": ""result""}, {""cond"": ""kind == '#UNSERIALIZABLE'"", ""value"": ""RemoteError('Unserializable message: %s\\n' % result)""}], ""loops"": [], ""calls"": [""TypeError"", ""\""Result {0!r} (kind '{1}') type is {2}, not str\"".format"", ""type"", ""RemoteError"", ""ValueError"", ""'Unrecognized message type {!r}'.format""], ""returns"": [""result"", ""RemoteError('Unserializable message: %s\\n' % result)"", ""RemoteError(result)"", ""ValueError('Unrecognized message type {!r}'.format(kind))""], ""recursive"": false}"
+K017,cpython/Lib/multiprocessing/popen_forkserver.py,poll,11,early_return,"    def poll(self, flag=os.WNOHANG):
+        if self.returncode is None:
+            from multiprocessing.connection import wait
+            timeout = 0 if flag == os.WNOHANG else None
+            if not wait([self.sentinel], timeout):
+                return None
+            try:
+                self.returncode = forkserver.read_signed(self.sentinel)
+            except (OSError, EOFError):
+                self.returncode = 255
+
+        return self.returncode","What does poll return when `not wait([self.sentinel], timeout)` holds, and why can it return at that point?","[""Says that it returns None in that case"", ""Explains why nothing more has to be done in that case""]","{""name"": ""poll"", ""params"": [""flag""], ""guards"": [], ""handlers"": [{""exc"": ""(OSError, EOFError)"", ""then"": ""carries on""}], ""early_returns"": [{""cond"": ""not wait([self.sentinel], timeout)"", ""value"": ""None""}], ""loops"": [], ""calls"": [""wait"", ""forkserver.read_signed""], ""returns"": [""None"", ""self.returncode""], ""recursive"": false}"
+K018,cpython/Lib/_markupbase.py,updatepos,12,early_return,"    def updatepos(self, i, j):
+        if i >= j:
+            return j
+        rawdata = self.rawdata
+        nlines = rawdata.count(""\n"", i, j)
+        if nlines:
+            self.lineno = self.lineno + nlines
+            pos = rawdata.rindex(""\n"", i, j) # Should not fail
+            self.offset = j-(pos+1)
+        else:
+            self.offset = self.offset + j-i
+        return j","What does updatepos return when `i >= j` holds, and why can it return at that point?","[""Says that it returns j in that case"", ""Explains why nothing more has to be done in that case""]","{""name"": ""updatepos"", ""params"": [""i"", ""j""], ""guards"": [], ""handlers"": [], ""early_returns"": [{""cond"": ""i >= j"", ""value"": ""j""}], ""loops"": [], ""calls"": [""rawdata.count"", ""rawdata.rindex""], ""returns"": [""j""], ""recursive"": false}"
+K019,cpython/Lib/trace.py,update,13,loop,"    def update(self, other):
+        counts = self.counts
+        calledfuncs = self.calledfuncs
+        callers = self.callers
+        other_counts = other.counts
+        other_calledfuncs = other.calledfuncs
+        other_callers = other.callers
+
+        for key in other_counts:
+            counts[key] = counts.get(key, 0) + other_counts[key]
+
+        for key in other_calledfuncs:
+            calledfuncs[key] = 1
+
+        for key in other_callers:
+            callers[key] = 1","What does the loop `for key in other_counts` in update do, and what is left behind when it finishes?","[""Says what each pass over the loop does"", ""Says what the loop has produced or changed when it ends""]","{""name"": ""update"", ""params"": [""other""], ""guards"": [], ""handlers"": [], ""early_returns"": [], ""loops"": [{""target"": ""key"", ""iter"": ""other_counts""}, {""target"": ""key"", ""iter"": ""other_calledfuncs""}, {""target"": ""key"", ""iter"": ""other_callers""}], ""calls"": [""counts.get""], ""returns"": [], ""recursive"": false}"
+K020,cpython/Lib/shutil.py,_copyfileobj_readinto,14,loop,"def _copyfileobj_readinto(fsrc, fdst, length=COPY_BUFSIZE):
+    fsrc_readinto = fsrc.readinto
+    fdst_write = fdst.write
+    with memoryview(bytearray(length)) as mv:
+        while True:
+            n = fsrc_readinto(mv)
+            if not n:
+                break
+            elif n < length:
+                with mv[:n] as smv:
+                    fdst_write(smv)
+                break
+            else:
+                fdst_write(mv)","What does the loop `while True` in _copyfileobj_readinto do, and what is left behind when it finishes?","[""Says what each pass over the loop does"", ""Says what the loop has produced or changed when it ends""]","{""name"": ""_copyfileobj_readinto"", ""params"": [""fsrc"", ""fdst"", ""length""], ""guards"": [], ""handlers"": [], ""early_returns"": [], ""loops"": [{""target"": null, ""iter"": ""True""}], ""calls"": [""memoryview"", ""bytearray"", ""fsrc_readinto"", ""fdst_write""], ""returns"": [], ""recursive"": false}"
+K021,cpython/Lib/email/_parseaddr.py,gotonext,12,loop,"    def gotonext(self):
+        wslist = []
+        while self.pos < len(self.field):
+            if self.field[self.pos] in self.LWS + '\n\r':
+                if self.field[self.pos] not in '\n\r':
+                    wslist.append(self.field[self.pos])
+                self.pos += 1
+            elif self.field[self.pos] == '(':
+                self.commentlist.append(self.getcomment())
+            else:
+                break
+        return EMPTYSTRING.join(wslist)","What does the loop `while self.pos < len(self.field)` in gotonext do, and what is left behind when it finishes?","[""Says what each pass over the loop does"", ""Says what the loop has produced or changed when it ends""]","{""name"": ""gotonext"", ""params"": [], ""guards"": [], ""handlers"": [], ""early_returns"": [], ""loops"": [{""target"": null, ""iter"": ""self.pos < len(self.field)""}], ""calls"": [""wslist.append"", ""self.commentlist.append"", ""self.getcomment"", ""EMPTYSTRING.join""], ""returns"": [""EMPTYSTRING.join(wslist)""], ""recursive"": false}"
+K022,cpython/Lib/tomllib/_parser.py,skip_until,19,loop,"def skip_until(
+    src: str,
+    pos: Pos,
+    expect: str,
+    *,
+    error_on: frozenset[str],
+    error_on_eof: bool,
+) -> Pos:
+    try:
+        new_pos = src.index(expect, pos)
+    except ValueError:
+        new_pos = len(src)
+        if error_on_eof:
+            raise TOMLDecodeError(f""Expected {expect!r}"", src, new_pos) from None
+
+    if not error_on.isdisjoint(src[pos:new_pos]):
+        while src[pos] not in error_on:
+            pos += 1
+        raise TOMLDecodeError(f""Found invalid character {src[pos]!r}"", src, pos)
+    return new_pos","What does the loop `while src[pos] not in error_on` in skip_until do, and what is left behind when it finishes?","[""Says what each pass over the loop does"", ""Says what the loop has produced or changed when it ends""]","{""name"": ""skip_until"", ""params"": [""src"", ""pos"", ""expect"", ""error_on"", ""error_on_eof""], ""guards"": [{""cond"": ""error_on_eof"", ""raises"": ""TOMLDecodeError""}, {""cond"": ""not error_on.isdisjoint(src[pos:new_pos])"", ""raises"": ""TOMLDecodeError""}], ""handlers"": [{""exc"": ""ValueError"", ""then"": ""carries on""}], ""early_returns"": [], ""loops"": [{""target"": null, ""iter"": ""src[pos] not in error_on""}], ""calls"": [""src.index"", ""TOMLDecodeError"", ""error_on.isdisjoint""], ""returns"": [""new_pos""], ""recursive"": false}"
+K023,cpython/Lib/stat.py,filemode,18,loop,"def filemode(mode):
+    perm = []
+    for index, table in enumerate(_filemode_table):
+        for bit, char in table:
+            if index == 0:
+                if S_IFMT(mode) == bit:
+                    perm.append(char)
+                    break
+            else:
+                if mode & bit == bit:
+                    perm.append(char)
+                    break
+        else:
+            if index == 0:
+                perm.append(""?"")
+            else:
+                perm.append(""-"")
+    return """".join(perm)","What does the loop `for (index, table) in enumerate(_filemode_table)` in filemode do, and what is left behind when it finishes?","[""Says what each pass over the loop does"", ""Says what the loop has produced or changed when it ends""]","{""name"": ""filemode"", ""params"": [""mode""], ""guards"": [], ""handlers"": [], ""early_returns"": [], ""loops"": [{""target"": ""(index, table)"", ""iter"": ""enumerate(_filemode_table)""}, {""target"": ""(bit, char)"", ""iter"": ""table""}], ""calls"": [""S_IFMT"", ""perm.append"", ""''.join""], ""returns"": [""''.join(perm)""], ""recursive"": false}"
+K024,cpython/Lib/_osx_support.py,_find_executable,15,loop,"def _find_executable(executable, path=None):
+    if path is None:
+        path = os.environ['PATH']
+
+    paths = path.split(os.pathsep)
+    base, ext = os.path.splitext(executable)
+
+    if (sys.platform == 'win32') and (ext != '.exe'):
+        executable = executable + '.exe'
+
+    if not os.path.isfile(executable):
+        for p in paths:
+            f = os.path.join(p, executable)
+            if os.path.isfile(f):
+                return f
+        return None
+    else:
+        return executable","What does the loop `for p in paths` in _find_executable do, and what is left behind when it finishes?","[""Says what each pass over the loop does"", ""Says what the loop has produced or changed when it ends""]","{""name"": ""_find_executable"", ""params"": [""executable"", ""path""], ""guards"": [], ""handlers"": [], ""early_returns"": [{""cond"": ""os.path.isfile(f)"", ""value"": ""f""}], ""loops"": [{""target"": ""p"", ""iter"": ""paths""}], ""calls"": [""path.split"", ""os.path.splitext"", ""os.path.isfile"", ""os.path.join""], ""returns"": [""f"", ""None"", ""executable""], ""recursive"": false}"
+K025,cpython/Lib/types.py,prepare_class,19,purpose,"def prepare_class(name, bases=(), kwds=None):
+    if kwds is None:
+        kwds = {}
+    else:
+        kwds = dict(kwds) # Don't alter the provided mapping
+    if 'metaclass' in kwds:
+        meta = kwds.pop('metaclass')
+    else:
+        if bases:
+            meta = type(bases[0])
+        else:
+            meta = type
+    if isinstance(meta, type):
+        meta = _calculate_meta(meta, bases)
+    if hasattr(meta, '__prepare__'):
+        ns = meta.__prepare__(name, bases, **kwds)
+    else:
+        ns = {}
+    return meta, ns, kwds","In your own words, what does prepare_class do, and what do name, bases, kwds control?","[""Says what the function is for"", ""Says what each named parameter changes about the result""]","{""name"": ""prepare_class"", ""params"": [""name"", ""bases"", ""kwds""], ""guards"": [], ""handlers"": [], ""early_returns"": [], ""loops"": [], ""calls"": [""kwds.pop"", ""type"", ""_calculate_meta"", ""hasattr"", ""meta.__prepare__""], ""returns"": [""(meta, ns, kwds)""], ""recursive"": false}"
+K026,cpython/Lib/code.py,push,9,purpose,"    def push(self, line, filename=None, _symbol=""single""):
+        self.buffer.append(line)
+        source = ""\n"".join(self.buffer)
+        if filename is None:
+            filename = self.filename
+        more = self.runsource(source, filename, symbol=_symbol)
+        if not more:
+            self.resetbuffer()
+        return more","In your own words, what does push do, and what do line, filename, _symbol control?","[""Says what the function is for"", ""Says what each named parameter changes about the result""]","{""name"": ""push"", ""params"": [""line"", ""filename"", ""_symbol""], ""guards"": [], ""handlers"": [], ""early_returns"": [], ""loops"": [], ""calls"": [""self.buffer.append"", ""'\\n'.join"", ""self.runsource"", ""self.resetbuffer""], ""returns"": [""more""], ""recursive"": false}"
+K027,cpython/Lib/zoneinfo/_zoneinfo.py,_get_trans_info_fromutc,16,purpose,"    def _get_trans_info_fromutc(self, ts, year):
+        start, end = self.transitions(year)
+        start -= self.std.utcoff.total_seconds()
+        end -= self.dst.utcoff.total_seconds()
+
+        if start < end:
+            isdst = start <= ts < end
+        else:
+            isdst = not (end <= ts < start)
+
+        if self.dst_diff > 0:
+            ambig_start = end
+            ambig_end = end + self.dst_diff
+        else:
+            ambig_start = start
+            ambig_end = start - self.dst_diff
+
+        fold = ambig_start <= ts < ambig_end
+
+        return (self.dst if isdst else self.std, fold)","In your own words, what does _get_trans_info_fromutc do, and what do ts, year control?","[""Says what the function is for"", ""Says what each named parameter changes about the result""]","{""name"": ""_get_trans_info_fromutc"", ""params"": [""ts"", ""year""], ""guards"": [], ""handlers"": [], ""early_returns"": [], ""loops"": [], ""calls"": [""self.transitions"", ""self.std.utcoff.total_seconds"", ""self.dst.utcoff.total_seconds""], ""returns"": [""(self.dst if isdst else self.std, fold)""], ""recursive"": false}"
+K028,cpython/Lib/_ast_unparse.py,visit_AnnAssign,9,purpose,"    def visit_AnnAssign(self, node):
+        self.fill()
+        with self.delimit_if(""("", "")"", not node.simple and isinstance(node.target, Name)):
+            self.traverse(node.target)
+        self.write("": "")
+        self.traverse(node.annotation)
+        if node.value:
+            self.write("" = "")
+            self.traverse(node.value)","In your own words, what does visit_AnnAssign do, and what do node control?","[""Says what the function is for"", ""Says what each named parameter changes about the result""]","{""name"": ""visit_AnnAssign"", ""params"": [""node""], ""guards"": [], ""handlers"": [], ""early_returns"": [], ""loops"": [], ""calls"": [""self.fill"", ""self.delimit_if"", ""self.traverse"", ""self.write""], ""returns"": [], ""recursive"": false}"
+K029,cpython/Lib/_pydecimal.py,_fill_logical,12,purpose,"    def _fill_logical(self, context, opa, opb):
+        dif = context.prec - len(opa)
+        if dif > 0:
+            opa = '0'*dif + opa
+        elif dif < 0:
+            opa = opa[-context.prec:]
+        dif = context.prec - len(opb)
+        if dif > 0:
+            opb = '0'*dif + opb
+        elif dif < 0:
+            opb = opb[-context.prec:]
+        return opa, opb","In your own words, what does _fill_logical do, and what do context, opa, opb control?","[""Says what the function is for"", ""Says what each named parameter changes about the result""]","{""name"": ""_fill_logical"", ""params"": [""context"", ""opa"", ""opb""], ""guards"": [], ""handlers"": [], ""early_returns"": [], ""loops"": [], ""calls"": [], ""returns"": [""(opa, opb)""], ""recursive"": false}"
+K030,cpython/Lib/html/parser.py,set_cdata_mode,11,purpose,"    def set_cdata_mode(self, elem, *, escapable=False):
+        self.cdata_elem = elem.lower()
+        self._escapable = escapable
+        if self.cdata_elem == 'plaintext':
+            self.interesting = re.compile(r'\z')
+        elif escapable and not self.convert_charrefs:
+            self.interesting = re.compile(r'&|</%s(?=[\t\n\r\f />])' % self.cdata_elem,
+                                          re.IGNORECASE|re.ASCII)
+        else:
+            self.interesting = re.compile(r'</%s(?=[\t\n\r\f />])' % self.cdata_elem,
+                                          re.IGNORECASE|re.ASCII)","In your own words, what does set_cdata_mode do, and what do elem, escapable control?","[""Says what the function is for"", ""Says what each named parameter changes about the result""]","{""name"": ""set_cdata_mode"", ""params"": [""elem"", ""escapable""], ""guards"": [], ""handlers"": [], ""early_returns"": [], ""loops"": [], ""calls"": [""elem.lower"", ""re.compile""], ""returns"": [], ""recursive"": false}"
+K031,cpython/Lib/fractions.py,_round_to_exponent,10,return_value,"def _round_to_exponent(n, d, exponent, no_neg_zero=False):
+    if exponent >= 0:
+        d *= 10**exponent
+    else:
+        n *= 10**-exponent
+
+    q, r = divmod(n + (d >> 1), d)
+    if r == 0 and d & 1 == 0:
+        q &= -2
+
+    sign = q < 0 if no_neg_zero else n < 0
+    return sign, abs(q)",Describe what _round_to_exponent returns on its normal path and how that value is built up.,"[""Says that it returns (sign, abs(q))"", ""Explains how that value is produced from the inputs"", ""Mentions that it calls divmod""]","{""name"": ""_round_to_exponent"", ""params"": [""n"", ""d"", ""exponent"", ""no_neg_zero""], ""guards"": [], ""handlers"": [], ""early_returns"": [], ""loops"": [], ""calls"": [""divmod"", ""abs""], ""returns"": [""(sign, abs(q))""], ""recursive"": false}"
+K032,cpython/Lib/pathlib/__init__.py,copy_into,9,return_value,"    def copy_into(self, target_dir, **kwargs):
+        name = self.name
+        if not name:
+            raise ValueError(f""{self!r} has an empty name"")
+        elif hasattr(target_dir, 'with_segments'):
+            target = target_dir / name
+        else:
+            target = self.with_segments(target_dir, name)
+        return self.copy(target, **kwargs)",Describe what copy_into returns on its normal path and how that value is built up.,"[""Says that it returns self.copy(target, **kwargs)"", ""Explains how that value is produced from the inputs"", ""Mentions that it calls ValueError""]","{""name"": ""copy_into"", ""params"": [""target_dir""], ""guards"": [{""cond"": ""not name"", ""raises"": ""ValueError""}], ""handlers"": [], ""early_returns"": [], ""loops"": [], ""calls"": [""ValueError"", ""hasattr"", ""self.with_segments"", ""self.copy""], ""returns"": [""self.copy(target, **kwargs)""], ""recursive"": false}"
+K033,cpython/Lib/posixpath.py,abspath,9,return_value,"def abspath(path):
+    path = os.fspath(path)
+    if isinstance(path, bytes):
+        if not path.startswith(b'/'):
+            path = join(os.getcwdb(), path)
+    else:
+        if not path.startswith('/'):
+            path = join(os.getcwd(), path)
+    return normpath(path)",Describe what abspath returns on its normal path and how that value is built up.,"[""Says that it returns normpath(path)"", ""Explains how that value is produced from the inputs"", ""Mentions that it calls os.fspath""]","{""name"": ""abspath"", ""params"": [""path""], ""guards"": [], ""handlers"": [], ""early_returns"": [], ""loops"": [], ""calls"": [""os.fspath"", ""path.startswith"", ""join"", ""os.getcwdb"", ""os.getcwd"", ""normpath""], ""returns"": [""normpath(path)""], ""recursive"": false}"
+K034,cpython/Lib/ipaddress.py,ip_network,10,return_value,"def ip_network(address, strict=True):
+    try:
+        return IPv4Network(address, strict)
+    except (AddressValueError, NetmaskValueError):
+        pass
+
+    try:
+        return IPv6Network(address, strict)
+    except (AddressValueError, NetmaskValueError):
+        pass
+
+    raise ValueError(f'{address!r} does not appear to be an IPv4 or IPv6 network')",Describe what ip_network returns on its normal path and how that value is built up.,"[""Says that it returns IPv6Network(address, strict)"", ""Explains how that value is produced from the inputs"", ""Mentions that it calls IPv4Network""]","{""name"": ""ip_network"", ""params"": [""address"", ""strict""], ""guards"": [], ""handlers"": [{""exc"": ""(AddressValueError, NetmaskValueError)"", ""then"": ""carries on""}, {""exc"": ""(AddressValueError, NetmaskValueError)"", ""then"": ""carries on""}], ""early_returns"": [], ""loops"": [], ""calls"": [""IPv4Network"", ""IPv6Network"", ""ValueError""], ""returns"": [""IPv4Network(address, strict)"", ""IPv6Network(address, strict)""], ""recursive"": false}"
+K035,cpython/Lib/collections/__init__.py,popitem,18,return_value,"    def popitem(self, last=True):
+        if not self:
+            raise KeyError('dictionary is empty')
+        root = self.__root
+        if last:
+            link = root.prev
+            link_prev = link.prev
+            link_prev.next = root
+            root.prev = link_prev
+        else:
+            link = root.next
+            link_next = link.next
+            root.next = link_next
+            link_next.prev = root
+        key = link.key
+        del self.__map[key]
+        value = dict.pop(self, key)
+        return key, value",Describe what popitem returns on its normal path and how that value is built up.,"[""Says that it returns (key, value)"", ""Explains how that value is produced from the inputs"", ""Mentions that it calls KeyError""]","{""name"": ""popitem"", ""params"": [""last""], ""guards"": [{""cond"": ""not self"", ""raises"": ""KeyError""}], ""handlers"": [], ""early_returns"": [], ""loops"": [], ""calls"": [""KeyError""], ""returns"": [""(key, value)""], ""recursive"": false}"
+K036,cpython/Lib/pydoc.py,docdata,10,return_value,"    def docdata(self, object, name=None, mod=None, cl=None, *ignored):
+        results = []
+        push = results.append
+
+        if name:
+            push('<dl><dt><strong>%s</strong></dt>\n' % name)
+        doc = self.markup(getdoc(object), self.preformat)
+        if doc:
+            push('<dd><span class=""code"">%s</span></dd>\n' % doc)
+        push('</dl>\n')
+
+        return ''.join(results)",Describe what docdata returns on its normal path and how that value is built up.,"[""Says that it returns ''.join(results)"", ""Explains how that value is produced from the inputs"", ""Mentions that it calls push""]","{""name"": ""docdata"", ""params"": [""object"", ""name"", ""mod"", ""cl""], ""guards"": [], ""handlers"": [], ""early_returns"": [], ""loops"": [], ""calls"": [""push"", ""self.markup"", ""getdoc"", ""''.join""], ""returns"": [""''.join(results)""], ""recursive"": false}"

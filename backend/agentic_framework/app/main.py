@@ -1,4 +1,10 @@
-"""SELVIA AI Backend. Internal service: only the Core API calls it."""
+"""SELVIA AI Backend. Internal service: only the Core API calls it.
+
+This starts the HTTP server only. The job worker (the part that really runs the assessment agent) is a separate command:
+
+    uv run --active --no-sync uvicorn app.main:app --port 8003
+    uv run python -m worker
+"""
 
 from fastapi import FastAPI
 

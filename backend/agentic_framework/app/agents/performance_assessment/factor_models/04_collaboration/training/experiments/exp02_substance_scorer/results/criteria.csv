@@ -1,0 +1,5 @@
+criterion,value,minimum,target,verdict
+External AUC (OpenDev -> RevHelper),0.5567250519134653,>= 0.70,>= 0.75,NOT MET
+Grouped CV AUC within OpenDev,0.7006840016708438,>= 0.70,>= 0.75,minimum met
+"Beats TF-IDF + logistic (CV, paired interval)",-0.012 (-0.042 to +0.015),interval excludes 0,gain >= 0.03,NOT MET
+Guard: approval-only / one-word texts score 0,1.0,all,all,target met

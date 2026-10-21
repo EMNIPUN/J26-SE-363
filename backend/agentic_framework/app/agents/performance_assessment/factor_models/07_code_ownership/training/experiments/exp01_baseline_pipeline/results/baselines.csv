@@ -1,0 +1,10 @@
+baseline,MAE,RMSE,Spearman,Pearson,QWK (rounded to 1-5)
+training mean,0.319,0.367,-0.025,-0.026,0.0
+answer length (words),0.309,0.357,0.446,0.24,0.04
+identifier recall,0.314,0.353,0.331,0.276,0.078
+overlap with all facts,0.323,0.362,0.245,0.181,0.018
+overlap with the asked-about fact,0.322,0.362,0.185,0.168,0.0
+TF-IDF similarity to the reference,0.317,0.367,0.021,0.042,0.0
+"hand-built features, ridge",0.215,0.277,0.637,0.657,0.62
+"hand-built features, forest",0.206,0.274,0.649,0.667,0.585
+"hand-built features, boosting",0.214,0.281,0.628,0.645,0.562

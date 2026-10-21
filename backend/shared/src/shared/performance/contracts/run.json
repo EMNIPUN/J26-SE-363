@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/run/1",
+  "title": "Performance run",
+  "type": "object",
+  "required": ["schema", "id", "team_ref", "team_name", "sprint_id", "mode", "status", "created_at", "has_report", "can_cancel", "can_rerun", "students", "summary"],
+  "properties": {
+    "schema": {"const": "run/1"}, "id": {"type": "string"}, "team_ref": {"type": "string"}, "team_name": {"type": "string"},
+    "sprint_id": {"type": "string"}, "mode": {"enum": ["snapshot", "final"]},
+    "status": {"enum": ["queued", "running", "waiting_human", "succeeded", "failed", "cancelled"]},
+    "created_at": {"type": "string", "format": "date-time"}, "started_at": {"type": ["string", "null"]}, "finished_at": {"type": ["string", "null"]},
+    "duration_seconds": {"type": ["number", "null"]}, "requested_by": {"type": ["string", "null"]}, "current_node": {"type": ["string", "null"]},
+    "error": {"type": ["object", "null"]}, "has_report": {"type": "boolean"}, "can_cancel": {"type": "boolean"}, "can_rerun": {"type": "boolean"},
+    "students": {"type": "array"}, "summary": {"type": "object"}
+  }
+}

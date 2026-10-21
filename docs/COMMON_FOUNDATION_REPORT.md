@@ -107,7 +107,7 @@ Groups are first-class and project titles are not unique, so projects are always
 
 | Model | Fields / purpose |
 |---|---|
-| `AgentName` | `project_planning`, `adaptive_tutor`, `performance_assessment`, `aegis` |
+| `AgentName` | `project_planning`, `adaptive_tutor`, `performance_assessment`, `security_assistant` |
 | `ACTION_PREFIX_TO_AGENT`, `agent_for_action()` | `planning.` / `tutor.` / `performance.` / `security.` → agent; used by the router and the queue naming |
 | `ResultStatus` | `completed`, `waiting_for_input`, `unavailable`, `failed` |
 | `Evidence` | `source`, `description`, `reference`, `data` |
@@ -149,7 +149,7 @@ the agents, so it adds practically no time to a request.
 | Project Planning | `project_planning/` | `planning.` | README with instructions |
 | Adaptive Tutor | `adaptive_tutor/` | `tutor.` | README; ONE agent with internal modules (context, knowledge identification, course graph, student graph, evidence, learner model, decision engine, assessment, feedback, adaptation) |
 | Performance Assessment | `performance_assessment/` | `performance.` | Protected, unchanged (owner only) |
-| AEGIS | `aegis/` | `security.` | README with instructions |
+| Security Assistant | `security_assistant/` | `security.` | README with instructions |
 
 Shared agent files:
 
@@ -191,7 +191,7 @@ Dependency changes:
 | Area | Files |
 |---|---|
 | Shared | `shared/src/shared/contracts/__init__.py`, `context.py`, `agent.py`, `orchestration.py`; `shared/src/shared/jobs.py` |
-| AI Backend | `app/agents/base.py`, `app/agents/registry.py`; `app/api/v1/__init__.py`, `router.py`, `orchestration.py`; `app/orchestrator/executor.py`, `factory.py`; `app/tasks/orchestration_tasks.py`; `app/integrations/__init__.py`, `README.md`; READMEs in `agents/project_planning/`, `agents/adaptive_tutor/`, `agents/aegis/` |
+| AI Backend | `app/agents/base.py`, `app/agents/registry.py`; `app/api/v1/__init__.py`, `router.py`, `orchestration.py`; `app/orchestrator/executor.py`, `factory.py`; `app/tasks/orchestration_tasks.py`; `app/integrations/__init__.py`, `README.md`; READMEs in `agents/project_planning/`, `agents/adaptive_tutor/`, `agents/security_assistant/` |
 | Core API | `app/clients/__init__.py`, `app/clients/ai_backend.py`; `app/services/ai_jobs.py` |
 | Tests | AI Backend: `test_shared_contracts.py`, `test_orchestrator.py`, `test_orchestration_api.py`, `test_orchestration_jobs.py`. Core API: `test_ai_backend_client.py`, `test_app_startup.py`, `test_ai_jobs.py` |
 | Docs | `docs/TEAM_DEVELOPMENT_GUIDE.md`, `docs/COMMON_FOUNDATION_REPORT.md` (this file) |

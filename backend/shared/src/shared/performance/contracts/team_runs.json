@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/team_runs/1",
+  "title": "Team runs",
+  "type": "object",
+  "required": ["schema", "analysis", "runs", "next"],
+  "properties": {"schema": {"const": "team_runs/1"}, "analysis": {"type": "object"}, "runs": {"type": "array"}, "next": {"type": ["string", "null"]}}
+}

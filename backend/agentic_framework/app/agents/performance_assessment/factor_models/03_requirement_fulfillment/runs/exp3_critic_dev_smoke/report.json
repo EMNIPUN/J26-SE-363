@@ -1,0 +1,169 @@
+{
+ "meta": {
+  "experiment": "agent_critic",
+  "config": {
+   "rubric_hash": "72fa752e353c",
+   "prompt_hash": "ee8d911bf1cc",
+   "max_steps_per_criterion": 4,
+   "max_tokens": 1200,
+   "observation_chars": 3200,
+   "mapping": "found by the agent",
+   "examples": 0,
+   "graph": "map_commits -> decide <-> act -> record -> critique -> (revise_start -> decide <-> act -> record_rev)* -> check",
+   "critic_model": "qwen/qwen3.8-27b",
+   "critic_prompt_hash": "abd2e463f643",
+   "critic_sees": "verdict, reason, searches and cited lines per criterion; not the task rating",
+   "revisions_per_criterion": 1
+  },
+  "model": "openai/gpt-oss-120b",
+  "split": "dev",
+  "per_bucket": 2,
+  "runs": 1,
+  "items": 10,
+  "benchmark_sha256": "8e0b51c7d4a8560ef579c269cdaf1daeaaa2b50fdce3859401b0dd90e0a10d10",
+  "code_commit": "19f84b5",
+  "dry": false,
+  "started": "2026-10-19 04:30:00"
+ },
+ "overall": {
+  "tasks": 10,
+  "completed": 10,
+  "failure_rate": 0.0,
+  "completed_only": {
+   "task": {
+    "n": 10,
+    "MAE": 0.3416666666666667,
+    "RMSE": 0.4141591213263059,
+    "bias": -0.3416666666666667,
+    "pearson": 0.6618853816120729,
+    "spearman": 0.6466034757782453,
+    "calib_slope": 0.43304843304843316,
+    "kappa_w": 0.2857142857142858,
+    "band_within_1": 0.5
+   },
+   "criterion": {
+    "n": 31,
+    "accuracy": 0.6451612903225806,
+    "not_met_precision": 0.35294117647058826,
+    "not_met_recall": 1.0,
+    "verdict_share": {
+     "met": 0.45161290322580644,
+     "partly": 0.0,
+     "not_met": 0.25806451612903225,
+     "cannot_tell": 0.2903225806451613
+    }
+   }
+  },
+  "failures_as_no_credit": {
+   "task": {
+    "n": 10,
+    "MAE": 0.3416666666666667,
+    "RMSE": 0.4141591213263059,
+    "bias": -0.3416666666666667,
+    "pearson": 0.6618853816120729,
+    "spearman": 0.6466034757782453,
+    "calib_slope": 0.43304843304843316,
+    "kappa_w": 0.2857142857142858,
+    "band_within_1": 0.5
+   },
+   "criterion": {
+    "n": 31,
+    "accuracy": 0.6451612903225806,
+    "not_met_precision": 0.35294117647058826,
+    "not_met_recall": 1.0,
+    "verdict_share": {
+     "met": 0.45161290322580644,
+     "partly": 0.0,
+     "not_met": 0.25806451612903225,
+     "cannot_tell": 0.2903225806451613
+    }
+   }
+  },
+  "sprint_level": {
+   "n": 9,
+   "MAE": 0.3611111111111111,
+   "RMSE": 0.4258252699098859,
+   "bias": -0.3611111111111111,
+   "pearson": 0.6041585400191986,
+   "spearman": 0.5578717497799477,
+   "calib_slope": 0.43137254901960764,
+   "kappa_w": 0.2346041055718474,
+   "band_within_1": 0.5555555555555556
+  },
+  "cost": {
+   "tokens_per_task": 19434.4,
+   "calls_per_task": 16.0,
+   "seconds_per_task": 177.69600000000003,
+   "error_kinds": {},
+   "coverage_mean": 0.03289
+  }
+ },
+ "intervals": {
+  "task_MAE_no_credit": [
+   0.3416666666666667,
+   0.2037037037037037,
+   0.47727272727272735
+  ],
+  "task_MAE_completed": [
+   0.3416666666666667,
+   0.2037037037037037,
+   0.47727272727272735
+  ],
+  "criterion_accuracy_all": [
+   0.6451612903225806,
+   0.5185185185185185,
+   0.7857142857142857
+  ],
+  "pearson_completed": [
+   0.6618853816120729,
+   0.3434014098717227,
+   0.9999999999999996
+  ]
+ },
+ "by_bucket": {
+  "<=4k": {
+   "tasks": 2,
+   "failure_rate": 0.0,
+   "task_MAE_completed": 0.4166666666666667,
+   "task_MAE_no_credit": 0.4166666666666667,
+   "criterion_accuracy_completed": 0.6,
+   "criterion_accuracy_all": 0.6
+  },
+  "4-8k": {
+   "tasks": 2,
+   "failure_rate": 0.0,
+   "task_MAE_completed": 0.0,
+   "task_MAE_no_credit": 0.0,
+   "criterion_accuracy_completed": 1.0,
+   "criterion_accuracy_all": 1.0
+  },
+  "8-16k": {
+   "tasks": 2,
+   "failure_rate": 0.0,
+   "task_MAE_completed": 0.3333333333333333,
+   "task_MAE_no_credit": 0.3333333333333333,
+   "criterion_accuracy_completed": 0.6666666666666666,
+   "criterion_accuracy_all": 0.6666666666666666
+  },
+  "16-32k": {
+   "tasks": 2,
+   "failure_rate": 0.0,
+   "task_MAE_completed": 0.25,
+   "task_MAE_no_credit": 0.25,
+   "criterion_accuracy_completed": 0.75,
+   "criterion_accuracy_all": 0.75
+  },
+  ">32k": {
+   "tasks": 2,
+   "failure_rate": 0.0,
+   "task_MAE_completed": 0.7083333333333334,
+   "task_MAE_no_credit": 0.7083333333333334,
+   "criterion_accuracy_completed": 0.2857142857142857,
+   "criterion_accuracy_all": 0.2857142857142857
+  }
+ },
+ "real_share_weighted_task_MAE_no_credit": 0.3271317829457364,
+ "repeatability": {
+  "items": 0
+ }
+}

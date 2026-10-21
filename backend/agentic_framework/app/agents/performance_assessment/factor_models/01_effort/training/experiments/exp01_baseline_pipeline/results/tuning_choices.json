@@ -1,0 +1,506 @@
+{
+ "Gradient Boosting": {
+  "3 features (chosen)": {
+   "A": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 200,
+     "max_depth": 3,
+     "learning_rate": 0.2,
+     "l2_regularization": 0.1
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.049
+   },
+   "B": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 200,
+     "max_depth": 3,
+     "learning_rate": 0.2,
+     "l2_regularization": 0.1
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0644
+   },
+   "C": {
+    "params": {
+     "monotonic": false,
+     "min_samples_leaf": 3,
+     "max_iter": 50,
+     "max_depth": 3,
+     "learning_rate": 0.2,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0588
+   },
+   "D": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 200,
+     "max_depth": 3,
+     "learning_rate": 0.2,
+     "l2_regularization": 0.1
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0425
+   },
+   "E": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 200,
+     "max_depth": 3,
+     "learning_rate": 0.2,
+     "l2_regularization": 0.1
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0745
+   }
+  },
+  "5 features (proposal)": {
+   "A": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 200,
+     "max_depth": 3,
+     "learning_rate": 0.2,
+     "l2_regularization": 0.1
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0491
+   },
+   "B": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 200,
+     "max_depth": 3,
+     "learning_rate": 0.2,
+     "l2_regularization": 0.1
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0632
+   },
+   "C": {
+    "params": {
+     "monotonic": false,
+     "min_samples_leaf": 3,
+     "max_iter": 50,
+     "max_depth": 3,
+     "learning_rate": 0.2,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0558
+   },
+   "D": {
+    "params": {
+     "monotonic": false,
+     "min_samples_leaf": 3,
+     "max_iter": 50,
+     "max_depth": 3,
+     "learning_rate": 0.2,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0405
+   },
+   "E": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 100,
+     "max_depth": 3,
+     "learning_rate": 0.02,
+     "l2_regularization": 10.0
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0671
+   }
+  },
+  "5 features, review n/a": {
+   "A": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 200,
+     "max_depth": 3,
+     "learning_rate": 0.2,
+     "l2_regularization": 0.1
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0491
+   },
+   "B": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 200,
+     "max_depth": 3,
+     "learning_rate": 0.2,
+     "l2_regularization": 0.1
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0631
+   },
+   "C": {
+    "params": {
+     "monotonic": false,
+     "min_samples_leaf": 3,
+     "max_iter": 50,
+     "max_depth": 3,
+     "learning_rate": 0.2,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0558
+   },
+   "D": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 200,
+     "max_depth": 3,
+     "learning_rate": 0.2,
+     "l2_regularization": 0.1
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0474
+   },
+   "E": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 100,
+     "max_depth": 3,
+     "learning_rate": 0.02,
+     "l2_regularization": 10.0
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0671
+   }
+  }
+ },
+ "Random Forest": {
+  "3 features (chosen)": {
+   "A": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 0.5,
+     "max_depth": 4
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0465
+   },
+   "B": {
+    "params": {
+     "n_estimators": 200,
+     "min_samples_leaf": 1,
+     "max_features": 0.5,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.055
+   },
+   "C": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 5,
+     "max_features": 1.0,
+     "max_depth": 4
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0479
+   },
+   "D": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 3,
+     "max_features": 0.75,
+     "max_depth": 4
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0428
+   },
+   "E": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 0.5,
+     "max_depth": 4
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0621
+   }
+  },
+  "5 features (proposal)": {
+   "A": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 0.5,
+     "max_depth": 4
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.055
+   },
+   "B": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0758
+   },
+   "C": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 0.5,
+     "max_depth": 4
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0479
+   },
+   "D": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 0.5,
+     "max_depth": 4
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0387
+   },
+   "E": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 0.5,
+     "max_depth": 4
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0583
+   }
+  },
+  "5 features, review n/a": {
+   "A": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 0.5,
+     "max_depth": 4
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0559
+   },
+   "B": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 5,
+     "max_features": 1.0,
+     "max_depth": 4
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0672
+   },
+   "C": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 0.5,
+     "max_depth": 4
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0456
+   },
+   "D": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 0.5,
+     "max_depth": 4
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.04
+   },
+   "E": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 0.5,
+     "max_depth": 4
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0591
+   }
+  }
+ },
+ "Ridge": {
+  "3 features (chosen)": {
+   "A": {
+    "params": {
+     "alpha": 3.1622776601683795
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0648
+   },
+   "B": {
+    "params": {
+     "alpha": 10.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0754
+   },
+   "C": {
+    "params": {
+     "alpha": 10.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0592
+   },
+   "D": {
+    "params": {
+     "alpha": 1.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0375
+   },
+   "E": {
+    "params": {
+     "alpha": 3.1622776601683795
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.059
+   }
+  },
+  "5 features (proposal)": {
+   "A": {
+    "params": {
+     "alpha": 3.1622776601683795
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0667
+   },
+   "B": {
+    "params": {
+     "alpha": 10.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0848
+   },
+   "C": {
+    "params": {
+     "alpha": 10.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0659
+   },
+   "D": {
+    "params": {
+     "alpha": 1.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0357
+   },
+   "E": {
+    "params": {
+     "alpha": 10.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0809
+   }
+  },
+  "5 features, review n/a": {
+   "A": {
+    "params": {
+     "alpha": 3.1622776601683795
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0773
+   },
+   "B": {
+    "params": {
+     "alpha": 10.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0945
+   },
+   "C": {
+    "params": {
+     "alpha": 10.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0718
+   },
+   "D": {
+    "params": {
+     "alpha": 1.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0432
+   },
+   "E": {
+    "params": {
+     "alpha": 10.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0864
+   }
+  }
+ }
+}

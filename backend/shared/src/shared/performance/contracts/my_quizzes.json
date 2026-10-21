@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/my_quizzes/1",
+  "title": "Student quizzes",
+  "type": "object",
+  "required": ["schema", "items"],
+  "properties": {"schema": {"const": "my_quizzes/1"}, "items": {"type": "array"}}
+}

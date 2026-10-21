@@ -32,7 +32,7 @@ export const MODULES = [
   },
   {
     key: 'security',
-    label: 'AEGIS Security',
+    label: 'Security Assistant',
     path: '/security',
     icon: ShieldCheck,
     color: '#2563eb',

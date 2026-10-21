@@ -1,6 +1,6 @@
 # SELVIA Team-Scoped Architecture & Guidelines
 
-This document is the **single source of truth** for all 4 research modules (**Project Planning**, **Performance Assessment**, **Adaptive AI Tutor**, and **AEGIS Security**) on how team scoping and tenancy isolation are structured in SELVIA.
+This document is the **single source of truth** for all 4 research modules (**Project Planning**, **Performance Assessment**, **Adaptive AI Tutor**, and **Security Assistant**) on how team scoping and tenancy isolation are structured in SELVIA.
 
 ---
 
@@ -19,6 +19,8 @@ Instead of forcing users through 4 clumsy cascading dropdowns in the top header,
 - The **Team** (`/teams/:teamId/...`) is the active workspace.
 - The **Students** are viewed and managed at the **Page and Tab level** (in roster tables, tabs, and detail views).
 
+**Teams are real.** A lecturer creates a team and invites its students; the teams a person belongs to come from the Core API (`GET /api/v1/me/teams`) and are listed on `/home`. `useScope()` exposes them. The batch and specialization levels above are conceptual only; a team carries a `term` such as `2026-S1`. How teams, invitations and leadership work: [REGISTRATION_AND_TEAMS.md](../../docs/REGISTRATION_AND_TEAMS.md).
+
 ---
 
 ## 🌐 URL Routing Standard
@@ -34,14 +36,12 @@ All four module teams mount their routes under the team prefix:
 ```
 
 ### Role Behavior & Tenancy Guard (`TeamScopeGuard.jsx`):
-1. **Students**:
-   - Automatically routed to their enrolled team: `/teams/J26-SE-363/...`.
-   - The top navbar displays a non-interactive badge: `[ 👥 J26-SE-363 — Group 07 ]`.
-   - **Cross-Tenancy Protection**: If a student attempts to type another team code in the URL (e.g., `/teams/J26-SE-364`), the route guard blocks them, displays an "Access Restricted" alert, and redirects them back to their authorized team.
-2. **Instructors & Admins**:
-   - Can supervise all research teams.
-   - The top navbar contains a **Searchable Team Dropdown** (`ScopeSelector.jsx`).
-   - Selecting a new team updates the active URL in real-time (e.g., `/teams/J26-SE-364/performance/dashboard`) and reloads the scoped data.
+1. **Everyone**:
+   - Opens a team from `/home`; the team becomes the active workspace (`/teams/J26-SE-363/...`).
+   - The top navbar has a **Searchable Team Dropdown** (`ScopeSelector.jsx`) with the teams the person belongs to, and an "All teams" link back to `/home`.
+   - **Cross-Tenancy Protection**: a team the person is not in (a typo, another team's code) is "not found". The guard never falls back to a different team, and the Core API answers 404 for it too.
+2. **Students** belong to the teams they accepted an invitation to (one per term).
+3. **Lecturers** supervise the teams they created or were invited to (several lecturers can share a team; they evaluate and take no part in development). **Admins** can open any team.
 
 ---
 
@@ -55,7 +55,7 @@ import { useScope } from '@/shared/context/useScope'
 export default function MyModuleDashboard() {
   const {
     isStudent,        // true for students, false for instructors/admins
-    selectedGroup,    // { id: 'grp-j26-se-363', code: 'J26-SE-363', name: 'Group 07', projectTitle: '...' }
+    selectedGroup,    // { id: '<uuid>', code: 'J26-SE-363', name: 'Group 07', projectTitle: '...', repositoryUrl: '...', batchId: '2026-S1' (the term) }
     teamStudents,     // Array of student objects belonging to the active team
     studentProfile,   // Profile of the logged-in student (if isStudent === true)
   } = useScope()
@@ -115,7 +115,7 @@ When backend services are ready to filter queries by team, developers simply ins
 | Feature | Student Persona | Instructor / Admin Persona |
 | :--- | :--- | :--- |
 | **Top Navbar** | Read-only active team pill badge | Interactive searchable team dropdown |
-| **URL Scope** | Enforced & locked to enrolled team | Free switching between any supervised team |
-| **Tamper Attempt** | Blocked with toast alert & safe redirect | Allowed across all registered teams |
+| **URL Scope** | Only teams they belong to | Only teams they belong to (admins: any team) |
+| **Tamper Attempt** | "Not found" (never another team) | "Not found" (never another team) |
 | **Student Roster** | Views own metrics + team contribution parity | Explores full roster table & deep dive reviews |
 | **Backend Header** | Injects enrolled `X-Team-Id` | Injects currently selected `X-Team-Id` |

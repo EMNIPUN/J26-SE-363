@@ -1,0 +1,13 @@
+{
+  "variant": "log3 (commits, lines, files)",
+  "label_source": "rated only",
+  "pseudo_weight": 1.0,
+  "features": [
+    "E_CC",
+    "E_LOC_net_capped",
+    "E_FC"
+  ],
+  "validation_MAE": 0.0669,
+  "standard_error": 0.0087,
+  "rule": "lowest validation MAE, then simplest within one bootstrap SE"
+}
