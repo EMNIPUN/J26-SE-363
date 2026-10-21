@@ -1,0 +1,29 @@
+{
+  "stories": [
+    {
+      "id": "US-01",
+      "title": "As a customer I can log in with my email and password",
+      "acceptance_criteria": [
+        "The login route /login accepts a form with user and password",
+        "Passwords are stored hashed and a signed token is returned",
+        "The token expires"
+      ]
+    },
+    {
+      "id": "US-02",
+      "title": "As a customer I can view only my own orders",
+      "acceptance_criteria": [
+        "The route /users/<user_id>/orders lists the orders of that user",
+        "A customer cannot see the orders of another customer"
+      ]
+    },
+    {
+      "id": "US-03",
+      "title": "As an admin I can upload product images to cloud storage",
+      "acceptance_criteria": [
+        "Images are stored in an S3 bucket",
+        "Cloud credentials are not kept in the repository"
+      ]
+    }
+  ]
+}

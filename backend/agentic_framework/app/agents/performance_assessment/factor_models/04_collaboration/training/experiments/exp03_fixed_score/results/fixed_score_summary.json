@@ -1,0 +1,22 @@
+{
+ "gate": {
+  "real": {
+   "student-sprints": 144,
+   "team reviewed (score available)": 8,
+   "not available (team never reviewed)": 136,
+   "available and score = 0": 1,
+   "available and score > 0": 7,
+   "student wrote any review or comment text": 5
+  },
+  "simulated": {
+   "student-sprints": 175,
+   "team reviewed (score available)": 128,
+   "not available (team never reviewed)": 47,
+   "available and score = 0": 17,
+   "available and score > 0": 111,
+   "student wrote any review or comment text": 37
+  }
+ },
+ "sensitivity_target_met": false,
+ "score_version": "collaboration-fixed/1"
+}

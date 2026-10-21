@@ -1,6 +1,6 @@
 # SELVIA Team-Scoped Architecture & Guidelines
 
-This document is the **single source of truth** for all 4 research modules (**Project Planning**, **Performance Assessment**, **Adaptive AI Tutor**, and **AEGIS Security**) on how team scoping and tenancy isolation are structured in SELVIA.
+This document is the **single source of truth** for all 4 research modules (**Project Planning**, **Performance Assessment**, **Adaptive AI Tutor**, and **Security Assistant**) on how team scoping and tenancy isolation are structured in SELVIA.
 
 ---
 

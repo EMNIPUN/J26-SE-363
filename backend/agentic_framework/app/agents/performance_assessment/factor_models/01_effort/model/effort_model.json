@@ -1,0 +1,104 @@
+{
+ "factor": "effort",
+ "version": "effort-linear/1",
+ "model": "ridge (median imputation, standardised, penalty by leave-one-out)",
+ "candidate": "log4 (no review discussions) | files<=5",
+ "features": [
+  {
+   "name": "E_CC",
+   "transform": "log"
+  },
+  {
+   "name": "E_LOC_net_capped",
+   "transform": "log"
+  },
+  {
+   "name": "E_FC",
+   "transform": "log"
+  },
+  {
+   "name": "E_CT",
+   "transform": "log"
+  }
+ ],
+ "medians": [
+  1.3862943611198906,
+  6.59497362836393,
+  2.6020033435383976,
+  0.6931471805599453
+ ],
+ "mean": [
+  1.296062012122257,
+  4.70624817024081,
+  2.1370416928127205,
+  0.7763667698172443
+ ],
+ "scale": [
+  1.111905028611409,
+  3.508780752940676,
+  1.5056905892387293,
+  0.6897294564840696
+ ],
+ "coef": [
+  -0.015502199340720894,
+  0.03841164914220102,
+  0.18401302609306253,
+  0.11464359857445412
+ ],
+ "intercept": 0.44652777777777775,
+ "alpha": 0.01,
+ "guard": {
+  "lines_per_commit": 100,
+  "files_per_commit": 5,
+  "zero_rule": true
+ },
+ "zero_rule": {
+  "column": "E_CC",
+  "equals": 0
+ },
+ "residual_quantiles": [
+  -0.10937095034962133,
+  0.11457625174714253
+ ],
+ "cv": {
+  "MAE": 0.06378906626332703,
+  "Pearson": 0.9529123593055775,
+  "Spearman": 0.9281965759140784,
+  "band_within_1": 0.9861111111111112,
+  "baseline": "commit count (log, linear)",
+  "baseline_MAE": 0.08739322445103705,
+  "gain_over_baseline": 0.023604158187710014,
+  "gain_95": [
+   0.008362805048487527,
+   0.04236771448984062
+  ],
+  "beats_baseline": true,
+  "mean_predictor_MAE": 0.2824749228395062,
+  "n": 144,
+  "folds": "5 student-disjoint groups A-E"
+ },
+ "trained_on": "144 real student-sprints rated on the project rubric by the assistant (not human ratings)",
+ "seed": 20261018,
+ "invariants": {
+  "zero_commits_ok": true,
+  "spam_and_dump_ok": true,
+  "monotone_ok": true,
+  "largest_drop": 0.0018616970095858276,
+  "scores": {
+   "zero commits": 0.0,
+   "micro-commit spam": 0.1998644968795179,
+   "library dump": 0.3053634480955012
+  },
+  "all_candidates": {
+   "log5 (proposal)": false,
+   "log4 (no review discussions)": false,
+   "log3 (commits, lines, files)": false,
+   "log5 (proposal) | files<=10": true,
+   "log4 (no review discussions) | files<=10": true,
+   "log5 (proposal) | files<=5": true,
+   "log4 (no review discussions) | files<=5": true,
+   "log5 (proposal) | files<=3": false,
+   "log4 (no review discussions) | files<=3": false
+  }
+ }
+}

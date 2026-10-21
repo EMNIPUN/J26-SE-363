@@ -1,0 +1,46 @@
+{
+ "sets": {
+  "calibrated_v1": {
+   "E_high": 0.5431,
+   "C_high": 0.3184,
+   "C_low": 0.0534,
+   "E_mid": 0.3091,
+   "E_low": 0.1975,
+   "Co_high": 0.7,
+   "Co_low": 0.3
+  },
+  "calibrated_AB": {
+   "E_high": 0.5431,
+   "C_high": 0.3184,
+   "C_low": 0.0534,
+   "E_mid": 0.3091,
+   "E_low": 0.1975,
+   "Co_high": 0.7,
+   "Co_low": 0.3,
+   "E_med": 0.422,
+   "DC_high": 0.2622,
+   "ext_rusher": true,
+   "ext_free_rider": true
+  },
+  "calibrated": {
+   "E_high": 0.5431,
+   "C_high": 0.3184,
+   "C_low": 0.0534,
+   "E_mid": 0.3091,
+   "E_low": 0.1975,
+   "Co_high": 0.7,
+   "Co_low": 0.3,
+   "E_med": 0.422,
+   "DC_high": 0.2622,
+   "ext_rusher": false,
+   "ext_free_rider": true
+  }
+ },
+ "calibrated_from": {
+  "E_C": "144 real student-sprints (marks in dataset/clean/final_dataset_clean.csv)",
+  "Co": "the proposal's absolute 0.7 / 0.3 (the quantile reading was degenerate, see the amendment log)",
+  "rule": "Effort and Consistency: proposal cut points read as cohort quantiles (0.7 -> P70, 0.3 -> P30, 0.4 -> P40); Collaboration: the proposal's own 0.7 / 0.3",
+  "date": "2026-10-19",
+  "extensions": "calibrated_v1 = original rules; calibrated_AB = both extensions of the protocol; calibrated = the extensions that passed the keep/revert check of notebook 3 (results/extension_decision.json)"
+ }
+}

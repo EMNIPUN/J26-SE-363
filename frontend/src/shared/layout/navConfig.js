@@ -39,7 +39,7 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
         label: "Performance",
         icon: BarChart3,
         color: '#2563eb',
-        to: t('/performance/my-progress'),
+        to: t('/performance/my-assessment'),
       },
       {
         label: "Project Security",
@@ -49,6 +49,7 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
           { label: "Dashboard", to: t("/security/dashboard") },
           { label: "Scan Report", to: t("/security/scan-report") },
           { label: "Remediation", to: t("/security/remediation") },
+          { label: "Security Assistant (live results)", to: t("/security/assistant") },
         ],
       },
       {
@@ -71,15 +72,24 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
   if (role === "instructor") {
     return [
       { label: "Dashboard", icon: LayoutDashboard, to: t("/app") },
-      { label: "Team", icon: Users, to: t("/members") },
+      {
+        label: "Team",
+        icon: Users,
+        children: [
+          { label: "Members", to: t("/members") },
+          { label: "Results", to: t("/performance/team/results") },
+          { label: "Development", to: t("/performance/team/development") },
+          { label: "Runs", to: t("/performance/team/runs") },
+          { label: "Reviews", to: t("/performance/team/reviews") },
+          { label: "Setup", to: t("/performance/team/setup") },
+        ],
+      },
       { label: "Projects", icon: FolderKanban, to: t("/planning/instructor/projects") },
       {
         label: "Groups & Students",
         icon: Users,
         children: [
           { label: "Groups", to: t("/planning/instructor/groups") },
-          { label: "Student evidence", to: t("/performance/students") },
-          { label: "Contribution overview", to: t("/performance/dashboard") },
         ],
       },
       {
@@ -91,20 +101,13 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
         ],
       },
       {
-        label: "Assessment",
-        icon: ClipboardCheck,
-        children: [
-          { label: "Assessment setup", to: t("/performance/assessments") },
-          { label: "Reports", to: t("/performance/reports") },
-        ],
-      },
-      {
         label: "Security & Quality",
         icon: ShieldCheck,
         children: [
           { label: "Overview", to: t("/security/dashboard") },
           { label: "Scan report", to: t("/security/scan-report") },
           { label: "Remediation", to: t("/security/remediation") },
+          { label: "Security Assistant (live results)", to: t("/security/assistant") },
         ],
       },
     ];
@@ -125,8 +128,9 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
       label: "Performance",
       icon: BarChart3,
       color: '#2563eb',
-      to: t('/performance/dashboard'),
+      to: t('/performance/team/results'),
     },
     { label: 'Security', icon: ShieldCheck, color: '#2563eb', to: t('/security/dashboard') },
+    { label: 'Security Assistant (live results)', icon: ShieldCheck, color: '#2563eb', to: t('/security/assistant') },
   ]
 }

@@ -334,7 +334,7 @@ export default function InstructorHome() {
           icon={GraduationCap}
           title="Learning & student support"
           linkLabel="Student evidence"
-          to={team('/performance/students')}
+          to={team('/performance/team/results')}
         >
           <p className="text-sm text-muted-foreground">
             Explanation scores are on file for {learning.explanationScoresOnFile} of {learning.teamStudentCount} students in{' '}
@@ -414,7 +414,7 @@ export default function InstructorHome() {
         <p className="border-t border-border px-6 py-3 text-xs text-muted-foreground">
           {groups.teamStudentCount} student profiles in {selectedGroup?.code}
           {groups.inferredCount > 0 ? `, ${groups.inferredCount} with an inferred check-in signal` : ''}.{' '}
-          <Link to={team('/performance/students')} className="font-medium text-primary hover:underline">
+          <Link to={team('/performance/team/results')} className="font-medium text-primary hover:underline">
             Open student evidence
           </Link>
         </p>

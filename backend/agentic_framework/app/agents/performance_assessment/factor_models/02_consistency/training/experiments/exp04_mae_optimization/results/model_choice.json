@@ -1,0 +1,25 @@
+{
+  "factor": "02_consistency",
+  "model_name": "Blended L1 Ensemble (Ridge + Huber + HistGrad L1)",
+  "features": [
+    "C_AWR (raw)",
+    "C_DC (one_minus)",
+    "C_LI_norm (one_minus)",
+    "C_CV_norm (one_minus)",
+    "C_first_active_day (raw)",
+    "C_early_pace (raw)",
+    "C_DC_penalty (raw)"
+  ],
+  "test_mae": 0.0571,
+  "baseline_mae": 0.0784,
+  "mae_gain": 0.0213,
+  "ci_95": [
+    0.017,
+    0.0299
+  ],
+  "pearson_r": 0.9253,
+  "spearman_rho": 0.9284,
+  "within_1_band": 0.9931,
+  "statistically_beats_baseline": true,
+  "decision": "Selected as optimal production model"
+}

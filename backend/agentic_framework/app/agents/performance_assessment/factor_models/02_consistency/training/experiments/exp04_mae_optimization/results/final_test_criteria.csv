@@ -1,0 +1,6 @@
+metric,baseline,model,improvement,verdict
+Test MAE,0.0784,0.0571,-27.2%,PASS
+Pearson Correlation (r),0.8821,0.9253,+0.0432,PASS
+Spearman Correlation (rho),0.8738,0.9284,+0.0546,PASS
+Within +-1 Mark Band,1.0,0.9931,+-0.7%,PASS
+Beats Baseline 95% CI,N/A,"[0.0170, 0.0299]",Statistically Significant,PASS

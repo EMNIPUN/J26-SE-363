@@ -1,0 +1,11 @@
+source,variant,n,median,p5,min,"meets target (median >= 0.90, min >= 0.80)"
+real,caps x0.5 with equal weights,8,1.0,,1.0,True
+real,caps x0.5 with 200 random weightings,8,1.0,1.0,1.0,True
+real,1000 random weightings (caps 1x),8,1.0,1.0,1.0,True
+real,caps x2.0 with equal weights,8,1.0,,1.0,True
+real,caps x2.0 with 200 random weightings,8,1.0,1.0,1.0,True
+simulated,caps x0.5 with equal weights,128,0.996,,0.996,True
+simulated,caps x0.5 with 200 random weightings,128,0.995,0.867,0.141,False
+simulated,1000 random weightings (caps 1x),128,0.999,0.785,0.078,False
+simulated,caps x2.0 with equal weights,128,0.999,,0.999,True
+simulated,caps x2.0 with 200 random weightings,128,0.998,0.426,0.101,False

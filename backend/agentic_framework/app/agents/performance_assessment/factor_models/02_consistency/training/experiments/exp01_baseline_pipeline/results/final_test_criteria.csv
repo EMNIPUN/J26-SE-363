@@ -1,0 +1,10 @@
+criterion,result,minimum (works),target,meets minimum,meets target
+MAE / MAE of always predicting the mean,0.31 (0.059 / 0.192),<= 0.5,<= 0.35,True,True
+Pearson,0.923,>= 0.8,>= 0.9,True,True
+Spearman,0.874,>= 0.8,>= 0.85,True,True
+Beats active days alone (`AWR`),gain +0.026 (95% CI -0.011 to 0.059),interval excludes 0,and >= 10% lower MAE,False,False
+Bias,+0.013,within +-0.05,within +-0.03,True,True
+Calibration slope,1.09,0.7 - 1.3,0.8 - 1.2,True,True
+Rubric bands within one,100%,>= 85%,>= 90%,True,True
+Rubric bands exact,85%,-,>= 50%,True,True
+"MAE, students with activity",0.070,<= 0.12,<= 0.1,True,True

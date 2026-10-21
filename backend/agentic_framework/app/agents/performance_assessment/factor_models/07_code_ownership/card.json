@@ -1,0 +1,21 @@
+{
+  "factor": "code_ownership",
+  "title": "Code Ownership",
+  "measures": "Whether the student understands the code they are credited with: they answer a question generated from their own function, and a model rates the answer. KO = (R - 1) / 4 with R the predicted 1-5 comprehension rating.",
+  "inputs": ["source files where the student holds surviving lines (for the question)", "the student's written answer", "passive context: survival and primary-owner share from blame (not part of KO)"],
+  "computation": "A function is chosen deterministically (hash of student and sprint) and a structural question is built from its syntax tree (Python). Deterministic guards rate 1 without the model (empty, repeats the question, copies the code, mentions nothing from this code, one-word padding). Otherwise a frozen CodeBERT encoder embeds answer, question, code and reference, and an SVR head predicts the rating.",
+  "output_scale": "0 = no understanding shown, 1 = complete and correct explanation.",
+  "gates": ["Final runs only; the quiz is open 48 hours, then 48 more with the score capped at 0.50; a missed second window is 0.", "Not available: no answer yet, model or encoder not installed, or the code is not Python."],
+  "validation": "Trained and tested on 36 real standard-library functions with 216 answers WRITTEN BY THE ASSISTANT at five levels (no student answers, no human ratings). Final test on 6 held-out functions: MAE 0.137, Spearman 0.88. Gaming test: the first run failed the pre-set criteria (answers written for another function 3.69, generic filler 3.05, padding 2.82 against a limit of 2.0); two guards were added afterwards and all attack medians became 1.0 (optimistic: tested on the same attacks).",
+  "limits": ["Python only; other languages are not scored.", "An answer that names identifiers of the code in an otherwise empty explanation passes the relevance guard and is rated on its text.", "Agreement with human graders on real student answers is unknown."],
+  "warnings": {
+    "rated 1 without the model": "A deterministic guard fired; see the reason.",
+    "not available": "No answer yet or the scorer cannot run.",
+    "Python only": "The code is in another language."
+  },
+  "typical_problems": [
+    {"symptom": "student did not answer", "likely_cause": "missed the quiz window", "remedy": "none"},
+    {"symptom": "high rating for a short generic answer", "likely_cause": "scorer limit", "remedy": "escalate_to_human"}
+  ],
+  "allowed_remedies": ["mark_not_available", "escalate_to_human"]
+}

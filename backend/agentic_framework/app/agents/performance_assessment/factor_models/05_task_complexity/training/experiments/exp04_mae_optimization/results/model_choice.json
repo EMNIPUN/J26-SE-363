@@ -1,0 +1,26 @@
+{
+  "factor": "05_task_complexity",
+  "model_name": "Enriched Ridge (Proposal 5 + SP_total + reach_density)",
+  "features": [
+    "TC_SP (raw)",
+    "TC_SC (raw)",
+    "TC_FI (log)",
+    "TC_DR (log)",
+    "TC_CB (log)",
+    "TC_SP_total (log)",
+    "RF_tasks_done (log)",
+    "TC_reach_density (log)"
+  ],
+  "test_mae": 0.0823,
+  "baseline_mae": 0.1473,
+  "mae_gain": 0.065,
+  "ci_95": [
+    0.0399,
+    0.0792
+  ],
+  "pearson_r": 0.8032,
+  "spearman_rho": 0.8059,
+  "within_1_band": 0.9931,
+  "statistically_beats_baseline": true,
+  "decision": "Selected as optimal production model"
+}

@@ -1,0 +1,198 @@
+{
+  "n_anchors": 20,
+  "factors": {
+    "E": {
+      "features": [
+        "E_CC",
+        "E_LOC_net_capped",
+        "E_FC",
+        "E_CT",
+        "E_RD"
+      ],
+      "alpha": 0.25118864315095807,
+      "loocv_mae": 0.0414,
+      "loocv_pearson": 0.9784,
+      "baseline_mae_predict_mean": 0.2189,
+      "coefficients": {
+        "E_CC": 0.1674,
+        "E_LOC_net_capped": 0.0146,
+        "E_FC": 0.0411,
+        "E_CT": 0.0886,
+        "E_RD": 0.0179
+      },
+      "earlier_dirty_features": {
+        "loocv_mae": 0.0476,
+        "loocv_pearson": 0.9702
+      },
+      "simulated_records_outside_anchor_range": 0.0
+    },
+    "C": {
+      "features": [
+        "C_AWR",
+        "C_DC",
+        "C_LI_norm",
+        "C_CV_norm"
+      ],
+      "alpha": 3.981071705534973,
+      "loocv_mae": 0.0638,
+      "loocv_pearson": 0.9084,
+      "baseline_mae_predict_mean": 0.1918,
+      "coefficients": {
+        "C_AWR": 0.0626,
+        "C_DC": 0.037,
+        "C_LI_norm": 0.051,
+        "C_CV_norm": 0.053
+      },
+      "earlier_dirty_features": {
+        "loocv_mae": 0.0616,
+        "loocv_pearson": 0.9188
+      },
+      "simulated_records_outside_anchor_range": 0.0
+    },
+    "RF": {
+      "features": [
+        "RF_llm_score",
+        "RF_completion_rate",
+        "RF_ac_ratio",
+        "RF_untracked_ratio"
+      ],
+      "alpha": 0.01,
+      "loocv_mae": 0.0531,
+      "loocv_pearson": 0.9696,
+      "baseline_mae_predict_mean": 0.2386,
+      "coefficients": {
+        "RF_llm_score": 0.0288,
+        "RF_completion_rate": -0.0641,
+        "RF_ac_ratio": 0.3346,
+        "RF_untracked_ratio": -0.0
+      },
+      "earlier_dirty_features": {
+        "loocv_mae": 0.0531,
+        "loocv_pearson": 0.9696
+      },
+      "simulated_records_outside_anchor_range": 0.251
+    },
+    "Co": {
+      "features": [
+        "Co_PRC_depth",
+        "Co_IC_depth",
+        "Co_MC",
+        "Co_PCount",
+        "Co_CCount",
+        "Co_IR",
+        "Co_prs_merged_for_others"
+      ],
+      "alpha": 15.848931924611142,
+      "loocv_mae": 0.1038,
+      "loocv_pearson": 0.4929,
+      "baseline_mae_predict_mean": 0.1283,
+      "coefficients": {
+        "Co_PRC_depth": 0.0,
+        "Co_IC_depth": 0.0,
+        "Co_MC": 0.0,
+        "Co_PCount": 0.0199,
+        "Co_CCount": 0.0167,
+        "Co_IR": 0.0,
+        "Co_prs_merged_for_others": 0.0171
+      },
+      "earlier_dirty_features": {
+        "loocv_mae": 0.0902,
+        "loocv_pearson": 0.6172
+      },
+      "simulated_records_outside_anchor_range": 0.029
+    },
+    "TC": {
+      "features": [
+        "TC_SP",
+        "TC_SC",
+        "TC_FI",
+        "TC_DR",
+        "TC_CB"
+      ],
+      "alpha": 25.11886431509582,
+      "loocv_mae": 0.1092,
+      "loocv_pearson": 0.2123,
+      "baseline_mae_predict_mean": 0.1189,
+      "coefficients": {
+        "TC_SP": 0.0239,
+        "TC_SC": 0.0192,
+        "TC_FI": 0.0119,
+        "TC_DR": 0.0145,
+        "TC_CB": -0.0077
+      },
+      "earlier_dirty_features": {
+        "loocv_mae": 0.0915,
+        "loocv_pearson": 0.4686
+      },
+      "simulated_records_outside_anchor_range": 0.017
+    },
+    "KO": {
+      "features": [
+        "KO_survival",
+        "KO_primary_owner_share",
+        "KO_snippet_candidates"
+      ],
+      "alpha": 0.01,
+      "loocv_mae": 0.1249,
+      "loocv_pearson": 0.8388,
+      "baseline_mae_predict_mean": 0.2421,
+      "coefficients": {
+        "KO_survival": -0.0237,
+        "KO_primary_owner_share": -0.0122,
+        "KO_snippet_candidates": 0.2817
+      },
+      "earlier_dirty_features": {
+        "loocv_mae": 0.1054,
+        "loocv_pearson": 0.8872
+      },
+      "simulated_records_outside_anchor_range": 0.0
+    }
+  },
+  "behavioral_pattern": {
+    "thresholds": {
+      "high": {
+        "E": 0.6277,
+        "C": 0.3598,
+        "Co": 0.35
+      },
+      "low": {
+        "E": 0.3,
+        "C": 0.3,
+        "Co": 0.3
+      },
+      "low_e_coordinator": 0.4
+    },
+    "agreement": 0.6,
+    "cohen_kappa": 0.4822
+  },
+  "fusion": {
+    "weights": {
+      "E": 0.1823,
+      "C": 0.026,
+      "RF": 0.401,
+      "Co": 0.0699,
+      "TC": 0.1632,
+      "KO": 0.1577
+    },
+    "earlier_weights": {
+      "E": 0.1823,
+      "C": 0.026,
+      "RF": 0.401,
+      "Co": 0.0699,
+      "TC": 0.1632,
+      "KO": 0.1577
+    }
+  },
+  "final_mark_loocv": {
+    "mae_0_100": 7.07,
+    "pearson": 0.9654,
+    "spearman": 0.9367,
+    "earlier": {
+      "mae_0_100": 6.74,
+      "rmse_0_100": 8.28,
+      "pearson": 0.9729,
+      "spearman": 0.9127,
+      "mean_bias_0_100": -5.36
+    }
+  }
+}

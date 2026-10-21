@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/run_events/1",
+  "title": "Performance run events",
+  "type": "object",
+  "required": ["schema", "events", "status"],
+  "properties": {"schema": {"const": "run_events/1"}, "events": {"type": "array"}, "status": {"enum": ["queued", "running", "waiting_human", "succeeded", "failed", "cancelled"]}}
+}

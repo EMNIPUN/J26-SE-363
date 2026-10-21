@@ -26,9 +26,10 @@ SERVER_DIR = Path(__file__).resolve().parents[1]
 # The tables the security revision secures; later tables enable RLS in their own migration, which
 # test_every_model_table_and_the_version_table_get_rls checks.
 SECURITY_TABLES = {"users", "groups", "group_members", "projects", "project_documents", "agent_runs"}
-APP_TABLES = SECURITY_TABLES | {"team_invitations", "terms", "user_avatars", "notifications", "notification_preferences"}
+APP_TABLES = SECURITY_TABLES | {"team_invitations", "terms", "user_avatars", "notifications", "notification_preferences", "user_github_accounts", "team_github", "team_github_access"}
 INITIAL_REVISION = "c9da91ebdddb"
 SECURITY_REVISION = "4f6d2a9c8e1b"
+PERFORMANCE_TABLES = ("perf_tracked_teams", "perf_runs", "perf_run_events", "perf_factor_results", "perf_assessment_results", "perf_snapshots", "perf_reviews", "perf_quizzes")
 SECURED_TABLES = SECURITY_TABLES | {"alembic_version"}
 BROWSER_ROLES = ("anon", "authenticated", "service_role")
 # Fake targets: `.invalid` never resolves, and create_engine is replaced in these tests anyway.
@@ -139,8 +140,11 @@ def test_postgres_upgrade_sql_creates_only_application_tables():
     # check would be too strict.)
     for statement in ("DROP TABLE", "DROP COLUMN", "DROP INDEX", "DROP TYPE"):
         assert statement not in sql
-    # The one constraint that is replaced is the team status check, to allow 'pending'.
-    assert sql.count("DROP CONSTRAINT") == 1 and "DROP CONSTRAINT ck_groups_status" in sql
+    # The team status check and the two performance constraints are replaced by
+    # intentional, forward-only revisions.
+    assert sql.count("DROP CONSTRAINT") == 2
+    assert "DROP CONSTRAINT ck_groups_status" in sql
+    assert "DROP CONSTRAINT IF EXISTS perf_quizzes_team_ref_sprint_id_student_id_key" in sql
     assert "JSONB" in sql
     assert sql.count("CHECK (status IN ('queued', 'running', 'succeeded', 'failed'))") == 1
     assert "CREATE TYPE" not in sql
@@ -151,7 +155,10 @@ def test_postgres_downgrade_sql_drops_only_application_tables():
 
     for table in APP_TABLES:
         assert f"DROP TABLE {table};" in sql
-    assert sql.count("DROP TABLE") == len(APP_TABLES)
+    # the performance tables are plain SQL (shared/performance/schema.sql), not models, and are dropped with IF EXISTS
+    for table in PERFORMANCE_TABLES:
+        assert f"DROP TABLE IF EXISTS {table} CASCADE;" in sql
+    assert sql.count("DROP TABLE") == len(APP_TABLES) + len(PERFORMANCE_TABLES)
     assert "procrastinate" not in sql
     assert "DROP DATABASE" not in sql and "DROP SCHEMA" not in sql
 

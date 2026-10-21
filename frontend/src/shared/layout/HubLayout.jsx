@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useAuth } from '../auth/useAuth.js'
@@ -6,6 +7,7 @@ import SelviaLogo from '../components/SelviaLogo.jsx'
 import ThemeToggle from '../components/ThemeToggle.jsx'
 import HubNav, { HubMenu } from './HubNav.jsx'
 import NotificationBell from '../components/NotificationBell.jsx'
+import { clearPassed } from '../github/accessPassed.js'
 
 /**
  * Frame for the pages that come before a team's workspace: home, the team list, creating a team,
@@ -15,6 +17,8 @@ import NotificationBell from '../components/NotificationBell.jsx'
 export default function HubLayout() {
   const { user } = useAuth()
   const canCreate = user?.role === 'instructor'
+  // Being here means no team is open: the next team a student opens goes through the GitHub access check again.
+  useEffect(() => { clearPassed() }, [])
 
   return (
     <div className="min-h-screen bg-background text-foreground">

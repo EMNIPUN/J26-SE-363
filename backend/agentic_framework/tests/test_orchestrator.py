@@ -37,7 +37,7 @@ class FakeAgent:
 
 
 class BrokenAgent:
-    name = AgentName.AEGIS
+    name = AgentName.SECURITY_ASSISTANT
 
     async def handle(self, request: AgentRequest) -> AgentResponse:
         raise RuntimeError("scanner crashed")
@@ -55,7 +55,7 @@ def make_request(**overrides) -> OrchestrationRequest:
         ("planning.analyze_requirements", AgentName.PROJECT_PLANNING),
         ("tutor.chat", AgentName.ADAPTIVE_TUTOR),
         ("performance.assess_student", AgentName.PERFORMANCE_ASSESSMENT),
-        ("security.scan_repository", AgentName.AEGIS),
+        ("security.scan_repository", AgentName.SECURITY_ASSISTANT),
         ("viva.prepare_questions", None),
     ],
 )
@@ -74,17 +74,17 @@ def test_registry_is_empty_until_agents_register():
 
 @pytest.mark.asyncio
 async def test_executor_reports_unregistered_agent_as_unavailable():
-    response = await AgentExecutor({}).execute(AgentName.AEGIS, AgentRequest(action="security.scan_repository"))
+    response = await AgentExecutor({}).execute(AgentName.SECURITY_ASSISTANT, AgentRequest(action="security.scan_repository"))
 
     assert response.status is ResultStatus.UNAVAILABLE
-    assert response.agent_name is AgentName.AEGIS
+    assert response.agent_name is AgentName.SECURITY_ASSISTANT
 
 
 @pytest.mark.asyncio
 async def test_executor_turns_agent_exception_into_failed_response():
     request = AgentRequest(action="security.scan_repository")
 
-    response = await AgentExecutor({AgentName.AEGIS: BrokenAgent()}).execute(AgentName.AEGIS, request)
+    response = await AgentExecutor({AgentName.SECURITY_ASSISTANT: BrokenAgent()}).execute(AgentName.SECURITY_ASSISTANT, request)
 
     assert response.status is ResultStatus.FAILED
     assert response.error.code == "agent_error"

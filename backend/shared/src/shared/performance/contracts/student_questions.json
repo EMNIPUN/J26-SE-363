@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/student_questions/1",
+  "title": "Student questions",
+  "type": "object",
+  "required": ["schema", "student", "sprint", "summary", "questions"],
+  "properties": {"schema": {"const": "student_questions/1"}, "student": {"type": "object"}, "sprint": {"type": "string"}, "summary": {"type": "object"}, "questions": {"type": "array"}}
+}

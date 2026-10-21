@@ -1,0 +1,51 @@
+student_id,team_id,behaviour_class,scenario,sprints
+SYN-001,S01,consistent_deep_contributor,solid backend coder who never reviews; one task left partial,2
+SYN-002,S01,last_minute_rusher,big but late: everything in the last four days; one task incomplete,2
+SYN-003,S01,reviewer_coordinator,reviewer who also writes a little code; one review is only 'looks good',2
+SYN-004,S01,free_rider,assigned task finished by a teammate; token contribution; slight improvement in sprint 2,2
+SYN-005,S01,burst_worker,two bursts in sprint 1; in sprint 2 a hard concurrency task with little code,2
+SYN-006,S02,consistent_deep_contributor,steady backend work all sprint; skips documentation and one edge case each sprint,3
+SYN-007,S02,last_minute_rusher,React pages written in the last two days every sprint; works but rough edges,3
+SYN-008,S02,reviewer_coordinator,"reviews and merges most pull requests; writes small, careful pieces of code; reviews get deeper over time",3
+SYN-009,S02,free_rider,"no commits in sprint 1, a trivial change in sprint 2, then leaves the team",2
+SYN-010,S02,no_specific_pattern,"strong first sprint, exam-week dip in sprint 2, middling recovery in sprint 3",3
+SYN-011,S03,consistent_deep_contributor,owns the cart state and pricing; works most days; tests present but one rule untested,3
+SYN-012,S03,last_minute_rusher,screens done in the final two days; UI works but error and empty states are missing,3
+SYN-013,S03,burst_worker,"two bursts per sprint with a quiet week between; good bursts, sprint 3 only one burst",3
+SYN-014,S03,free_rider,joins in sprint 2; one small file; blames the schedule; sprint 3 tidies docs only,2
+SYN-015,S03,no_specific_pattern,"granular committer: very many tiny commits, modest total change; some rework",3
+SYN-016,S04,consistent_deep_contributor,"deep backend work; productive in sprints 1, 2 and 4, a dip in sprint 3 (illness) with only a few commits",4
+SYN-017,S04,burst_worker,intense bursts at the start and end of each sprint with a quiet middle; output is solid,4
+SYN-018,S04,reviewer_coordinator,"coordinates the sprint: board, reviews, merges; writes docs and small fixes; reviews are detailed except when overloaded",4
+SYN-019,S04,free_rider,nothing in sprint 1; sprint 2 task finished by a teammate; sprint 3 one tiny commit; then leaves,3
+SYN-020,S04,no_specific_pattern,hard algorithmic tasks with little code; reliable but slow; sprint 4 an easy task with a lot of code,4
+SYN-021,S05,last_minute_rusher,scoring and views written in the last two or three days; gets a bit earlier by sprint 4 but still back-loaded,4
+SYN-022,S05,burst_worker,bursts at the start and end of each sprint with a quiet middle; clean work in each burst,4
+SYN-023,S05,reviewer_coordinator,keeps the board and runs merges; no review data in sprints 1-2 because the team did not use pull requests; reviews in sprints 3-4,4
+SYN-024,S05,free_rider,pasted-template commit that inflates lines; tiny real contribution; sprint 4 task finished by a teammate,4
+SYN-025,S05,no_specific_pattern,"steady but small: a few commits spread evenly in every sprint, modest tasks, no bursts",4
+SYN-026,S06,consistent_deep_contributor,"carries the team: about half of all backend work, steady; weakest on tests and on explaining decisions",4
+SYN-027,S06,last_minute_rusher,React admin pages built in the last days; one is half finished each sprint,4
+SYN-028,S06,reviewer_coordinator,"reviews every PR, keeps the board and merges; moderate coding in sprints 2 and 3; sprint 4 stretched thin so reviews get shorter",4
+SYN-029,S06,no_specific_pattern,"high volume of easy work: many CRUD handlers copied with small changes; lots of lines, low complexity, little review",4
+SYN-030,S06,no_specific_pattern,"strong start, then fades: good first sprint, weaker second, almost nothing third, leaves before sprint 4",3
+SYN-031,S07,consistent_deep_contributor,API developer working most days across five sprints; slightly thinner last sprint; validation gaps,5
+SYN-032,S07,last_minute_rusher,mobile screens finished in the last two days of each sprint; sprint 3 the student was ill and has no commits,5
+SYN-033,S07,burst_worker,two bursts per sprint with a quiet gap; sprint 4 has only one burst,5
+SYN-034,S07,free_rider,"pastes a large library into a counted folder (huge line count, one commit), almost nothing else; fades out after sprint 4",4
+SYN-035,S07,no_specific_pattern,"alternating work: hard tasks with little code, then easy tasks with a lot of code; joins in sprint 2",4
+SYN-036,S08,last_minute_rusher,UI work done in the final two days of every sprint; works but rough; sprint 5 slightly earlier,5
+SYN-037,S08,burst_worker,API work in two bursts per sprint; correct and tested; sprint 4 one burst only,5
+SYN-038,S08,reviewer_coordinator,reviews carefully and replies in threads; merges for others; writes small utility modules; quieter on coding in sprint 5,5
+SYN-039,S08,free_rider,joins in sprint 2; tasks stay partial; sprint 4 task finished by a teammate; small docs in sprint 5,4
+SYN-040,S08,no_specific_pattern,joins in sprint 4; small but correct and well explained work; two sprints only,2
+SYN-041,S09,consistent_deep_contributor,owns the domain logic (splitting and settling); regular commits through all sprints; late bug found in rounding,3
+SYN-042,S09,reviewer_coordinator,"many short reviews on every pull request, merges for others; reviews are fast and sometimes shallow; writes the UI glue",3
+SYN-043,S09,free_rider,claims large tasks but teammates finish them; own commits are tiny; slight effort at the end,3
+SYN-044,S09,no_specific_pattern,"works alone on separate files (export feature); few shared files, no PR discussion; steady small deliveries",3
+SYN-045,S09,no_specific_pattern,"hard algorithmic work, little code, high quality; a week without commits then a short burst; sprint 3 only reviews and one fix",3
+SYN-046,S10,consistent_deep_contributor,ingestion and tests all sprint; sprint 4 has an integration setback with reverts but still steady effort,4
+SYN-047,S10,last_minute_rusher,Vue views built in the last two days each sprint; sprint 3 the biggest delivery but still late,4
+SYN-048,S10,burst_worker,pipeline work in two clear bursts per sprint; sprint 2 one very large burst,4
+SYN-049,S10,free_rider,copies tutorial code he cannot explain; one zero sprint; ends with only a README commit,4
+SYN-050,S10,no_specific_pattern,"the average student: moderate commits on most weeks, mostly correct, some rework, occasional review, no strength or weakness",4

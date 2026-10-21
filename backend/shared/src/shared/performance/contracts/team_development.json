@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/team_development/1",
+  "title": "Team development",
+  "type": "object",
+  "required": ["schema", "sprint", "progress", "kpis", "students", "chart", "factor_series", "warnings"],
+  "properties": {
+    "schema": {"const": "team_development/1"}, "sprint": {"type": "string"}, "progress": {"type": "object"},
+    "kpis": {"type": "object"}, "students": {"type": "array"}, "chart": {"type": "array"},
+    "factor_series": {"type": "object"}, "warnings": {"type": "array"}
+  }
+}

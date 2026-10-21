@@ -13,7 +13,13 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 # (METHOD, path) pairs that are intentionally public. Keep this empty unless there is a reason.
-PUBLIC_OPERATIONS: set[tuple[str, str]] = set()
+PUBLIC_OPERATIONS: set[tuple[str, str]] = {
+    # GitHub calls it, not a person; the body must carry a valid HMAC signature (tests/test_performance_api.py).
+    ("POST", "/api/v1/performance/webhooks/github"),
+    # GitHub sends the browser back here; the request carries a signed, short-lived state (tests/test_github_api.py).
+    ("GET", "/api/v1/github/installed"),
+    ("GET", "/api/v1/github/callback"),
+}
 
 HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
 

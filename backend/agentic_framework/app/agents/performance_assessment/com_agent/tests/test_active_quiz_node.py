@@ -8,13 +8,84 @@ Improvements over original:
 """
 
 import pytest
-from app.agents.performance_assessment.com_agent.state import ActiveVerificationState
+from app.agents.performance_assessment.com_agent.state import ActiveVerificationState, FactorOutput
+from app.agents.performance_assessment.com_agent.policies.fallback_policies import get_fallback_for_factor
+from app.agents.performance_assessment.com_agent.nodes import active_quiz_node as node
 from app.agents.performance_assessment.com_agent.nodes.active_quiz_node import (
     ast_quiz_generator_node,
     await_quiz_response_node,
     evaluate_ownership_tool,
 )
 from app.agents.performance_assessment.com_agent.config.settings_loader import settings
+
+
+SEEN = []
+
+
+@pytest.fixture(autouse=True)
+def stub_scorer(monkeypatch):
+    """The answer rating lives in factor_models/07_code_ownership (needs torch and a trained head); these tests check the node's flow, so the rating is stubbed."""
+    SEEN.clear()
+
+    async def fake(factor_name, payload=None, context=None, **kw):
+        SEEN.append(payload)
+        return FactorOutput(score=0.85, features={"ko_raw_score": 0.85}, status="completed")
+
+    monkeypatch.setattr(node, "evaluate_factor", fake)
+
+
+PY_FILE = """def split_total(items, discount):
+    if discount < 0:
+        raise ValueError('discount must not be negative')
+    total = 0
+    for item in items:
+        if item['qty'] <= 0:
+            continue
+        total += item['price'] * item['qty']
+    total = total - total * discount
+    return round(total, 2)
+"""
+
+
+@pytest.mark.asyncio
+async def test_generator_uses_the_ownership_package_when_source_files_are_given():
+    updates = await ast_quiz_generator_node({"ownership_files": [{"path": "shop/cart.py", "text": PY_FILE}], "student_id": "STU-001", "sprint_id": "T01-S1"})
+    av = updates["active_verification"]
+    assert av.file_path == "shop/cart.py"
+    assert av.ast_metadata["name"] == "split_total" and av.ast_metadata["language"] == "python"
+    assert "split_total" in av.generated_question
+    assert av.ast_metadata["reference_criteria"] and av.ast_metadata["facts"]["guards"]
+    again = await ast_quiz_generator_node({"ownership_files": [{"path": "shop/cart.py", "text": PY_FILE}], "student_id": "STU-001", "sprint_id": "T01-S1"})
+    assert again["active_verification"].generated_question == av.generated_question  # same student and sprint, same question
+
+
+@pytest.mark.asyncio
+async def test_generator_without_source_files_keeps_the_placeholder_quiz():
+    updates = await ast_quiz_generator_node({"ownership_files": [{"path": "notes.py", "text": "x = 1\n"}]})
+    assert updates["active_verification"].file_path == "backend/app/auth.py"
+
+
+@pytest.mark.asyncio
+async def test_rating_request_carries_question_code_and_facts():
+    av = ActiveVerificationState(target_code_snippet="def f(x):\n    return x", generated_question="What does f return?", file_path="a.py",
+                                 ast_metadata={"facts": {"guards": []}, "language": "python"})
+    await await_quiz_response_node({"active_verification": av}, mock_resume_value={"student_response": "It returns x unchanged."})
+    sent = SEEN[0]
+    assert sent["generated_question"] == "What does f return?" and sent["code_snippet"].startswith("def f") and sent["facts"] == {"guards": []}
+
+
+@pytest.mark.asyncio
+async def test_unavailable_scorer_gives_a_fallback_not_a_made_up_score(monkeypatch):
+    async def unavailable(factor_name, payload=None, context=None, **kw):
+        return get_fallback_for_factor(factor_name, "no trained head")
+
+    monkeypatch.setattr(node, "evaluate_factor", unavailable)
+    av = ActiveVerificationState(target_code_snippet="def f(x):\n    return x", generated_question="What does f return?")
+    updates = await await_quiz_response_node({"active_verification": av}, mock_resume_value={"student_response": "It returns x unchanged."})
+    assert updates["factor_scores"]["code_ownership"].status == "fallback_applied"
+    assert updates["ko_raw_score"] is None
+    again = await evaluate_ownership_tool({"active_verification": updates["active_verification"]})
+    assert again["factor_scores"]["code_ownership"].status == "fallback_applied"
 
 
 @pytest.mark.asyncio

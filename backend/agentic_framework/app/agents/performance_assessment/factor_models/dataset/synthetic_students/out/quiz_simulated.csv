@@ -1,0 +1,176 @@
+team_id,sprint_id,student_id,tier,rating,snippet,question,answer
+S01,S01-S1,SYN-001,good,4,seatsLeft: event.capacity minus the sum of seats over bookings,Why are seats left computed from the bookings instead of stored on the event?,"So the number cannot get out of sync when a booking is cancelled. It is slower for big events, and two requests at the same moment can still both pass the check."
+S01,S01-S1,SYN-002,partial,3,EventList fetches with useEffect and passes events to EventCard,What does the empty dependency array in useEffect do in EventList?,It makes it run once when the page opens. I think without it the list would reload all the time.
+S01,S01-S1,SYN-003,good,4,eventController.list filters events from now on and sorts by start date,Why does list filter on startsAt >= now?,"Past events should not be bookable, so the public list only needs upcoming ones. An admin view would need a separate query to see old events."
+S01,S01-S1,SYN-004,weak,2,(no code of their own this sprint),Explain how login checks a password.,It compares it with the one in the database.
+S01,S01-S1,SYN-005,good,4,EventForm posts or puts depending on whether an event was passed in,What decides whether EventForm creates or updates?,"Whether the event prop is set. With an event it calls put with its id, without one it posts a new one."
+S01,S01-S2,SYN-001,strong,5,sendConfirmation catches mail errors,Why does sendConfirmation catch its own errors?,"The booking is already saved. If the mail server is down the user should still have the booking, so I log the failure and do not throw."
+S01,S01-S2,SYN-002,good,4,MyBookings reloads the list after cancelling,Why does cancel call load() again instead of editing the list in place?,So the page always shows what the server has. If the cancel failed I would not remove the row by mistake. Editing in place would be faster though.
+S01,S01-S2,SYN-003,partial,3,auth middleware verifies the JWT and loads the user,Why does the middleware load the user from the database instead of trusting the token payload?,I think the token could be old. So we read the user again to be sure they still exist.
+S01,S01-S2,SYN-004,partial,3,AdminDashboard fetches events and renders a table,Why does the dashboard not show past events yet?,Because the API only gives future events. I did not change it.
+S01,S01-S2,SYN-005,strong,5,"bookSeats decrements seatsLeft only if enough remain, inside a transaction",Why decrement with a condition instead of reading seatsLeft first?,"A read then a write leaves a gap where another request can take the seats. The conditional update does the check and the change in one step, so only one request can win the last seats."
+S02,S02-S1,SYN-006,good,4,checkout marks the book on loan and stores a due date,Why is on_loan stored on the book as well as derived from loans?,Mostly so the catalogue query is fast. But it means two places can disagree if a return fails halfway.
+S02,S02-S1,SYN-007,partial,3,Catalogue refetches when the search text changes,Why is q in the dependency array of useEffect?,So it searches again when the text changes. I think it fires on every key press which is a bit much.
+S02,S02-S1,SYN-008,good,4,db.py creates the engine and a session per request,Why a session per request?,"So requests do not share uncommitted state, and the session is closed at the end of each request."
+S02,S02-S1,SYN-009,weak,1,(no code this sprint),Describe how a member is stored.,In the database. I did not get to it this sprint.
+S02,S02-S1,SYN-010,good,4,search builds an ilike pattern for title and author,"What is the problem with building the pattern as f""%{q}%""?",If q contains % or _ they act as wildcards. I should escape them.
+S02,S02-S2,SYN-006,strong,5,fine_for caps the fine at the book price,What happens to a loan returned before the due date?,"days becomes max(0, negative) = 0, so the fine is 0. I handled that in the max so we never charge a negative fine."
+S02,S02-S2,SYN-007,good,4,borrow shows the API's detail message,Why show e.response.data.detail instead of a fixed message?,"Because the backend sends specific reasons like 'book already on loan', and the user needs to know which one."
+S02,S02-S2,SYN-008,strong,5,fines groups unpaid fines by member,Why filter on fine > 0 and fine_paid false?,"Loans with no fine would add zero rows to the group, and paid ones should not appear in what the member still owes."
+S02,S02-S2,SYN-009,weak,2,register stores name and email,What happens if two members use the same email?,"It would save both, I think. I did not add a check."
+S02,S02-S2,SYN-010,partial,3,availability returns a placeholder,Why does availability return 1?,It is a placeholder. We never modelled several copies of a book.
+S02,S02-S3,SYN-006,good,4,send_reminders loops over loans due tomorrow,What stops a member getting the reminder twice?,Nothing yet. I know we need a reminder_sent column. I ran out of time.
+S02,S02-S3,SYN-007,partial,3,Librarian form keeps fields in one state object,How does the form update only one field?,It spreads the old form and replaces the key that changed.
+S02,S02-S3,SYN-008,partial,3,docker-compose starts the API and nginx,What does the volume on the web service do?,It puts the built React files in the folder nginx serves from.
+S02,S02-S3,SYN-010,good,4,reserve rejects a second reservation by the same member,How is the queue order decided?,By created time. The notify on return is not written.
+S03,S03-S1,SYN-011,strong,5,CartState.remove removes the line when quantity reaches one,Why call notifyListeners after every change?,Widgets listening to the cart rebuild only when notified. If I forget it the badge keeps the old number.
+S03,S03-S1,SYN-012,partial,3,FutureBuilder shows a spinner until the data arrives,What happens if the request fails?,I think it keeps spinning. I did not add the error part.
+S03,S03-S1,SYN-013,good,4,login stores the token in secure storage,Why secure storage and not shared preferences?,Shared preferences is plain text on the device. Secure storage uses the keychain or keystore.
+S03,S03-S1,SYN-015,good,4,MenuItem.fromJson converts price with num.toDouble,Why cast to num first?,"The JSON can give an int like 450 or a double like 450.5. num handles both, then toDouble makes it uniform."
+S03,S03-S2,SYN-011,good,4,applyPromo multiplies by one minus the percent,What does the promo code ignore today?,The expiry date. It is on the model but I never compare it with today.
+S03,S03-S2,SYN-012,good,4,the add button reads CartState from context,Why context.read and not context.watch in onPressed?,read just fetches it once. watch would rebuild and is not allowed inside a callback.
+S03,S03-S2,SYN-013,good,4,tracking uses Timer.periodic and cancels on delivered,What if the screen closes while the timer runs?,"dispose should cancel the timer. I added that in the last commit, otherwise it would keep polling."
+S03,S03-S2,SYN-014,weak,2,filter matches the restaurant name,How does the search handle cuisine?,"It does not yet, only the name."
+S03,S03-S2,SYN-015,good,4,menu falls back to the cache when fetch throws,What is the weakness of catch (_)?,"It hides every error, even a bug in parsing. It should only catch network errors."
+S03,S03-S3,SYN-011,good,4,save deletes the oldest order while more than 20 exist,Why a while loop instead of an if?,If the box somehow has more than 21 entries one delete is not enough. The loop trims it down to 20.
+S03,S03-S3,SYN-012,partial,3,empty cart returns a centred message,Where is the retry for a failed home request?,Not done. Only the empty cart message is added.
+S03,S03-S3,SYN-013,partial,3,onMessage listens to foreground push messages,What handles a push while the app is closed?,A background handler is needed. I only did the foreground one.
+S03,S03-S3,SYN-014,weak,2,(no code this sprint),Where would the debounce go?,In the search box I think.
+S03,S03-S3,SYN-015,partial,3,tooltip doubles as the semantic label,What is checked by Semantics?,What a screen reader reads out.
+S04,S04-S1,SYN-016,strong,5,book checks existsByDoctorIdAndStart before saving,Can two patients still book the same slot?,"Yes, if both pass the check at once. A unique constraint on doctor and start would stop it. The check alone is not enough."
+S04,S04-S1,SYN-017,good,4,Doctor stores working hours as a map keyed by weekday,Why an EnumMap?,"Keys are weekdays, an enum, and EnumMap is compact and keeps them in order."
+S04,S04-S1,SYN-018,good,4,"Patient entity has name, email and phone",Why is email unique?,"It identifies the patient when they log in, and two accounts with the same email would clash."
+S04,S04-S1,SYN-019,weak,1,(no code this sprint),How is a patient saved?,With the repository save I think.
+S04,S04-S1,SYN-020,strong,5,overlaps compares start with the other end and the other start with the end,Why isBefore on both and not <=?,"Two appointments that touch, one ending at 10:00 and one starting at 10:00, are not overlapping. Strict isBefore treats that as free. I wrote a test for exactly that."
+S04,S04-S2,SYN-016,strong,5,remind skips appointments with reminderSent set,What if the mail call throws halfway through the loop?,"Then the flag is not set for that one and the rest would not run. I wrapped the send in try-catch so one failure does not stop the others, and the flag stays false so it retries next hour."
+S04,S04-S2,SYN-017,good,4,freeSlots steps through working hours in 20 minute steps,What is the compareTo condition for?,"It makes sure a slot ends before the working hours end, so the last slot is not cut."
+S04,S04-S2,SYN-018,good,4,the integration test books the same slot twice,Why use H2 for tests?,"It starts fast and needs no install. But it is not exactly MySQL, so some queries could behave differently in production."
+S04,S04-S2,SYN-019,weak,2,(registration endpoint written by a teammate),What validates the email?,"I don't know, the annotation maybe."
+S04,S04-S2,SYN-020,strong,5,merge sorts by start and extends the last interval,What is the time complexity?,"O(n log n) for the sort, the loop after it is linear."
+S04,S04-S3,SYN-016,good,4,findByPatientIdOrderByStartDesc derives the query from its name,How does Spring build that query?,"From the method name. It parses findBy, the field, and OrderBy and writes the JPQL."
+S04,S04-S3,SYN-017,partial,3,freeSlots returns nothing on leave days,Where is the leave check for booking itself?,"Only in the slots list so far, the booking method does not check it."
+S04,S04-S3,SYN-018,partial,3,data.sql inserts sample doctors,What happens to the seed data on each restart?,I think it is inserted again. We may need to clear the table first.
+S04,S04-S3,SYN-019,weak,2,registerReturnsPatient,What does assertNotNull prove here?,That it returned something.
+S04,S04-S3,SYN-020,partial,3,join returns silently if the patient is already waiting,Why return instead of throwing?,So joining twice is harmless. But the caller does not know it was a duplicate.
+S04,S04-S4,SYN-016,strong,5,reschedule re-runs the two-hour and slot-taken checks,Why is the method @Transactional?,So the read of the appointment and the change to its start happen in one transaction. Without it a concurrent change between the read and the write is possible.
+S04,S04-S4,SYN-017,good,4,the patient rule compares the path id with the authenticated name,What would break if a patient's name is not their id?,"The rule compares the auth name to the id, so the token subject has to be the id. If it were an email the check would always fail."
+S04,S04-S4,SYN-018,partial,3,application-prod.properties reads secrets from the environment,Why not put the JWT secret in the file?,Because the file is in git. Anyone with the repo would have the secret.
+S04,S04-S4,SYN-020,good,4,csv escapes names containing commas,What does esc do with a double quote?,"It should double it and wrap the field in quotes. I tested a comma, not a quote."
+S05,S05-S1,SYN-021,partial,3,take picks the question by the n query parameter,What happens if n is past the last question?,"I think it errors, an IndexError. I did not check."
+S05,S05-S1,SYN-022,good,4,Profile extends the user with a role,Why a OneToOneField to User?,"Each user has exactly one profile, and Django's User model stays untouched."
+S05,S05-S1,SYN-023,good,4,settings read the secret key from the environment,Why is SECRET_KEY not in settings.py?,It signs sessions. If it is in git anyone can forge a session.
+S05,S05-S1,SYN-024,weak,2,dashboard.html loops over quizzes,Where does 'quizzes' come from?,"The view passes it, I think."
+S05,S05-S1,SYN-025,good,4,Attempt has started_at with auto_now_add,What does auto_now_add do?,"Sets the time when the row is first created, and it is not editable afterwards."
+S05,S05-S2,SYN-021,good,4,score intersects correct option ids with picked ids,Does a question with two correct options give two points?,"Yes, each correct option picked adds a point, which is not what the requirement says for multiple choice. It was written for single answer."
+S05,S05-S2,SYN-022,good,4,inlineformset_factory builds a set of question forms for a quiz,Why extra=3?,It shows three empty question forms to fill in so the teacher does not have to click add each time.
+S05,S05-S2,SYN-023,partial,3,loaddata imports the JSON fixture,What happens if the fixture ids clash with existing rows?,"They are overwritten, I think."
+S05,S05-S2,SYN-024,weak,2,take.html includes a large pasted theme,What does the .sidebar rule do in your pages?,"I'm not sure, it came with the theme."
+S05,S05-S2,SYN-025,good,4,"the limit counts all attempts, finished or not",Is an abandoned attempt a used attempt?,"Yes, as it is written. That may be harsh."
+S05,S05-S3,SYN-021,good,4,expired compares now with started_at plus the limit,Why is the check on the server too and not only in the browser countdown?,A student can change the browser countdown. The server check is the one that counts.
+S05,S05-S3,SYN-022,good,4,import_rows collects errors per row,Why enumerate from start=2?,"Row 1 is the header, so the first data row is line 2 in the CSV. It makes the message match the file."
+S05,S05-S3,SYN-023,partial,3,the PR template lists summary and how tested,Why require one approval?,So someone else reads every change before it reaches main.
+S05,S05-S3,SYN-024,weak,1,(no code this sprint),How would categories be stored?,A new table.
+S05,S05-S3,SYN-025,partial,3,send_mail is called after the attempt is finished,Which backend is used in development?,"The console one, so it prints to the terminal."
+S05,S05-S4,SYN-021,good,4,top orders by score descending then duration,How do ties get broken?,"By the shorter duration, that is the second order_by key."
+S05,S05-S4,SYN-022,good,4,order_for seeds the random generator with the attempt id,Why seed with the attempt id?,"So the same attempt always gets the same order after a reload, but different attempts differ."
+S05,S05-S4,SYN-023,good,4,leaderboard sorts by score then duration,Why did you fix the tiebreak?,"The first version used started_at, which ties by when you started, not how fast you were."
+S05,S05-S4,SYN-024,weak,2,(categories were added by a teammate),How are quizzes linked to a category?,"With a foreign key, I guess."
+S05,S05-S4,SYN-025,good,4,every input has a for attribute pointing to its id,Why does that matter?,A screen reader reads the label when the input is focused.
+S06,S06-S1,SYN-026,good,4,Create maps a unique violation to ErrDuplicateSKU,Why match the Postgres error code instead of checking first?,A check then insert has a race. Letting the database reject it and mapping code 23505 is safe even with concurrent requests.
+S06,S06-S1,SYN-027,partial,3,Products fetches the list on mount,What does api.get return?,"The response, and .data has the list."
+S06,S06-S1,SYN-028,good,4,CI runs go test on every pull request,What does a required status check do?,It blocks merging until CI passes.
+S06,S06-S1,SYN-029,partial,3,"Create decodes JSON, checks the name, then stores",Why does the handler return err.Error() as the body?,It was quick for debugging. It could leak internal details.
+S06,S06-S1,SYN-030,strong,5,sale_lines.qty has CHECK (qty > 0),Why put the rule in the database too?,Application code can have bugs or be bypassed by a script. The database is the last guard.
+S06,S06-S2,SYN-026,strong,5,"Complete decrements stock only where stock is enough, inside a transaction",Why check RowsAffected?,If the stock was too low the UPDATE matches no row and RowsAffected is zero. That is how I detect it atomically; the defer Rollback undoes any earlier lines.
+S06,S06-S2,SYN-027,good,4,complete posts the lines and clears them,What if the post fails?,"The lines are cleared only after await, so a throw skips setLines. But there is no message, so the cashier does not know."
+S06,S06-S2,SYN-028,good,4,Categories returns rows.Err after the loop,Why check rows.Err?,"Because rows.Next returns false on an error too, and the error is only available afterwards."
+S06,S06-S2,SYN-029,partial,3,customer handlers follow the supplier handlers,What would you extract from these handlers?,The decode and error parts. They are repeated in every handler.
+S06,S06-S2,SYN-030,good,4,Receipt formats each line with fixed width columns,What happens with a long product name?,"The %-20s pads but does not cut, so a long name pushes the numbers right."
+S06,S06-S3,SYN-026,good,4,the report query groups sale lines by product name,What goes wrong if two products share a name?,They would be merged into one row. I should group by product id and select the name.
+S06,S06-S3,SYN-027,partial,3,Reports draws a line chart from the days array,Where do the days come from?,"From the report endpoint, one object per day."
+S06,S06-S3,SYN-028,good,4,parseCount returns an error naming the SKU with a bad quantity,Why wrap with %w?,So callers can use errors.Is or errors.As on the original error.
+S06,S06-S3,SYN-029,good,4,history joins sales and sale lines for one customer,Why order by created_at descending?,The newest purchases are the most useful at the top.
+S06,S06-S3,SYN-030,weak,2,audit table migration,Which actions are logged?,"Stock adjustments, but nothing writes to it yet."
+S06,S06-S4,SYN-026,good,4,the barcode index is unique only where barcode is not null,Why the WHERE clause?,Many products have no barcode. Without it all the NULLs would count as duplicates in some databases.
+S06,S06-S4,SYN-027,good,4,the interceptor returns Promise.reject so callers still see the error,Why not swallow the error in the interceptor?,"The page may need to react to it too, for example stop a spinner."
+S06,S06-S4,SYN-028,partial,3,seed inserts 200 random products,Does seed run twice safely?,"No, it would fail on duplicate SKUs."
+S06,S06-S4,SYN-029,good,4,export writes with csv.Writer and flushes,What happens if you forget Flush?,The last buffered rows are never written.
+S07,S07-S1,SYN-031,good,4,"logWorkout reads the user from req.user, not the body",Why not take the user id from the body?,A client could send another user's id. req.user comes from the verified token.
+S07,S07-S1,SYN-032,partial,3,Home fetches today's workouts in useEffect,What is the dependency array for?,To run it only once when the screen mounts.
+S07,S07-S1,SYN-033,good,4,login compares with bcrypt.compare,Why not compare the plain strings?,"The database stores a hash, not the password."
+S07,S07-S1,SYN-034,weak,2,README lists npm start,What does npm start run in the API?,"The server, I think."
+S07,S07-S2,SYN-031,strong,5,the delete query includes the user id,Why findOneAndDelete with both id and user?,If it only used the id any user could delete anyone's workout. Adding the user means other people's ids simply return 404.
+S07,S07-S2,SYN-032,good,4,submit posts and goes back,What if minutes is empty?,"Number('') is 0, so it posts 0 minutes and the API should reject it."
+S07,S07-S2,SYN-033,good,4,flush posts each queued workout then clears the queue,What if one post fails?,"The loop throws and the queue is not cleared, so already sent ones get sent again. I need an id per item."
+S07,S07-S2,SYN-034,weak,2,WorkoutCard contains a pasted chart library,Which part did you change?,Only the import path.
+S07,S07-S2,SYN-035,strong,5,buckets are keyed by the date in the user's time zone,Why not use UTC dates?,A workout at 23:30 in Colombo would land on the next UTC day and break streaks.
+S07,S07-S3,SYN-031,good,4,weekly totals use an aggregation by type,What is wrong with weekStartsOn 0?,0 is Sunday and the requirement says Monday. I missed it.
+S07,S07-S3,SYN-032,weak,1,(no code this sprint),How would infinite scroll work?,"FlatList onEndReached, page + 1."
+S07,S07-S3,SYN-033,good,4,the reminder repeats daily at 18:00,How is it skipped when a workout exists?,The app cancels and reschedules for tomorrow after a workout is logged.
+S07,S07-S3,SYN-034,weak,2,one test for the total of minutes,What does an empty list return?,"Zero, I would hope."
+S07,S07-S3,SYN-035,good,4,the exercise list is a static array,What would you change if exercises came from the API?,"Fetch them, cache them, and show a loading state."
+S07,S07-S4,SYN-031,strong,5,currentStreak starts from yesterday when today has no workout,Why subtract a day when today is missing?,A user who has not logged yet today still has their streak. It only breaks if yesterday was also missed.
+S07,S07-S4,SYN-032,partial,3,FlatList onEndReached increments the page,Where do the next items get appended?,"Not appended, the effect replaces the list. That is a bug."
+S07,S07-S4,SYN-033,good,4,Share.share takes a message string,Where does the share sheet come from?,The operating system.
+S07,S07-S4,SYN-034,weak,1,(no code this sprint),What tests are missing?,The empty week and the type counts.
+S07,S07-S4,SYN-035,good,4,isPR is true for no previous record or a higher value,Is a tie a record?,Not in my code. The requirement doesn't say so I had to choose.
+S07,S07-S5,SYN-031,good,4,progress caps the percentage at 100,Why Math.min?,"A user can exceed the goal, but a progress bar should not go past full."
+S07,S07-S5,SYN-032,good,4,Stats passes days and minutes to the bar chart,Where does streak come from?,From the /stats/streak endpoint the API team added.
+S07,S07-S5,SYN-033,partial,3,buttons get an accessibilityLabel,What is accessibilityRole for?,Tells the screen reader it is a button.
+S07,S07-S5,SYN-035,partial,3,the seed loop creates 200 random workouts,How would running the seed twice behave?,It adds 200 more.
+S08,S08-S1,SYN-036,partial,3,Home is an async server component,Why can it be async?,Server components in Next can await data directly. Client ones can't.
+S08,S08-S1,SYN-037,good,4,Listing has an index on sellerId,Why index sellerId?,We often list a seller's items. Without an index each lookup scans the table.
+S08,S08-S1,SYN-038,good,4,prisma.ts keeps one client on globalThis in development,Why a singleton?,"Next dev reloads modules, creating a new client each time would exhaust database connections."
+S08,S08-S2,SYN-036,good,4,Listing calls notFound when the id has no row,Why include seller?,To avoid a second query. Prisma joins the seller in the same request.
+S08,S08-S2,SYN-037,strong,5,updateMany filters by id and sellerId,Why updateMany and not update?,update needs a unique key and would not accept the extra sellerId filter. updateMany with both conditions plus the count tells me if the seller really owned it.
+S08,S08-S2,SYN-038,partial,3,remotePatterns allows only the photo host,Why not allow any host?,Anyone could make the image optimiser fetch any URL.
+S08,S08-S2,SYN-039,weak,2,Category enum in the Prisma schema,Where is the filter applied?,Nowhere yet.
+S08,S08-S3,SYN-036,good,4,safeParse returns errors instead of throwing,Why safeParse and not parse?,parse throws. safeParse returns an object so I can show messages.
+S08,S08-S3,SYN-037,good,4,the file type is checked from file.type,Can a user fake that?,"Yes, it comes from the browser. A real check would read the file's first bytes."
+S08,S08-S3,SYN-038,strong,5,isClean matches whole words case-insensitively,Why the \\b word boundary?,Without it 'fakery' or 'scamper' would be blocked. The boundary makes only whole words match.
+S08,S08-S3,SYN-039,partial,3,the select lists the categories,How does the choice reach the query?,It is passed as cat in the URL and search uses it.
+S08,S08-S4,SYN-036,good,4,Messages polls the API every five seconds with SWR,What would replace polling?,"WebSockets or server-sent events, so new messages arrive instantly."
+S08,S08-S4,SYN-037,strong,5,search builds the where clause from only the filters that were given,Why use AND with conditional objects?,"An empty object {} means no condition, so I can add each filter only when it is present."
+S08,S08-S4,SYN-038,good,4,allow keeps timestamps per user in a map,What breaks with two servers?,"Each server has its own map, so a user gets 20 per server. Needs Redis."
+S08,S08-S4,SYN-039,weak,2,(report feature written by a teammate),Where are reports shown to moderators?,I don't think it's done.
+S08,S08-S4,SYN-040,strong,5,a notification row records the last email per conversation,Why store it in the database and not in memory?,It survives restarts and works with several servers. The in-memory limiter could not.
+S08,S08-S5,SYN-036,good,4,send posts and then calls mutate to refresh,What does mutate do?,Tells SWR to refetch so the new message shows up.
+S08,S08-S5,SYN-037,good,4,accepting an offer declines the others in one transaction,Why $transaction?,If the server stopped between the two updates two offers would stay accepted.
+S08,S08-S5,SYN-038,partial,3,docs/api.md lists every endpoint,Which endpoint needs login?,All except the listing list and search.
+S08,S08-S5,SYN-039,weak,2,the FAQ is a static list,Why is the FAQ in the home page file?,It was faster.
+S08,S08-S5,SYN-040,good,4,search adds sold false to the where clause,What about existing links to a sold listing?,"The detail page still opens. That is fine, it should say sold."
+S09,S09-S1,SYN-041,good,4,money is stored as cents in a Long,Why not Double?,"Floating point cannot represent 0.1 exactly, so sums drift. Cents as integers are exact."
+S09,S09-S1,SYN-042,good,4,NavHost declares the three destinations,What does the groupId argument do?,It tells the screen which group to load.
+S09,S09-S1,SYN-043,weak,2,(database written by a teammate),What does the @Database annotation take?,"The entities and a version, I think."
+S09,S09-S1,SYN-044,good,4,toCsv builds the text with buildString,What if a description has a comma?,It breaks the row. I need to quote fields.
+S09,S09-S1,SYN-045,strong,5,merge keeps a deleted expense deleted,Why does deletion win over a newer edit?,Otherwise an expense one person removed could come back from another phone. A tombstone has to win.
+S09,S09-S2,SYN-041,strong,5,settle matches the largest debtor with the largest creditor,Is this the minimum number of payments?,"No, it is a greedy approach and gives at most n-1 payments, but the true minimum is NP-hard in general. For group sizes here it is good enough."
+S09,S09-S2,SYN-042,good,4,Save is enabled only when participants are selected,What validates the amount?,"toLongOrNull gives null for text, but a negative number passes. That's a gap."
+S09,S09-S2,SYN-043,weak,2,LazyColumn shows the group names,Where is the create dialog?,I didn't get to it.
+S09,S09-S2,SYN-044,good,4,"quote wraps fields containing commas, quotes or newlines",How are double quotes inside a field written?,"Doubled, as the CSV standard says."
+S09,S09-S2,SYN-045,strong,5,nextMonthly clamps the day to the length of the next month,What does it return for the 31st in February?,"The 28th or 29th. withDayOfMonth would throw, so I use the smaller of the two."
+S09,S09-S3,SYN-041,good,4,the payer is moved to the front so the remainder goes to them,Why does the order matter?,The first rem people get one extra cent. Putting the payer first makes it them.
+S09,S09-S3,SYN-042,good,4,the keystore path comes from an environment variable,Why not commit the keystore?,Anyone with the repo could sign apps as us.
+S09,S09-S3,SYN-043,partial,3,the dialog calls vm.addGroup then closes,Where is the Cancel button?,"Not added, the dismiss handler closes it."
+S09,S09-S3,SYN-044,good,4,isSystemInDarkTheme decides the colour scheme,What happens if the user changes the setting while the app runs?,The composable recomposes with the new value.
+S09,S09-S3,SYN-045,good,4,the merge compares updatedAt with greater-or-equal,What if both timestamps are the same?,"Local wins. A tie could use the device id, but I left it."
+S10,S10-S1,SYN-046,good,4,ingest rejects unknown devices with UnknownDevice,Why a custom exception instead of returning None?,The route can translate it into a 404 and the service stays free of HTTP.
+S10,S10-S1,SYN-047,partial,3,the template shows the last temperature or a dash,What does ?? do?,Uses the right side if the left is null or undefined.
+S10,S10-S1,SYN-048,good,4,the device key is stored as a SHA-256 hash,Why hash the key?,"If the database leaks, nobody can use the keys. We only compare hashes."
+S10,S10-S1,SYN-049,weak,2,health returns ok,Where would the version come from?,A config file maybe.
+S10,S10-S1,SYN-050,partial,3,router-link renders navigation links,What is the difference from an a tag?,It does not reload the page.
+S10,S10-S2,SYN-046,strong,5,on_message catches parse errors and logs a warning,Why catch these exceptions here?,An exception in a paho callback thread can kill the loop. One bad payload must not stop all ingestion.
+S10,S10-S2,SYN-047,good,4,the dashboard reloads when the selected device changes,"What does watch(id, load) do?",Calls load whenever id changes.
+S10,S10-S2,SYN-048,good,4,the import validates rows in chunks of 5000,Why chunks?,"A big file would not fit in memory at once, and one bulk insert per chunk is faster than a row at a time."
+S10,S10-S2,SYN-049,weak,2,status returns the device dict,What does get_or_404 do?,Gets it or gives an error.
+S10,S10-S2,SYN-050,good,4,create test posts JSON and expects 201,Why 201 and not 200?,201 means Created.
+S10,S10-S3,SYN-046,good,4,aggregates group by date_trunc('hour'),Does that work on SQLite?,"No, date_trunc is Postgres. Our tests use SQLite for speed, so the aggregate tests only pass because I used a fixture database that is Postgres."
+S10,S10-S3,SYN-047,good,4,the threshold input is bound with v-model.number,Why .number?,Inputs give strings. .number converts it so the API gets a number.
+S10,S10-S3,SYN-048,good,4,breached requires all readings in the window to exceed the threshold,What if the window has just one reading?,"It counts as a breach, which is too eager. It should need enough readings to cover the window."
+S10,S10-S3,SYN-049,weak,1,(no code this sprint),How would last seen be computed?,From the last reading time.
+S10,S10-S3,SYN-050,partial,3,the history view fetches all alerts on mount,"What happens with 10,000 alerts?",It would be slow. Paging is needed.
+S10,S10-S4,SYN-046,good,4,the alert check runs in a thread pool after the reading is stored,Why not inside the same request?,Rule lookups were slow and blocked every reading. After the commit the reading is safe even if the alert check fails.
+S10,S10-S4,SYN-047,good,4,the refresh timer is cleared on unmount,Why clear it?,Otherwise the old view keeps fetching in the background.
+S10,S10-S4,SYN-048,partial,3,backup pipes pg_dump into gzip,How would you restore?,"gunzip and psql, I think."
+S10,S10-S4,SYN-049,weak,2,README lists flask run and npm run dev,What port does the API use?,5000 by default.
+S10,S10-S4,SYN-050,good,4,the y axis shows Temperature (°C),Why put units on the axis?,A number without a unit is ambiguous.

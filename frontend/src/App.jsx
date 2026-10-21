@@ -15,6 +15,8 @@ import RequireRole from './shared/auth/RequireRole.jsx'
 import DashboardShell from './shared/layout/DashboardShell.jsx'
 import HubLayout from './shared/layout/HubLayout.jsx'
 import TeamScopeGuard from './shared/layout/TeamScopeGuard.jsx'
+import TeamAccessPage from './shared/github/TeamAccessPage.jsx'
+import GithubPopupDone from './shared/github/GithubPopupDone.jsx'
 import TeamScopeRedirect from './shared/layout/TeamScopeRedirect.jsx'
 import NotFound from './shared/pages/NotFound.jsx'
 import OnboardingPage from './shared/pages/onboarding/OnboardingPage.jsx'
@@ -75,6 +77,8 @@ function AppContent() {
       <SplashScreen isBuffering={isBuffering} />
       <Routes>
         <Route path="/login" element={<RootRedirect />} />
+        {/* The small window GitHub ends on; it reports back to the window that opened it and closes */}
+        <Route path="/github/popup-done" element={<GithubPopupDone />} />
 
         <Route element={<RequireAuth />}>
           {/* First sign-in: choose student or lecturer and give the details */}
@@ -83,6 +87,8 @@ function AppContent() {
           </Route>
 
           <Route element={<RequireAccount />}>
+          {/* The check in front of a team: GitHub sends people back here, and a student reaches the dashboard only through it */}
+          <Route path="/teams/:teamId/access" element={<TeamAccessPage />} />
           {/* Before a team's workspace: the team list, creating a team, invitations, profile */}
           <Route element={<HubLayout />}>
             <Route path="/home" element={<HomePage />} />

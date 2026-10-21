@@ -1,0 +1,26 @@
+{
+  "action": "closed",
+  "number": 7,
+  "pull_request": {
+    "number": 7,
+    "state": "closed",
+    "title": "Add order history page",
+    "draft": false,
+    "merged": true,
+    "merged_at": "2026-10-15T11:02:00Z",
+    "merge_commit_sha": "b2c3d4e5f60718293a4b5c6d7e8f901234567890",
+    "head": {"ref": "feature/order-history", "sha": "c3d4e5f60718293a4b5c6d7e8f90123456789012"},
+    "base": {"ref": "main", "sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"},
+    "user": {"login": "student-two"}
+  },
+  "repository": {
+    "id": 123456789,
+    "name": "demo-shop",
+    "full_name": "example-student/demo-shop",
+    "private": false,
+    "html_url": "https://github.com/example-student/demo-shop",
+    "clone_url": "https://github.com/example-student/demo-shop.git",
+    "default_branch": "main"
+  },
+  "sender": {"login": "student-two"}
+}

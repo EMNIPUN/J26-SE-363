@@ -1,0 +1,255 @@
+# Answers to the questions in snippets.csv, written by the assistant (Claude), one per rubric level 5..1. No language-model API was used to write or rate them.
+# Format: "## <snippet_id>" then lines "<rating>: <answer>". The rating is the rubric level the answer was written to (see README.md); it is checked afterwards
+# by a blind re-rating (training/helpers/blind_rerating.py). These are NOT answers from real students.
+
+## K001
+5: It raises a TypeError saying fromutc() requires a datetime. The method calls dt.utcoffset() and dt.dst() and does arithmetic on dt, which only datetime objects support, so it rejects anything else up front with a clear message instead of failing later with a confusing AttributeError.
+4: It raises a TypeError because the argument has to be a datetime. Anything else can't be converted from UTC.
+3: It throws an error if dt isn't a datetime. I think it's to make sure the types are right before converting, but I'm not sure which error.
+2: It checks isinstance(dt, datetime) and if that's not true it raises and then the function ends. Otherwise it goes on to the next if.
+1: It converts the datetime to UTC and returns it with the dst added.
+
+## K002
+5: It raises ValueError('Control characters are not allowed in status'). The status string is written straight into the HTTP response line, so a newline or other control character in it could split the response or inject extra headers. Rejecting it before anything is sent avoids that.
+4: It raises a ValueError saying control characters aren't allowed. Control characters like newlines would break the HTTP status line.
+3: It raises an error because the status has bad characters in it. It's probably about making the HTTP response valid.
+2: If the regex finds a match in status, the function raises a ValueError and does not reach the other checks about length and digits.
+1: It checks that the status is at least 4 characters long and starts with three digits.
+
+## K003
+5: AttributeError, because the lock has no acquire method and the synchronized wrapper needs one. Checking here gives a clear error instead of a failure later.
+4: It raises AttributeError because the lock passed in has to have an acquire method to be used as a lock.
+3: An error is raised if lock isn't a real lock. I think the function needs a lock to make the shared value safe.
+2: hasattr checks that lock has an acquire attribute. If not, it raises an AttributeError and does not return synchronized(obj, lock).
+1: When lock is False it returns the raw object without any lock.
+
+## K004
+5: ValueError('Breakpoint number expected'). The function looks a breakpoint up by number, so with an empty or missing argument there is nothing to convert or look up, and checking first gives a clear message instead of the generic int() error that would come next.
+4: It raises ValueError saying a breakpoint number was expected, since the argument is empty and can't be looked up.
+3: It gives an error when no arg is given. Because you need to give a number of the breakpoint.
+2: If arg is falsy, it raises a ValueError with the message and exits. If not, it goes on to try int(arg).
+1: It returns the breakpoint object for that number from the bpbynumber list.
+
+## K005
+5: It raises ValueError('<name>.__spec__ is None'). The module is already in sys.modules, so a spec should exist and be returned. A None spec means it was loaded in a way that left no spec, and returning None would look like "module not found", so it raises to make the problem explicit.
+4: It raises a ValueError that the module's __spec__ is None. The module is already imported so it should have a spec, and this signals something is wrong.
+3: It raises ValueError when the spec is None, I guess because it can't return a spec that doesn't exist.
+2: spec comes from module.__spec__. If that is None the else branch raises ValueError instead of returning spec.
+1: It looks the module up with _find_spec because it's not in sys.modules yet.
+
+## K006
+5: It raises ValueError('no newline found when trying to read stringnl'). The function reads a newline-terminated line from the pickle stream and then does data[:-1] to drop the newline; if the line doesn't end in one the stream was truncated or malformed, and slicing would chop off a real character.
+4: It raises a ValueError because the line it read from the file doesn't end with a newline, which means the data is incomplete.
+3: It errors when the data has no newline at the end. The format must need a newline after the string.
+2: If the data read doesn't end with a newline byte the function raises ValueError. If it does end with it, it removes the last character.
+1: It strips the quotes from the string and decodes it using the encoding.
+
+## K007
+5: append only exists on a list, which is what the payload of a multipart message is. If the payload is a plain string (a single-part message), .append raises AttributeError, and the function catches that and raises a TypeError with a clearer message that attach isn't valid on a non-multipart payload. So the call ends with that TypeError.
+4: It catches AttributeError when the payload isn't a list so it has no append, then raises a TypeError saying attach isn't valid for a non-multipart message.
+3: It catches the AttributeError because the payload might not be something you can append to, and then raises another error.
+2: There's a try around append. If it fails with AttributeError the except branch raises TypeError.
+1: It catches the error and then sets the payload to a list containing payload.
+
+## K008
+5: It first tries to get list_obj.extend so it can add all items in one call. If the object has no extend (some list-like objects only have append) the AttributeError is swallowed with pass and execution falls through to the loop at the bottom, which appends the items one at a time.
+4: If the object has no extend method it catches the AttributeError and falls back to appending each item one by one in the for loop.
+3: It catches AttributeError because the list object may not have extend, and then it does something else to add the items.
+2: The try gets list_obj.extend. On AttributeError it does pass. The else part calls extend(items) and returns.
+1: It catches the error and the function returns without adding anything.
+
+## K009
+5: socket.inet_aton raises OSError when the string isn't a valid IPv4 address. That error is swallowed with pass, so the function moves on to the second try block and tries to parse the name as IPv6 with inet_pton. Only if that also fails does it raise ValueError.
+4: If inet_aton fails with OSError the string isn't IPv4, so it ignores the error and goes on to try parsing it as an IPv6 address.
+3: It catches OSError because the ip name might be invalid and then continues to the next check.
+2: OSError from inet_aton is caught and ignored with pass. Then the code after the try/else block runs.
+1: It catches the OSError and raises ValueError that it's not a quad-dotted IPv4 address.
+
+## K010
+5: get_executor can fail with ValueError or RuntimeError when there is no executor at that instruction. The handler sets ex = None, so the `if ex:` check below is false and the original op and arg are kept unchanged; the loop just appends them and moves on to the next instruction.
+4: It catches the error from get_executor and sets ex to None, so the original opcode is kept for that position.
+3: If get_executor fails it uses None for ex and carries on, I'm not sure what happens with the opcode.
+2: This part of the function is about code arrays and adaptive bytecode. The function takes a code object co and a flag adaptive. If adaptive is true it takes the adaptive code, makes a list res, goes through the code two bytes at a time as op and arg, and when the op is ENTER_EXECUTOR it calls get_executor. The except clause is there for ValueError and RuntimeError and sets ex to None. Then the results are joined at the end if found is true, otherwise the original code is returned.
+1: It catches the error and returns co.co_code straight away.
+
+## K011
+5: That try is around socket.gethostname(). If the hostname can't be obtained, the error is ignored with pass and the else block (which compares authority to the hostname) is skipped; the function just carries on to the resolve check and the gethostbyname part instead of failing.
+4: If getting the hostname fails it ignores the error and moves on to the next checks without comparing the authority to the hostname.
+3: It catches errors from getting the hostname so the function doesn't crash, then it keeps going.
+2: gethostname is in a try block. If gaierror or AttributeError happens it does pass.
+1: It catches the error and returns False because the authority is not local.
+
+## K012
+5: Assigning self[key] = message raises KeyError when the key doesn't exist in the mailbox. Instead of stopping at the first bad key it records bad_key = True and keeps updating the remaining messages, then after the loop it raises a single KeyError. That way all valid updates still happen.
+4: It catches the KeyError for a missing key, sets bad_key to True and keeps going through the other messages, then raises a KeyError at the end.
+3: It catches KeyError so one bad key doesn't stop everything, and an error is raised later I think.
+2: The assignment is in a try block. When it raises KeyError the flag bad_key becomes True.
+1: It catches the KeyError and returns without updating the other messages.
+
+## K013
+5: It returns False. An object that isn't callable can't be function-like, and a class is callable but is not a plain function either, so the answer is already known and it skips the getattr checks for __code__, __defaults__ and so on, which would be pointless or misleading for those objects.
+4: It returns False because things that aren't callable, or are classes, can't be function-like, so no need to check further.
+3: It returns False early, I think because those objects aren't functions.
+2: The first if returns False. After it the code gets name, code, defaults and kwdefaults using getattr.
+1: It returns True because the object is callable.
+
+## K014
+5: It returns True. If the request path is exactly the cookie's path it is trivially a path match, so the function can answer immediately; the longer check that the request path starts with the cookie path followed by a '/' is only needed when they differ.
+4: It returns True because the request path equals the cookie path, so the cookie matches and no more checks are needed.
+3: It returns True when the paths are the same since it's a match. Not sure why it doesn't carry on.
+2: if req_path == path it returns True. Otherwise the elif is checked.
+1: It returns False and logs a debug message that the path doesn't match.
+
+## K015
+5: It returns len(entry) == 1. If the file is already in the cache there's nothing to build, and the length tells which kind of entry it is: a one-element entry is still a lazy (not yet loaded) entry, so True, while a full entry gives False. So it answers from the cache without creating a new lazy entry.
+4: When the filename is already in the cache it returns whether the entry has length 1, which means it's a lazy entry, so it doesn't need to create a new one.
+3: It returns something based on the length of the entry, I think telling whether it's cached. It returns early because the cache already has it.
+2: entry is not None so it returns len(entry) == 1.
+1: It returns True after adding a new lazy entry to the cache.
+
+## K016
+5: It returns result unchanged. For '#ERROR' the server already sent an exception object as the result, so there is nothing to convert; the other kinds (#TRACEBACK, #UNSERIALIZABLE) carry strings that have to be wrapped in a RemoteError.
+4: It returns the result itself because for '#ERROR' the result is already the error, so no conversion is needed.
+3: It returns result directly. The other kinds need to be changed into an error but this one doesn't, I think.
+2: if kind is '#ERROR' it returns result. The elif checks for the other kinds.
+1: It returns a RemoteError created from the result string.
+
+## K017
+5: It returns None. wait() with timeout 0 (when flag is WNOHANG) says whether the sentinel is ready; if not, the child hasn't exited, so there is no return code to read yet. poll shouldn't block, so it returns None immediately and returncode stays unset.
+4: It returns None because the child process hasn't finished yet, so there's no returncode to give.
+3: It returns None if wait finds nothing. It stops there because it can't read the code then.
+2: If wait returns an empty result the function returns None. Otherwise it reads the signed code.
+1: It sets returncode to 255 and returns it.
+
+## K018
+5: It returns j straight away. When i >= j the range between the two positions is empty or backwards, so there are no newlines to count and lineno and offset don't need to change; the function just reports j as the position.
+4: It returns j because there's nothing between i and j to count, so line number and offset stay the same.
+3: It returns j early. Probably because it doesn't have to update anything then.
+2: If i >= j, return j. If not it counts the newlines in rawdata between i and j.
+1: It returns i after setting the offset to zero.
+
+## K019
+5: It merges the other object's counts into this one. For each key in other_counts it adds the other's count to the existing count in self.counts (get(key, 0) makes new keys start at zero). When it finishes, self.counts holds the summed counts for every key from both; other_counts itself isn't changed.
+4: For every key in other's counts it adds that count to the same key in this object's counts, so counts ends up as the combined totals.
+3: It goes through the keys of the other counts and puts them in counts, so counts has more entries after. Not sure about the adding.
+2: It loops over other_counts and for each key sets counts[key] using counts.get(key, 0) plus other_counts[key].
+1: It sets calledfuncs[key] = 1 for every key in other_calledfuncs.
+
+## K020
+5: It copies the source into the destination in chunks. Each pass reads up to `length` bytes into the reusable memoryview; if nothing was read it is the end and it breaks, if a short chunk was read it writes only the first n bytes and breaks, otherwise it writes the full buffer and loops. When it ends, everything from fsrc has been written to fdst.
+4: It keeps reading chunks from fsrc into a buffer and writing them to fdst until nothing is left to read, with the last partial chunk written using only n bytes.
+3: It's a loop that reads from the source and writes to the destination until it's done, I'm not sure what the memoryview does.
+2: while True runs forever until a break. It calls fsrc_readinto(mv) and checks n.
+1: This loop keeps checking whether the file exists and sleeps between attempts, because copying a file object needs to wait until the other process has finished writing it. After every check it increases the length of the buffer, and when the buffer is big enough it stops and returns the length that was copied.
+
+## K021
+5: It skips ahead over whitespace and comments in the address field. For each character: whitespace is skipped by moving pos forward (spaces and tabs, but not CR/LF, are collected in wslist), a '(' starts a comment that is read with getcomment and stored in commentlist, and any other character ends the loop. At the end self.pos points at the next real token and the collected whitespace is returned as a string.
+4: It moves self.pos past spaces, tabs and newlines, and when it sees '(' it reads the comment and stores it. It stops at the first other character, so pos is at the next real character.
+3: It goes through the field and skips whitespace characters and comments, until something else. Not sure what wslist is for.
+2: It loops while pos is less than the length of field and checks the current character, adding 1 to pos or calling getcomment or breaking.
+1: It reads the entire field and returns it as a joined string with empty separators.
+
+## K022
+5: That loop only runs when a forbidden character lies somewhere between pos and new_pos. It steps pos forward one character at a time until src[pos] is one of the error_on characters, so pos points at the first offending character; then the function raises a TOMLDecodeError naming that character and position. It never returns normally after this loop.
+4: It moves pos forward until it finds the first character that is in error_on, and then the error is raised with that invalid character and its position.
+3: It looks for the invalid character by going through the string, and then it raises an error about it.
+2: while src[pos] is not in error_on it does pos += 1.
+1: It searches for the expected string with src.index and sets new_pos.
+
+## K023
+5: It builds the ls -l style mode string one character position at a time. Each table in _filemode_table describes one position (file type, then the r/w/x bits for owner, group and others); the inner loop appends the char of the first bit that matches the mode, and if none matches the else adds '?' for the type position or '-' for a permission position. When the loop ends perm holds one char per position and is joined into something like '-rwxr-xr-x'.
+4: For each position in the mode string it looks through the table for a matching bit and appends the char for it, or '-' if nothing matches, so at the end perm has the whole permission string.
+3: It goes through the table to build the permission letters like r, w and x from the mode, and then they are joined.
+2: It loops over each table with enumerate and inside it loops over (bit, char) pairs, and breaks when it finds a match.
+1: It sorts the file modes and removes duplicates from the list.
+
+## K024
+5: It searches the directories from PATH one by one: for each p it joins it with the executable name and checks whether that file exists. The first one that is a real file is returned immediately; if the loop finishes without a hit, nothing was found and the function returns None.
+4: It goes through each directory in the path looking for the executable file, returns the first full path found, otherwise falls out of the loop and returns None.
+3: It loops over the folders in PATH and looks for the executable. If it finds it, it returns it.
+2: For each p it does os.path.join(p, executable) and calls os.path.isfile on it.
+1: It adds .exe to the executable name on Windows and returns it.
+
+## K025
+5: It prepares everything needed before a class body runs: it works out which metaclass to use, asks that metaclass for the namespace dict via __prepare__ (or uses a plain dict), and returns (meta, namespace, kwds). name is the class name passed to __prepare__, bases are the base classes, used to find the metaclass when none is given, and kwds are the class keyword arguments; a 'metaclass' key in it picks the metaclass and is removed, and the dict is copied so the caller's one isn't changed.
+4: It figures out the metaclass and creates the namespace for a new class. bases is used to pick the metaclass if none is given and kwds can contain metaclass=... which overrides it.
+3: It sets up a class, finding the metaclass from the bases and making a namespace. I'm not sure what name does.
+2: It returns meta, ns and kwds. name is the name, bases is a tuple and kwds is a dict, with metaclass possibly in it.
+1: It creates an instance of a class with the given name and calls its constructor with kwds.
+
+## K026
+5: It feeds one more line of input to the interactive interpreter. The line is appended to the buffer, the whole buffer is joined into one source string and run with runsource; if the statement was complete the buffer is reset, and it returns True when more lines are needed (incomplete statement). line is the new text, filename is what shows in tracebacks (default self.filename), and _symbol is the compile mode, 'single' by default.
+4: It adds the line to a buffer and tries to run all the buffered source. If the code is complete it clears the buffer, and returns whether more input is needed. filename is used for error messages.
+3: It appends the line to the buffer and runs the code, and returns something about whether to continue. filename and _symbol I think are for compile.
+2: It does buffer.append(line), joins the buffer with newlines, calls runsource and returns more.
+1: It pushes the line onto a stack and returns the last element of the stack.
+
+## K027
+5: It decides which UTC offset applies for a UTC timestamp using the DST rules of a given year. It gets that year's start and end transitions, shifts them to UTC, works out whether ts falls inside the DST period (handling the southern-hemisphere case where start > end), and also whether it lies in the ambiguous hour, to set fold. It returns (dst or std info, fold). ts is the UTC timestamp and year picks which year's transitions are used.
+4: It works out whether daylight saving is in effect for a UTC timestamp and whether the time is in the repeated hour (fold). ts is the timestamp, year is which year's transitions to use.
+3: It checks if a timestamp is in daylight saving time or standard time, and returns the right one with a fold value. ts is the time and year is the year.
+2: It gets start and end from self.transitions(year), compares ts to start and end, and returns a tuple.
+1: It converts a timestamp to a year and returns the year after adding the time zone.
+
+## K028
+5: It is the part of the AST unparser that turns an annotated assignment node back into source text like `x: int = 5`. It starts a new line, writes the target (in parentheses if the target is a name that isn't "simple"), then ": " and the annotation, and " = " and the value only if there is a value. node is the AnnAssign tree node being converted.
+4: It converts an annotated assignment node into code text: the target, a colon, the annotation, and then the value if there is one. node is the AST node.
+3: It writes out a variable with a type annotation, and the value if it has one. node is the assignment.
+2: It calls self.fill(), then traverse on target, writes ': ', traverse on annotation and, if node.value exists, writes ' = ' and traverses the value.
+1: It evaluates the annotation and assigns the value to the variable at runtime.
+
+## K029
+5: It makes the two operand strings the same length, equal to the context's precision. If an operand is shorter than context.prec it pads zeros on the left, if longer it keeps only the last prec digits (drops the extra leading digits). It returns both fixed operands. context supplies the precision; opa and opb are the two digit strings for the logical operation.
+4: It pads or cuts the two operand strings so each is context.prec digits long: zeros added to the front when short, and the front trimmed when long.
+3: It makes opa and opb the same length using the precision of the context, adding zeros if needed.
+2: It computes dif = context.prec - len(opa) and if positive adds zeros, if negative slices opa. Same for opb.
+1: It performs a logical AND of the two operands and returns the result in the given context.
+
+## K030
+5: It switches the HTML parser into a mode where the contents of an element like script or style are treated as raw text. It stores the lowercase tag name and sets the `interesting` regex so the parser only stops at the matching closing tag `</elem>`; for 'plaintext' it uses a regex that never matches, so the rest of the document is text. elem is the element name, and escapable says whether character references (&) still need recognising inside it, which adds `&` to the regex when charrefs aren't converted.
+4: It sets the parser to raw-text mode for an element such as script by building a regex that only looks for that element's closing tag. elem is the tag name and escapable decides whether & entities are also looked for.
+3: It changes how the parser looks for the end of a tag like script. elem is the tag and escapable is a flag, I think for special characters.
+2: It stores elem.lower() in cdata_elem and escapable in _escapable, and then compiles a different regex depending on whether elem is 'plaintext'.
+1: It parses the element and returns the text between the tags of elem.
+
+## K031
+5: Rounds n/d to the nearest multiple of 10**exponent (halves to even) and returns (sign, abs(q)).
+4: It rounds n/d to a power of ten and returns the sign and the absolute value of the rounded integer. It scales n or d by 10**exponent, uses divmod after adding half of d, and adjusts ties to even.
+3: It returns the sign and the absolute value of q, where q is the rounded result of dividing n by d after scaling with the exponent.
+2: It returns sign and abs(q). q is computed with divmod(n + (d >> 1), d) and sign is n < 0.
+1: It returns the exponent and the numerator after dividing by d.
+
+## K032
+5: It returns whatever self.copy(target, **kwargs) returns. The target is built by taking this path's own name and putting it inside target_dir: with `target_dir / name` if target_dir already supports with_segments (is a path object), otherwise by calling self.with_segments(target_dir, name). If the path has no name it raises ValueError instead.
+4: It returns the result of copying to a target path made from target_dir plus this path's name, passing kwargs on to copy.
+3: It copies the file into the directory and returns the new path. The target is made from the directory and the name.
+2: It returns self.copy(target, **kwargs). target is either target_dir / name or self.with_segments(target_dir, name).
+1: It returns the name of the directory the file was copied into.
+
+## K033
+5: It returns the absolute, normalised version of the path. os.fspath first converts the input to str or bytes; if it doesn't start with '/', the current working directory (getcwd, or getcwdb for bytes) is joined on the front; then normpath cleans it up (removes '.', resolves '..', collapses repeated slashes). The result has the same type as the input.
+4: It makes the path absolute by joining it to the current working directory when it's relative, then normalises it with normpath. It handles bytes and str separately.
+3: It returns the full path by adding the current directory if the path is relative, and cleaning it.
+2: It returns normpath(path). Before that it checks if path is bytes and whether it starts with '/'.
+1: It checks whether the path exists on disk and returns True or False.
+
+## K034
+5: A network object. It first tries IPv4Network(address, strict) and returns that if it works; if that raises AddressValueError or NetmaskValueError it ignores it and tries IPv6Network the same way. Only when both fail does it raise ValueError. strict is passed on, so host bits set in the address are an error unless strict=False.
+4: It returns an IPv4Network if the address is a valid IPv4 network, otherwise an IPv6Network, and raises ValueError if it's neither.
+3: It tries to make the address into an IPv4 network and then IPv6 and returns whichever works.
+2: It returns IPv4Network(address, strict) inside a try block. If there's an error it tries IPv6Network.
+1: It returns True if the address is a valid network and False otherwise.
+
+## K035
+5: It returns a (key, value) tuple for the entry it removed: the last-inserted one if last=True (the default), otherwise the first. It finds the link at root.prev or root.next, unlinks it from the doubly linked list by fixing the neighbours' pointers, takes its key, deletes the key from the internal map and pops the value out of the underlying dict with dict.pop, then returns key, value. If the dictionary is empty it raises KeyError instead.
+4: It removes and returns the last (or first if last is False) item as a (key, value) pair. It unlinks the node from the linked list, deletes it from the map and pops it from the dict.
+3: It returns the key and value of the item it removes, from the end or the start. It updates the links of the list.
+2: It returns key, value. key = link.key and value is from dict.pop(self, key) after deleting the key from the map.
+1: It returns the number of items left in the dictionary after removing one.
+
+## K036
+5: It returns an HTML string for a documentation entry. It collects pieces in a list: if a name is given it adds a `<dl><dt><strong>name</strong></dt>` line, then takes the object's docstring via getdoc, marks it up and, if there is any, adds it as a `<dd><span class="code">...</span></dd>` line, and finally adds `</dl>`. The pieces are joined with ''.join(results) into one string.
+4: It builds a small HTML definition list with the name in bold and the object's docstring formatted, and returns it as one joined string.
+3: It returns an HTML string with the documentation of the object, built from a list of parts.
+2: It returns ''.join(results) where results is a list that has strings appended through push.
+1: It prints the documentation of the object to the screen and returns None.

@@ -1,0 +1,33 @@
+{
+ "ridge_best": {
+  "model": "Ridge (rated only, LOO alpha)",
+  "variant": "proposal",
+  "MAE": 0.07208659613848285,
+  "bias": 0.01872076427839246,
+  "pearson": 0.8865227676868528,
+  "spearman": 0.7911873357900616
+ },
+ "complex_best": {
+  "model": "Random Forest",
+  "variant": "proposal 4",
+  "MAE": 0.07454529826356446,
+  "bias": 0.0241571492724059,
+  "pearson": 0.877897735584461,
+  "spearman": 0.7874616342256673
+ },
+ "rule": {
+  "ridge": "Ridge (rated only, LOO alpha) | proposal",
+  "complex": "Random Forest | proposal 4",
+  "gain_mae": -0.002458702125081605,
+  "ci": [
+   -0.008724956767395535,
+   0.0015586833160766843
+  ],
+  "folds_better": 2,
+  "passes_1_3": false
+ },
+ "chosen": [
+  "Ridge (rated only, LOO alpha)",
+  "proposal"
+ ]
+}

@@ -189,6 +189,7 @@ TEXT = "text"
 JSONB = "jsonb"
 TIMESTAMPTZ = "timestamp with time zone"
 BOOLEAN = "boolean"
+BIGINT = "bigint"
 BYTEA = "bytea"
 
 
@@ -406,6 +407,63 @@ APP_TABLES: dict[str, TableSpec] = {
         },
         checks={},
         indexes={"ix_notification_preferences_user_id": Index(("user_id",))},
+    ),
+    "user_github_accounts": TableSpec(
+        columns={
+            "id": (UUID, True),
+            "user_id": (UUID, True),
+            "github_id": (BIGINT, True),
+            "login": (varchar(64), True),
+            "avatar_url": (varchar(1024), False),
+            "verified_at": (TIMESTAMPTZ, True),
+            **TIMESTAMPS,
+        },
+        primary_key=("id",),
+        unique={"uq_user_github_accounts_user_id": ("user_id",), "uq_user_github_accounts_github_id": ("github_id",)},
+        foreign_keys={
+            "fk_user_github_accounts_user_id_users": ForeignKey(("user_id",), "users", ("id",), FK_CASCADE),
+        },
+        checks={},
+        indexes={"ix_user_github_accounts_login": Index(("login",))},
+    ),
+    "team_github": TableSpec(
+        columns={
+            "id": (UUID, True),
+            "group_id": (UUID, True),
+            "installation_id": (BIGINT, True),
+            "account_login": (varchar(64), False),
+            "repo_full_name": (varchar(255), False),
+            "repo_id": (BIGINT, False),
+            "repo_private": (BOOLEAN, True),
+            "linked_by_id": (UUID, False),
+            **TIMESTAMPS,
+        },
+        primary_key=("id",),
+        unique={"uq_team_github_group_id": ("group_id",)},
+        foreign_keys={
+            "fk_team_github_group_id_groups": ForeignKey(("group_id",), "groups", ("id",), FK_CASCADE),
+            "fk_team_github_linked_by_id_users": ForeignKey(("linked_by_id",), "users", ("id",), FK_SET_NULL),
+        },
+        checks={},
+        indexes={},
+    ),
+    "team_github_access": TableSpec(
+        columns={
+            "id": (UUID, True),
+            "group_id": (UUID, True),
+            "user_id": (UUID, True),
+            "permission": (varchar(8), True),
+            "checked_at": (TIMESTAMPTZ, True),
+            **TIMESTAMPS,
+        },
+        primary_key=("id",),
+        unique={"uq_team_github_access_group_id_user_id": ("group_id", "user_id")},
+        foreign_keys={
+            "fk_team_github_access_group_id_groups": ForeignKey(("group_id",), "groups", ("id",), FK_CASCADE),
+            "fk_team_github_access_user_id_users": ForeignKey(("user_id",), "users", ("id",), FK_CASCADE),
+        },
+        checks={},
+        indexes={"ix_team_github_access_group_id": Index(("group_id",))},
     ),
     "terms": TableSpec(
         columns={

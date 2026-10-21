@@ -230,3 +230,15 @@ agentic_framework/app/agents/performance_assessment/com_agent/mock_context/
 **/mock_context/output/
 assessment_result_*.json
 student_feedback_*.json
+# run logs written by agentic_framework/scripts/watch_run.py
+agentic_framework/logs/
+
+# GitHub App private keys must never be committed
+*.pem
+!server/tests/fixtures/*.pem
+
+# Output of the security scan viewer and the demo copies of the fixtures
+agentic_framework/scan_output/
+
+# Local-only files that map redacted placeholders back to personal data
+*.local.json

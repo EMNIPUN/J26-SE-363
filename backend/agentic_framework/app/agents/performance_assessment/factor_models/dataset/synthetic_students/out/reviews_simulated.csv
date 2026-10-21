@@ -1,0 +1,106 @@
+team_id,sprint_id,reviewer_id,pr_author_id,day,state,tier,body
+S01,S01-S1,SYN-003,SYN-001,5,COMMENTED,substantive,"In createBooking you check the seats and then insert in two separate steps, so two requests at the same moment can both pass the check and overbook the event. Wrap the check and the insert in a transaction or use one atomic update."
+S01,S01-S1,SYN-003,SYN-001,6,APPROVED,substantive,"The 400 for 'not enough seats' should be a 409 conflict, the client treats 4xx differently. Otherwise capacity.js reads clearly and the off-by-one test is good."
+S01,S01-S1,SYN-003,SYN-005,9,CHANGES_REQUESTED,substantive,"The admin list reloads every time the form changes because the effect depends on form state. Move the fetch to the event id only, and add an error state for a failed delete."
+S01,S01-S1,SYN-003,SYN-002,12,COMMENTED,substantive,"The booking form lets seats go to any number, the API will reject it but the user sees nothing. Please add a max of 10 and show the error from the response."
+S01,S01-S1,SYN-003,SYN-005,12,APPROVED,approval,looks good
+S01,S01-S1,SYN-005,SYN-003,9,COMMENTED,substantive,"The role is only checked in the UI. Anyone can still call DELETE /events/:id with a token, so the 403 has to be enforced in the controller or middleware, not hidden in the navbar."
+S01,S01-S2,SYN-002,SYN-005,13,COMMENTED,approval,ok
+S01,S01-S2,SYN-003,SYN-001,5,APPROVED,substantive,"Email helper is clear. One thing: the subject uses event.name without escaping, a name with a line break would break the mail header, so strip newlines before sending."
+S01,S01-S2,SYN-003,SYN-005,8,COMMENTED,substantive,"The lock you take in bookSeats is released only on the success path. If the insert throws, the lock stays and the next booking waits until the timeout. Release it in a finally block."
+S01,S01-S2,SYN-003,SYN-002,10,COMMENTED,brief,"MyBookings calls load() after every cancel, which is fine, but if the cancel request fails the user gets no message. Show the error."
+S01,S01-S2,SYN-003,SYN-004,12,APPROVED,approval,ok
+S01,S01-S2,SYN-005,SYN-001,7,COMMENTED,substantive,"The new seatsLeft counter means cancelBooking has to add the seats back, otherwise cancelled seats are lost for good. Please update the cancel handler and add a test for it."
+S01,S01-S2,SYN-005,SYN-002,10,APPROVED,approval,nice
+S02,S02-S1,SYN-008,SYN-006,5,APPROVED,substantive,"The 409 for a book already on loan is right. One problem: on_loan is set before the commit, so if the commit fails the in-memory book says on loan but the row does not. Do the update inside the same transaction and roll back on error."
+S02,S02-S1,SYN-008,SYN-007,12,COMMENTED,brief,"The borrow button has no click handler so nothing happens. Add it, and show the message from the API."
+S02,S02-S1,SYN-008,SYN-010,12,APPROVED,substantive,"The search pattern is built from the raw text, so typing % or _ acts as a wildcard and lists every book. Escape those characters before building the like pattern."
+S02,S02-S2,SYN-006,SYN-010,9,COMMENTED,brief,Query looks fine.
+S02,S02-S2,SYN-008,SYN-006,2,COMMENTED,substantive,"Your fine_for uses returned_at, but a loan that is still out never gets a fine until it is returned. The overdue page and the report will disagree. Decide if a fine accrues while a book is out."
+S02,S02-S2,SYN-008,SYN-006,4,APPROVED,substantive,"The cap at the book price matches the requirement, nice test for the boundary."
+S02,S02-S2,SYN-008,SYN-007,9,CHANGES_REQUESTED,substantive,"My loans page calls the return endpoint without awaiting it or refreshing the list, so the row stays after you return a book. Await the call and reload."
+S02,S02-S2,SYN-008,SYN-010,10,COMMENTED,brief,Please add a test for an empty search string.
+S02,S02-S2,SYN-008,SYN-006,11,APPROVED,approval,looks good
+S02,S02-S3,SYN-006,SYN-008,8,COMMENTED,substantive,"Why do the reminders live in fines.py? Both use the loan model but they are different jobs, move the reminder code to its own service."
+S02,S02-S3,SYN-007,SYN-010,12,COMMENTED,approval,ok
+S02,S02-S3,SYN-008,SYN-006,3,COMMENTED,substantive,"send_reminders mixes the query and the mail call, so the test has to fake the mailer to check which loans are picked. Pass the loans in, or split the two."
+S02,S02-S3,SYN-008,SYN-006,4,APPROVED,substantive,"The 409 message includes the limit, which matches the acceptance criteria. Test covers returned books not counting."
+S02,S02-S3,SYN-008,SYN-010,9,CHANGES_REQUESTED,substantive,"Search interpolates the text into the SQL string. Use a bound parameter, this is injectable. Add a test with a quote in the title."
+S02,S02-S3,SYN-008,SYN-007,11,COMMENTED,substantive,"The librarian page shows to every user. At least hide the link when the role is not librarian, the real check must also be on the API."
+S02,S02-S3,SYN-008,SYN-007,12,APPROVED,approval,ok
+S03,S03-S2,SYN-012,SYN-011,13,COMMENTED,approval,ok
+S04,S04-S1,SYN-018,SYN-016,5,COMMENTED,substantive,"book() checks that the slot is free and then saves, but two requests at the same time can both pass. Add a unique constraint on doctor and start so the database rejects the second one, and handle the exception."
+S04,S04-S1,SYN-018,SYN-016,6,COMMENTED,substantive,"SlotTakenException should map to 409 in the controller advice, right now it will be a 500."
+S04,S04-S1,SYN-018,SYN-017,11,APPROVED,brief,Hours validation reads well. Maybe a test for an end time before the start time.
+S04,S04-S1,SYN-018,SYN-020,12,COMMENTED,brief,"Please explain the approach in the PR description, I cannot tell why the interval is built this way."
+S04,S04-S2,SYN-016,SYN-018,9,COMMENTED,approval,ok
+S04,S04-S2,SYN-018,SYN-016,3,APPROVED,substantive,"Reminder job: mailing a patient fails if email is null, add a guard. Also the flag is set after the mail call, so a crash between the two sends twice. Acceptable for now, note it in the README."
+S04,S04-S2,SYN-018,SYN-017,4,CHANGES_REQUESTED,substantive,"freeSlots loops with a LocalTime and plusMinutes, near midnight plusMinutes wraps to the next day and the loop never ends. Compare with the end first or use durations."
+S04,S04-S2,SYN-018,SYN-020,7,COMMENTED,substantive,"The interval merge sorts on every call, fine for now. Which test covers two overlapping bookings?"
+S04,S04-S2,SYN-018,SYN-016,10,APPROVED,approval,good
+S04,S04-S3,SYN-018,SYN-017,3,COMMENTED,substantive,"Leave check is only in freeSlots, book() accepts a leave day. The rule should live in one place and booking must call it."
+S04,S04-S3,SYN-018,SYN-016,4,APPROVED,brief,History is sorted newest first as required.
+S04,S04-S3,SYN-018,SYN-020,9,COMMENTED,brief,"Looks good to me, merge when CI is green."
+S04,S04-S4,SYN-018,SYN-016,2,COMMENTED,substantive,"reschedule() does not tell the patient. The requirement says the patient is notified, call NotificationService after the change and add a test that checks the mail is sent only when the new slot was saved."
+S04,S04-S4,SYN-018,SYN-017,3,CHANGES_REQUESTED,substantive,The patient rule compares the auth name with the path id. If a patient logs in with their email this never matches and they are locked out of their own data. Use the id claim from the token.
+S04,S04-S4,SYN-018,SYN-020,5,COMMENTED,substantive,"Please add a short comment on why the interval tree is rebuilt, and a test with three overlapping bookings."
+S04,S04-S4,SYN-018,SYN-016,10,APPROVED,approval,lgtm
+S04,S04-S4,SYN-018,SYN-017,11,APPROVED,approval,ok
+S05,S05-S3,SYN-023,SYN-021,12,COMMENTED,substantive,"expired() trusts attempt.started_at, which is set in the same request that creates the attempt. Make sure a refresh cannot create a second attempt and reset the clock. Also add a test for the exact boundary second."
+S05,S05-S3,SYN-023,SYN-022,12,APPROVED,substantive,"CSV import silently ignores extra columns. That is fine, but a row with a blank answer letter makes every option wrong; please report that as a row error."
+S05,S05-S3,SYN-023,SYN-025,13,COMMENTED,brief,Can you add the migration for the new field?
+S05,S05-S4,SYN-021,SYN-023,12,APPROVED,approval,ok
+S05,S05-S4,SYN-023,SYN-021,10,COMMENTED,substantive,"The leaderboard shows every attempt, so one student with three attempts fills the board. The requirement says only the best attempt per student. Use a distinct on student or group the query."
+S05,S05-S4,SYN-023,SYN-022,11,APPROVED,substantive,"Seeded shuffle gives the same order on reload, test is clear. Options still keep their saved order, ok for now."
+S05,S05-S4,SYN-023,SYN-021,12,APPROVED,approval,good
+S05,S05-S4,SYN-023,SYN-025,13,COMMENTED,brief,Fine.
+S06,S06-S1,SYN-028,SYN-026,6,COMMENTED,substantive,"Create maps the unique violation correctly, but the handler returns 500 for ErrDuplicateSKU. Map it to 409 with a message so the admin page can show it."
+S06,S06-S1,SYN-028,SYN-026,13,APPROVED,substantive,JWT parse returns an error for an expired token but the middleware answers 403. Expired should be 401 so the client can refresh. Not blocking.
+S06,S06-S1,SYN-028,SYN-027,13,COMMENTED,substantive,"The products table has no way to edit or delete yet, the acceptance criteria list both. Is that planned for next sprint?"
+S06,S06-S2,SYN-028,SYN-026,2,CHANGES_REQUESTED,substantive,Complete() starts a transaction but the idempotency check for a repeated request is not there. A double click would create two sales. Add a unique key per sale and return the first result for a repeat.
+S06,S06-S2,SYN-028,SYN-026,5,APPROVED,substantive,"The conditional update with RowsAffected is a clean way to avoid overselling, test for rollback covers it."
+S06,S06-S2,SYN-028,SYN-027,12,COMMENTED,substantive,"The sales screen does not catch a 409. Show the message from the API, a cashier will not read the console."
+S06,S06-S2,SYN-028,SYN-029,13,COMMENTED,substantive,"The supplier, customer and category handlers repeat the same decode, validate and encode code. Extract a small helper function for the JSON decode and error response, otherwise a bug fix has to be copied into every handler."
+S06,S06-S2,SYN-028,SYN-030,13,APPROVED,approval,ok
+S06,S06-S3,SYN-028,SYN-026,3,COMMENTED,substantive,"The report groups by product name. Two products with the same name will be merged, group by id and return the name. Also cache only the last minute as in the criteria, right now nothing is cached."
+S06,S06-S3,SYN-028,SYN-029,6,APPROVED,brief,"Supplier phone should be validated, but fine for now."
+S06,S06-S3,SYN-028,SYN-030,8,COMMENTED,brief,Is the stock adjustment audited somewhere? I cannot see who changed it.
+S06,S06-S3,SYN-028,SYN-027,12,APPROVED,brief,"Reports page works, the date picker is missing though."
+S06,S06-S4,SYN-028,SYN-026,5,APPROVED,approval,ok
+S06,S06-S4,SYN-028,SYN-027,9,COMMENTED,brief,Looks fine.
+S06,S06-S4,SYN-028,SYN-030,12,APPROVED,approval,good
+S08,S08-S1,SYN-038,SYN-037,2,COMMENTED,substantive,The login route stores the session id in a cookie but I do not see httpOnly or sameSite. Without them script can read the cookie and CSRF is easier. Please set both and secure in production.
+S08,S08-S1,SYN-038,SYN-037,12,APPROVED,substantive,"Cookie flags are right now, thanks. The auth test for a wrong password is good; add one for an expired session."
+S08,S08-S1,SYN-038,SYN-036,13,COMMENTED,substantive,Search box is described in the acceptance criteria but is not in the page. Is it coming in the next PR?
+S08,S08-S2,SYN-038,SYN-037,3,CHANGES_REQUESTED,substantive,"PATCH uses updateMany with the seller id, good, but the body is passed straight to data. A client can send sellerId and take over the listing. Pick the allowed fields explicitly."
+S08,S08-S2,SYN-038,SYN-037,4,APPROVED,brief,"Tests cover the 404 for another seller, nice. Price check can be added later."
+S08,S08-S2,SYN-038,SYN-036,12,COMMENTED,substantive,"The listing page queries inside the component and has no error boundary, so a database error shows the generic crash page. Wrap with error.tsx."
+S08,S08-S2,SYN-038,SYN-039,13,COMMENTED,brief,Please add the tests described in the task.
+S08,S08-S3,SYN-038,SYN-037,2,COMMENTED,substantive,"Uploaded type is read from file.type, which the browser sets. A renamed .exe with an image type would pass. Check the magic bytes, or at least say in the README that it is a known gap."
+S08,S08-S3,SYN-038,SYN-037,4,APPROVED,substantive,The limit of four photos is enforced in the upload route and the delete of orphaned files on failure is a thoughtful touch. Add a test that uploads a fifth file and expects a 400.
+S08,S08-S3,SYN-038,SYN-036,11,APPROVED,approval,ok
+S08,S08-S3,SYN-038,SYN-039,12,COMMENTED,brief,Where is the test for search by category?
+S08,S08-S4,SYN-038,SYN-037,3,APPROVED,substantive,"The search where clause is easy to follow, and the test with all filters at once is useful. Maybe add an index on price if the table grows."
+S08,S08-S4,SYN-038,SYN-036,10,CHANGES_REQUESTED,substantive,Messages page replaces the list on every poll and loses the scroll position. Keep the scroll or only append new messages. Also add a loading and an empty state.
+S08,S08-S4,SYN-038,SYN-040,11,COMMENTED,brief,Nice small PR. Please also handle 429 in the client.
+S08,S08-S5,SYN-038,SYN-037,2,COMMENTED,substantive,"Accepting an offer runs in a transaction, good. But an accepted offer should also mark the listing sold, otherwise it still appears in search. Add that to the transaction."
+S08,S08-S5,SYN-038,SYN-036,9,APPROVED,substantive,"Offer buttons work. The send box clears before the request finishes, so a failed send loses the text. Move the clear after the await."
+S08,S08-S5,SYN-038,SYN-040,12,APPROVED,approval,good
+S09,S09-S1,SYN-042,SYN-041,4,COMMENTED,substantive,"splitEqually gives the extra cents to the first people in the list, but the requirement says the payer. Pass the payer in and put them first."
+S09,S09-S1,SYN-042,SYN-044,4,APPROVED,brief,Looks fine.
+S09,S09-S1,SYN-042,SYN-041,11,APPROVED,approval,good
+S09,S09-S1,SYN-042,SYN-045,12,COMMENTED,brief,Can you add a test for exactly two people?
+S09,S09-S2,SYN-041,SYN-042,10,COMMENTED,approval,ok
+S09,S09-S2,SYN-042,SYN-041,2,APPROVED,substantive,The settle algorithm with two queues is clear. Is the output ordering stable if two people owe the same amount? Add a test.
+S09,S09-S2,SYN-042,SYN-044,4,APPROVED,substantive,"The export writes the header and one row per expense correctly, but a description or name with a comma will break the row. Add quoting for commas and quotes and a test with such a name."
+S09,S09-S2,SYN-042,SYN-045,5,COMMENTED,brief,Why does the interval merge allocate a new list each time?
+S09,S09-S2,SYN-042,SYN-041,11,APPROVED,approval,lgtm
+S09,S09-S3,SYN-042,SYN-041,3,APPROVED,substantive,"Currency conversion in balances rounds each expense separately, so the totals can differ by a cent from converting the sum. Fine for the demo, add a note to the known issues."
+S09,S09-S3,SYN-042,SYN-041,10,COMMENTED,substantive,"Room migration looks right, did you test an upgrade from version 1 on a real device?"
+S09,S09-S3,SYN-042,SYN-044,11,APPROVED,approval,ok
+S09,S09-S3,SYN-045,SYN-041,4,COMMENTED,substantive,"The currency rate is a Double on the expense. Rounding of converted amounts should use the same cents rule as splitting, otherwise the sums disagree by a cent. Add a test with a rate of 3.3."
+S09,S09-S3,SYN-045,SYN-042,9,COMMENTED,brief,The release notes link is broken.
+S10,S10-S1,SYN-050,SYN-046,9,COMMENTED,brief,Looks ok but the ingest function does not check the range yet.
+S10,S10-S2,SYN-050,SYN-048,6,COMMENTED,substantive,"The device key is returned in the list endpoint too, it should be shown only on creation. Please remove it from the list serialisation."
+S10,S10-S4,SYN-050,SYN-047,10,COMMENTED,brief,"Nice, the refresh timer is cleared. Maybe pause it when the tab is hidden as in the task."
+S10,S10-S4,SYN-050,SYN-048,11,APPROVED,approval,ok

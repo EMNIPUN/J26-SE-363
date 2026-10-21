@@ -1,0 +1,20 @@
+{
+  "factor": "consistency",
+  "title": "Consistency",
+  "measures": "Whether the student's work is spread through the sprint rather than squeezed into a few days: share of days with real work and how early the work started.",
+  "inputs": ["commit dates (author's own date) with clean line statistics", "sprint start and length"],
+  "computation": "Ridge model on two features: active-days share (C_AWR) and day of the first commit (C_first_active_day). A student with no activity scores 0. Late-work share, longest idle run and burstiness are computed and reported as features but add nothing measurable in the validation data.",
+  "output_scale": "0 = no activity or only at the very end, 1 = steady work from the first days.",
+  "gates": ["Needs at least 5 days of the sprint for a provisional score; before that: not available (a rhythm cannot be read earlier)."],
+  "validation": "144 real student-sprints, student-disjoint 5-fold CV against assistant-written rubric ratings: MAE 0.058 (active-days baseline 0.078), Pearson 0.92. The proposal's four features alone do not beat active days.",
+  "limits": ["Assumes a 14-day sprint in the validation data.", "Commit dates are the author's local date; commits made on one day under another time zone can shift a day.", "A student whose work is in someone else's commits (pair programming under one account) looks inconsistent."],
+  "warnings": {
+    "provisional": "Computed on the part of the sprint that has passed.",
+    "feature .* missing": "A feature was missing and the training median was used."
+  },
+  "typical_problems": [
+    {"symptom": "low consistency but many commits", "likely_cause": "all commits on the last days, or commits pushed in bulk from a local history", "remedy": "refetch_evidence"},
+    {"symptom": "zero consistency for a student who worked", "likely_cause": "author e-mail not mapped to the student", "remedy": "identity_mapping"}
+  ],
+  "allowed_remedies": ["identity_mapping", "refetch_evidence", "mark_not_available", "escalate_to_human"]
+}

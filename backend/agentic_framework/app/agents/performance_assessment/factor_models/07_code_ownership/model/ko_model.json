@@ -1,0 +1,32 @@
+{
+ "encoder": "codebert",
+ "feature_set": "B+H",
+ "head": "svr",
+ "params": {
+  "C": 3,
+  "epsilon": 0.05,
+  "gamma": 0.0001,
+  "n_hand": 12,
+  "hw": 20
+ },
+ "features_version": "ko_features/2",
+ "trained_on": "36 standard-library functions, 216 assistant-written answers (no student data, no human ratings)",
+ "dev_oof": {
+  "MAE": 0.1614402494171667,
+  "Spearman": 0.8117135657156519
+ },
+ "final_test": {
+  "n answers": 38.0,
+  "n functions": 6.0,
+  "MAE": 0.13662838034160282,
+  "RMSE": 0.1751575461984347,
+  "Spearman": 0.8823501508263292,
+  "Pearson": 0.8853879877156594,
+  "QWK (1-5 bands)": 0.8412698412698413,
+  "ICC(2,1)": 0.8520731322597793
+ },
+ "residual_quantiles": [
+  -0.2832050411824714,
+  0.2772137513976272
+ ]
+}

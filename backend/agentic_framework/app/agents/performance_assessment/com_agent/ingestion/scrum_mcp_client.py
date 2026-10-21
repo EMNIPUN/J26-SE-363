@@ -10,6 +10,8 @@ import abc
 import json
 import logging
 import pathlib
+import sys
+import os
 from typing import Dict, List, Optional, Any
 from app.agents.performance_assessment.com_agent.policies.retry_policy import retry_with_backoff
 from app.agents.performance_assessment.com_agent.config.settings_loader import IS_DEV_MODE
@@ -97,29 +99,106 @@ class MockScrumMCPClient(ScrumMCPClientProtocol):
 
 
 class RealScrumMCPClient(ScrumMCPClientProtocol):
-    """Production Scrum MCP client interface (stub for external MCP connector)."""
+    """Talks to the Scrum board MCP server (mcp_servers/scrum_board_server.py) over stdio.
+
+    Use as ``async with RealScrumMCPClient() as scrum:`` to keep one server process for a whole run. Used without ``async with`` every call starts and stops its own
+    server process (slower, but always correct).
+    """
+
+    def __init__(self, command: Optional[str] = None, args: Optional[List[str]] = None, env: Optional[Dict[str, str]] = None):
+        server = pathlib.Path(__file__).resolve().parents[2] / "mcp_servers" / "scrum_board_server.py"
+        self.command = command or sys.executable
+        self.args = args if args is not None else [str(server)]
+        self.env = env
+        self._session = None
+        self._stack = None
+
+    async def __aenter__(self):
+        from contextlib import AsyncExitStack
+        from mcp import ClientSession
+        from mcp.client.stdio import StdioServerParameters, stdio_client
+
+        self._stack = AsyncExitStack()
+        read, write = await self._stack.enter_async_context(stdio_client(StdioServerParameters(command=self.command, args=self.args, env=self.env)))
+        self._session = await self._stack.enter_async_context(ClientSession(read, write))
+        await self._session.initialize()
+        return self
+
+    async def __aexit__(self, *exc):
+        if self._stack is not None:
+            await self._stack.aclose()
+        self._session = self._stack = None
+
+    @staticmethod
+    def _parse(result):
+        if getattr(result, "isError", False):
+            raise RuntimeError("Scrum MCP tool failed: " + " ".join(getattr(c, "text", "") for c in result.content)[:300])
+        sc = getattr(result, "structuredContent", None)
+        if sc is not None:
+            return sc["result"] if isinstance(sc, dict) and set(sc) == {"result"} else sc
+        texts = [json.loads(c.text) for c in result.content if getattr(c, "text", None)]
+        return texts[0] if len(texts) == 1 else texts
+
+    async def _call(self, tool: str, **arguments):
+        if self._session is not None:
+            return self._parse(await self._session.call_tool(tool, arguments))
+        async with RealScrumMCPClient(self.command, self.args, self.env) as one_shot:
+            return await one_shot._call(tool, **arguments)
+
+    async def list_sprints(self, team_id: str) -> List[Dict[str, Any]]:
+        return await self._call("list_sprints", team_id=team_id)
+
+    async def get_team_roster(self, team_id: str) -> List[Dict[str, Any]]:
+        return await self._call("get_team_roster", team_id=team_id)
 
     async def get_sprint_details(self, sprint_id: str) -> Dict[str, Any]:
-        raise NotImplementedError(
-            "RealScrumMCPClient requires custom in-house Scrum MCP server in production"
-        )
+        return await self._call("get_sprint_details", sprint_id=sprint_id)
 
-    async def get_student_tasks(
-        self, sprint_id: str, student_id: str
-    ) -> List[Dict[str, Any]]:
-        raise NotImplementedError(
-            "RealScrumMCPClient requires custom in-house Scrum MCP server in production"
-        )
+    async def get_student_tasks(self, sprint_id: str, student_id: str) -> List[Dict[str, Any]]:
+        return await self._call("get_student_tasks", sprint_id=sprint_id, student_id=student_id)
 
     async def get_task_acceptance_criteria(self, task_id: str) -> Dict[str, Any]:
-        raise NotImplementedError(
-            "RealScrumMCPClient requires custom in-house Scrum MCP server in production"
-        )
+        return await self._call("get_task_acceptance_criteria", task_id=task_id)
 
     async def get_task_status_history(self, task_id: str) -> List[Dict[str, Any]]:
-        raise NotImplementedError(
-            "RealScrumMCPClient requires custom in-house Scrum MCP server in production"
-        )
+        return await self._call("get_task_status_history", task_id=task_id)
+
+
+class CoreApiScrumClient(ScrumMCPClientProtocol):
+    """Read the repository-matched Scrum simulator through the Core API."""
+
+    def __init__(self, repo_url: str, team_ref: str, base_url: str | None = None, token: str | None = None):
+        self.repo_url = repo_url
+        self.team_ref = team_ref
+        self.base_url = (base_url or os.environ.get("CORE_API_URL") or "http://localhost:8002/api/v1").rstrip("/")
+        self.token = token or os.environ.get("AI_BACKEND_INTERNAL_TOKEN")
+
+    async def _call(self, operation: str, **params):
+        import httpx
+        headers = {"X-Internal-Token": self.token} if self.token else {}
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(f"{self.base_url}/internal/scrum/{self.team_ref}/{operation}",
+                                        params={"repo_url": self.repo_url, **params}, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+    async def list_sprints(self, team_id: str) -> List[Dict[str, Any]]:
+        return await self._call("list_sprints")
+
+    async def get_team_roster(self, team_id: str) -> List[Dict[str, Any]]:
+        return await self._call("get_team_roster")
+
+    async def get_sprint_details(self, sprint_id: str) -> Dict[str, Any]:
+        return await self._call("get_sprint_details", sprint_id=sprint_id)
+
+    async def get_student_tasks(self, sprint_id: str, student_id: str) -> List[Dict[str, Any]]:
+        return await self._call("get_student_tasks", sprint_id=sprint_id, student_id=student_id)
+
+    async def get_task_acceptance_criteria(self, task_id: str) -> Dict[str, Any]:
+        return await self._call("get_task_acceptance_criteria", task_id=task_id)
+
+    async def get_task_status_history(self, task_id: str) -> List[Dict[str, Any]]:
+        return await self._call("get_task_status_history", task_id=task_id)
 
 
 def get_scrum_client(is_dev: Optional[bool] = None) -> ScrumMCPClientProtocol:

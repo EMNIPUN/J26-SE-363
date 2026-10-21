@@ -455,3 +455,38 @@ async def test_core_api_startup_fails_clearly_without_queue_url(parent_open_call
             pass
 
     assert parent_open_calls == []
+
+
+def _engine_with_a_dropped_connection(tmp_path, ping_after):
+    """A pooled connection that the far side has since closed (what a pooler does to an idle one)."""
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.pool import QueuePool
+
+    from app.database.session import _ping_idle_connections
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'db.sqlite'}", poolclass=QueuePool)
+    _ping_idle_connections(engine, ping_after)
+    with engine.connect() as c:
+        c.execute(text("select 1"))
+        raw = c.connection.dbapi_connection
+    raw.close()  # dropped while it sits in the pool
+    return engine
+
+
+def test_an_idle_connection_that_was_dropped_is_replaced_before_use(tmp_path):
+    from sqlalchemy import text
+
+    engine = _engine_with_a_dropped_connection(tmp_path, ping_after=0)
+    with engine.connect() as c:
+        assert c.execute(text("select 2")).scalar() == 2
+
+
+def test_a_connection_used_a_moment_ago_is_not_tested_on_every_checkout(tmp_path):
+    """Testing every checkout costs a round trip to the database on every request, so a recently used connection is trusted."""
+    import pytest
+    from sqlalchemy import exc, text
+
+    engine = _engine_with_a_dropped_connection(tmp_path, ping_after=3600)
+    with pytest.raises(exc.DBAPIError):
+        with engine.connect() as c:
+            c.execute(text("select 2"))

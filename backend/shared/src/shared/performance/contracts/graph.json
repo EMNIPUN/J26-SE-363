@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/graph/2",
+  "title": "Performance graph",
+  "type": "object",
+  "required": ["schema", "version", "groups", "nodes", "edges"],
+  "properties": {
+    "schema": {"const": "graph/2"}, "version": {"const": 2}, "groups": {"type": "array"}, "nodes": {"type": "array"}, "edges": {"type": "array"}
+  }
+}

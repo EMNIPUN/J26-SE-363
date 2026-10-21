@@ -1,0 +1,748 @@
+{
+  "schema_version": "1",
+  "github_repo_url": "https://github.com/sadeeshasathsara/ethical-tourism-certification-system-backend",
+  "project": {
+    "project_id": "P-ETCS",
+    "project_name": "Ethical Tourism Certification System Backend",
+    "project_domain": ""
+  },
+  "students": [
+    {
+      "student_id": "STU-001",
+      "name": "Nipun Dhananjaya",
+      "email": "nipundananjaya9001@gmail.com"
+    },
+    {
+      "student_id": "STU-002",
+      "name": "Sadeesha Sathsara",
+      "email": "sathsarakumbukage@gmail.com"
+    },
+    {
+      "student_id": "STU-003",
+      "name": "Chathush Vishmika",
+      "email": "chathushuni@gmail.com"
+    },
+    {
+      "student_id": "STU-004",
+      "name": "Croos Eric Devon",
+      "email": "ericdevon2003@gmail.com"
+    }
+  ],
+  "sprints": [
+    {
+      "sprint_id": "sprint-01",
+      "name": "Foundation and Backend Architecture",
+      "goal": "Establish the Express/Mongo feature-module architecture, shared common utilities, and initial certificate lifecycle API surface.",
+      "start_date": "2026-02-08",
+      "end_date": "2026-02-21",
+      "status": "completed"
+    },
+    {
+      "sprint_id": "sprint-02",
+      "name": "Search Discovery, Audit Core, and Authentication",
+      "goal": "Ship public hotel search/AI recommendations, core audit + RAG document chat, JWT auth, and early trust-score/email lifecycle hooks.",
+      "start_date": "2026-02-22",
+      "end_date": "2026-03-07",
+      "status": "completed"
+    },
+    {
+      "sprint_id": "sprint-03",
+      "name": "Certificate Lifecycle Depth",
+      "goal": "Deepen certificate lifecycle: activity timeline, hotel-enriched certificate reads, full update API, and trust-score fixes.",
+      "start_date": "2026-03-08",
+      "end_date": "2026-03-29",
+      "status": "completed"
+    },
+    {
+      "sprint_id": "sprint-04",
+      "name": "Owner Portal, Certificate Documents, and Release Hardening",
+      "goal": "Generate/email certificate PDFs, expose owner download and admin stats, finish application/lifecycle features, and harden tests plus deployment docs for release.",
+      "start_date": "2026-03-30",
+      "end_date": "2026-04-12",
+      "status": "completed"
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task-s1-initial-repo",
+      "title": "Initialize backend repository",
+      "description": "Create the initial commit and repository baseline for the ethical tourism certification backend.",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-001"
+      ],
+      "acceptance_criteria": [
+        "Repository exists with initial commit",
+        "Project can be cloned and opened by the team"
+      ],
+      "labels": [
+        "backend",
+        "infrastructure"
+      ],
+      "story_points": 2,
+      "sprint_id": "sprint-01",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s1-architecture",
+      "title": "Establish feature-based backend architecture",
+      "description": "Scaffold core modules, common utilities, middleware patterns, and test infrastructure (Sadeesha: architecture commit 2026-02-08).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-002"
+      ],
+      "acceptance_criteria": [
+        "common/, modules/, and app entrypoints exist",
+        "Shared utilities and middleware layout are in place",
+        "Test infrastructure folder structure is ready"
+      ],
+      "labels": [
+        "backend",
+        "architecture"
+      ],
+      "story_points": 8,
+      "sprint_id": "sprint-01",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s1-lifecycle-apis",
+      "title": "Implement initial certificate lifecycle APIs",
+      "description": "Deliver the first certificate lifecycle endpoints (Chathush: 'Implemented the lifecycle apis', 2026-02-17).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-003"
+      ],
+      "acceptance_criteria": [
+        "Lifecycle routes are mounted under /certification",
+        "Basic issue/get certificate operations work"
+      ],
+      "labels": [
+        "backend",
+        "lifecycle"
+      ],
+      "story_points": 5,
+      "sprint_id": "sprint-01",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s1-common-models",
+      "title": "Define shared User and Hotel models",
+      "description": "Place shared Mongoose models in common/models for use across certification, audit, and search modules.",
+      "status": "done",
+      "priority": "medium",
+      "assignee_ids": [
+        "STU-002",
+        "STU-004"
+      ],
+      "acceptance_criteria": [
+        "User model supports Admin, Hotel Owner, Auditor, Tourist roles",
+        "Hotel model is reusable across modules"
+      ],
+      "labels": [
+        "backend",
+        "models"
+      ],
+      "story_points": 5,
+      "sprint_id": "sprint-01",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s2-search-ai",
+      "title": "Enhance hotel search and AI recommendations",
+      "description": "Improve hotel recommendation scoring with feedback summaries and search/feedback service logging (Nipun: AI-Recommendation + logging commits, 2026-02-26).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-001"
+      ],
+      "acceptance_criteria": [
+        "/hotels-search/ai-recommendations returns ranked hotels",
+        "Feedback summaries influence recommendation scoring",
+        "Search services emit traceable logs"
+      ],
+      "labels": [
+        "backend",
+        "search",
+        "ai"
+      ],
+      "story_points": 8,
+      "sprint_id": "sprint-02",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s2-vercel",
+      "title": "Add Vercel serverless deployment entrypoint",
+      "description": "Add vercel.json and api/index.js; fix Node runtime/builds (Nipun: deployment commits, 2026-02-26).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-001"
+      ],
+      "acceptance_criteria": [
+        "api/index.js exports the Express app",
+        "Vercel config uses a supported Node runtime",
+        "Deployed health endpoint responds"
+      ],
+      "labels": [
+        "backend",
+        "deployment"
+      ],
+      "story_points": 5,
+      "sprint_id": "sprint-02",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s2-audit-core",
+      "title": "Implement audit management and RAG document chat",
+      "description": "Create audit endpoints (create/retrieve/review/compliance), document processing, and hotel-data chatbot (Eric: audit feature commits, 2026-02-26).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-004"
+      ],
+      "acceptance_criteria": [
+        "Audits can be created and reviewed by section",
+        "Compliance checks can be added",
+        "Uploaded hotel documents support chatWithHotelData"
+      ],
+      "labels": [
+        "backend",
+        "audit",
+        "ai"
+      ],
+      "story_points": 13,
+      "sprint_id": "sprint-02",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s2-vector-db",
+      "title": "Refactor vector DB embeddings to MongoDB",
+      "description": "Store audit document embeddings in MongoDB (Eric: vector database refactor, 2026-02-27).",
+      "status": "done",
+      "priority": "medium",
+      "assignee_ids": [
+        "STU-004"
+      ],
+      "acceptance_criteria": [
+        "Embeddings persist in MongoDB",
+        "Document chat retrieves relevant chunks"
+      ],
+      "labels": [
+        "backend",
+        "audit",
+        "database"
+      ],
+      "story_points": 5,
+      "sprint_id": "sprint-02",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s2-auth",
+      "title": "Implement JWT registration, login, and user retrieval",
+      "description": "Deliver /auth/register, /auth/login, and user retrieval (Eric: authentication system commit, 2026-04-11; Sadeesha later added Admin user listing).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-004",
+        "STU-002"
+      ],
+      "acceptance_criteria": [
+        "Users can register and login with JWT",
+        "Protected routes use protect middleware",
+        "Admin can list users via /auth/users"
+      ],
+      "labels": [
+        "backend",
+        "authentication"
+      ],
+      "story_points": 8,
+      "sprint_id": "sprint-02",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s2-trust-feedback",
+      "title": "Auto-update trust score from tourist feedback",
+      "description": "When feedback is submitted, update certificate trust score and expose a trust-score update API (Chathush: 2026-02-24).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-003"
+      ],
+      "acceptance_criteria": [
+        "Feedback submission updates related trust score",
+        "Trust score update API validates score bounds",
+        "Only eligible hotels can be issued certificates"
+      ],
+      "labels": [
+        "backend",
+        "lifecycle",
+        "feedback"
+      ],
+      "story_points": 5,
+      "sprint_id": "sprint-02",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s2-cors",
+      "title": "Enable and harden CORS for frontend origins",
+      "description": "Enable CORS middleware and allow local Vite ports (Sadeesha: CORS commits, 2026-04-11; Nipun refined config).",
+      "status": "done",
+      "priority": "medium",
+      "assignee_ids": [
+        "STU-002",
+        "STU-001"
+      ],
+      "acceptance_criteria": [
+        "Frontend origins 5173\u20135175 are allowed",
+        "Credentials and required methods/headers work"
+      ],
+      "labels": [
+        "backend",
+        "security"
+      ],
+      "story_points": 3,
+      "sprint_id": "sprint-02",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s3-timeline",
+      "title": "Add certificate activity timeline API",
+      "description": "Expose ordered certificate activity history (Chathush: timeline API, 2026-03-29).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-003"
+      ],
+      "acceptance_criteria": [
+        "Timeline returns ordered certificate activities",
+        "Issue/renew/revoke events appear in history"
+      ],
+      "labels": [
+        "backend",
+        "lifecycle"
+      ],
+      "story_points": 5,
+      "sprint_id": "sprint-03",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s3-cert-hotel-data",
+      "title": "Return hotel data with certificate-by-id responses",
+      "description": "Enrich get-certificate responses with linked hotel details (Chathush: 2026-03-29).",
+      "status": "done",
+      "priority": "medium",
+      "assignee_ids": [
+        "STU-003"
+      ],
+      "acceptance_criteria": [
+        "Certificate payload includes hotel business info",
+        "Missing hotel references are handled safely"
+      ],
+      "labels": [
+        "backend",
+        "lifecycle"
+      ],
+      "story_points": 3,
+      "sprint_id": "sprint-03",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s3-cert-full-update",
+      "title": "Implement full certificate update API",
+      "description": "Allow authorized updates to certificate details (Chathush: full update API, 2026-04-06 \u2014 started in this sprint).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-003"
+      ],
+      "acceptance_criteria": [
+        "Certificate details can be updated with validation",
+        "Unauthorized roles receive 403"
+      ],
+      "labels": [
+        "backend",
+        "lifecycle"
+      ],
+      "story_points": 5,
+      "sprint_id": "sprint-03",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s3-trust-fix",
+      "title": "Fix trust score calculation on feedback",
+      "description": "Resolve trust-score calculation issues triggered by feedback and related Mongoose connection problems (Chathush: 2026-03-29).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-003",
+        "STU-001"
+      ],
+      "acceptance_criteria": [
+        "Feedback no longer produces incorrect trust scores",
+        "MongoDB SRV connection issues are resolved"
+      ],
+      "labels": [
+        "backend",
+        "lifecycle",
+        "bugfix"
+      ],
+      "story_points": 5,
+      "sprint_id": "sprint-03",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s3-hotel-application",
+      "title": "Advance hotel certification application services",
+      "description": "Continue hotel CRUD, SerpAPI candidate search, and AI evaluation work in certification/application (Sadeesha: dominant cert-application ownership).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-002"
+      ],
+      "acceptance_criteria": [
+        "Hotel create returns SerpAPI candidates",
+        "Owners can confirm matches",
+        "Evaluation agent writes scoring fields"
+      ],
+      "labels": [
+        "backend",
+        "certification"
+      ],
+      "story_points": 8,
+      "sprint_id": "sprint-03",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s3-search-contacts",
+      "title": "Maintain hotel contact discovery APIs",
+      "description": "Keep contact list/search endpoints sorted by certificate level priority (Nipun: primary search module owner).",
+      "status": "done",
+      "priority": "medium",
+      "assignee_ids": [
+        "STU-001"
+      ],
+      "acceptance_criteria": [
+        "Contacts searchable by location",
+        "Results ordered PLATINUM \u2192 GOLD \u2192 SILVER"
+      ],
+      "labels": [
+        "backend",
+        "search"
+      ],
+      "story_points": 3,
+      "sprint_id": "sprint-03",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s3-audit-schemas",
+      "title": "Add audit and section review schemas",
+      "description": "Formalize Joi/Swagger schemas for audit creation and section review (Eric: audit schema commits).",
+      "status": "done",
+      "priority": "medium",
+      "assignee_ids": [
+        "STU-004"
+      ],
+      "acceptance_criteria": [
+        "Invalid audit payloads return 400",
+        "Section review schema is documented"
+      ],
+      "labels": [
+        "backend",
+        "audit",
+        "validation"
+      ],
+      "story_points": 3,
+      "sprint_id": "sprint-03",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s4-pdf-email",
+      "title": "Generate certificate PDF and email download link",
+      "description": "Generate certificate PDFs from the backend and email secure download links; restyle PDF; fix download env issues (Chathush: 2026-04-07 \u2192 2026-04-12).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-003"
+      ],
+      "acceptance_criteria": [
+        "PDF includes hotel, level, trust score, and validity",
+        "Email contains a working download link",
+        "Download env/config issues are resolved"
+      ],
+      "labels": [
+        "backend",
+        "lifecycle",
+        "pdf",
+        "email"
+      ],
+      "story_points": 8,
+      "sprint_id": "sprint-04",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s4-stats-charts",
+      "title": "Implement certificate stats and charts APIs",
+      "description": "Admin overview stats/charts plus eligible-hotel API upgrades (Chathush: 2026-04-09).",
+      "status": "done",
+      "priority": "medium",
+      "assignee_ids": [
+        "STU-003"
+      ],
+      "acceptance_criteria": [
+        "Stats include counts by status and level",
+        "Charts expose recent issuance trends",
+        "Eligible hotels API returns certification-ready hotels"
+      ],
+      "labels": [
+        "backend",
+        "lifecycle",
+        "analytics"
+      ],
+      "story_points": 5,
+      "sprint_id": "sprint-04",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s4-owner-certs",
+      "title": "Implement owner certificate management",
+      "description": "Owner certificate lists, download-link API, and ownership enhancements (Sadeesha: owner certificate commits, 2026-04-11/12).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-002"
+      ],
+      "acceptance_criteria": [
+        "Hotel Owner sees only their certificates",
+        "Download-link endpoint requires Hotel Owner role",
+        "Owner pending-review hotels are listed"
+      ],
+      "labels": [
+        "backend",
+        "lifecycle",
+        "owner"
+      ],
+      "story_points": 8,
+      "sprint_id": "sprint-04",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s4-lifecycle-service",
+      "title": "Complete lifecycle service with trust scoring",
+      "description": "Implement lifecycle service with trust scoring, automated status tracking, routes, and Swagger (Sadeesha: lifecycle service/routes, 2026-04-11).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-002",
+        "STU-003"
+      ],
+      "acceptance_criteria": [
+        "Issue/renew/revoke/inactivate flows work end-to-end",
+        "Trust score clamps to 0\u2013100 and updates level",
+        "Swagger documents lifecycle endpoints"
+      ],
+      "labels": [
+        "backend",
+        "lifecycle"
+      ],
+      "story_points": 8,
+      "sprint_id": "sprint-04",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s4-hotel-crud-ai",
+      "title": "Ship hotel CRUD with AI evaluation and candidate search",
+      "description": "Hotel controller/service with AI-driven candidate search and review evaluation; normalize candidate fields (Sadeesha: 2026-04-11).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-002"
+      ],
+      "acceptance_criteria": [
+        "Hotel CRUD endpoints are available under /hotels",
+        "Candidate fields are normalized/backfilled from search",
+        "Confirmation flow test script runs"
+      ],
+      "labels": [
+        "backend",
+        "certification",
+        "ai"
+      ],
+      "story_points": 8,
+      "sprint_id": "sprint-04",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s4-jest-audit-hotel",
+      "title": "Add Jest unit/integration/performance suites",
+      "description": "Set up Jest with audit and hotel test suites; update HotelRequest status on audit completion (Eric: 2026-04-11/12).",
+      "status": "done",
+      "priority": "high",
+      "assignee_ids": [
+        "STU-004"
+      ],
+      "acceptance_criteria": [
+        "Unit and integration tests run via npm scripts",
+        "Audit completion updates HotelRequest status",
+        "Performance test configs exist for covered modules"
+      ],
+      "labels": [
+        "backend",
+        "testing"
+      ],
+      "story_points": 8,
+      "sprint_id": "sprint-04",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s4-lifecycle-tests",
+      "title": "Add lifecycle unit, integration, and performance tests",
+      "description": "Implement lifecycle test cases (Chathush: unit/integration/performance tests, 2026-04-11).",
+      "status": "done",
+      "priority": "medium",
+      "assignee_ids": [
+        "STU-003"
+      ],
+      "acceptance_criteria": [
+        "npm run test:lifecycle passes",
+        "Issue/renew/revoke paths have integration coverage"
+      ],
+      "labels": [
+        "backend",
+        "testing",
+        "lifecycle"
+      ],
+      "story_points": 5,
+      "sprint_id": "sprint-04",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s4-docs-images",
+      "title": "Refresh module testing docs and hotel image enrichment",
+      "description": "Replace outdated test docs; add Search/Audit/Hotel testing instructions; add buildHotelImage Google Maps enrichment (Nipun: 2026-04-12).",
+      "status": "done",
+      "priority": "medium",
+      "assignee_ids": [
+        "STU-001"
+      ],
+      "acceptance_criteria": [
+        "Module testing instruction markdown files are current",
+        "Hotel data includes Google Maps image enrichment",
+        "Deployment screenshot links are updated"
+      ],
+      "labels": [
+        "backend",
+        "documentation",
+        "search"
+      ],
+      "story_points": 5,
+      "sprint_id": "sprint-04",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    },
+    {
+      "task_id": "task-s4-cert-delete",
+      "title": "Implement certificate delete API",
+      "description": "Permanent certificate deletion for authorized admins (Chathush: 2026-04-07).",
+      "status": "done",
+      "priority": "low",
+      "assignee_ids": [
+        "STU-003"
+      ],
+      "acceptance_criteria": [
+        "Authorized delete removes certificate permanently",
+        "Unauthorized callers are rejected"
+      ],
+      "labels": [
+        "backend",
+        "lifecycle"
+      ],
+      "story_points": 3,
+      "sprint_id": "sprint-04",
+      "subtask_count": 0,
+      "linked_commits": [],
+      "completed_by": null,
+      "carried_over_from": null
+    }
+  ],
+  "status_history": {}
+}

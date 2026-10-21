@@ -1,0 +1,865 @@
+name,outer_test,record_id,y,pred,activity
+Random Forest | proposal 5 (log counts),A,T01-S1-STU-014,0.6,0.5112530458240013,12
+Random Forest | proposal 5 (log counts),A,T01-S1-STU-003,0.45,0.39154746905141624,0
+Random Forest | proposal 5 (log counts),A,T01-S1-STU-021,0.4,0.4162422685601867,0
+Random Forest | proposal 5 (log counts),A,T01-S1-STU-009,0.35,0.5141640877640892,3
+Random Forest | proposal 5 (log counts),A,T01-S2-STU-014,0.6,0.5633735327179178,6
+Random Forest | proposal 5 (log counts),A,T01-S2-STU-003,0.55,0.6646393868658567,3
+Random Forest | proposal 5 (log counts),A,T01-S2-STU-021,0.5,0.535044432186464,2
+Random Forest | proposal 5 (log counts),A,T01-S2-STU-009,0.2,0.24941293183940266,0
+Random Forest | proposal 5 (log counts),A,T01-S3-STU-014,0.45,0.37903100574892334,0
+Random Forest | proposal 5 (log counts),A,T01-S3-STU-003,0.6,0.5729400698821022,3
+Random Forest | proposal 5 (log counts),A,T01-S3-STU-021,0.7,0.6170611318148079,6
+Random Forest | proposal 5 (log counts),A,T01-S3-STU-009,0.6,0.5311653914440683,1
+Random Forest | proposal 5 (log counts),A,T02-S1-STU-014,0.55,0.44563717226759,0
+Random Forest | proposal 5 (log counts),A,T02-S1-STU-003,0.65,0.6251706030543525,3
+Random Forest | proposal 5 (log counts),A,T02-S1-STU-021,0.2,0.46722527056277063,1
+Random Forest | proposal 5 (log counts),A,T02-S1-STU-009,0.2,0.24941293183940266,0
+Random Forest | proposal 5 (log counts),A,T02-S2-STU-014,0.8,0.5400342561197594,15
+Random Forest | proposal 5 (log counts),A,T02-S2-STU-003,0.3,0.24941293183940266,0
+Random Forest | proposal 5 (log counts),A,T02-S2-STU-021,0.2,0.15130555555555536,0
+Random Forest | proposal 5 (log counts),A,T02-S2-STU-009,0.2,0.24941293183940266,0
+Random Forest | proposal 5 (log counts),A,T03-S1-STU-014,0.65,0.5904302121744498,8
+Random Forest | proposal 5 (log counts),A,T03-S1-STU-017,0.55,0.5744235144329624,25
+Random Forest | proposal 5 (log counts),A,T03-S1-STU-011,0.35,0.4162422685601867,0
+Random Forest | proposal 5 (log counts),A,T03-S1-STU-006,0.65,0.41024162087912064,20
+Random Forest | proposal 5 (log counts),A,T03-S1-STU-019,0.2,0.24941293183940266,0
+Random Forest | proposal 5 (log counts),A,T03-S2-STU-014,0.55,0.39697567039441983,15
+Random Forest | proposal 5 (log counts),A,T03-S2-STU-017,0.7,0.5960322391946196,19
+Random Forest | proposal 5 (log counts),A,T03-S2-STU-011,0.35,0.4875209808282239,1
+Random Forest | proposal 5 (log counts),A,T03-S2-STU-006,0.6,0.47461570961718064,13
+Random Forest | proposal 5 (log counts),A,T03-S2-STU-019,0.35,0.4593667474682175,3
+Random Forest | proposal 5 (log counts),A,T03-S3-STU-014,0.65,0.6201100627416083,5
+Random Forest | proposal 5 (log counts),A,T03-S3-STU-017,0.6,0.6328494889369884,21
+Random Forest | proposal 5 (log counts),A,T03-S3-STU-011,0.3,0.3640783068783069,1
+Random Forest | proposal 5 (log counts),A,T03-S3-STU-006,0.6,0.530778318402792,19
+Random Forest | proposal 5 (log counts),A,T03-S3-STU-019,0.3,0.5284268952093938,6
+Random Forest | proposal 5 (log counts),A,T11-S1-STU-017,0.55,0.4864037037037035,1
+Random Forest | proposal 5 (log counts),A,T11-S1-STU-003,0.6,0.42083190268337345,0
+Random Forest | proposal 5 (log counts),A,T11-S1-STU-006,0.6,0.4162422685601867,0
+Random Forest | proposal 5 (log counts),A,T11-S1-STU-014,0.95,0.469999745598685,24
+Random Forest | proposal 5 (log counts),A,T11-S2-STU-017,0.65,0.5646761126672898,17
+Random Forest | proposal 5 (log counts),A,T11-S2-STU-003,0.7,0.5133784564711462,12
+Random Forest | proposal 5 (log counts),A,T11-S2-STU-006,0.65,0.6986319794999676,6
+Random Forest | proposal 5 (log counts),A,T11-S2-STU-014,0.9,0.5313648182847135,38
+Random Forest | proposal 5 (log counts),A,T11-S3-STU-017,0.55,0.4687361111111109,3
+Random Forest | proposal 5 (log counts),A,T11-S3-STU-003,0.35,0.39181440596440464,3
+Random Forest | proposal 5 (log counts),A,T11-S3-STU-006,0.5,0.24941293183940266,0
+Random Forest | proposal 5 (log counts),A,T11-S3-STU-014,0.35,0.3081996031746031,3
+Random Forest | proposal 5 (log counts),A,T12-S1-STU-003,0.6,0.5846947435866552,2
+Random Forest | proposal 5 (log counts),A,T12-S1-STU-021,0.25,0.27507490273887353,0
+Random Forest | proposal 5 (log counts),A,T12-S1-STU-014,0.65,0.6181639351851852,5
+Random Forest | proposal 5 (log counts),A,T12-S1-STU-009,0.4,0.37872612433862424,3
+Random Forest | proposal 5 (log counts),A,T12-S2-STU-003,0.55,0.44563717226759,0
+Random Forest | proposal 5 (log counts),A,T12-S2-STU-021,0.25,0.27507490273887353,0
+Random Forest | proposal 5 (log counts),A,T12-S2-STU-014,0.25,0.35199437830687863,1
+Random Forest | proposal 5 (log counts),A,T12-S2-STU-009,0.3,0.24941293183940266,0
+Random Forest | proposal 5 (log counts),A,T13-S1-STU-017,0.55,0.24941293183940266,0
+Random Forest | proposal 5 (log counts),A,T13-S1-STU-003,0.6,0.24941293183940266,0
+Random Forest | proposal 5 (log counts),A,T13-S1-STU-006,0.35,0.2694861111111106,1
+Random Forest | proposal 5 (log counts),A,T13-S1-STU-014,0.8,0.5928963288731374,5
+Random Forest | proposal 5 (log counts),A,T13-S2-STU-017,0.7,0.5861575106430134,11
+Random Forest | proposal 5 (log counts),A,T13-S2-STU-003,0.65,0.5297649821039521,4
+Random Forest | proposal 5 (log counts),A,T13-S2-STU-006,0.55,0.4796813842203547,9
+Random Forest | proposal 5 (log counts),A,T13-S2-STU-014,0.85,0.587095543041902,11
+Random Forest | proposal 5 (log counts),A,T13-S3-STU-017,0.6,0.5321271240073139,19
+Random Forest | proposal 5 (log counts),A,T13-S3-STU-003,0.45,0.44563717226759,0
+Random Forest | proposal 5 (log counts),A,T13-S3-STU-006,0.4,0.44563717226759,0
+Random Forest | proposal 5 (log counts),A,T13-S3-STU-014,0.5,0.44563717226759,0
+Random Forest | proposal 5 (log counts),A,T13-S4-STU-017,0.7,0.5957260378510372,16
+Random Forest | proposal 5 (log counts),A,T13-S4-STU-003,0.6,0.7272766330891319,5
+Random Forest | proposal 5 (log counts),A,T13-S4-STU-006,0.55,0.3856713436904221,15
+Random Forest | proposal 5 (log counts),A,T13-S4-STU-014,0.75,0.6511443662818652,53
+mean,A,T01-S1-STU-014,0.6,0.4965753424657534,12
+mean,A,T01-S1-STU-003,0.45,0.4965753424657534,0
+mean,A,T01-S1-STU-021,0.4,0.4965753424657534,0
+mean,A,T01-S1-STU-009,0.35,0.4965753424657534,3
+mean,A,T01-S2-STU-014,0.6,0.4965753424657534,6
+mean,A,T01-S2-STU-003,0.55,0.4965753424657534,3
+mean,A,T01-S2-STU-021,0.5,0.4965753424657534,2
+mean,A,T01-S2-STU-009,0.2,0.4965753424657534,0
+mean,A,T01-S3-STU-014,0.45,0.4965753424657534,0
+mean,A,T01-S3-STU-003,0.6,0.4965753424657534,3
+mean,A,T01-S3-STU-021,0.7,0.4965753424657534,6
+mean,A,T01-S3-STU-009,0.6,0.4965753424657534,1
+mean,A,T02-S1-STU-014,0.55,0.4965753424657534,0
+mean,A,T02-S1-STU-003,0.65,0.4965753424657534,3
+mean,A,T02-S1-STU-021,0.2,0.4965753424657534,1
+mean,A,T02-S1-STU-009,0.2,0.4965753424657534,0
+mean,A,T02-S2-STU-014,0.8,0.4965753424657534,15
+mean,A,T02-S2-STU-003,0.3,0.4965753424657534,0
+mean,A,T02-S2-STU-021,0.2,0.4965753424657534,0
+mean,A,T02-S2-STU-009,0.2,0.4965753424657534,0
+mean,A,T03-S1-STU-014,0.65,0.4965753424657534,8
+mean,A,T03-S1-STU-017,0.55,0.4965753424657534,25
+mean,A,T03-S1-STU-011,0.35,0.4965753424657534,0
+mean,A,T03-S1-STU-006,0.65,0.4965753424657534,20
+mean,A,T03-S1-STU-019,0.2,0.4965753424657534,0
+mean,A,T03-S2-STU-014,0.55,0.4965753424657534,15
+mean,A,T03-S2-STU-017,0.7,0.4965753424657534,19
+mean,A,T03-S2-STU-011,0.35,0.4965753424657534,1
+mean,A,T03-S2-STU-006,0.6,0.4965753424657534,13
+mean,A,T03-S2-STU-019,0.35,0.4965753424657534,3
+mean,A,T03-S3-STU-014,0.65,0.4965753424657534,5
+mean,A,T03-S3-STU-017,0.6,0.4965753424657534,21
+mean,A,T03-S3-STU-011,0.3,0.4965753424657534,1
+mean,A,T03-S3-STU-006,0.6,0.4965753424657534,19
+mean,A,T03-S3-STU-019,0.3,0.4965753424657534,6
+mean,A,T11-S1-STU-017,0.55,0.4965753424657534,1
+mean,A,T11-S1-STU-003,0.6,0.4965753424657534,0
+mean,A,T11-S1-STU-006,0.6,0.4965753424657534,0
+mean,A,T11-S1-STU-014,0.95,0.4965753424657534,24
+mean,A,T11-S2-STU-017,0.65,0.4965753424657534,17
+mean,A,T11-S2-STU-003,0.7,0.4965753424657534,12
+mean,A,T11-S2-STU-006,0.65,0.4965753424657534,6
+mean,A,T11-S2-STU-014,0.9,0.4965753424657534,38
+mean,A,T11-S3-STU-017,0.55,0.4965753424657534,3
+mean,A,T11-S3-STU-003,0.35,0.4965753424657534,3
+mean,A,T11-S3-STU-006,0.5,0.4965753424657534,0
+mean,A,T11-S3-STU-014,0.35,0.4965753424657534,3
+mean,A,T12-S1-STU-003,0.6,0.4965753424657534,2
+mean,A,T12-S1-STU-021,0.25,0.4965753424657534,0
+mean,A,T12-S1-STU-014,0.65,0.4965753424657534,5
+mean,A,T12-S1-STU-009,0.4,0.4965753424657534,3
+mean,A,T12-S2-STU-003,0.55,0.4965753424657534,0
+mean,A,T12-S2-STU-021,0.25,0.4965753424657534,0
+mean,A,T12-S2-STU-014,0.25,0.4965753424657534,1
+mean,A,T12-S2-STU-009,0.3,0.4965753424657534,0
+mean,A,T13-S1-STU-017,0.55,0.4965753424657534,0
+mean,A,T13-S1-STU-003,0.6,0.4965753424657534,0
+mean,A,T13-S1-STU-006,0.35,0.4965753424657534,1
+mean,A,T13-S1-STU-014,0.8,0.4965753424657534,5
+mean,A,T13-S2-STU-017,0.7,0.4965753424657534,11
+mean,A,T13-S2-STU-003,0.65,0.4965753424657534,4
+mean,A,T13-S2-STU-006,0.55,0.4965753424657534,9
+mean,A,T13-S2-STU-014,0.85,0.4965753424657534,11
+mean,A,T13-S3-STU-017,0.6,0.4965753424657534,19
+mean,A,T13-S3-STU-003,0.45,0.4965753424657534,0
+mean,A,T13-S3-STU-006,0.4,0.4965753424657534,0
+mean,A,T13-S3-STU-014,0.5,0.4965753424657534,0
+mean,A,T13-S4-STU-017,0.7,0.4965753424657534,16
+mean,A,T13-S4-STU-003,0.6,0.4965753424657534,5
+mean,A,T13-S4-STU-006,0.55,0.4965753424657534,15
+mean,A,T13-S4-STU-014,0.75,0.4965753424657534,53
+median,A,T01-S1-STU-014,0.6,0.5,12
+median,A,T01-S1-STU-003,0.45,0.5,0
+median,A,T01-S1-STU-021,0.4,0.5,0
+median,A,T01-S1-STU-009,0.35,0.5,3
+median,A,T01-S2-STU-014,0.6,0.5,6
+median,A,T01-S2-STU-003,0.55,0.5,3
+median,A,T01-S2-STU-021,0.5,0.5,2
+median,A,T01-S2-STU-009,0.2,0.5,0
+median,A,T01-S3-STU-014,0.45,0.5,0
+median,A,T01-S3-STU-003,0.6,0.5,3
+median,A,T01-S3-STU-021,0.7,0.5,6
+median,A,T01-S3-STU-009,0.6,0.5,1
+median,A,T02-S1-STU-014,0.55,0.5,0
+median,A,T02-S1-STU-003,0.65,0.5,3
+median,A,T02-S1-STU-021,0.2,0.5,1
+median,A,T02-S1-STU-009,0.2,0.5,0
+median,A,T02-S2-STU-014,0.8,0.5,15
+median,A,T02-S2-STU-003,0.3,0.5,0
+median,A,T02-S2-STU-021,0.2,0.5,0
+median,A,T02-S2-STU-009,0.2,0.5,0
+median,A,T03-S1-STU-014,0.65,0.5,8
+median,A,T03-S1-STU-017,0.55,0.5,25
+median,A,T03-S1-STU-011,0.35,0.5,0
+median,A,T03-S1-STU-006,0.65,0.5,20
+median,A,T03-S1-STU-019,0.2,0.5,0
+median,A,T03-S2-STU-014,0.55,0.5,15
+median,A,T03-S2-STU-017,0.7,0.5,19
+median,A,T03-S2-STU-011,0.35,0.5,1
+median,A,T03-S2-STU-006,0.6,0.5,13
+median,A,T03-S2-STU-019,0.35,0.5,3
+median,A,T03-S3-STU-014,0.65,0.5,5
+median,A,T03-S3-STU-017,0.6,0.5,21
+median,A,T03-S3-STU-011,0.3,0.5,1
+median,A,T03-S3-STU-006,0.6,0.5,19
+median,A,T03-S3-STU-019,0.3,0.5,6
+median,A,T11-S1-STU-017,0.55,0.5,1
+median,A,T11-S1-STU-003,0.6,0.5,0
+median,A,T11-S1-STU-006,0.6,0.5,0
+median,A,T11-S1-STU-014,0.95,0.5,24
+median,A,T11-S2-STU-017,0.65,0.5,17
+median,A,T11-S2-STU-003,0.7,0.5,12
+median,A,T11-S2-STU-006,0.65,0.5,6
+median,A,T11-S2-STU-014,0.9,0.5,38
+median,A,T11-S3-STU-017,0.55,0.5,3
+median,A,T11-S3-STU-003,0.35,0.5,3
+median,A,T11-S3-STU-006,0.5,0.5,0
+median,A,T11-S3-STU-014,0.35,0.5,3
+median,A,T12-S1-STU-003,0.6,0.5,2
+median,A,T12-S1-STU-021,0.25,0.5,0
+median,A,T12-S1-STU-014,0.65,0.5,5
+median,A,T12-S1-STU-009,0.4,0.5,3
+median,A,T12-S2-STU-003,0.55,0.5,0
+median,A,T12-S2-STU-021,0.25,0.5,0
+median,A,T12-S2-STU-014,0.25,0.5,1
+median,A,T12-S2-STU-009,0.3,0.5,0
+median,A,T13-S1-STU-017,0.55,0.5,0
+median,A,T13-S1-STU-003,0.6,0.5,0
+median,A,T13-S1-STU-006,0.35,0.5,1
+median,A,T13-S1-STU-014,0.8,0.5,5
+median,A,T13-S2-STU-017,0.7,0.5,11
+median,A,T13-S2-STU-003,0.65,0.5,4
+median,A,T13-S2-STU-006,0.55,0.5,9
+median,A,T13-S2-STU-014,0.85,0.5,11
+median,A,T13-S3-STU-017,0.6,0.5,19
+median,A,T13-S3-STU-003,0.45,0.5,0
+median,A,T13-S3-STU-006,0.4,0.5,0
+median,A,T13-S3-STU-014,0.5,0.5,0
+median,A,T13-S4-STU-017,0.7,0.5,16
+median,A,T13-S4-STU-003,0.6,0.5,5
+median,A,T13-S4-STU-006,0.55,0.5,15
+median,A,T13-S4-STU-014,0.75,0.5,53
+story points (linear),A,T01-S1-STU-014,0.6,0.4624273222799422,12
+story points (linear),A,T01-S1-STU-003,0.45,0.5162123697044206,0
+story points (linear),A,T01-S1-STU-021,0.4,0.5401168352264112,0
+story points (linear),A,T01-S1-STU-009,0.35,0.4444989731384493,3
+story points (linear),A,T01-S2-STU-014,0.6,0.45645120589944455,6
+story points (linear),A,T01-S2-STU-003,0.55,0.5241964611887655,3
+story points (linear),A,T01-S2-STU-021,0.5,0.5640213007484016,2
+story points (linear),A,T01-S2-STU-009,0.2,0.4444989731384493,0
+story points (linear),A,T01-S3-STU-014,0.45,0.4923079041824302,0
+story points (linear),A,T01-S3-STU-003,0.6,0.5401168352264112,3
+story points (linear),A,T01-S3-STU-021,0.7,0.5640213007484016,6
+story points (linear),A,T01-S3-STU-009,0.6,0.6835436283583538,1
+story points (linear),A,T02-S1-STU-014,0.55,0.5401168352264112,0
+story points (linear),A,T02-S1-STU-003,0.65,0.5560372092640568,3
+story points (linear),A,T02-S1-STU-021,0.2,0.4444989731384493,1
+story points (linear),A,T02-S1-STU-009,0.2,0.4444989731384493,0
+story points (linear),A,T02-S2-STU-014,0.8,0.4588416524516436,15
+story points (linear),A,T02-S2-STU-003,0.3,0.4444989731384493,0
+story points (linear),A,T02-S2-STU-021,0.2,0.39669004209446845,0
+story points (linear),A,T02-S2-STU-009,0.2,0.4444989731384493,0
+story points (linear),A,T03-S1-STU-014,0.65,0.5082282782200759,8
+story points (linear),A,T03-S1-STU-017,0.55,0.4763875301447846,25
+story points (linear),A,T03-S1-STU-011,0.35,0.5401168352264112,0
+story points (linear),A,T03-S1-STU-006,0.65,0.41720007351233623,20
+story points (linear),A,T03-S1-STU-019,0.2,0.4444989731384493,0
+story points (linear),A,T03-S2-STU-014,0.55,0.4444989731384493,15
+story points (linear),A,T03-S2-STU-017,0.7,0.4731843317648379,19
+story points (linear),A,T03-S2-STU-011,0.35,0.5401168352264112,1
+story points (linear),A,T03-S2-STU-006,0.6,0.4349371869296531,13
+story points (linear),A,T03-S2-STU-019,0.35,0.5401168352264112,3
+story points (linear),A,T03-S3-STU-014,0.65,0.5082282782200759,5
+story points (linear),A,T03-S3-STU-017,0.6,0.460419347176095,21
+story points (linear),A,T03-S3-STU-011,0.3,0.4444989731384493,1
+story points (linear),A,T03-S3-STU-006,0.6,0.46362254555604165,19
+story points (linear),A,T03-S3-STU-019,0.3,0.5401168352264112,6
+story points (linear),A,T11-S1-STU-017,0.55,0.5401168352264112,1
+story points (linear),A,T11-S1-STU-003,0.6,0.6835436283583538,0
+story points (linear),A,T11-S1-STU-006,0.6,0.5401168352264112,0
+story points (linear),A,T11-S1-STU-014,0.95,0.5454236265722929,24
+story points (linear),A,T11-S2-STU-017,0.65,0.6118302317923825,17
+story points (linear),A,T11-S2-STU-003,0.7,0.6118302317923825,12
+story points (linear),A,T11-S2-STU-006,0.65,0.5401168352264112,6
+story points (linear),A,T11-S2-STU-014,0.9,0.5241964611887655,38
+story points (linear),A,T11-S3-STU-017,0.55,0.4444989731384493,3
+story points (linear),A,T11-S3-STU-003,0.35,0.39669004209446845,3
+story points (linear),A,T11-S3-STU-006,0.5,0.4444989731384493,0
+story points (linear),A,T11-S3-STU-014,0.35,0.3488811110504875,3
+story points (linear),A,T12-S1-STU-003,0.6,0.5162123697044206,2
+story points (linear),A,T12-S1-STU-021,0.25,0.4444989731384493,0
+story points (linear),A,T12-S1-STU-014,0.65,0.5082282782200759,5
+story points (linear),A,T12-S1-STU-009,0.4,0.4444989731384493,3
+story points (linear),A,T12-S2-STU-003,0.55,0.5401168352264112,0
+story points (linear),A,T12-S2-STU-021,0.25,0.4444989731384493,0
+story points (linear),A,T12-S2-STU-014,0.25,0.4205945076164589,1
+story points (linear),A,T12-S2-STU-009,0.3,0.4444989731384493,0
+story points (linear),A,T13-S1-STU-017,0.55,0.4444989731384493,0
+story points (linear),A,T13-S1-STU-003,0.6,0.4444989731384493,0
+story points (linear),A,T13-S1-STU-006,0.35,0.372785576572478,1
+story points (linear),A,T13-S1-STU-014,0.8,0.5082282782200759,5
+story points (linear),A,T13-S2-STU-017,0.7,0.4923079041824302,11
+story points (linear),A,T13-S2-STU-003,0.65,0.5640213007484016,4
+story points (linear),A,T13-S2-STU-006,0.55,0.4444989731384493,9
+story points (linear),A,T13-S2-STU-014,0.85,0.6118302317923825,11
+story points (linear),A,T13-S3-STU-017,0.6,0.5520690679874063,19
+story points (linear),A,T13-S3-STU-003,0.45,0.5401168352264112,0
+story points (linear),A,T13-S3-STU-006,0.4,0.5401168352264112,0
+story points (linear),A,T13-S3-STU-014,0.5,0.5401168352264112,0
+story points (linear),A,T13-S4-STU-017,0.7,0.5042601369434254,16
+story points (linear),A,T13-S4-STU-003,0.6,0.4923079041824302,5
+story points (linear),A,T13-S4-STU-006,0.55,0.4444989731384493,15
+story points (linear),A,T13-S4-STU-014,0.75,0.4513356502777386,53
+subtasks (linear),A,T01-S1-STU-014,0.6,0.47386406173934814,12
+subtasks (linear),A,T01-S1-STU-003,0.45,0.5749131423361633,0
+subtasks (linear),A,T01-S1-STU-021,0.4,0.5300024398486899,0
+subtasks (linear),A,T01-S1-STU-009,0.35,0.4626363861174798,3
+subtasks (linear),A,T01-S2-STU-014,0.6,0.4626363861174798,6
+subtasks (linear),A,T01-S2-STU-003,0.55,0.5000919119920326,3
+subtasks (linear),A,T01-S2-STU-021,0.5,0.5300024398486899,2
+subtasks (linear),A,T01-S2-STU-009,0.2,0.44018103487374305,0
+subtasks (linear),A,T01-S3-STU-014,0.45,0.48509173736121647,0
+subtasks (linear),A,T01-S3-STU-003,0.6,0.48509173736121647,3
+subtasks (linear),A,T01-S3-STU-021,0.7,0.48509173736121647,6
+subtasks (linear),A,T01-S3-STU-009,0.6,0.5300024398486899,1
+subtasks (linear),A,T02-S1-STU-014,0.55,0.44018103487374305,0
+subtasks (linear),A,T02-S1-STU-003,0.65,0.5300024398486899,3
+subtasks (linear),A,T02-S1-STU-021,0.2,0.44018103487374305,1
+subtasks (linear),A,T02-S1-STU-009,0.2,0.44018103487374305,0
+subtasks (linear),A,T02-S2-STU-014,0.8,0.4671274563662271,15
+subtasks (linear),A,T02-S2-STU-003,0.3,0.44018103487374305,0
+subtasks (linear),A,T02-S2-STU-021,0.2,0.35035962989879627,0
+subtasks (linear),A,T02-S2-STU-009,0.2,0.44018103487374305,0
+subtasks (linear),A,T03-S1-STU-014,0.65,0.5000919119920326,8
+subtasks (linear),A,T03-S1-STU-017,0.55,0.5300024398486899,25
+subtasks (linear),A,T03-S1-STU-011,0.35,0.5300024398486899,0
+subtasks (linear),A,T03-S1-STU-006,0.65,0.4144921130509083,20
+subtasks (linear),A,T03-S1-STU-019,0.2,0.44018103487374305,0
+subtasks (linear),A,T03-S2-STU-014,0.55,0.4626363861174798,15
+subtasks (linear),A,T03-S2-STU-017,0.7,0.5120381588537005,19
+subtasks (linear),A,T03-S2-STU-011,0.35,0.5300024398486899,1
+subtasks (linear),A,T03-S2-STU-006,0.6,0.4581453158687324,13
+subtasks (linear),A,T03-S2-STU-019,0.35,0.5300024398486899,3
+subtasks (linear),A,T03-S3-STU-014,0.65,0.5000919119920326,5
+subtasks (linear),A,T03-S3-STU-017,0.6,0.47009156273040037,21
+subtasks (linear),A,T03-S3-STU-011,0.3,0.44018103487374305,1
+subtasks (linear),A,T03-S3-STU-006,0.6,0.4761095968637218,19
+subtasks (linear),A,T03-S3-STU-019,0.3,0.5300024398486899,6
+subtasks (linear),A,T11-S1-STU-017,0.55,0.5300024398486899,1
+subtasks (linear),A,T11-S1-STU-003,0.6,0.5300024398486899,0
+subtasks (linear),A,T11-S1-STU-006,0.6,0.5300024398486899,0
+subtasks (linear),A,T11-S1-STU-014,0.95,0.539972615800909,24
+subtasks (linear),A,T11-S2-STU-017,0.65,0.5300024398486899,17
+subtasks (linear),A,T11-S2-STU-003,0.7,0.5300024398486899,12
+subtasks (linear),A,T11-S2-STU-006,0.65,0.5749131423361633,6
+subtasks (linear),A,T11-S2-STU-014,0.9,0.5300024398486899,38
+subtasks (linear),A,T11-S3-STU-017,0.55,0.5300024398486899,3
+subtasks (linear),A,T11-S3-STU-003,0.35,0.44018103487374305,3
+subtasks (linear),A,T11-S3-STU-006,0.5,0.44018103487374305,0
+subtasks (linear),A,T11-S3-STU-014,0.35,0.44018103487374305,3
+subtasks (linear),A,T12-S1-STU-003,0.6,0.44018103487374305,2
+subtasks (linear),A,T12-S1-STU-021,0.25,0.5300024398486899,0
+subtasks (linear),A,T12-S1-STU-014,0.65,0.47009156273040037,5
+subtasks (linear),A,T12-S1-STU-009,0.4,0.48509173736121647,3
+subtasks (linear),A,T12-S2-STU-003,0.55,0.44018103487374305,0
+subtasks (linear),A,T12-S2-STU-021,0.25,0.5300024398486899,0
+subtasks (linear),A,T12-S2-STU-014,0.25,0.44018103487374305,1
+subtasks (linear),A,T12-S2-STU-009,0.3,0.44018103487374305,0
+subtasks (linear),A,T13-S1-STU-017,0.55,0.44018103487374305,0
+subtasks (linear),A,T13-S1-STU-003,0.6,0.44018103487374305,0
+subtasks (linear),A,T13-S1-STU-006,0.35,0.3952703323862697,1
+subtasks (linear),A,T13-S1-STU-014,0.8,0.5300024398486899,5
+subtasks (linear),A,T13-S2-STU-017,0.7,0.47009156273040037,11
+subtasks (linear),A,T13-S2-STU-003,0.65,0.5300024398486899,4
+subtasks (linear),A,T13-S2-STU-006,0.55,0.48509173736121647,9
+subtasks (linear),A,T13-S2-STU-014,0.85,0.6198238448236366,11
+subtasks (linear),A,T13-S3-STU-017,0.6,0.5524577910924267,19
+subtasks (linear),A,T13-S3-STU-003,0.45,0.44018103487374305,0
+subtasks (linear),A,T13-S3-STU-006,0.4,0.44018103487374305,0
+subtasks (linear),A,T13-S3-STU-014,0.5,0.44018103487374305,0
+subtasks (linear),A,T13-S4-STU-017,0.7,0.5749131423361633,16
+subtasks (linear),A,T13-S4-STU-003,0.6,0.5749131423361633,5
+subtasks (linear),A,T13-S4-STU-006,0.55,0.5300024398486899,15
+subtasks (linear),A,T13-S4-STU-014,0.75,0.4658699566965778,53
+"files involved (log, linear)",A,T01-S1-STU-014,0.6,0.5700888635501213,12
+"files involved (log, linear)",A,T01-S1-STU-003,0.45,0.4965753424657534,0
+"files involved (log, linear)",A,T01-S1-STU-021,0.4,0.4965753424657534,0
+"files involved (log, linear)",A,T01-S1-STU-009,0.35,0.529096855016274,3
+"files involved (log, linear)",A,T01-S2-STU-014,0.6,0.537612546331344,6
+"files involved (log, linear)",A,T01-S2-STU-003,0.55,0.4958290903121221,3
+"files involved (log, linear)",A,T01-S2-STU-021,0.5,0.5827921132429164,2
+"files involved (log, linear)",A,T01-S2-STU-009,0.2,0.4965753424657534,0
+"files involved (log, linear)",A,T01-S3-STU-014,0.45,0.4965753424657534,0
+"files involved (log, linear)",A,T01-S3-STU-003,0.6,0.5864045080693917,3
+"files involved (log, linear)",A,T01-S3-STU-021,0.7,0.5897951398948968,6
+"files involved (log, linear)",A,T01-S3-STU-009,0.6,0.5588763900601761,1
+"files involved (log, linear)",A,T02-S1-STU-014,0.55,0.4965753424657534,0
+"files involved (log, linear)",A,T02-S1-STU-003,0.65,0.5646982449439681,3
+"files involved (log, linear)",A,T02-S1-STU-021,0.2,0.529096855016274,1
+"files involved (log, linear)",A,T02-S1-STU-009,0.2,0.4965753424657534,0
+"files involved (log, linear)",A,T02-S2-STU-014,0.8,0.5163273892016182,15
+"files involved (log, linear)",A,T02-S2-STU-003,0.3,0.4965753424657534,0
+"files involved (log, linear)",A,T02-S2-STU-021,0.2,0.4965753424657534,0
+"files involved (log, linear)",A,T02-S2-STU-009,0.2,0.4965753424657534,0
+"files involved (log, linear)",A,T03-S1-STU-014,0.65,0.5852269022022965,8
+"files involved (log, linear)",A,T03-S1-STU-017,0.55,0.5198057404726245,25
+"files involved (log, linear)",A,T03-S1-STU-011,0.35,0.4965753424657534,0
+"files involved (log, linear)",A,T03-S1-STU-006,0.65,0.5120647519625118,20
+"files involved (log, linear)",A,T03-S1-STU-019,0.2,0.4965753424657534,0
+"files involved (log, linear)",A,T03-S2-STU-014,0.55,0.5553106393562562,15
+"files involved (log, linear)",A,T03-S2-STU-017,0.7,0.5357794818898955,19
+"files involved (log, linear)",A,T03-S2-STU-011,0.35,0.529096855016274,1
+"files involved (log, linear)",A,T03-S2-STU-006,0.6,0.49954237103663934,13
+"files involved (log, linear)",A,T03-S2-STU-019,0.35,0.4822836822188169,3
+"files involved (log, linear)",A,T03-S3-STU-014,0.65,0.5329087083983131,5
+"files involved (log, linear)",A,T03-S3-STU-017,0.6,0.5114218321545084,21
+"files involved (log, linear)",A,T03-S3-STU-011,0.3,0.4598817512608737,1
+"files involved (log, linear)",A,T03-S3-STU-006,0.6,0.5058999468912995,19
+"files involved (log, linear)",A,T03-S3-STU-019,0.3,0.5364744591022329,6
+"files involved (log, linear)",A,T11-S1-STU-017,0.55,0.5870994852817291,1
+"files involved (log, linear)",A,T11-S1-STU-003,0.6,0.4965753424657534,0
+"files involved (log, linear)",A,T11-S1-STU-006,0.6,0.4965753424657534,0
+"files involved (log, linear)",A,T11-S1-STU-014,0.95,0.559448933628192,24
+"files involved (log, linear)",A,T11-S2-STU-017,0.65,0.6225618867451017,17
+"files involved (log, linear)",A,T11-S2-STU-003,0.7,0.5827921132429164,12
+"files involved (log, linear)",A,T11-S2-STU-006,0.65,0.5429819670974397,6
+"files involved (log, linear)",A,T11-S2-STU-014,0.9,0.5597896333299157,38
+"files involved (log, linear)",A,T11-S3-STU-017,0.55,0.5205800361394965,3
+"files involved (log, linear)",A,T11-S3-STU-003,0.35,0.515772661051238,3
+"files involved (log, linear)",A,T11-S3-STU-006,0.5,0.4965753424657534,0
+"files involved (log, linear)",A,T11-S3-STU-014,0.35,0.4722104235196902,3
+"files involved (log, linear)",A,T12-S1-STU-003,0.6,0.5310356490281757,2
+"files involved (log, linear)",A,T12-S1-STU-021,0.25,0.4965753424657534,0
+"files involved (log, linear)",A,T12-S1-STU-014,0.65,0.5699628100906334,5
+"files involved (log, linear)",A,T12-S1-STU-009,0.4,0.4598817512608737,3
+"files involved (log, linear)",A,T12-S2-STU-003,0.55,0.4965753424657534,0
+"files involved (log, linear)",A,T12-S2-STU-021,0.25,0.4965753424657534,0
+"files involved (log, linear)",A,T12-S2-STU-014,0.25,0.4439873282981373,1
+"files involved (log, linear)",A,T12-S2-STU-009,0.3,0.4965753424657534,0
+"files involved (log, linear)",A,T13-S1-STU-017,0.55,0.4965753424657534,0
+"files involved (log, linear)",A,T13-S1-STU-003,0.6,0.4965753424657534,0
+"files involved (log, linear)",A,T13-S1-STU-006,0.35,0.4598817512608737,1
+"files involved (log, linear)",A,T13-S1-STU-014,0.8,0.5303956291565441,5
+"files involved (log, linear)",A,T13-S2-STU-017,0.7,0.515772661051238,11
+"files involved (log, linear)",A,T13-S2-STU-003,0.65,0.4908005010955944,4
+"files involved (log, linear)",A,T13-S2-STU-006,0.55,0.503129173354411,9
+"files involved (log, linear)",A,T13-S2-STU-014,0.85,0.529096855016274,11
+"files involved (log, linear)",A,T13-S3-STU-017,0.6,0.5678843229251808,19
+"files involved (log, linear)",A,T13-S3-STU-003,0.45,0.4965753424657534,0
+"files involved (log, linear)",A,T13-S3-STU-006,0.4,0.4965753424657534,0
+"files involved (log, linear)",A,T13-S3-STU-014,0.5,0.4965753424657534,0
+"files involved (log, linear)",A,T13-S4-STU-017,0.7,0.4964239908732561,16
+"files involved (log, linear)",A,T13-S4-STU-003,0.6,0.515772661051238,5
+"files involved (log, linear)",A,T13-S4-STU-006,0.55,0.5319801157855423,15
+"files involved (log, linear)",A,T13-S4-STU-014,0.75,0.5190251748648792,53
+Random Forest | proposal 5 (log counts),B,T07-S1-STU-001,0.65,0.5227696436907209,7
+Random Forest | proposal 5 (log counts),B,T07-S1-STU-018,0.5,0.6180750486016047,7
+Random Forest | proposal 5 (log counts),B,T07-S1-STU-007,0.65,0.60429685814713,7
+Random Forest | proposal 5 (log counts),B,T07-S1-STU-013,0.65,0.6282240407708339,13
+Random Forest | proposal 5 (log counts),B,T07-S2-STU-001,0.65,0.5625673328954489,6
+Random Forest | proposal 5 (log counts),B,T07-S2-STU-018,0.6,0.5757125668947436,12
+Random Forest | proposal 5 (log counts),B,T07-S2-STU-007,0.55,0.6301204923837371,6
+Random Forest | proposal 5 (log counts),B,T07-S2-STU-013,0.4,0.6282240407708339,4
+Random Forest | proposal 5 (log counts),B,T09-S1-STU-001,0.5,0.5561969406787025,18
+Random Forest | proposal 5 (log counts),B,T09-S1-STU-023,0.4,0.5525179883520385,3
+Random Forest | proposal 5 (log counts),B,T09-S1-STU-018,0.45,0.5355555404685378,15
+Random Forest | proposal 5 (log counts),B,T09-S1-STU-007,0.35,0.4460268360426637,14
+Random Forest | proposal 5 (log counts),B,T09-S2-STU-001,0.7,0.5638573328954489,63
+Random Forest | proposal 5 (log counts),B,T09-S2-STU-023,0.3,0.5518494126739345,5
+Random Forest | proposal 5 (log counts),B,T09-S2-STU-018,0.25,0.5531394126739345,8
+Random Forest | proposal 5 (log counts),B,T09-S2-STU-007,0.35,0.46389782252932077,1
+Random Forest | proposal 5 (log counts),B,T09-S3-STU-001,0.5,0.5638573328954489,24
+Random Forest | proposal 5 (log counts),B,T09-S3-STU-023,0.25,0.3110007786002974,0
+Random Forest | proposal 5 (log counts),B,T09-S3-STU-018,0.55,0.4133622137581473,0
+Random Forest | proposal 5 (log counts),B,T09-S3-STU-007,0.4,0.43255073255340576,0
+Random Forest | proposal 5 (log counts),B,T10-S1-STU-001,0.5,0.5169763534229559,5
+Random Forest | proposal 5 (log counts),B,T10-S1-STU-018,0.3,0.483116110122297,1
+Random Forest | proposal 5 (log counts),B,T10-S1-STU-007,0.4,0.3270335622479665,3
+Random Forest | proposal 5 (log counts),B,T10-S1-STU-013,0.45,0.6315064523546972,5
+Random Forest | proposal 5 (log counts),B,T10-S2-STU-001,0.5,0.2939395707025042,0
+Random Forest | proposal 5 (log counts),B,T10-S2-STU-018,0.5,0.6304596376828825,1
+Random Forest | proposal 5 (log counts),B,T10-S2-STU-007,0.55,0.6314104923837371,7
+Random Forest | proposal 5 (log counts),B,T10-S2-STU-013,0.5,0.4133622137581473,0
+mean,B,T07-S1-STU-001,0.65,0.5137931034482759,7
+mean,B,T07-S1-STU-018,0.5,0.5137931034482759,7
+mean,B,T07-S1-STU-007,0.65,0.5137931034482759,7
+mean,B,T07-S1-STU-013,0.65,0.5137931034482759,13
+mean,B,T07-S2-STU-001,0.65,0.5137931034482759,6
+mean,B,T07-S2-STU-018,0.6,0.5137931034482759,12
+mean,B,T07-S2-STU-007,0.55,0.5137931034482759,6
+mean,B,T07-S2-STU-013,0.4,0.5137931034482759,4
+mean,B,T09-S1-STU-001,0.5,0.5137931034482759,18
+mean,B,T09-S1-STU-023,0.4,0.5137931034482759,3
+mean,B,T09-S1-STU-018,0.45,0.5137931034482759,15
+mean,B,T09-S1-STU-007,0.35,0.5137931034482759,14
+mean,B,T09-S2-STU-001,0.7,0.5137931034482759,63
+mean,B,T09-S2-STU-023,0.3,0.5137931034482759,5
+mean,B,T09-S2-STU-018,0.25,0.5137931034482759,8
+mean,B,T09-S2-STU-007,0.35,0.5137931034482759,1
+mean,B,T09-S3-STU-001,0.5,0.5137931034482759,24
+mean,B,T09-S3-STU-023,0.25,0.5137931034482759,0
+mean,B,T09-S3-STU-018,0.55,0.5137931034482759,0
+mean,B,T09-S3-STU-007,0.4,0.5137931034482759,0
+mean,B,T10-S1-STU-001,0.5,0.5137931034482759,5
+mean,B,T10-S1-STU-018,0.3,0.5137931034482759,1
+mean,B,T10-S1-STU-007,0.4,0.5137931034482759,3
+mean,B,T10-S1-STU-013,0.45,0.5137931034482759,5
+mean,B,T10-S2-STU-001,0.5,0.5137931034482759,0
+mean,B,T10-S2-STU-018,0.5,0.5137931034482759,1
+mean,B,T10-S2-STU-007,0.55,0.5137931034482759,7
+mean,B,T10-S2-STU-013,0.5,0.5137931034482759,0
+median,B,T07-S1-STU-001,0.65,0.55,7
+median,B,T07-S1-STU-018,0.5,0.55,7
+median,B,T07-S1-STU-007,0.65,0.55,7
+median,B,T07-S1-STU-013,0.65,0.55,13
+median,B,T07-S2-STU-001,0.65,0.55,6
+median,B,T07-S2-STU-018,0.6,0.55,12
+median,B,T07-S2-STU-007,0.55,0.55,6
+median,B,T07-S2-STU-013,0.4,0.55,4
+median,B,T09-S1-STU-001,0.5,0.55,18
+median,B,T09-S1-STU-023,0.4,0.55,3
+median,B,T09-S1-STU-018,0.45,0.55,15
+median,B,T09-S1-STU-007,0.35,0.55,14
+median,B,T09-S2-STU-001,0.7,0.55,63
+median,B,T09-S2-STU-023,0.3,0.55,5
+median,B,T09-S2-STU-018,0.25,0.55,8
+median,B,T09-S2-STU-007,0.35,0.55,1
+median,B,T09-S3-STU-001,0.5,0.55,24
+median,B,T09-S3-STU-023,0.25,0.55,0
+median,B,T09-S3-STU-018,0.55,0.55,0
+median,B,T09-S3-STU-007,0.4,0.55,0
+median,B,T10-S1-STU-001,0.5,0.55,5
+median,B,T10-S1-STU-018,0.3,0.55,1
+median,B,T10-S1-STU-007,0.4,0.55,3
+median,B,T10-S1-STU-013,0.45,0.55,5
+median,B,T10-S2-STU-001,0.5,0.55,0
+median,B,T10-S2-STU-018,0.5,0.55,1
+median,B,T10-S2-STU-007,0.55,0.55,7
+median,B,T10-S2-STU-013,0.5,0.55,0
+story points (linear),B,T07-S1-STU-001,0.65,0.4505280377768865,7
+story points (linear),B,T07-S1-STU-018,0.5,0.4778388672816394,7
+story points (linear),B,T07-S1-STU-007,0.65,0.4914942820340159,7
+story points (linear),B,T07-S1-STU-013,0.65,0.5597713557958981,13
+story points (linear),B,T07-S2-STU-001,0.65,0.4778388672816394,6
+story points (linear),B,T07-S2-STU-018,0.6,0.5051496967863923,12
+story points (linear),B,T07-S2-STU-007,0.55,0.5597713557958981,6
+story points (linear),B,T07-S2-STU-013,0.4,0.5597713557958981,4
+story points (linear),B,T09-S1-STU-001,0.5,0.46418345252926296,18
+story points (linear),B,T09-S1-STU-023,0.4,0.4505280377768865,3
+story points (linear),B,T09-S1-STU-018,0.45,0.4323390253267211,15
+story points (linear),B,T09-S1-STU-007,0.35,0.46871705022705196,14
+story points (linear),B,T09-S2-STU-001,0.7,0.45964985483147397,63
+story points (linear),B,T09-S2-STU-023,0.3,0.4505280377768865,5
+story points (linear),B,T09-S2-STU-018,0.25,0.4505280377768865,8
+story points (linear),B,T09-S2-STU-007,0.35,0.5051496967863923,1
+story points (linear),B,T09-S3-STU-001,0.5,0.4723767013806888,24
+story points (linear),B,T09-S3-STU-023,0.25,0.4505280377768865,0
+story points (linear),B,T09-S3-STU-018,0.55,0.5597713557958981,0
+story points (linear),B,T09-S3-STU-007,0.4,0.5597713557958981,0
+story points (linear),B,T10-S1-STU-001,0.5,0.39590637876738066,5
+story points (linear),B,T10-S1-STU-018,0.3,0.4505280377768865,1
+story points (linear),B,T10-S1-STU-007,0.4,0.4232172082721336,3
+story points (linear),B,T10-S1-STU-013,0.45,0.5597713557958981,5
+story points (linear),B,T10-S2-STU-001,0.5,0.4505280377768865,0
+story points (linear),B,T10-S2-STU-018,0.5,0.5597713557958981,1
+story points (linear),B,T10-S2-STU-007,0.55,0.5051496967863923,7
+story points (linear),B,T10-S2-STU-013,0.5,0.5597713557958981,0
+subtasks (linear),B,T07-S1-STU-001,0.65,0.46468216370360454,7
+subtasks (linear),B,T07-S1-STU-018,0.5,0.49850914165281185,7
+subtasks (linear),B,T07-S1-STU-007,0.65,0.46468216370360454,7
+subtasks (linear),B,T07-S1-STU-013,0.65,0.5661630975512264,13
+subtasks (linear),B,T07-S2-STU-001,0.65,0.43085518575439724,6
+subtasks (linear),B,T07-S2-STU-018,0.6,0.43085518575439724,12
+subtasks (linear),B,T07-S2-STU-007,0.55,0.5661630975512264,6
+subtasks (linear),B,T07-S2-STU-013,0.4,0.5661630975512264,4
+subtasks (linear),B,T09-S1-STU-001,0.5,0.39702820780518994,18
+subtasks (linear),B,T09-S1-STU-023,0.4,0.5661630975512264,3
+subtasks (linear),B,T09-S1-STU-018,0.45,0.4759127203827414,15
+subtasks (linear),B,T09-S1-STU-007,0.35,0.5661630975512264,14
+subtasks (linear),B,T09-S2-STU-001,0.7,0.40825876448432674,63
+subtasks (linear),B,T09-S2-STU-023,0.3,0.5661630975512264,5
+subtasks (linear),B,T09-S2-STU-018,0.25,0.5661630975512264,8
+subtasks (linear),B,T09-S2-STU-007,0.35,0.5661630975512264,1
+subtasks (linear),B,T09-S3-STU-001,0.5,0.43085518575439724,24
+subtasks (linear),B,T09-S3-STU-023,0.25,0.43085518575439724,0
+subtasks (linear),B,T09-S3-STU-018,0.55,0.43085518575439724,0
+subtasks (linear),B,T09-S3-STU-007,0.4,0.5661630975512264,0
+subtasks (linear),B,T10-S1-STU-001,0.5,0.49850914165281185,5
+subtasks (linear),B,T10-S1-STU-018,0.3,0.43085518575439724,1
+subtasks (linear),B,T10-S1-STU-007,0.4,0.43085518575439724,3
+subtasks (linear),B,T10-S1-STU-013,0.45,0.5661630975512264,5
+subtasks (linear),B,T10-S2-STU-001,0.5,0.36320122985598263,0
+subtasks (linear),B,T10-S2-STU-018,0.5,0.5661630975512264,1
+subtasks (linear),B,T10-S2-STU-007,0.55,0.5661630975512264,7
+subtasks (linear),B,T10-S2-STU-013,0.5,0.43085518575439724,0
+"files involved (log, linear)",B,T07-S1-STU-001,0.65,0.55907918673641,7
+"files involved (log, linear)",B,T07-S1-STU-018,0.5,0.5832630935586519,7
+"files involved (log, linear)",B,T07-S1-STU-007,0.65,0.5671840471780911,7
+"files involved (log, linear)",B,T07-S1-STU-013,0.65,0.5916512950264021,13
+"files involved (log, linear)",B,T07-S2-STU-001,0.65,0.6328562379282598,6
+"files involved (log, linear)",B,T07-S2-STU-018,0.6,0.6160884222411511,12
+"files involved (log, linear)",B,T07-S2-STU-007,0.55,0.5772743477268822,6
+"files involved (log, linear)",B,T07-S2-STU-013,0.4,0.5659658355804197,4
+"files involved (log, linear)",B,T09-S1-STU-001,0.5,0.5762235310032737,18
+"files involved (log, linear)",B,T09-S1-STU-023,0.4,0.560865194437947,3
+"files involved (log, linear)",B,T09-S1-STU-018,0.45,0.5245228061627893,15
+"files involved (log, linear)",B,T09-S1-STU-007,0.35,0.4951000568020003,14
+"files involved (log, linear)",B,T09-S2-STU-001,0.7,0.6090999590262132,63
+"files involved (log, linear)",B,T09-S2-STU-023,0.3,0.560865194437947,5
+"files involved (log, linear)",B,T09-S2-STU-018,0.25,0.5493673364816725,8
+"files involved (log, linear)",B,T09-S2-STU-007,0.35,0.4797417202366737,1
+"files involved (log, linear)",B,T09-S3-STU-001,0.5,0.58788410099386,24
+"files involved (log, linear)",B,T09-S3-STU-023,0.25,0.5137931034482759,0
+"files involved (log, linear)",B,T09-S3-STU-018,0.55,0.5137931034482759,0
+"files involved (log, linear)",B,T09-S3-STU-007,0.4,0.5137931034482759,0
+"files involved (log, linear)",B,T10-S1-STU-001,0.5,0.588772205683157,5
+"files involved (log, linear)",B,T10-S1-STU-018,0.3,0.5905147584651171,1
+"files involved (log, linear)",B,T10-S1-STU-007,0.4,0.501659985650114,3
+"files involved (log, linear)",B,T10-S1-STU-013,0.45,0.5428074076335587,5
+"files involved (log, linear)",B,T10-S2-STU-001,0.5,0.5137931034482759,0
+"files involved (log, linear)",B,T10-S2-STU-018,0.5,0.5355557427270936,1
+"files involved (log, linear)",B,T10-S2-STU-007,0.55,0.555356082313442,7
+"files involved (log, linear)",B,T10-S2-STU-013,0.5,0.5137931034482759,0
+Random Forest | proposal 5 (log counts),C,T04-S1-STU-005,0.7,0.6196667937468943,4
+Random Forest | proposal 5 (log counts),C,T04-S1-STU-012,0.8,0.616265404592498,3
+Random Forest | proposal 5 (log counts),C,T04-S1-STU-027,0.6,0.39791254901960793,4
+Random Forest | proposal 5 (log counts),C,T04-S1-STU-010,0.45,0.5936805239822082,3
+Random Forest | proposal 5 (log counts),C,T04-S2-STU-005,0.7,0.6174323981544917,5
+Random Forest | proposal 5 (log counts),C,T04-S2-STU-012,0.6,0.638550787888073,2
+Random Forest | proposal 5 (log counts),C,T04-S2-STU-027,0.05,0.3164276846261755,0
+Random Forest | proposal 5 (log counts),C,T04-S2-STU-010,0.45,0.5709108811250653,1
+Random Forest | proposal 5 (log counts),C,T04-S3-STU-005,0.75,0.634580293696921,4
+Random Forest | proposal 5 (log counts),C,T04-S3-STU-012,0.75,0.6157376107410631,4
+Random Forest | proposal 5 (log counts),C,T04-S3-STU-027,0.3,0.4126344129318396,1
+Random Forest | proposal 5 (log counts),C,T04-S3-STU-010,0.3,0.6410063805157503,0
+Random Forest | proposal 5 (log counts),C,T05-S1-STU-022,0.25,0.4053238455988457,2
+Random Forest | proposal 5 (log counts),C,T05-S1-STU-012,0.3,0.43693928571428586,4
+Random Forest | proposal 5 (log counts),C,T05-S1-STU-010,0.4,0.45118160369220156,0
+Random Forest | proposal 5 (log counts),C,T05-S2-STU-022,0.2,0.28750013695884447,0
+Random Forest | proposal 5 (log counts),C,T05-S2-STU-012,0.65,0.6269407940393272,3
+Random Forest | proposal 5 (log counts),C,T05-S2-STU-010,0.45,0.45118160369220156,0
+Random Forest | proposal 5 (log counts),C,T05-S3-STU-022,0.3,0.503129583007572,0
+Random Forest | proposal 5 (log counts),C,T05-S3-STU-012,0.45,0.6034287192879583,5
+Random Forest | proposal 5 (log counts),C,T05-S3-STU-010,0.3,0.3412622136570861,0
+mean,C,T04-S1-STU-005,0.7,0.5138211382113821,4
+mean,C,T04-S1-STU-012,0.8,0.5138211382113821,3
+mean,C,T04-S1-STU-027,0.6,0.5138211382113821,4
+mean,C,T04-S1-STU-010,0.45,0.5138211382113821,3
+mean,C,T04-S2-STU-005,0.7,0.5138211382113821,5
+mean,C,T04-S2-STU-012,0.6,0.5138211382113821,2
+mean,C,T04-S2-STU-027,0.05,0.5138211382113821,0
+mean,C,T04-S2-STU-010,0.45,0.5138211382113821,1
+mean,C,T04-S3-STU-005,0.75,0.5138211382113821,4
+mean,C,T04-S3-STU-012,0.75,0.5138211382113821,4
+mean,C,T04-S3-STU-027,0.3,0.5138211382113821,1
+mean,C,T04-S3-STU-010,0.3,0.5138211382113821,0
+mean,C,T05-S1-STU-022,0.25,0.5138211382113821,2
+mean,C,T05-S1-STU-012,0.3,0.5138211382113821,4
+mean,C,T05-S1-STU-010,0.4,0.5138211382113821,0
+mean,C,T05-S2-STU-022,0.2,0.5138211382113821,0
+mean,C,T05-S2-STU-012,0.65,0.5138211382113821,3
+mean,C,T05-S2-STU-010,0.45,0.5138211382113821,0
+mean,C,T05-S3-STU-022,0.3,0.5138211382113821,0
+mean,C,T05-S3-STU-012,0.45,0.5138211382113821,5
+mean,C,T05-S3-STU-010,0.3,0.5138211382113821,0
+median,C,T04-S1-STU-005,0.7,0.55,4
+median,C,T04-S1-STU-012,0.8,0.55,3
+median,C,T04-S1-STU-027,0.6,0.55,4
+median,C,T04-S1-STU-010,0.45,0.55,3
+median,C,T04-S2-STU-005,0.7,0.55,5
+median,C,T04-S2-STU-012,0.6,0.55,2
+median,C,T04-S2-STU-027,0.05,0.55,0
+median,C,T04-S2-STU-010,0.45,0.55,1
+median,C,T04-S3-STU-005,0.75,0.55,4
+median,C,T04-S3-STU-012,0.75,0.55,4
+median,C,T04-S3-STU-027,0.3,0.55,1
+median,C,T04-S3-STU-010,0.3,0.55,0
+median,C,T05-S1-STU-022,0.25,0.55,2
+median,C,T05-S1-STU-012,0.3,0.55,4
+median,C,T05-S1-STU-010,0.4,0.55,0
+median,C,T05-S2-STU-022,0.2,0.55,0
+median,C,T05-S2-STU-012,0.65,0.55,3
+median,C,T05-S2-STU-010,0.45,0.55,0
+median,C,T05-S3-STU-022,0.3,0.55,0
+median,C,T05-S3-STU-012,0.45,0.55,5
+median,C,T05-S3-STU-010,0.3,0.55,0
+story points (linear),C,T04-S1-STU-005,0.7,0.5087453790562386,4
+story points (linear),C,T04-S1-STU-012,0.8,0.569239410845012,3
+story points (linear),C,T04-S1-STU-027,0.6,0.4633635097473315,4
+story points (linear),C,T04-S1-STU-010,0.45,0.5541272483651458,3
+story points (linear),C,T04-S2-STU-005,0.7,0.569239410845012,5
+story points (linear),C,T04-S2-STU-012,0.6,0.5087453790562386,2
+story points (linear),C,T04-S2-STU-027,0.05,0.4179816404384243,0
+story points (linear),C,T04-S2-STU-010,0.45,0.5541272483651458,1
+story points (linear),C,T04-S3-STU-005,0.75,0.5087453790562386,4
+story points (linear),C,T04-S3-STU-012,0.75,0.5541272483651458,4
+story points (linear),C,T04-S3-STU-027,0.3,0.4179816404384243,1
+story points (linear),C,T04-S3-STU-010,0.3,0.4860544444017851,0
+story points (linear),C,T05-S1-STU-022,0.25,0.4179816404384243,2
+story points (linear),C,T05-S1-STU-012,0.3,0.4179816404384243,4
+story points (linear),C,T05-S1-STU-010,0.4,0.5541272483651458,0
+story points (linear),C,T05-S2-STU-022,0.2,0.4179816404384243,0
+story points (linear),C,T05-S2-STU-012,0.65,0.4860544444017851,3
+story points (linear),C,T05-S2-STU-010,0.45,0.5541272483651458,0
+story points (linear),C,T05-S3-STU-022,0.3,0.5541272483651458,0
+story points (linear),C,T05-S3-STU-012,0.45,0.5541272483651458,5
+story points (linear),C,T05-S3-STU-010,0.3,0.4633635097473315,0
+subtasks (linear),C,T04-S1-STU-005,0.7,0.5498210659196235,4
+subtasks (linear),C,T04-S1-STU-012,0.8,0.5171613459098365,3
+subtasks (linear),C,T04-S1-STU-027,0.6,0.4517438286529958,4
+subtasks (linear),C,T04-S1-STU-010,0.45,0.5498210659196235,3
+subtasks (linear),C,T04-S2-STU-005,0.7,0.5171613459098365,5
+subtasks (linear),C,T04-S2-STU-012,0.6,0.5007824472863096,2
+subtasks (linear),C,T04-S2-STU-027,0.05,0.40270521001968185,0
+subtasks (linear),C,T04-S2-STU-010,0.45,0.5498210659196235,1
+subtasks (linear),C,T04-S3-STU-005,0.75,0.4844035486627828,4
+subtasks (linear),C,T04-S3-STU-012,0.75,0.4517438286529958,4
+subtasks (linear),C,T04-S3-STU-027,0.3,0.35366659138636797,1
+subtasks (linear),C,T04-S3-STU-010,0.3,0.4517438286529958,0
+subtasks (linear),C,T05-S1-STU-022,0.25,0.4517438286529958,2
+subtasks (linear),C,T05-S1-STU-012,0.3,0.4517438286529958,4
+subtasks (linear),C,T05-S1-STU-010,0.4,0.5498210659196235,0
+subtasks (linear),C,T05-S2-STU-022,0.2,0.4517438286529958,0
+subtasks (linear),C,T05-S2-STU-012,0.65,0.5007824472863096,3
+subtasks (linear),C,T05-S2-STU-010,0.45,0.5498210659196235,0
+subtasks (linear),C,T05-S3-STU-022,0.3,0.4517438286529958,0
+subtasks (linear),C,T05-S3-STU-012,0.45,0.5498210659196235,5
+subtasks (linear),C,T05-S3-STU-010,0.3,0.35366659138636797,0
+"files involved (log, linear)",C,T04-S1-STU-005,0.7,0.5716703638287841,4
+"files involved (log, linear)",C,T04-S1-STU-012,0.8,0.5992433702292488,3
+"files involved (log, linear)",C,T04-S1-STU-027,0.6,0.5749853424917462,4
+"files involved (log, linear)",C,T04-S1-STU-010,0.45,0.6107655579254136,3
+"files involved (log, linear)",C,T04-S2-STU-005,0.7,0.578201351642865,5
+"files involved (log, linear)",C,T04-S2-STU-012,0.6,0.5610655815357538,2
+"files involved (log, linear)",C,T04-S2-STU-027,0.05,0.5138211382113821,0
+"files involved (log, linear)",C,T04-S2-STU-010,0.45,0.6009653223596422,1
+"files involved (log, linear)",C,T04-S3-STU-005,0.75,0.7175932735697139,4
+"files involved (log, linear)",C,T04-S3-STU-012,0.75,0.5901835009042293,4
+"files involved (log, linear)",C,T04-S3-STU-027,0.3,0.8485046967626899,1
+"files involved (log, linear)",C,T04-S3-STU-010,0.3,0.6197481174133439,0
+"files involved (log, linear)",C,T05-S1-STU-022,0.25,0.4660072898633957,2
+"files involved (log, linear)",C,T05-S1-STU-012,0.3,0.49699879221372917,4
+"files involved (log, linear)",C,T05-S1-STU-010,0.4,0.5138211382113821,0
+"files involved (log, linear)",C,T05-S2-STU-022,0.2,0.5138211382113821,0
+"files involved (log, linear)",C,T05-S2-STU-012,0.65,0.4900461666556756,3
+"files involved (log, linear)",C,T05-S2-STU-010,0.45,0.5138211382113821,0
+"files involved (log, linear)",C,T05-S3-STU-022,0.3,0.5138211382113821,0
+"files involved (log, linear)",C,T05-S3-STU-012,0.45,0.6319568247099756,5
+"files involved (log, linear)",C,T05-S3-STU-010,0.3,0.5138211382113821,0
+Random Forest | proposal 5 (log counts),D,T08-S1-STU-002,0.85,0.5860875757094894,51
+Random Forest | proposal 5 (log counts),D,T08-S1-STU-008,0.45,0.3630763037202396,3
+Random Forest | proposal 5 (log counts),D,T08-S1-STU-016,0.5,0.4259947567354857,3
+Random Forest | proposal 5 (log counts),D,T08-S1-STU-025,0.7,0.5861483398571866,11
+Random Forest | proposal 5 (log counts),D,T08-S2-STU-002,0.75,0.5905654207474079,27
+Random Forest | proposal 5 (log counts),D,T08-S2-STU-008,0.65,0.596585603187943,9
+Random Forest | proposal 5 (log counts),D,T08-S2-STU-016,0.65,0.5918483327852307,11
+Random Forest | proposal 5 (log counts),D,T08-S2-STU-025,0.35,0.4612211323959863,2
+Random Forest | proposal 5 (log counts),D,T08-S3-STU-002,0.7,0.5929057327342716,25
+Random Forest | proposal 5 (log counts),D,T08-S3-STU-008,0.3,0.3908958805826201,2
+Random Forest | proposal 5 (log counts),D,T08-S3-STU-016,0.2,0.30142221584736595,0
+Random Forest | proposal 5 (log counts),D,T08-S3-STU-025,0.5,0.5117880143712343,4
+Random Forest | proposal 5 (log counts),D,T14-S1-STU-002,0.7,0.5915413515279385,51
+Random Forest | proposal 5 (log counts),D,T14-S1-STU-008,0.6,0.5894481303859369,20
+Random Forest | proposal 5 (log counts),D,T14-S1-STU-016,0.4,0.5861712922070086,13
+Random Forest | proposal 5 (log counts),D,T14-S1-STU-025,0.6,0.5894481303859369,12
+mean,D,T08-S1-STU-002,0.85,0.5003906250000001,51
+mean,D,T08-S1-STU-008,0.45,0.5003906250000001,3
+mean,D,T08-S1-STU-016,0.5,0.5003906250000001,3
+mean,D,T08-S1-STU-025,0.7,0.5003906250000001,11
+mean,D,T08-S2-STU-002,0.75,0.5003906250000001,27
+mean,D,T08-S2-STU-008,0.65,0.5003906250000001,9
+mean,D,T08-S2-STU-016,0.65,0.5003906250000001,11
+mean,D,T08-S2-STU-025,0.35,0.5003906250000001,2
+mean,D,T08-S3-STU-002,0.7,0.5003906250000001,25
+mean,D,T08-S3-STU-008,0.3,0.5003906250000001,2
+mean,D,T08-S3-STU-016,0.2,0.5003906250000001,0
+mean,D,T08-S3-STU-025,0.5,0.5003906250000001,4
+mean,D,T14-S1-STU-002,0.7,0.5003906250000001,51
+mean,D,T14-S1-STU-008,0.6,0.5003906250000001,20
+mean,D,T14-S1-STU-016,0.4,0.5003906250000001,13
+mean,D,T14-S1-STU-025,0.6,0.5003906250000001,12
+median,D,T08-S1-STU-002,0.85,0.525,51
+median,D,T08-S1-STU-008,0.45,0.525,3
+median,D,T08-S1-STU-016,0.5,0.525,3
+median,D,T08-S1-STU-025,0.7,0.525,11
+median,D,T08-S2-STU-002,0.75,0.525,27
+median,D,T08-S2-STU-008,0.65,0.525,9
+median,D,T08-S2-STU-016,0.65,0.525,11
+median,D,T08-S2-STU-025,0.35,0.525,2
+median,D,T08-S3-STU-002,0.7,0.525,25
+median,D,T08-S3-STU-008,0.3,0.525,2
+median,D,T08-S3-STU-016,0.2,0.525,0
+median,D,T08-S3-STU-025,0.5,0.525,4
+median,D,T14-S1-STU-002,0.7,0.525,51
+median,D,T14-S1-STU-008,0.6,0.525,20
+median,D,T14-S1-STU-016,0.4,0.525,13
+median,D,T14-S1-STU-025,0.6,0.525,12
+story points (linear),D,T08-S1-STU-002,0.85,0.5255424979049491,51
+story points (linear),D,T08-S1-STU-008,0.45,0.4470323434950932,3
+story points (linear),D,T08-S1-STU-016,0.5,0.5517125493749011,3
+story points (linear),D,T08-S1-STU-025,0.7,0.5517125493749011,11
+story points (linear),D,T08-S2-STU-002,0.75,0.4862874207000212,27
+story points (linear),D,T08-S2-STU-008,0.65,0.7087328581946131,9
+story points (linear),D,T08-S2-STU-016,0.65,0.6302227037847571,11
+story points (linear),D,T08-S2-STU-025,0.35,0.3946922405551892,2
+story points (linear),D,T08-S3-STU-002,0.7,0.4993724464349971,25
+story points (linear),D,T08-S3-STU-008,0.3,0.4993724464349971,2
+story points (linear),D,T08-S3-STU-016,0.2,0.4470323434950932,0
+story points (linear),D,T08-S3-STU-025,0.5,0.5517125493749011,4
+story points (linear),D,T14-S1-STU-002,0.7,0.5203084876109587,51
+story points (linear),D,T14-S1-STU-008,0.6,0.5098404670229779,20
+story points (linear),D,T14-S1-STU-016,0.4,0.5691418036538891,13
+story points (linear),D,T14-S1-STU-025,0.6,0.5124574721699732,12
+subtasks (linear),D,T08-S1-STU-002,0.85,0.5500434815067707,51
+subtasks (linear),D,T08-S1-STU-008,0.45,0.5500434815067707,3
+subtasks (linear),D,T08-S1-STU-016,0.5,0.6532500814786226,3
+subtasks (linear),D,T08-S1-STU-025,0.7,0.6016467814926967,11
+subtasks (linear),D,T08-S2-STU-002,0.75,0.4984401815208447,27
+subtasks (linear),D,T08-S2-STU-008,0.65,0.6532500814786226,9
+subtasks (linear),D,T08-S2-STU-016,0.65,0.6532500814786226,11
+subtasks (linear),D,T08-S2-STU-025,0.35,0.44683688153491874,2
+subtasks (linear),D,T08-S3-STU-002,0.7,0.6532500814786226,25
+subtasks (linear),D,T08-S3-STU-008,0.3,0.44683688153491874,2
+subtasks (linear),D,T08-S3-STU-016,0.2,0.44683688153491874,0
+subtasks (linear),D,T08-S3-STU-025,0.5,0.5500434815067707,4
+subtasks (linear),D,T14-S1-STU-002,0.7,0.6119674414898818,51
+subtasks (linear),D,T14-S1-STU-008,0.6,0.5500434815067707,20
+subtasks (linear),D,T14-S1-STU-016,0.4,0.5500434815067707,13
+subtasks (linear),D,T14-S1-STU-025,0.6,0.5500434815067707,12
+"files involved (log, linear)",D,T08-S1-STU-002,0.85,0.5236526438027407,51
+"files involved (log, linear)",D,T08-S1-STU-008,0.45,0.5110216323818446,3
+"files involved (log, linear)",D,T08-S1-STU-016,0.5,0.48759050179788477,3
+"files involved (log, linear)",D,T08-S1-STU-025,0.7,0.528946285328186,11
+"files involved (log, linear)",D,T08-S2-STU-002,0.75,0.5149572319198082,27
+"files involved (log, linear)",D,T08-S2-STU-008,0.65,0.5681405915796741,9
+"files involved (log, linear)",D,T08-S2-STU-016,0.65,0.5661980227781388,11
+"files involved (log, linear)",D,T08-S2-STU-025,0.35,0.5222701312778999,2
+"files involved (log, linear)",D,T08-S3-STU-002,0.7,0.5039804316472766,25
+"files involved (log, linear)",D,T08-S3-STU-008,0.3,0.4085905126000763,2
+"files involved (log, linear)",D,T08-S3-STU-016,0.2,0.5003906250000001,0
+"files involved (log, linear)",D,T08-S3-STU-025,0.5,0.47576292566832,4
+"files involved (log, linear)",D,T14-S1-STU-002,0.7,0.5718841325211386,51
+"files involved (log, linear)",D,T14-S1-STU-008,0.6,0.5450375899458679,20
+"files involved (log, linear)",D,T14-S1-STU-016,0.4,0.517470633646484,13
+"files involved (log, linear)",D,T14-S1-STU-025,0.6,0.5443449636584087,12
+Random Forest | proposal 5 (log counts),E,T06-S1-STU-015,0.7,0.6114145746657514,7
+Random Forest | proposal 5 (log counts),E,T06-S1-STU-020,0.55,0.6191233919085386,0
+Random Forest | proposal 5 (log counts),E,T06-S1-STU-004,0.4,0.6129074140181799,0
+Random Forest | proposal 5 (log counts),E,T06-S1-STU-029,0.55,0.625728560419605,0
+Random Forest | proposal 5 (log counts),E,T06-S2-STU-015,0.55,0.60665570906106,16
+Random Forest | proposal 5 (log counts),E,T06-S2-STU-020,0.35,0.47242028060216656,11
+Random Forest | proposal 5 (log counts),E,T06-S2-STU-004,0.75,0.6110367933625764,35
+Random Forest | proposal 5 (log counts),E,T06-S2-STU-029,0.4,0.444585764001894,0
+mean,E,T06-S1-STU-015,0.7,0.5051470588235293,7
+mean,E,T06-S1-STU-020,0.55,0.5051470588235293,0
+mean,E,T06-S1-STU-004,0.4,0.5051470588235293,0
+mean,E,T06-S1-STU-029,0.55,0.5051470588235293,0
+mean,E,T06-S2-STU-015,0.55,0.5051470588235293,16
+mean,E,T06-S2-STU-020,0.35,0.5051470588235293,11
+mean,E,T06-S2-STU-004,0.75,0.5051470588235293,35
+mean,E,T06-S2-STU-029,0.4,0.5051470588235293,0
+median,E,T06-S1-STU-015,0.7,0.525,7
+median,E,T06-S1-STU-020,0.55,0.525,0
+median,E,T06-S1-STU-004,0.4,0.525,0
+median,E,T06-S1-STU-029,0.55,0.525,0
+median,E,T06-S2-STU-015,0.55,0.525,16
+median,E,T06-S2-STU-020,0.35,0.525,11
+median,E,T06-S2-STU-004,0.75,0.525,35
+median,E,T06-S2-STU-029,0.4,0.525,0
+story points (linear),E,T06-S1-STU-015,0.7,0.5048862285559079,7
+story points (linear),E,T06-S1-STU-020,0.55,0.7525156623888124,0
+story points (linear),E,T06-S1-STU-004,0.4,0.5667935870141341,0
+story points (linear),E,T06-S1-STU-029,0.55,0.7525156623888124,0
+story points (linear),E,T06-S2-STU-015,0.55,0.45845570971223826,16
+story points (linear),E,T06-S2-STU-020,0.35,0.5667935870141341,11
+story points (linear),E,T06-S2-STU-004,0.75,0.48012328517261743,35
+story points (linear),E,T06-S2-STU-029,0.4,0.5667935870141341,0
+subtasks (linear),E,T06-S1-STU-015,0.7,0.5558628463391005,7
+subtasks (linear),E,T06-S1-STU-020,0.55,0.5558628463391005,0
+subtasks (linear),E,T06-S1-STU-004,0.4,0.5558628463391005,0
+subtasks (linear),E,T06-S1-STU-029,0.55,0.6686918054943188,0
+subtasks (linear),E,T06-S2-STU-015,0.55,0.5276556065502959,16
+subtasks (linear),E,T06-S2-STU-020,0.35,0.5558628463391005,11
+subtasks (linear),E,T06-S2-STU-004,0.75,0.6009944300011878,35
+subtasks (linear),E,T06-S2-STU-029,0.4,0.5558628463391005,0
+"files involved (log, linear)",E,T06-S1-STU-015,0.7,0.5689414586669463,7
+"files involved (log, linear)",E,T06-S1-STU-020,0.55,0.573265222258509,0
+"files involved (log, linear)",E,T06-S1-STU-004,0.4,0.5812689110751239,0
+"files involved (log, linear)",E,T06-S1-STU-029,0.55,0.6124144654268613,0
+"files involved (log, linear)",E,T06-S2-STU-015,0.55,0.5365163546779068,16
+"files involved (log, linear)",E,T06-S2-STU-020,0.35,0.42565419189289067,11
+"files involved (log, linear)",E,T06-S2-STU-004,0.75,0.5169878880353517,35
+"files involved (log, linear)",E,T06-S2-STU-029,0.4,0.5051470588235293,0

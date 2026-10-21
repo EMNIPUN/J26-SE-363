@@ -160,6 +160,10 @@ async def evaluate_factor(
         for k in ["procrastination_detected", "substantiveness_rating", "structural_impact_level", "traceability_rate"]:
             if k in raw_res:
                 merged_features[k] = raw_res[k]
+        # What a production factor reports besides the score (band, warnings, versions, what was removed, per-task detail); the graph's audit and explanation read it from here
+        meta = {k: raw_res[k] for k in ("interval", "warnings", "versions", "removed", "provisional", "sprint_elapsed", "model", "tasks", "usage") if k in raw_res}
+        if meta:
+            merged_features["_result"] = meta
 
         evidence_traces = raw_res.get("evidence_traces", [])
         if not evidence_traces:
@@ -175,10 +179,51 @@ async def evaluate_factor(
         )
 
     except Exception as e:
-        logger.error(f"Error evaluating factor '{factor_name}' via bridge: {e}")
-        return get_fallback_for_factor(factor_name, str(e))
+        # "not available" (the factor says it cannot be scored) is not the same as a failure: the graph and the lecturer see the difference
+        kind = "not_available" if type(e).__name__ == "NotEnoughEvidence" else "error"
+        (logger.info if kind == "not_available" else logger.error)(f"Factor '{factor_name}' via bridge: {kind}: {e}")
+        out = get_fallback_for_factor(factor_name, str(e))
+        out.features = {"failure_kind": kind}
+        return out
 
 
+async def generate_quiz_via_bridge(
+    payload: Dict[str, Any],
+    context: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Bridge for Factor 7 phase 1: the Code Ownership package picks the student's code and builds the AST question.
+
+    Returns the quiz dict, or None when the package has no ``generate_quiz`` (simulator only), found no function worth asking about, or failed;
+    the quiz node then keeps its placeholder quiz.
+    """
+    resolved = _resolve_factor_module("code_ownership")
+    if not resolved:
+        return None
+    mod, tier = resolved
+    if tier != "production" or not hasattr(mod, "generate_quiz"):
+        return None
+    try:
+        return mod.generate_quiz(payload, context=context or {})
+    except Exception as e:
+        logger.warning(f"Code Ownership quiz generation failed, keeping the placeholder quiz: {e}")
+        return None
+
+
+async def generate_quizzes_via_bridge(payload, context=None):
+    resolved = _resolve_factor_module("code_ownership")
+    if not resolved:
+        return []
+    mod, tier = resolved
+    if tier != "production":
+        return []
+    try:
+        if hasattr(mod, "generate_many"):
+            return mod.generate_many(payload.get("files") or [], payload.get("student_id", ""), payload.get("sprint_id", ""), payload.get("count", 10))
+        one = await generate_quiz_via_bridge(payload, context)
+        return [one] if one else []
+    except Exception as e:
+        logger.warning("Code Ownership quiz batch generation failed: %s", e)
+        return []
 async def classify_persona_via_bridge(
     factor_scores: Dict[str, float],
     context: Optional[Dict[str, Any]] = None,
@@ -216,11 +261,5 @@ async def classify_persona_via_bridge(
         except Exception as e:
             logger.warning(f"Behavioral pattern bridge fallback: {e}")
 
-    # Fallback classification if model/simulator is unavailable
-    e = factor_scores.get("effort", 0.5)
-    c = factor_scores.get("consistency", 0.5)
-    if e >= 0.70 and c >= 0.60:
-        return "Consistent Builder", 1.10, "Steady high-volume contributions."
-    elif e >= 0.60 and c < 0.35:
-        return "Deadline Rusher", 0.90, "Concentrated work at sprint deadline."
-    return "Balanced Contributor", 1.00, "Meeting baseline expectations."
+    # Neither the Behavioral Pattern package nor its simulator could be loaded: no pattern and no adjustment (the rules live in factor_models/06_behavioral_pattern)
+    return "Unclassified", 1.00, "Behavioral Pattern rules unavailable: no adjustment applied."

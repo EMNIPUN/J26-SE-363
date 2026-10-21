@@ -1,0 +1,177 @@
+team_id,sprint_id,author_id,day,title,merged
+S01,S01-S1,SYN-001,5,Booking create and capacity check,1
+S01,S01-S1,SYN-001,11,Cancel booking,1
+S01,S01-S1,SYN-002,13,"Event list, detail and booking form",1
+S01,S01-S1,SYN-003,6,Event model and CRUD,1
+S01,S01-S1,SYN-005,3,Admin event UI,1
+S01,S01-S1,SYN-005,11,Hide admin link,1
+S01,S01-S2,SYN-001,4,Confirmation email,1
+S01,S01-S2,SYN-001,9,My bookings,1
+S01,S01-S2,SYN-002,9,My bookings page,1
+S01,S01-S2,SYN-002,13,"Navbar, routes and filter",1
+S01,S01-S2,SYN-003,4,Auth middleware and validation,1
+S01,S01-S2,SYN-004,13,Admin dashboard stub,1
+S01,S01-S2,SYN-005,6,Atomic booking,1
+S02,S02-S1,SYN-006,5,Loans: checkout and return,1
+S02,S02-S1,SYN-006,12,Wire loans router,1
+S02,S02-S1,SYN-007,13,Catalogue and book page,1
+S02,S02-S1,SYN-010,6,Books API,1
+S02,S02-S1,SYN-010,11,Search,1
+S02,S02-S2,SYN-006,5,Fines,1
+S02,S02-S2,SYN-006,11,Overdue list,1
+S02,S02-S2,SYN-007,13,Borrow and my loans,1
+S02,S02-S2,SYN-009,13,Member endpoint,0
+S02,S02-S2,SYN-010,10,Availability placeholder,1
+S02,S02-S3,SYN-006,5,Borrowing limit,1
+S02,S02-S3,SYN-006,12,Reminders,1
+S02,S02-S3,SYN-007,13,Librarian page,1
+S02,S02-S3,SYN-010,10,Reservations,1
+S03,S03-S1,SYN-011,4,Cart state,1
+S03,S03-S1,SYN-011,11,Pricing,1
+S03,S03-S1,SYN-012,13,Home and menu screens,1
+S03,S03-S1,SYN-013,3,Authentication,1
+S03,S03-S1,SYN-013,11,Validation and tests,1
+S03,S03-S1,SYN-015,6,Models,1
+S03,S03-S1,SYN-015,12,Theme,1
+S03,S03-S2,SYN-011,5,Promo codes,1
+S03,S03-S2,SYN-011,12,Totals refactor,1
+S03,S03-S2,SYN-012,13,Cart and checkout,1
+S03,S03-S2,SYN-013,4,Order tracking,1
+S03,S03-S2,SYN-014,13,Search helper,0
+S03,S03-S2,SYN-015,5,Menu cache,1
+S03,S03-S3,SYN-011,5,Order history,1
+S03,S03-S3,SYN-011,12,Reorder,1
+S03,S03-S3,SYN-012,13,Orders and empty states,1
+S03,S03-S3,SYN-013,2,Push notifications,1
+S03,S03-S3,SYN-015,9,Accessibility,1
+S04,S04-S1,SYN-016,7,Appointment booking,1
+S04,S04-S1,SYN-016,12,Cancel,1
+S04,S04-S1,SYN-017,2,Doctor API,1
+S04,S04-S1,SYN-017,13,Hours validation,1
+S04,S04-S1,SYN-020,10,Overlap detection,1
+S04,S04-S2,SYN-016,5,Cancelled slots,1
+S04,S04-S2,SYN-016,11,Reminders,1
+S04,S04-S2,SYN-017,4,Free slots,1
+S04,S04-S2,SYN-017,13,Slot fixes,1
+S04,S04-S2,SYN-020,9,Interval merge,1
+S04,S04-S3,SYN-016,10,Appointment history,1
+S04,S04-S3,SYN-017,2,Leave days,1
+S04,S04-S3,SYN-019,13,Patient test,1
+S04,S04-S3,SYN-020,13,Waiting list,1
+S04,S04-S4,SYN-016,5,Reschedule,1
+S04,S04-S4,SYN-016,11,Constraint,1
+S04,S04-S4,SYN-017,3,Security,1
+S04,S04-S4,SYN-017,13,Role fixes,1
+S04,S04-S4,SYN-020,6,CSV export,1
+S05,S05-S3,SYN-021,13,Quiz timer,1
+S05,S05-S3,SYN-022,2,CSV import,1
+S05,S05-S3,SYN-022,13,Import tests,1
+S05,S05-S3,SYN-025,10,Result email,1
+S05,S05-S4,SYN-021,10,Leaderboard,1
+S05,S05-S4,SYN-021,13,Dashboard,1
+S05,S05-S4,SYN-022,2,Random order,1
+S05,S05-S4,SYN-024,13,Typo,1
+S05,S05-S4,SYN-025,7,Labels,1
+S06,S06-S1,SYN-026,6,Product API,1
+S06,S06-S1,SYN-026,13,Auth,1
+S06,S06-S1,SYN-027,13,Products page,1
+S06,S06-S1,SYN-029,8,Supplier CRUD,1
+S06,S06-S1,SYN-030,7,Schema,1
+S06,S06-S1,SYN-030,10,Constraint fix,1
+S06,S06-S2,SYN-026,5,Sales,1
+S06,S06-S2,SYN-026,13,Sales fixes,1
+S06,S06-S2,SYN-027,13,Sales screen,1
+S06,S06-S2,SYN-029,6,Customers and categories,1
+S06,S06-S2,SYN-030,11,Receipt,1
+S06,S06-S3,SYN-026,8,Reports,1
+S06,S06-S3,SYN-026,12,Low stock,1
+S06,S06-S3,SYN-027,13,Reports page,1
+S06,S06-S3,SYN-028,10,Stocktake import,1
+S06,S06-S3,SYN-029,10,History and helper,1
+S06,S06-S4,SYN-026,5,Barcode,1
+S06,S06-S4,SYN-026,11,Suppliers,1
+S06,S06-S4,SYN-027,13,Banner and toasts,1
+S06,S06-S4,SYN-029,8,Export,1
+S07,S07-S1,SYN-031,7,Workout log,1
+S07,S07-S1,SYN-031,12,App wiring,1
+S07,S07-S1,SYN-032,13,Home screen,1
+S07,S07-S1,SYN-033,2,Auth,1
+S07,S07-S1,SYN-033,13,Auth tests,1
+S07,S07-S2,SYN-031,8,Filters and paging,1
+S07,S07-S2,SYN-031,12,Edit and delete,1
+S07,S07-S2,SYN-032,13,Log workout,1
+S07,S07-S2,SYN-033,3,Offline queue,1
+S07,S07-S2,SYN-034,13,Chart component,1
+S07,S07-S2,SYN-035,11,Time zone buckets,1
+S07,S07-S3,SYN-031,6,Weekly stats,1
+S07,S07-S3,SYN-033,3,Reminders,1
+S07,S07-S3,SYN-033,13,Reminder tests,1
+S07,S07-S3,SYN-035,5,Exercise library,1
+S07,S07-S4,SYN-031,6,Streak,1
+S07,S07-S4,SYN-031,12,Refactor,1
+S07,S07-S4,SYN-032,13,History,1
+S07,S07-S4,SYN-033,2,Share,1
+S07,S07-S4,SYN-035,9,Personal records,1
+S07,S07-S5,SYN-031,9,Goals API,1
+S07,S07-S5,SYN-032,13,Stats screen,1
+S07,S07-S5,SYN-033,13,Accessibility,1
+S07,S07-S5,SYN-035,10,Seed data,1
+S08,S08-S1,SYN-036,13,Home page,1
+S08,S08-S1,SYN-037,2,Schema and auth,1
+S08,S08-S1,SYN-037,12,Cookie fix and tests,1
+S08,S08-S2,SYN-036,13,Listing detail and sell form,1
+S08,S08-S2,SYN-037,4,Listings API,1
+S08,S08-S2,SYN-037,13,Price check,1
+S08,S08-S3,SYN-036,13,Sell form,1
+S08,S08-S3,SYN-037,2,Photo upload,1
+S08,S08-S3,SYN-037,12,Limit photos,1
+S08,S08-S3,SYN-038,7,Moderation,1
+S08,S08-S3,SYN-039,13,Category filter,1
+S08,S08-S4,SYN-036,13,Messages page,1
+S08,S08-S4,SYN-037,2,Search,1
+S08,S08-S4,SYN-038,5,Rate limit,1
+S08,S08-S4,SYN-040,13,Message emails,1
+S08,S08-S5,SYN-036,12,Messages and offers UI,1
+S08,S08-S5,SYN-037,2,Offers API,1
+S08,S08-S5,SYN-039,13,FAQ,1
+S08,S08-S5,SYN-040,12,Sold listings,1
+S09,S09-S1,SYN-041,4,Splitting,1
+S09,S09-S1,SYN-041,11,Cents,1
+S09,S09-S1,SYN-044,10,CSV export,1
+S09,S09-S1,SYN-045,13,Merge,1
+S09,S09-S2,SYN-041,5,Settle up,1
+S09,S09-S2,SYN-041,12,View model wiring,1
+S09,S09-S2,SYN-042,7,Add expense screen,1
+S09,S09-S2,SYN-043,13,Group list,1
+S09,S09-S2,SYN-044,9,Share CSV,1
+S09,S09-S2,SYN-045,11,Recurring expenses,1
+S09,S09-S3,SYN-041,2,Rounding fix,1
+S09,S09-S3,SYN-041,11,Currencies,1
+S09,S09-S3,SYN-043,13,Create group dialog,1
+S09,S09-S3,SYN-044,9,Dark theme,1
+S09,S09-S3,SYN-045,13,Merge fix,1
+S10,S10-S1,SYN-046,6,Ingest,1
+S10,S10-S1,SYN-046,11,Fixtures,1
+S10,S10-S1,SYN-047,13,Device list,1
+S10,S10-S1,SYN-048,2,Device registry,1
+S10,S10-S1,SYN-048,12,Device tests,1
+S10,S10-S1,SYN-050,5,Layout,1
+S10,S10-S2,SYN-046,5,Range check,1
+S10,S10-S2,SYN-046,12,MQTT,1
+S10,S10-S2,SYN-047,13,Dashboard chart,1
+S10,S10-S2,SYN-048,3,Bulk import,1
+S10,S10-S2,SYN-048,13,Timestamp fix,1
+S10,S10-S2,SYN-049,13,Status endpoint,1
+S10,S10-S2,SYN-050,11,Device tests,1
+S10,S10-S3,SYN-046,6,Aggregates,1
+S10,S10-S3,SYN-046,13,Empty range fix,1
+S10,S10-S3,SYN-047,13,Alerts view,1
+S10,S10-S3,SYN-048,2,Alert rules,1
+S10,S10-S3,SYN-048,12,Window fix,1
+S10,S10-S3,SYN-050,7,Alert history,1
+S10,S10-S3,SYN-050,13,History endpoint,1
+S10,S10-S4,SYN-046,11,Alerts on ingest,1
+S10,S10-S4,SYN-047,13,Offline badge and refresh,1
+S10,S10-S4,SYN-048,2,Export,1
+S10,S10-S4,SYN-048,12,Export test,1
+S10,S10-S4,SYN-050,12,Docs and labels,1

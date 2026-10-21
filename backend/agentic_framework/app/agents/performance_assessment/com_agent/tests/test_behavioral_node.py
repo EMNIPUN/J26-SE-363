@@ -1,153 +1,88 @@
-"""Tests for behavioral pattern persona classification (T5.6 & PLAN.md Section 9 Node 7).
+"""Tests for the behavioral pattern node (T5.6 & PLAN.md Section 9 Node 7).
 
-Improvements over original:
-- Added ko_raw_score=None fallback path test
-- Added modifier clamping test at 0.80 minimum
-- Added test for Balanced Contributor default (when no other archetype matches)
-- Added full-node tests for all 5 archetypes
+The rules themselves are tested in factor_models/06_behavioral_pattern/tests; here the node's job is checked: gather the scores, treat factors that did not really run as missing,
+call the factor package through the bridge, and write a clamped modifier into the state.
 """
 
 import pytest
 from app.agents.performance_assessment.com_agent.state import FactorOutput
-from app.agents.performance_assessment.com_agent.nodes.behavioral_node import (
-    classify_persona,
-    run_behavioral_pattern_node,
-)
+from app.agents.performance_assessment.com_agent.nodes import behavioral_node as node
+from app.agents.performance_assessment.com_agent.nodes.behavioral_node import run_behavioral_pattern_node
+from app.agents.performance_assessment.com_agent.policies.fallback_policies import get_fallback_for_factor
 
 
-# ---------------------------------------------------------------------------
-# classify_persona — pure function tests
-# ---------------------------------------------------------------------------
+def fs(e=None, c=None, co=None, bimodal=None):
+    out = {}
+    if e is not None:
+        out["effort"] = FactorOutput(score=e)
+    if c is not None:
+        out["consistency"] = FactorOutput(score=c, features={} if bimodal is None else {"C_bimodal": bimodal})
+    if co is not None:
+        out["collaboration"] = FactorOutput(score=co)
+    return out
 
-@pytest.mark.parametrize("signals,expected_persona,expected_modifier", [
-    # Consistent Builder: effort>=0.70, consistency>=0.60, ko_raw>=0.65
-    (
-        {"effort": 0.85, "consistency": 0.80, "collaboration": 0.60, "ko_raw": 0.85},
-        "Consistent Builder", 1.10,
-    ),
-    # Collaborative Harmonizer: collaboration>=0.70, effort>=0.45
-    # (effort must NOT be >= 0.70 to avoid matching Consistent Builder first)
-    (
-        {"effort": 0.60, "consistency": 0.50, "collaboration": 0.85, "ko_raw": 0.70},
-        "Collaborative Harmonizer", 1.05,
-    ),
-    # Deadline Rusher: effort>=0.60, consistency<0.35
-    (
-        {"effort": 0.80, "consistency": 0.20, "collaboration": 0.40, "ko_raw": 0.70},
-        "Deadline Rusher", 0.90,
-    ),
-    # Disengaged Contributor: effort<0.30, collaboration<0.30
-    (
-        {"effort": 0.15, "collaboration": 0.10, "consistency": 0.40, "ko_raw": 0.30},
-        "Disengaged Contributor", 0.85,
-    ),
-    # Balanced Contributor: none of the above match
-    (
-        {"effort": 0.55, "consistency": 0.55, "collaboration": 0.55, "ko_raw": 0.55},
-        "Balanced Contributor", 1.00,
-    ),
-])
-def test_classify_persona_all_archetypes(signals, expected_persona, expected_modifier):
-    persona, modifier = classify_persona(signals)
-    assert persona == expected_persona
-    assert modifier == pytest.approx(expected_modifier, abs=1e-6)
-
-
-def test_classify_persona_modifier_always_in_range():
-    """Whatever inputs are given, modifier must stay in [0.80, 1.20]."""
-    test_cases = [
-        {"effort": 0.0, "consistency": 0.0, "collaboration": 0.0, "ko_raw": 0.0},
-        {"effort": 1.0, "consistency": 1.0, "collaboration": 1.0, "ko_raw": 1.0},
-        {"effort": 0.50, "consistency": 0.50, "collaboration": 0.50, "ko_raw": 0.50},
-    ]
-    for signals in test_cases:
-        _, modifier = classify_persona(signals)
-        assert 0.80 <= modifier <= 1.20, f"modifier={modifier} out of [0.80, 1.20] for signals={signals}"
-
-
-# ---------------------------------------------------------------------------
-# run_behavioral_pattern_node — node tests
-# ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_run_behavioral_pattern_node_uses_raw_ko_score():
-    """Critical: persona must be derived from ko_raw_score (uncapped), not the capped .score.
-
-    code_ownership.score = 0.50 (capped for grading), but ko_raw_score = 0.90.
-    Because ko_raw >= 0.65, student qualifies as Consistent Builder.
-    If the node used .score=0.50 instead, it would fall through to Balanced Contributor.
-    """
-    state = {
-        "ko_raw_score": 0.90,  # explicit uncapped value in state
-        "factor_scores": {
-            "effort": FactorOutput(score=0.85),
-            "consistency": FactorOutput(score=0.75),
-            "collaboration": FactorOutput(score=0.60),
-            "code_ownership": FactorOutput(
-                score=0.50,  # capped for final_score calculation
-                features={"ko_raw_score": 0.90, "ko_fusion_score": 0.50},
-            ),
-        },
-    }
-
-    updates = await run_behavioral_pattern_node(state)
+async def test_consistent_deep_contributor_through_the_factor_package():
+    updates = await run_behavioral_pattern_node({"factor_scores": fs(0.95, 0.95, 0.5)})
     assert updates["current_step"] == "behavioral_pattern_classified"
-    assert updates["behavioral_persona"] == "Consistent Builder"
-    assert updates["behavioral_modifier"] == pytest.approx(1.10, abs=1e-6)
-    assert 0.80 <= updates["behavioral_modifier"] <= 1.20
+    assert updates["behavioral_persona"] == "Consistent deep contributor"
+    assert 1.10 <= updates["behavioral_modifier"] <= 1.20
 
 
 @pytest.mark.asyncio
-async def test_run_behavioral_pattern_node_ko_raw_score_none_fallback():
-    """When ko_raw_score is None in state AND not in features, node must not crash.
-
-    Falls back to reading code_ownership.score, then defaults to 0.5 if unavailable.
-    """
-    state = {
-        # ko_raw_score not in state at all
-        "factor_scores": {
-            "effort": FactorOutput(score=0.50),
-            "consistency": FactorOutput(score=0.50),
-            "collaboration": FactorOutput(score=0.50),
-            # code_ownership also absent — node must handle gracefully
-        },
-    }
-
-    updates = await run_behavioral_pattern_node(state)
-    assert updates["current_step"] == "behavioral_pattern_classified"
-    assert updates["behavioral_persona"] == "Balanced Contributor"
-    assert 0.80 <= updates["behavioral_modifier"] <= 1.20
+async def test_free_rider_needs_a_collaboration_score():
+    low = await run_behavioral_pattern_node({"factor_scores": fs(0.02, 0.0, 0.0)})
+    assert low["behavioral_persona"] == "Free rider"
+    assert 0.80 <= low["behavioral_modifier"] <= 0.85
 
 
 @pytest.mark.asyncio
-async def test_run_behavioral_pattern_node_disengaged_modifier_minimum():
-    """Disengaged Contributor modifier is 0.85 — above 0.80 minimum, correctly not clamped."""
-    state = {
-        "ko_raw_score": 0.30,
-        "factor_scores": {
-            "effort": FactorOutput(score=0.15),
-            "consistency": FactorOutput(score=0.40),
-            "collaboration": FactorOutput(score=0.10),
-            "code_ownership": FactorOutput(score=0.30),
-        },
-    }
-
-    updates = await run_behavioral_pattern_node(state)
-    assert updates["behavioral_persona"] == "Disengaged Contributor"
-    assert updates["behavioral_modifier"] == pytest.approx(0.85, abs=1e-6)
-    # 0.85 is above 0.80 minimum — no clamping needed
-    assert updates["behavioral_modifier"] >= 0.80
+async def test_missing_collaboration_is_not_treated_as_zero():
+    """Collaboration not available (nobody in the team reviewed): the full Free rider rule cannot fire, so a student with middle Effort is not penalised for it."""
+    updates = await run_behavioral_pattern_node({"factor_scores": fs(0.30, 0.40, None)})
+    assert updates["behavioral_persona"] == "Balanced contributor"
+    assert updates["behavioral_modifier"] == 1.0
 
 
 @pytest.mark.asyncio
-async def test_run_behavioral_pattern_node_output_always_clamped():
-    """Regardless of classify_persona output, node must clamp to [0.80, 1.20]."""
-    # Simulate a future archetype that might return a modifier outside range
-    from unittest.mock import patch
-    with patch(
-        "app.agents.performance_assessment.com_agent.nodes.behavioral_node.classify_persona",
-        return_value=("FuturePersona", 1.50),  # hypothetical out-of-range value
-    ):
-        state = {"factor_scores": {}}
-        updates = await run_behavioral_pattern_node(state)
-        assert updates["behavioral_modifier"] == 1.20  # clamped down to max
+async def test_almost_no_activity_without_a_collaboration_score_is_an_effort_only_free_rider_with_a_milder_modifier():
+    updates = await run_behavioral_pattern_node({"factor_scores": fs(0.02, 0.0, None)})
+    assert updates["behavioral_persona"] == "Free rider"
+    assert 0.90 <= updates["behavioral_modifier"] <= 0.95  # milder than the 0.80-0.85 of the full rule
+
+
+@pytest.mark.asyncio
+async def test_a_fallback_collaboration_is_passed_on_as_missing():
+    factors = fs(0.30, 0.40)
+    factors["collaboration"] = get_fallback_for_factor("collaboration", "not available")  # score 0.0 with status fallback_applied
+    updates = await run_behavioral_pattern_node({"factor_scores": factors})
+    assert updates["behavioral_persona"] == "Balanced contributor"  # a fallback 0.0 must not read as "no collaboration"
+    assert updates["behavioral_modifier"] == 1.0
+    low = fs(0.02, 0.0)
+    low["collaboration"] = get_fallback_for_factor("collaboration", "not available")
+    again = await run_behavioral_pattern_node({"factor_scores": low})
+    assert 0.90 <= again["behavioral_modifier"] <= 0.95  # effort-only path, not the full 0.80-0.85 rule
+
+
+@pytest.mark.asyncio
+async def test_effort_or_consistency_missing_gives_no_adjustment():
+    updates = await run_behavioral_pattern_node({"factor_scores": {}})
+    assert updates["behavioral_persona"] == "Unclassified"
+    assert updates["behavioral_modifier"] == 1.0
+
+
+@pytest.mark.asyncio
+async def test_the_bimodal_flag_of_the_consistency_factor_is_read():
+    updates = await run_behavioral_pattern_node({"factor_scores": fs(0.95, 0.45, 0.5, bimodal=1)})
+    assert updates["behavioral_persona"] == "Burst worker"
+
+
+@pytest.mark.asyncio
+async def test_node_output_is_always_clamped(monkeypatch):
+    async def wild(signals, context=None, mode=None, duration_seconds=None):
+        return "FuturePersona", 1.50, "out of range on purpose"
+
+    monkeypatch.setattr(node, "classify_persona_via_bridge", wild)
+    updates = await run_behavioral_pattern_node({"factor_scores": {}})
+    assert updates["behavioral_modifier"] == 1.20

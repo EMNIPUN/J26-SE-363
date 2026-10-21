@@ -1,0 +1,18 @@
+{
+ "A rusher recall (simulated)": 0.3,
+ "A rusher precision (simulated)": 0.474,
+ "A other patterns' recall change (simulated)": {
+  "Consistent deep contributor": 0.0,
+  "Reviewer or coordinator": 0.0,
+  "Burst worker": 0.0,
+  "Free rider": 0.143,
+  "Balanced contributor": 0.0
+ },
+ "A kept": false,
+ "B free rider recall v1 -> with B (all labelled)": [
+  0.196,
+  0.875
+ ],
+ "B free rider precision with B": 0.875,
+ "B kept": true
+}

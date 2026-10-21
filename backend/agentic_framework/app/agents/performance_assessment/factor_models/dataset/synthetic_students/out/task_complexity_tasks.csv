@@ -1,0 +1,220 @@
+task_id,team_id,sprint_id,student_id,task_title,story_points,subtask_count,files_involved,dependency_reach,component_breadth,technical_difficulty,scope_breadth,dependency_impact,architectural_impact,uncertainty,R_avg,TC_GT
+S01-S1-SYN-001-T1,S01,S01-S1,SYN-001,Booking model and create-booking endpoint,5,3,28,0,6,3,3,3,3,2,2.8,0.45
+S01-S1-SYN-001-T2,S01,S01-S1,SYN-001,Seat capacity check,3,3,21,1,5,3,2,3,2,2,2.4,0.35
+S01-S1-SYN-001-T3,S01,S01-S1,SYN-001,Cancel a booking,3,3,14,2,4,2,2,3,2,2,2.2,0.3
+S01-S1-SYN-002-T1,S01,S01-S1,SYN-002,Event list page,5,3,24,1,5,2,2,2,1,1,1.6,0.15
+S01-S1-SYN-002-T2,S01,S01-S1,SYN-002,Event detail page,3,2,23,3,5,2,2,2,1,1,1.6,0.15
+S01-S1-SYN-002-T3,S01,S01-S1,SYN-002,Booking form,5,3,8,0,3,2,2,2,2,2,2,0.25
+S01-S1-SYN-003-T1,S01,S01-S1,SYN-003,Event model and CRUD controller,3,3,21,0,5,2,3,3,3,2,2.6,0.4
+S01-S1-SYN-004-T1,S01,S01-S1,SYN-004,Login and register endpoints,5,3,,,,3,3,4,3,2,3,0.5
+S01-S1-SYN-004-T2,S01,S01-S1,SYN-004,Seed data script,2,1,,,,1,1,1,1,1,1,0.0
+S01-S1-SYN-005-T1,S01,S01-S1,SYN-005,Admin event management UI,5,3,23,0,5,2,3,2,2,2,2.2,0.3
+S01-S1-SYN-005-T2,S01,S01-S1,SYN-005,Admin role check,2,2,15,0,4,2,2,4,3,2,2.6,0.4
+S01-S2-SYN-001-T1,S01,S01-S2,SYN-001,Booking confirmation email,3,3,21,2,5,2,2,2,2,3,2.2,0.3
+S01-S2-SYN-001-T2,S01,S01-S2,SYN-001,List my bookings,3,2,14,2,4,1,1,2,1,1,1.2,0.05
+S01-S2-SYN-001-T3,S01,S01-S2,SYN-001,Paginate bookings,2,2,,,,2,1,2,1,1,1.4,0.1
+S01-S2-SYN-002-T1,S01,S01-S2,SYN-002,My bookings page,3,3,8,0,3,2,2,2,1,1,1.6,0.15
+S01-S2-SYN-002-T2,S01,S01-S2,SYN-002,Navbar and routes,2,2,16,1,4,1,2,2,2,1,1.6,0.15
+S01-S2-SYN-002-T3,S01,S01-S2,SYN-002,Filter events by date,2,2,8,1,3,2,2,2,1,2,1.8,0.2
+S01-S2-SYN-003-T1,S01,S01-S2,SYN-003,Auth middleware and request validation,3,3,21,2,4,3,3,4,3,2,3,0.5
+S01-S2-SYN-003-T2,S01,S01-S2,SYN-003,Event API tests,2,2,7,0,3,2,2,2,1,1,1.6,0.15
+S01-S2-SYN-004-T1,S01,S01-S2,SYN-004,Admin dashboard stub,3,3,16,4,4,2,2,2,2,2,2,0.25
+S01-S2-SYN-005-T1,S01,S01-S2,SYN-005,Prevent double booking under concurrent requests,5,3,28,14,5,5,3,4,4,5,4.2,0.8
+S02-S1-SYN-006-T1,S02,S02-S1,SYN-006,Loan model and checkout endpoint,5,3,26,0,5,3,3,3,3,2,2.8,0.45
+S02-S1-SYN-006-T2,S02,S02-S1,SYN-006,Return a book,3,3,19,1,4,2,2,3,2,1,2,0.25
+S02-S1-SYN-007-T1,S02,S02-S1,SYN-007,Catalogue page with search,5,3,15,0,4,2,2,2,1,2,1.8,0.2
+S02-S1-SYN-007-T2,S02,S02-S1,SYN-007,Book detail page,3,2,16,0,4,2,2,2,1,1,1.6,0.15
+S02-S1-SYN-008-T1,S02,S02-S1,SYN-008,Project setup and CI,3,3,2,0,2,2,3,3,3,2,2.6,0.4
+S02-S1-SYN-009-T1,S02,S02-S1,SYN-009,Member registration endpoint,3,2,,,,2,2,2,2,2,2,0.25
+S02-S1-SYN-010-T1,S02,S02-S1,SYN-010,Book CRUD API,5,3,21,0,4,2,3,3,3,2,2.6,0.4
+S02-S1-SYN-010-T2,S02,S02-S1,SYN-010,Search books,3,3,21,0,4,2,2,2,2,2,2,0.25
+S02-S2-SYN-006-T1,S02,S02-S2,SYN-006,Fine calculation,5,3,28,7,4,3,2,3,2,2,2.4,0.35
+S02-S2-SYN-006-T2,S02,S02-S2,SYN-006,Overdue loans list,3,3,7,1,3,2,2,3,2,2,2.2,0.3
+S02-S2-SYN-007-T1,S02,S02-S2,SYN-007,My loans page,5,3,16,0,4,2,2,2,1,2,1.8,0.2
+S02-S2-SYN-007-T2,S02,S02-S2,SYN-007,Borrow button works,2,2,8,1,3,2,1,2,1,1,1.4,0.1
+S02-S2-SYN-008-T1,S02,S02-S2,SYN-008,Fines report for librarians,5,3,21,6,4,3,2,3,2,2,2.4,0.35
+S02-S2-SYN-009-T1,S02,S02-S2,SYN-009,Member registration endpoint,3,2,7,1,3,2,2,2,2,2,2,0.25
+S02-S2-SYN-010-T1,S02,S02-S2,SYN-010,Book availability endpoint,3,2,7,1,3,2,2,3,3,3,2.6,0.4
+S02-S3-SYN-006-T1,S02,S02-S3,SYN-006,Email reminder before due date,5,3,21,4,3,3,3,3,3,3,3,0.5
+S02-S3-SYN-006-T2,S02,S02-S3,SYN-006,Member borrowing limit,3,2,14,2,3,2,2,3,2,1,2,0.25
+S02-S3-SYN-007-T1,S02,S02-S3,SYN-007,Librarian page: add and edit books,8,4,23,4,4,3,3,2,2,2,2.4,0.35
+S02-S3-SYN-008-T1,S02,S02-S3,SYN-008,Deploy to a test server,3,3,4,0,4,3,4,3,4,4,3.6,0.65
+S02-S3-SYN-010-T1,S02,S02-S3,SYN-010,Reservation queue,3,3,21,8,4,4,3,4,4,3,3.6,0.65
+S03-S1-SYN-011-T1,S03,S03-S1,SYN-011,Cart state,5,3,21,0,5,3,3,3,4,2,3,0.5
+S03-S1-SYN-011-T2,S03,S03-S1,SYN-011,Delivery fee and tax,3,3,14,0,4,2,2,3,2,2,2.2,0.3
+S03-S1-SYN-012-T1,S03,S03-S1,SYN-012,Home screen with restaurant list,5,3,21,6,5,2,3,2,2,2,2.2,0.3
+S03-S1-SYN-012-T2,S03,S03-S1,SYN-012,Menu screen,5,3,7,0,3,2,2,2,2,1,1.8,0.2
+S03-S1-SYN-013-T1,S03,S03-S1,SYN-013,Authentication screens,8,4,28,0,6,3,3,3,4,3,3.2,0.55
+S03-S1-SYN-015-T1,S03,S03-S1,SYN-015,Restaurant and menu models,3,3,28,0,4,2,3,3,3,2,2.6,0.4
+S03-S1-SYN-015-T2,S03,S03-S1,SYN-015,Theme and typography,3,2,7,0,3,1,2,2,2,1,1.6,0.15
+S03-S2-SYN-011-T1,S03,S03-S2,SYN-011,Promo codes,5,3,21,5,5,3,3,3,3,2,2.8,0.45
+S03-S2-SYN-011-T2,S03,S03-S2,SYN-011,Fix tax base,1,1,14,0,4,1,1,3,1,1,1.4,0.1
+S03-S2-SYN-012-T1,S03,S03-S2,SYN-012,Cart and checkout screens,8,4,14,1,3,3,4,3,3,3,3.2,0.55
+S03-S2-SYN-012-T2,S03,S03-S2,SYN-012,Menu add button,2,1,14,2,3,1,1,2,1,1,1.2,0.05
+S03-S2-SYN-013-T1,S03,S03-S2,SYN-013,Live order tracking,5,3,14,4,4,4,3,3,4,4,3.6,0.65
+S03-S2-SYN-013-T2,S03,S03-S2,SYN-013,Rate the order,2,2,,,,1,2,2,1,1,1.4,0.1
+S03-S2-SYN-014-T1,S03,S03-S2,SYN-014,Restaurant search,3,3,7,6,3,2,2,2,2,2,2,0.25
+S03-S2-SYN-015-T1,S03,S03-S2,SYN-015,Offline cache of menus,3,2,21,4,5,4,3,3,4,4,3.6,0.65
+S03-S3-SYN-011-T1,S03,S03-S3,SYN-011,Order history persistence,5,3,28,6,6,3,3,3,4,3,3.2,0.55
+S03-S3-SYN-011-T2,S03,S03-S3,SYN-011,Reorder button,3,3,14,5,4,2,2,3,2,2,2.2,0.3
+S03-S3-SYN-012-T1,S03,S03-S3,SYN-012,Orders screen with status,5,3,7,1,3,2,2,2,2,2,2,0.25
+S03-S3-SYN-012-T2,S03,S03-S3,SYN-012,Empty and error states,2,2,7,1,3,2,3,2,2,1,2,0.25
+S03-S3-SYN-013-T1,S03,S03-S3,SYN-013,Push notifications for order updates,5,3,21,6,5,4,4,3,4,5,4,0.75
+S03-S3-SYN-014-T1,S03,S03-S3,SYN-014,Restaurant search UI,3,3,,,,2,2,2,2,2,2,0.25
+S03-S3-SYN-014-T2,S03,S03-S3,SYN-014,User guide,3,2,2,0,2,1,1,1,1,1,1,0.0
+S03-S3-SYN-015-T1,S03,S03-S3,SYN-015,Accessibility pass,3,3,21,3,3,2,4,2,2,3,2.6,0.4
+S04-S1-SYN-016-T1,S04,S04-S1,SYN-016,Appointment entity and booking service,8,4,35,0,7,4,3,4,4,3,3.6,0.65
+S04-S1-SYN-016-T2,S04,S04-S1,SYN-016,Cancel an appointment,3,3,14,1,4,3,2,3,2,2,2.4,0.35
+S04-S1-SYN-017-T1,S04,S04-S1,SYN-017,Doctor entity and availability,5,3,28,0,6,3,3,3,3,2,2.8,0.45
+S04-S1-SYN-018-T1,S04,S04-S1,SYN-018,Project skeleton and conventions,5,3,4,0,4,2,3,3,4,2,2.8,0.45
+S04-S1-SYN-019-T1,S04,S04-S1,SYN-019,Patient registration,5,3,,,,2,2,2,2,2,2,0.25
+S04-S1-SYN-020-T1,S04,S04-S1,SYN-020,Overlap detection for back-to-back bookings,3,2,21,2,5,5,2,3,3,4,3.4,0.6
+S04-S2-SYN-016-T1,S04,S04-S2,SYN-016,Appointment reminders,5,3,28,8,6,3,3,3,3,3,3,0.5
+S04-S2-SYN-016-T2,S04,S04-S2,SYN-016,Fix cancelled slots staying blocked,2,2,21,3,5,2,2,3,2,2,2.2,0.3
+S04-S2-SYN-017-T1,S04,S04-S2,SYN-017,Free slot calculation,5,3,28,2,6,4,3,4,3,3,3.4,0.6
+S04-S2-SYN-018-T1,S04,S04-S2,SYN-018,Integration test setup,3,3,9,0,5,3,3,3,4,3,3.2,0.55
+S04-S2-SYN-018-T2,S04,S04-S2,SYN-018,Patient registration endpoint,3,2,7,0,3,2,2,2,2,2,2,0.25
+S04-S2-SYN-019-T1,S04,S04-S2,SYN-019,Patient registration,5,3,,,,2,2,2,2,2,2,0.25
+S04-S2-SYN-020-T1,S04,S04-S2,SYN-020,Merge overlapping unavailable intervals,3,2,14,3,4,4,2,3,3,4,3.2,0.55
+S04-S3-SYN-016-T1,S04,S04-S3,SYN-016,Appointment history for patients,3,2,21,4,5,2,2,2,1,1,1.6,0.15
+S04-S3-SYN-017-T1,S04,S04-S3,SYN-017,Doctor leave days,5,3,28,9,6,3,3,4,3,2,3,0.5
+S04-S3-SYN-018-T1,S04,S04-S3,SYN-018,Sprint demo preparation,5,3,3,0,2,2,3,2,2,2,2.2,0.3
+S04-S3-SYN-019-T1,S04,S04-S3,SYN-019,Write patient tests,3,3,7,0,3,2,2,2,1,1,1.6,0.15
+S04-S3-SYN-020-T1,S04,S04-S3,SYN-020,Waiting list when a slot is taken,5,3,14,5,4,5,4,4,4,5,4.4,0.85
+S04-S4-SYN-016-T1,S04,S04-S4,SYN-016,Rescheduling,8,4,28,5,6,4,3,4,3,3,3.4,0.6
+S04-S4-SYN-017-T1,S04,S04-S4,SYN-017,Role based access,5,3,28,0,6,4,5,5,5,4,4.6,0.9
+S04-S4-SYN-018-T1,S04,S04-S4,SYN-018,Release checklist and deployment notes,5,3,2,0,2,2,3,2,3,3,2.6,0.4
+S04-S4-SYN-020-T1,S04,S04-S4,SYN-020,Admin export to CSV,5,3,28,5,6,2,2,2,2,1,1.8,0.2
+S04-S4-SYN-020-T2,S04,S04-S4,SYN-020,Seat/room legend,2,1,7,4,3,1,1,1,1,1,1,0.0
+S05-S1-SYN-021-T1,S05,S05-S1,SYN-021,Question and quiz models,5,3,14,0,3,2,3,3,3,2,2.6,0.4
+S05-S1-SYN-021-T2,S05,S05-S1,SYN-021,Take a quiz page,5,3,15,0,4,3,3,3,3,2,2.8,0.45
+S05-S1-SYN-022-T1,S05,S05-S1,SYN-022,Registration and login,8,4,28,0,4,3,3,4,4,3,3.4,0.6
+S05-S1-SYN-023-T1,S05,S05-S1,SYN-023,Project setup and settings,3,3,22,0,9,2,3,3,4,2,2.8,0.45
+S05-S1-SYN-024-T1,S05,S05-S1,SYN-024,Home page layout,5,3,1,0,1,1,2,2,1,1,1.4,0.1
+S05-S1-SYN-025-T1,S05,S05-S1,SYN-025,Attempt model,3,2,14,0,4,2,2,3,3,2,2.4,0.35
+S05-S2-SYN-021-T1,S05,S05-S2,SYN-021,Scoring,5,3,21,4,4,3,2,3,2,2,2.4,0.35
+S05-S2-SYN-021-T2,S05,S05-S2,SYN-021,Results page,5,3,8,1,4,2,2,2,2,2,2,0.25
+S05-S2-SYN-022-T1,S05,S05-S2,SYN-022,Teacher quiz editor,8,4,22,3,5,3,4,3,3,3,3.2,0.55
+S05-S2-SYN-023-T1,S05,S05-S2,SYN-023,Seed data and fixtures,3,2,1,0,1,1,2,2,1,1,1.4,0.1
+S05-S2-SYN-024-T1,S05,S05-S2,SYN-024,Styling with a template,5,3,1,2,1,2,3,2,2,2,2.2,0.3
+S05-S2-SYN-025-T1,S05,S05-S2,SYN-025,Retake limit,2,2,14,1,4,2,2,2,2,1,1.8,0.2
+S05-S3-SYN-021-T1,S05,S05-S3,SYN-021,Quiz timer,5,3,22,3,5,4,3,3,4,4,3.6,0.65
+S05-S3-SYN-022-T1,S05,S05-S3,SYN-022,Import questions from CSV,8,4,21,3,4,3,3,3,3,3,3,0.5
+S05-S3-SYN-023-T1,S05,S05-S3,SYN-023,Move the team to pull requests,2,2,1,0,1,1,2,1,2,1,1.4,0.1
+S05-S3-SYN-024-T1,S05,S05-S3,SYN-024,Quiz categories,3,2,,,,2,3,3,2,2,2.4,0.35
+S05-S3-SYN-025-T1,S05,S05-S3,SYN-025,Email results to students,5,3,21,1,5,2,2,2,2,3,2.2,0.3
+S05-S4-SYN-021-T1,S05,S05-S4,SYN-021,Leaderboard,5,3,21,1,4,3,2,3,2,2,2.4,0.35
+S05-S4-SYN-021-T2,S05,S05-S4,SYN-021,Dashboard for students,5,3,8,3,4,2,2,2,2,1,1.8,0.2
+S05-S4-SYN-022-T1,S05,S05-S4,SYN-022,Randomise question order,5,3,14,1,4,3,2,3,2,3,2.6,0.4
+S05-S4-SYN-023-T1,S05,S05-S4,SYN-023,Final report data and screenshots,3,2,2,0,1,1,1,1,1,1,1,0.0
+S05-S4-SYN-024-T1,S05,S05-S4,SYN-024,Quiz categories,3,2,,,,2,3,3,2,2,2.4,0.35
+S05-S4-SYN-025-T1,S05,S05-S4,SYN-025,Accessibility labels,2,2,2,4,1,2,4,2,2,2,2.4,0.35
+S06-S1-SYN-026-T1,S06,S06-S1,SYN-026,Product catalogue API,8,4,40,0,6,3,4,4,4,2,3.4,0.6
+S06-S1-SYN-026-T2,S06,S06-S1,SYN-026,Authentication with JWT,3,2,21,1,5,4,3,5,5,3,4,0.75
+S06-S1-SYN-027-T1,S06,S06-S1,SYN-027,Products admin page,8,3,23,0,4,3,3,2,2,2,2.4,0.35
+S06-S1-SYN-028-T1,S06,S06-S1,SYN-028,CI and linting,3,3,3,0,3,2,3,3,3,2,2.6,0.4
+S06-S1-SYN-029-T1,S06,S06-S1,SYN-029,Supplier CRUD,5,3,26,0,6,2,2,2,2,1,1.8,0.2
+S06-S1-SYN-030-T1,S06,S06-S1,SYN-030,Sales database schema and migrations,3,2,18,0,4,4,3,5,5,3,4,0.75
+S06-S2-SYN-026-T1,S06,S06-S2,SYN-026,Point of sale: create a sale,8,4,26,0,5,5,4,5,4,4,4.4,0.85
+S06-S2-SYN-027-T1,S06,S06-S2,SYN-027,Sales screen,8,4,16,0,4,3,3,3,3,3,3,0.5
+S06-S2-SYN-028-T1,S06,S06-S2,SYN-028,Suppliers and categories lookup tables,3,2,19,4,4,2,2,3,2,1,2,0.25
+S06-S2-SYN-029-T1,S06,S06-S2,SYN-029,Customer CRUD,5,3,26,6,5,2,2,2,2,1,1.8,0.2
+S06-S2-SYN-029-T2,S06,S06-S2,SYN-029,Category CRUD,3,2,19,4,5,2,2,2,2,1,1.8,0.2
+S06-S2-SYN-030-T1,S06,S06-S2,SYN-030,Receipt generation,5,3,21,4,4,2,2,2,2,2,2,0.25
+S06-S3-SYN-026-T1,S06,S06-S3,SYN-026,Daily sales report,8,3,21,2,4,3,3,3,3,3,3,0.5
+S06-S3-SYN-026-T2,S06,S06-S3,SYN-026,Low stock alerts,3,2,26,12,5,2,2,3,2,1,2,0.25
+S06-S3-SYN-027-T1,S06,S06-S3,SYN-027,Reports page,5,3,16,0,4,3,3,2,2,3,2.6,0.4
+S06-S3-SYN-028-T1,S06,S06-S3,SYN-028,Stocktake import,5,3,14,1,3,3,3,4,3,3,3.2,0.55
+S06-S3-SYN-029-T1,S06,S06-S3,SYN-029,Purchase history per customer,3,2,19,4,4,2,2,3,2,2,2.2,0.3
+S06-S3-SYN-030-T1,S06,S06-S3,SYN-030,Stock audit log,3,2,,,,3,3,4,4,3,3.4,0.6
+S06-S4-SYN-026-T1,S06,S06-S4,SYN-026,Barcode lookup,3,2,26,12,5,2,2,3,2,2,2.2,0.3
+S06-S4-SYN-026-T2,S06,S06-S4,SYN-026,Supplier orders,8,4,26,6,6,4,4,4,4,3,3.8,0.7
+S06-S4-SYN-027-T1,S06,S06-S4,SYN-027,Low stock banner,3,2,8,0,3,2,2,2,2,1,1.8,0.2
+S06-S4-SYN-027-T2,S06,S06-S4,SYN-027,Error toasts,5,3,15,4,3,2,3,3,3,2,2.6,0.4
+S06-S4-SYN-028-T1,S06,S06-S4,SYN-028,Release notes and demo data,3,2,8,8,4,1,1,1,1,1,1,0.0
+S06-S4-SYN-029-T1,S06,S06-S4,SYN-029,Export products to CSV,3,2,14,1,3,2,2,2,1,1,1.6,0.15
+S07-S1-SYN-031-T1,S07,S07-S1,SYN-031,Workout model and log endpoint,5,3,42,0,8,2,2,3,3,2,2.4,0.35
+S07-S1-SYN-032-T1,S07,S07-S1,SYN-032,Home screen,5,3,31,0,6,2,2,2,2,2,2,0.25
+S07-S1-SYN-033-T1,S07,S07-S1,SYN-033,Registration and login,5,3,28,0,6,3,3,4,4,2,3.2,0.55
+S07-S1-SYN-034-T1,S07,S07-S1,SYN-034,Project README and setup docs,2,2,1,0,1,1,1,1,1,1,1,0.0
+S07-S2-SYN-031-T1,S07,S07-S2,SYN-031,Workout history with filters,5,3,14,2,4,3,3,3,2,2,2.6,0.4
+S07-S2-SYN-031-T2,S07,S07-S2,SYN-031,Delete and edit a workout,3,3,21,3,5,2,2,3,2,2,2.2,0.3
+S07-S2-SYN-032-T1,S07,S07-S2,SYN-032,Log workout screen,5,3,8,0,3,2,2,2,2,2,2,0.25
+S07-S2-SYN-033-T1,S07,S07-S2,SYN-033,Offline queue for logged workouts,5,3,22,2,5,5,4,4,5,5,4.6,0.9
+S07-S2-SYN-034-T1,S07,S07-S2,SYN-034,Chart component,3,2,8,2,3,2,2,2,2,2,2,0.25
+S07-S2-SYN-035-T1,S07,S07-S2,SYN-035,Time zone aware daily buckets,3,2,21,4,5,5,3,4,3,5,4,0.75
+S07-S3-SYN-031-T1,S07,S07-S3,SYN-031,Weekly statistics,5,3,21,0,5,3,3,3,3,2,2.8,0.45
+S07-S3-SYN-032-T1,S07,S07-S3,SYN-032,History screen,5,3,,,,2,2,2,2,2,2,0.25
+S07-S3-SYN-033-T1,S07,S07-S3,SYN-033,Push reminders,5,3,23,0,5,3,3,3,3,4,3.2,0.55
+S07-S3-SYN-034-T1,S07,S07-S3,SYN-034,Unit tests for stats,2,1,7,0,3,2,2,2,1,1,1.6,0.15
+S07-S3-SYN-035-T1,S07,S07-S3,SYN-035,Exercise library screens,5,3,8,1,3,2,3,1,2,1,1.8,0.2
+S07-S4-SYN-031-T1,S07,S07-S4,SYN-031,Streak calculation,8,3,21,1,5,4,2,3,2,3,2.8,0.45
+S07-S4-SYN-032-T1,S07,S07-S4,SYN-032,History screen,5,3,16,1,4,2,2,2,2,2,2,0.25
+S07-S4-SYN-033-T1,S07,S07-S4,SYN-033,Share a workout,3,2,23,2,5,2,2,2,1,2,1.8,0.2
+S07-S4-SYN-034-T1,S07,S07-S4,SYN-034,Unit tests for stats,2,1,,,,2,2,2,1,1,1.6,0.15
+S07-S4-SYN-035-T1,S07,S07-S4,SYN-035,Personal records,5,3,14,2,4,4,3,4,3,4,3.6,0.65
+S07-S5-SYN-031-T1,S07,S07-S5,SYN-031,Goals API,5,3,28,0,6,3,3,3,3,2,2.8,0.45
+S07-S5-SYN-032-T1,S07,S07-S5,SYN-032,Stats screen,5,3,16,0,4,3,3,2,2,2,2.4,0.35
+S07-S5-SYN-033-T1,S07,S07-S5,SYN-033,Accessibility and large text,5,3,24,5,4,3,4,2,2,3,2.8,0.45
+S07-S5-SYN-035-T1,S07,S07-S5,SYN-035,Seed 200 sample workouts for the demo,3,2,15,11,4,1,1,1,1,1,1,0.0
+S08-S1-SYN-036-T1,S08,S08-S1,SYN-036,Home page with listing grid,5,3,16,0,4,2,3,2,2,2,2.2,0.3
+S08-S1-SYN-037-T1,S08,S08-S1,SYN-037,Prisma schema and auth,5,3,29,0,5,4,4,5,5,3,4.2,0.8
+S08-S1-SYN-038-T1,S08,S08-S1,SYN-038,Repository setup and conventions,5,3,3,0,3,2,3,3,3,1,2.4,0.35
+S08-S2-SYN-036-T1,S08,S08-S2,SYN-036,Listing detail page,5,3,8,0,3,2,2,2,2,2,2,0.25
+S08-S2-SYN-036-T2,S08,S08-S2,SYN-036,Sell page form,8,4,8,0,3,3,3,3,3,3,3,0.5
+S08-S2-SYN-037-T1,S08,S08-S2,SYN-037,Listings API,8,4,14,0,3,3,3,4,3,2,3,0.5
+S08-S2-SYN-038-T1,S08,S08-S2,SYN-038,Image domains and caching config,3,2,7,0,7,2,2,2,3,2,2.2,0.3
+S08-S2-SYN-039-T1,S08,S08-S2,SYN-039,Categories for listings,3,2,1,0,1,2,3,3,2,2,2.4,0.35
+S08-S3-SYN-036-T1,S08,S08-S3,SYN-036,Finish the sell form,5,3,8,0,3,3,3,3,2,2,2.6,0.4
+S08-S3-SYN-037-T1,S08,S08-S3,SYN-037,Photo upload,5,3,21,6,4,4,4,4,4,4,4,0.75
+S08-S3-SYN-038-T1,S08,S08-S3,SYN-038,Content moderation helper,3,2,21,0,4,2,2,3,2,2,2.2,0.3
+S08-S3-SYN-039-T1,S08,S08-S3,SYN-039,Categories for listings,3,2,15,2,4,2,3,3,2,2,2.4,0.35
+S08-S4-SYN-036-T1,S08,S08-S4,SYN-036,Messages page,8,4,16,0,4,3,3,3,3,3,3,0.5
+S08-S4-SYN-037-T1,S08,S08-S4,SYN-037,Search with filters,8,4,22,2,5,3,3,4,3,2,3,0.5
+S08-S4-SYN-038-T1,S08,S08-S4,SYN-038,Rate limiting for messages,3,3,21,2,4,3,2,3,3,3,2.8,0.45
+S08-S4-SYN-039-T1,S08,S08-S4,SYN-039,Report a listing,5,3,,,,3,3,3,3,2,2.8,0.45
+S08-S4-SYN-040-T1,S08,S08-S4,SYN-040,Email notification for new messages,5,3,15,0,4,3,3,3,3,3,3,0.5
+S08-S5-SYN-036-T1,S08,S08-S5,SYN-036,Send message and offers UI,8,4,22,2,5,3,3,3,3,3,3,0.5
+S08-S5-SYN-037-T1,S08,S08-S5,SYN-037,Offers API,8,4,14,0,3,4,3,4,4,3,3.6,0.65
+S08-S5-SYN-038-T1,S08,S08-S5,SYN-038,Final documentation,5,3,2,0,1,1,2,1,1,1,1.2,0.05
+S08-S5-SYN-039-T1,S08,S08-S5,SYN-039,FAQ page,2,2,8,0,3,1,1,1,1,1,1,0.0
+S08-S5-SYN-040-T1,S08,S08-S5,SYN-040,Mark listings as sold,3,2,22,2,5,2,2,3,2,1,2,0.25
+S09-S1-SYN-041-T1,S09,S09-S1,SYN-041,Equal and custom split,8,4,21,0,5,4,2,3,3,3,3,0.5
+S09-S1-SYN-042-T1,S09,S09-S1,SYN-042,App skeleton and navigation,3,2,8,0,4,2,3,3,4,2,2.8,0.45
+S09-S1-SYN-043-T1,S09,S09-S1,SYN-043,Room database setup,5,3,,,,3,3,4,4,3,3.4,0.6
+S09-S1-SYN-044-T1,S09,S09-S1,SYN-044,CSV export of expenses,5,3,14,0,4,2,2,2,2,2,2,0.25
+S09-S1-SYN-045-T1,S09,S09-S1,SYN-045,Offline sync conflict handling,5,3,21,2,4,5,4,5,5,5,4.8,0.95
+S09-S2-SYN-041-T1,S09,S09-S2,SYN-041,Who owes whom,5,3,21,0,5,5,3,3,3,4,3.6,0.65
+S09-S2-SYN-042-T1,S09,S09-S2,SYN-042,Add expense screen,5,3,21,0,4,3,3,3,3,2,2.8,0.45
+S09-S2-SYN-043-T1,S09,S09-S2,SYN-043,Groups screen,5,3,7,0,3,2,2,2,2,2,2,0.25
+S09-S2-SYN-044-T1,S09,S09-S2,SYN-044,Share CSV from the balances screen,3,2,21,0,5,2,2,2,2,2,2,0.25
+S09-S2-SYN-045-T1,S09,S09-S2,SYN-045,Recurring expenses,8,4,14,2,4,4,3,3,3,4,3.4,0.6
+S09-S3-SYN-041-T1,S09,S09-S3,SYN-041,Rounding bug fix,3,2,14,4,4,3,2,3,2,3,2.6,0.4
+S09-S3-SYN-041-T2,S09,S09-S3,SYN-041,Multiple currencies,3,2,28,7,5,4,4,5,4,4,4.2,0.8
+S09-S3-SYN-042-T1,S09,S09-S3,SYN-042,Release APK and test notes,5,3,3,0,2,2,3,2,3,2,2.4,0.35
+S09-S3-SYN-043-T1,S09,S09-S3,SYN-043,Create group dialog,3,2,14,5,3,2,2,2,2,1,1.8,0.2
+S09-S3-SYN-044-T1,S09,S09-S3,SYN-044,Dark theme,3,2,14,1,3,2,3,2,2,2,2.2,0.3
+S09-S3-SYN-045-T1,S09,S09-S3,SYN-045,Conflict log screen,3,2,7,5,3,2,2,3,3,3,2.6,0.4
+S10-S1-SYN-046-T1,S10,S10-S1,SYN-046,Receive sensor readings,5,3,49,0,5,3,3,4,4,3,3.4,0.6
+S10-S1-SYN-047-T1,S10,S10-S1,SYN-047,Device list view,5,3,22,0,4,2,2,2,2,2,2,0.25
+S10-S1-SYN-048-T1,S10,S10-S1,SYN-048,Device registry,5,3,21,0,4,3,2,3,3,2,2.6,0.4
+S10-S1-SYN-049-T1,S10,S10-S1,SYN-049,Health check endpoint,1,1,7,0,3,1,1,1,1,1,1,0.0
+S10-S1-SYN-050-T1,S10,S10-S1,SYN-050,Dashboard layout,5,3,15,0,4,2,3,2,2,1,2,0.25
+S10-S2-SYN-046-T1,S10,S10-S2,SYN-046,MQTT subscription,5,3,21,0,3,4,3,4,4,4,3.8,0.7
+S10-S2-SYN-046-T2,S10,S10-S2,SYN-046,Plausibility range check,2,2,14,2,3,2,1,3,2,1,1.8,0.2
+S10-S2-SYN-047-T1,S10,S10-S2,SYN-047,Dashboard with a temperature chart,8,3,16,1,4,3,3,3,3,3,3,0.5
+S10-S2-SYN-048-T1,S10,S10-S2,SYN-048,Bulk import of historic data,8,4,21,3,4,4,4,4,3,3,3.6,0.65
+S10-S2-SYN-049-T1,S10,S10-S2,SYN-049,Device status page,3,2,7,1,3,2,2,3,2,2,2.2,0.3
+S10-S2-SYN-050-T1,S10,S10-S2,SYN-050,Devices API tests,3,3,14,0,2,2,2,2,1,1,1.6,0.15
+S10-S3-SYN-046-T1,S10,S10-S3,SYN-046,Hourly aggregates,8,4,21,1,4,4,3,4,3,3,3.4,0.6
+S10-S3-SYN-046-T2,S10,S10-S3,SYN-046,Index on readings,2,1,7,8,3,2,1,3,3,2,2.2,0.3
+S10-S3-SYN-047-T1,S10,S10-S3,SYN-047,Alerts view and settings,8,4,15,1,4,3,3,3,3,2,2.8,0.45
+S10-S3-SYN-048-T1,S10,S10-S3,SYN-048,Alert rules engine,5,3,26,5,5,5,4,4,4,4,4.2,0.8
+S10-S3-SYN-049-T1,S10,S10-S3,SYN-049,Device status page,3,2,,,,2,2,3,2,2,2.2,0.3
+S10-S3-SYN-050-T1,S10,S10-S3,SYN-050,Alert history page,5,3,22,0,5,2,2,3,2,2,2.2,0.3
+S10-S4-SYN-046-T1,S10,S10-S4,SYN-046,Integrate ingestion with alerts,5,3,21,8,3,5,4,5,5,4,4.6,0.9
+S10-S4-SYN-047-T1,S10,S10-S4,SYN-047,Offline badge and auto refresh,5,3,16,2,3,3,3,3,3,2,2.8,0.45
+S10-S4-SYN-048-T1,S10,S10-S4,SYN-048,Export and backup,5,3,15,1,4,3,3,3,3,3,3,0.5
+S10-S4-SYN-049-T1,S10,S10-S4,SYN-049,Project README,2,2,1,0,1,1,1,1,1,1,1,0.0
+S10-S4-SYN-050-T1,S10,S10-S4,SYN-050,User guide,3,2,1,0,1,1,1,1,1,1,1,0.0
+S10-S4-SYN-050-T2,S10,S10-S4,SYN-050,Chart axis labels,2,2,8,2,3,1,1,2,1,1,1.2,0.05

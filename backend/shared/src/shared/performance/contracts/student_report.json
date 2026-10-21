@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/student_report/1",
+  "title": "Student report",
+  "type": "object",
+  "required": ["schema", "generated", "profile", "hero", "flags", "contributions", "brief", "why", "radar", "factors", "pattern", "audit"],
+  "properties": {
+    "schema": {"const": "student_report/1"}, "generated": {"type": "object"}, "profile": {"type": "object"}, "hero": {"type": "object"},
+    "flags": {"type": "array"}, "contributions": {"type": "object"}, "brief": {"type": "object"}, "why": {"type": "object"},
+    "radar": {"type": "object"}, "factors": {"type": "array"}, "pattern": {"type": "object"}, "audit": {"type": ["object", "null"]}
+  }
+}

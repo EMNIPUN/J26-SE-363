@@ -82,6 +82,20 @@ class Settings(BaseSettings):
     # GitHub Ingestion Settings
     GITHUB_TOKEN: Optional[str] = None
 
+    # The GitHub App that links a team repository and proves who owns a GitHub account
+    # (see docs/GITHUB_APP.md). Leave empty to switch the linking off.
+    GITHUB_APP_ID: str = ""
+    GITHUB_APP_SLUG: str = ""
+    GITHUB_APP_CLIENT_ID: str = ""
+    GITHUB_APP_CLIENT_SECRET: str = ""
+    GITHUB_APP_PRIVATE_KEY: str = ""
+    GITHUB_APP_PRIVATE_KEY_PATH: str = ""
+    # Signs the short-lived state that GitHub hands back to us; defaults to the App's client secret.
+    GITHUB_STATE_SECRET: str = ""
+    # Where GitHub sends the browser back to: the web app's /api prefix (the dev server and the
+    # gateway forward it to this API). Register <this>/github/callback and <this>/github/installed.
+    GITHUB_CALLBACK_BASE: str = "http://localhost:5173/api"
+
     # Agent Job Queue Retention (Clean up finished/failed jobs older than X hours)
     AGENT_JOB_RETENTION_HOURS: int = 24
 
@@ -91,6 +105,12 @@ class Settings(BaseSettings):
     # Shared secret sent to the AI Backend as `X-Internal-Token`; must equal the value in
     # backend/agentic_framework/.env (AI_BACKEND_INTERNAL_TOKEN).
     AI_BACKEND_INTERNAL_TOKEN: Optional[str] = None
+
+    # Security Assistant result folders the Security Assistant pages read (read-only), see app/modules/security.
+    # Unset: backend/agentic_framework/scan_output/results (git-ignored).
+    SECURITY_ASSISTANT_RESULTS_DIR: Optional[str] = None
+    # Serve the checked-in sample run instead of the result folders. Off by default, never turned on automatically.
+    SECURITY_ASSISTANT_DEMO_MODE: bool = False
 
     model_config = SettingsConfigDict(
         env_file=SERVER_ENV_FILE,
@@ -129,6 +149,11 @@ class Settings(BaseSettings):
                     f"{self.SERVER_POSTGRES_DB}"
                 )
         return self
+
+    @property
+    def security_assistant_results_dir(self) -> Path:
+        default = Path(__file__).resolve().parents[3] / "agentic_framework" / "scan_output" / "results"
+        return Path(self.SECURITY_ASSISTANT_RESULTS_DIR) if self.SECURITY_ASSISTANT_RESULTS_DIR else default
 
     @property
     def keycloak_issuer(self) -> str:

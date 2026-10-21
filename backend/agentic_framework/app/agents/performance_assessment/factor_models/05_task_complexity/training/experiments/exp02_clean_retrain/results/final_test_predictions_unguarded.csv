@@ -1,0 +1,121 @@
+name,outer_test,record_id,y,pred,activity
+"Ridge (rated only, LOO alpha) | proposal",A,T01-S1-STU-009,0.35,0.24212804373757663,3
+"Ridge (rated only, LOO alpha) | proposal",A,T01-S2-STU-021,0.5,0.3327574097273032,2
+"Ridge (rated only, LOO alpha) | proposal",A,T03-S2-STU-011,0.35,0.399768313091175,1
+"Ridge (rated only, LOO alpha) | proposal",A,T03-S3-STU-019,0.3,0.4710991814721452,6
+"Ridge (rated only, LOO alpha) | proposal",A,T11-S2-STU-017,0.65,0.6255055941722649,17
+"Ridge (rated only, LOO alpha) | proposal",A,T13-S2-STU-003,0.65,0.7085895294652733,4
+"Ridge (rated only, LOO alpha) | proposal",A,T13-S2-STU-006,0.55,0.4385166790026994,9
+mean,A,T01-S1-STU-009,0.35,0.38076923076923086,3
+mean,A,T01-S2-STU-021,0.5,0.38076923076923086,2
+mean,A,T03-S2-STU-011,0.35,0.38076923076923086,1
+mean,A,T03-S3-STU-019,0.3,0.38076923076923086,6
+mean,A,T11-S2-STU-017,0.65,0.38076923076923086,17
+mean,A,T13-S2-STU-003,0.65,0.38076923076923086,4
+mean,A,T13-S2-STU-006,0.55,0.38076923076923086,9
+median,A,T01-S1-STU-009,0.35,0.4,3
+median,A,T01-S2-STU-021,0.5,0.4,2
+median,A,T03-S2-STU-011,0.35,0.4,1
+median,A,T03-S3-STU-019,0.3,0.4,6
+median,A,T11-S2-STU-017,0.65,0.4,17
+median,A,T13-S2-STU-003,0.65,0.4,4
+median,A,T13-S2-STU-006,0.55,0.4,9
+story points (linear),A,T01-S1-STU-009,0.35,0.341289440788242,3
+story points (linear),A,T01-S2-STU-021,0.5,0.4446313523847416,2
+story points (linear),A,T03-S2-STU-011,0.35,0.4239629700654417,1
+story points (linear),A,T03-S3-STU-019,0.3,0.4239629700654417,6
+story points (linear),A,T11-S2-STU-017,0.65,0.4859681170233414,17
+story points (linear),A,T13-S2-STU-003,0.65,0.4446313523847416,4
+story points (linear),A,T13-S2-STU-006,0.55,0.341289440788242,9
+subtasks (linear),A,T01-S1-STU-009,0.35,0.3599085365853658,3
+subtasks (linear),A,T01-S2-STU-021,0.5,0.42770579268292674,2
+subtasks (linear),A,T03-S2-STU-011,0.35,0.42770579268292674,1
+subtasks (linear),A,T03-S3-STU-019,0.3,0.42770579268292674,6
+subtasks (linear),A,T11-S2-STU-017,0.65,0.42770579268292674,17
+subtasks (linear),A,T13-S2-STU-003,0.65,0.42770579268292674,4
+subtasks (linear),A,T13-S2-STU-006,0.55,0.38250762195121946,9
+"files involved (log, linear)",A,T01-S1-STU-009,0.35,0.4170088035241726,3
+"files involved (log, linear)",A,T01-S2-STU-021,0.5,0.5094803414053045,2
+"files involved (log, linear)",A,T03-S2-STU-011,0.35,0.4170088035241726,1
+"files involved (log, linear)",A,T03-S3-STU-019,0.3,0.4297141786026789,6
+"files involved (log, linear)",A,T11-S2-STU-017,0.65,0.5779700412109878,17
+"files involved (log, linear)",A,T13-S2-STU-003,0.65,0.3510565600814128,4
+"files involved (log, linear)",A,T13-S2-STU-006,0.55,0.372288440166488,9
+"Ridge (rated only, LOO alpha) | proposal",B,T07-S2-STU-018,0.6,0.4220306501688428,12
+"Ridge (rated only, LOO alpha) | proposal",B,T07-S2-STU-013,0.4,0.44907943396450645,4
+"Ridge (rated only, LOO alpha) | proposal",B,T09-S1-STU-001,0.5,0.341004173189298,18
+"Ridge (rated only, LOO alpha) | proposal",B,T09-S1-STU-007,0.35,0.40387880418124833,14
+mean,B,T07-S2-STU-018,0.6,0.403125,12
+mean,B,T07-S2-STU-013,0.4,0.403125,4
+mean,B,T09-S1-STU-001,0.5,0.403125,18
+mean,B,T09-S1-STU-007,0.35,0.403125,14
+median,B,T07-S2-STU-018,0.6,0.375,12
+median,B,T07-S2-STU-013,0.4,0.375,4
+median,B,T09-S1-STU-001,0.5,0.375,18
+median,B,T09-S1-STU-007,0.35,0.375,14
+story points (linear),B,T07-S2-STU-018,0.6,0.385855290212867,12
+story points (linear),B,T07-S2-STU-013,0.4,0.4376676578472431,4
+story points (linear),B,T09-S1-STU-001,0.5,0.34699601448708495,18
+story points (linear),B,T09-S1-STU-007,0.35,0.35129644100073815,14
+subtasks (linear),B,T07-S2-STU-018,0.6,0.29570032573289906,12
+subtasks (linear),B,T07-S2-STU-013,0.4,0.46338762214983714,4
+subtasks (linear),B,T09-S1-STU-001,0.5,0.25377850162866455,18
+subtasks (linear),B,T09-S1-STU-007,0.35,0.46338762214983714,14
+"files involved (log, linear)",B,T07-S2-STU-018,0.6,0.465637273920784,12
+"files involved (log, linear)",B,T07-S2-STU-013,0.4,0.4287633695479193,4
+"files involved (log, linear)",B,T09-S1-STU-001,0.5,0.43630969357681515,18
+"files involved (log, linear)",B,T09-S1-STU-007,0.35,0.3766292295508858,14
+"Ridge (rated only, LOO alpha) | proposal",C,T04-S2-STU-027,0.05,0.43675051287807143,0
+"Ridge (rated only, LOO alpha) | proposal",C,T04-S3-STU-010,0.3,0.5340228609749219,0
+"Ridge (rated only, LOO alpha) | proposal",C,T05-S1-STU-012,0.3,0.4310971203024824,4
+"Ridge (rated only, LOO alpha) | proposal",C,T05-S3-STU-022,0.3,0.5833011035038885,0
+mean,C,T04-S2-STU-027,0.05,0.459375,0
+mean,C,T04-S3-STU-010,0.3,0.459375,0
+mean,C,T05-S1-STU-012,0.3,0.459375,4
+mean,C,T05-S3-STU-022,0.3,0.459375,0
+median,C,T04-S2-STU-027,0.05,0.42500000000000004,0
+median,C,T04-S3-STU-010,0.3,0.42500000000000004,0
+median,C,T05-S1-STU-012,0.3,0.42500000000000004,4
+median,C,T05-S3-STU-022,0.3,0.42500000000000004,0
+story points (linear),C,T04-S2-STU-027,0.05,0.38881202606403087,0
+story points (linear),C,T04-S3-STU-010,0.3,0.4307140295889532,0
+story points (linear),C,T05-S1-STU-012,0.3,0.38881202606403087,4
+story points (linear),C,T05-S3-STU-022,0.3,0.47261603311387557,0
+subtasks (linear),C,T04-S2-STU-027,0.05,0.446779661016949,0
+subtasks (linear),C,T04-S3-STU-010,0.3,0.45169491525423716,0
+subtasks (linear),C,T05-S1-STU-012,0.3,0.45169491525423716,4
+subtasks (linear),C,T05-S3-STU-022,0.3,0.45169491525423716,0
+"files involved (log, linear)",C,T04-S2-STU-027,0.05,0.459375,0
+"files involved (log, linear)",C,T04-S3-STU-010,0.3,0.4916386420529195,0
+"files involved (log, linear)",C,T05-S1-STU-012,0.3,0.4135017314890399,4
+"files involved (log, linear)",C,T05-S3-STU-022,0.3,0.459375,0
+"Ridge (rated only, LOO alpha) | proposal",D,T08-S1-STU-008,0.45,0.34816611417637333,3
+"Ridge (rated only, LOO alpha) | proposal",D,T08-S2-STU-025,0.35,0.41440135032496933,2
+"Ridge (rated only, LOO alpha) | proposal",D,T14-S1-STU-016,0.4,0.4022943820515325,13
+mean,D,T08-S1-STU-008,0.45,0.41764705882352937,3
+mean,D,T08-S2-STU-025,0.35,0.41764705882352937,2
+mean,D,T14-S1-STU-016,0.4,0.41764705882352937,13
+median,D,T08-S1-STU-008,0.45,0.4,3
+median,D,T08-S2-STU-025,0.35,0.4,2
+median,D,T14-S1-STU-016,0.4,0.4,13
+story points (linear),D,T08-S1-STU-008,0.45,0.3424814009724868,3
+story points (linear),D,T08-S2-STU-025,0.35,0.2882976167436896,2
+story points (linear),D,T14-S1-STU-016,0.4,0.46889216957827073,13
+subtasks (linear),D,T08-S1-STU-008,0.45,0.4625954198473283,3
+subtasks (linear),D,T08-S2-STU-025,0.35,0.3534351145038168,2
+subtasks (linear),D,T14-S1-STU-016,0.4,0.4625954198473283,13
+"files involved (log, linear)",D,T08-S1-STU-008,0.45,0.41342182887644807,3
+"files involved (log, linear)",D,T08-S2-STU-025,0.35,0.4228643204616278,2
+"files involved (log, linear)",D,T14-S1-STU-016,0.4,0.41883540812261094,13
+"Ridge (rated only, LOO alpha) | proposal",E,T06-S1-STU-004,0.4,0.40002625893322047,0
+"Ridge (rated only, LOO alpha) | proposal",E,T06-S1-STU-029,0.55,0.5976374553506736,0
+mean,E,T06-S1-STU-004,0.4,0.4083333333333333,0
+mean,E,T06-S1-STU-029,0.55,0.4083333333333333,0
+median,E,T06-S1-STU-004,0.4,0.375,0
+median,E,T06-S1-STU-029,0.55,0.375,0
+story points (linear),E,T06-S1-STU-004,0.4,0.4622396609724666,0
+story points (linear),E,T06-S1-STU-029,0.55,0.6232074608238936,0
+subtasks (linear),E,T06-S1-STU-004,0.4,0.4656504065040647,0
+subtasks (linear),E,T06-S1-STU-029,0.55,0.580284552845528,0
+"files involved (log, linear)",E,T06-S1-STU-004,0.4,0.4607520333258259,0
+"files involved (log, linear)",E,T06-S1-STU-029,0.55,0.48523428879974556,0

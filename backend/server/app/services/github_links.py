@@ -1,0 +1,274 @@
+"""Who is who on GitHub, and which repository a team works in.
+
+Three facts are kept, all verified by GitHub rather than typed:
+  * ``UserGithubAccount``   this person signed in to GitHub from the system, so they own that account;
+  * ``TeamGithub``          the team leader installed the GitHub App on a repository and picked it for the team;
+  * ``TeamGithubAccess``    what GitHub says each linked member may do on that repository (none, read, write, admin).
+The assessment agent is started from these facts only (``agent_roster``); nobody types a roster.
+"""
+import uuid
+from datetime import datetime, timedelta, timezone
+
+from shared.github_app import GitHubApp, GitHubAppConfig, GitHubAppError, noreply_emails
+from sqlalchemy import and_, func, select, update
+from sqlalchemy.orm import Session, aliased
+
+from app.core.config import settings
+from app.core.errors import bad_request, conflict
+from app.services import avatars
+from app.models import Group, GroupMember, MemberRole, TeamGithub, TeamGithubAccess, User, UserGithubAccount
+
+WRITE = ("write", "admin")
+
+
+def app_config() -> GitHubAppConfig:
+    key = settings.GITHUB_APP_PRIVATE_KEY
+    if not key and settings.GITHUB_APP_PRIVATE_KEY_PATH:
+        from pathlib import Path
+
+        p = Path(settings.GITHUB_APP_PRIVATE_KEY_PATH)
+        key = p.read_text(encoding="utf-8") if p.is_file() else ""
+    return GitHubAppConfig(app_id=settings.GITHUB_APP_ID, slug=settings.GITHUB_APP_SLUG, client_id=settings.GITHUB_APP_CLIENT_ID, client_secret=settings.GITHUB_APP_CLIENT_SECRET,
+                           private_key=key.replace("\\n", "\n"), state_secret=settings.GITHUB_STATE_SECRET or settings.GITHUB_APP_CLIENT_SECRET)
+
+
+def now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def callback_url(path: str) -> str:
+    return f"{settings.GITHUB_CALLBACK_BASE.rstrip('/')}/github/{path}"
+
+
+def team_link(db: Session, group: Group) -> TeamGithub | None:
+    return db.scalar(select(TeamGithub).where(TeamGithub.group_id == group.id))
+
+
+def linked_accounts(db: Session, user_ids: list[uuid.UUID]) -> dict[uuid.UUID, UserGithubAccount]:
+    if not user_ids:
+        return {}
+    return {a.user_id: a for a in db.scalars(select(UserGithubAccount).where(UserGithubAccount.user_id.in_(user_ids)))}
+
+
+# ---- the team ------------------------------------------------------------------------------------------------------------------------
+
+def link_installation(db: Session, group: Group, installation_id: int, by: User, app: GitHubApp) -> TeamGithub:
+    """Remember the installation the leader made for this team. A different installation than before clears the chosen repository."""
+    try:
+        account = app.installation_account(installation_id)
+    except GitHubAppError as e:
+        raise bad_request("github_installation", str(e)) from None
+    row = team_link(db, group)
+    if row is None:
+        row = TeamGithub(group_id=group.id, installation_id=installation_id)
+        db.add(row)
+    elif row.installation_id != installation_id:
+        row.repo_full_name = row.repo_id = None
+        db.query(TeamGithubAccess).filter(TeamGithubAccess.group_id == group.id).delete()
+    row.installation_id, row.account_login, row.linked_by_id = installation_id, account.get("login"), by.id
+    db.commit()
+    return row
+
+
+def available_repos(db: Session, group: Group, app: GitHubApp) -> list[dict]:
+    row = team_link(db, group)
+    if row is None:
+        raise bad_request("github_not_installed", "Install the GitHub App on your repository first")
+    try:
+        return app.installation_repos(row.installation_id)
+    except GitHubAppError as e:
+        raise bad_request("github_installation", str(e)) from None
+
+
+def choose_repo(db: Session, group: Group, full_name: str, by: User, app: GitHubApp) -> TeamGithub:
+    """The repository the team works in. It must be one the leader gave the App access to."""
+    repos = {r["full_name"].lower(): r for r in available_repos(db, group, app)}
+    chosen = repos.get(full_name.strip().lower())
+    if chosen is None:
+        raise bad_request("github_repo_not_available", "The App is not installed on that repository")
+    row = team_link(db, group)
+    row.repo_full_name, row.repo_id, row.repo_private, row.linked_by_id = chosen["full_name"], chosen["id"], chosen["private"], by.id
+    group.repo_url = f"https://github.com/{chosen['full_name']}"
+    db.commit()
+    refresh_access(db, group, app)
+    return row
+
+
+def unlink(db: Session, group: Group) -> None:
+    db.query(TeamGithubAccess).filter(TeamGithubAccess.group_id == group.id).delete()
+    db.query(TeamGithub).filter(TeamGithub.group_id == group.id).delete()
+    group.repo_url = None
+    db.commit()
+
+
+def refresh_access(db: Session, group: Group, app: GitHubApp) -> list[TeamGithubAccess]:
+    """Ask GitHub what each member who linked an account may do on the repository."""
+    row = team_link(db, group)
+    if row is None or not row.repo_full_name:
+        return []
+    students = [m.user_id for m in group.members if m.role is MemberRole.MEMBER]
+    accounts = linked_accounts(db, students)
+    existing = {a.user_id: a for a in db.scalars(select(TeamGithubAccess).where(TeamGithubAccess.group_id == group.id))}
+    out = []
+    for uid in students:
+        acc = accounts.get(uid)
+        if acc is None:
+            if uid in existing:
+                db.delete(existing[uid])
+            continue
+        try:
+            perm = app.permission(row.installation_id, row.repo_full_name, acc.login)
+        except GitHubAppError:
+            continue  # keep the earlier answer; GitHub may be down for a moment
+        rec = existing.get(uid) or TeamGithubAccess(group_id=group.id, user_id=uid)
+        rec.permission, rec.checked_at = perm, now()
+        db.add(rec)
+        out.append(rec)
+    db.commit()
+    return out
+
+
+# ---- a person ------------------------------------------------------------------------------------------------------------------------
+
+def connect_user(db: Session, user: User, code: str, redirect_uri: str, app: GitHubApp) -> UserGithubAccount:
+    try:
+        token = app.exchange_code(code, redirect_uri)
+        who = app.user(token)
+    except GitHubAppError as e:
+        raise bad_request("github_sign_in", str(e)) from None
+    other = db.scalar(select(UserGithubAccount).where(UserGithubAccount.github_id == who["id"], UserGithubAccount.user_id != user.id))
+    if other is not None:
+        raise conflict("github_account_taken", "That GitHub account is already linked to another person")
+    acc = db.scalar(select(UserGithubAccount).where(UserGithubAccount.user_id == user.id))
+    if acc is None:
+        acc = UserGithubAccount(user_id=user.id, github_id=who["id"], login=who["login"], verified_at=now())
+        db.add(acc)
+    acc.github_id, acc.login, acc.avatar_url, acc.verified_at = who["id"], who["login"], who.get("avatar_url"), now()
+    db.commit()
+    return acc
+
+
+def disconnect_user(db: Session, user: User) -> None:
+    db.query(TeamGithubAccess).filter(TeamGithubAccess.user_id == user.id).delete()
+    db.query(UserGithubAccount).filter(UserGithubAccount.user_id == user.id).delete()
+    db.commit()
+
+
+# ---- the gate in front of the team ----------------------------------------------------------------------------------------------------
+
+def gate(db: Session, ref: str, user: User, is_admin: bool, app: GitHubApp) -> dict | None:
+    """May this person enter the team? Checked live against GitHub on every call. ``None`` when there is no such team or the person is not in it (and is no administrator).
+
+    Students must have linked a GitHub account (verified by GitHub) that can write to the repository the leader linked. Lecturers and administrators supervise and need no GitHub account.
+    The answer says exactly why not, so the page can tell the person what to do: ``repo_not_linked`` (the leader has not linked it), ``account_not_linked``, ``no_access`` or ``read_only``
+    (the connected account is not a collaborator with write access), ``github_unavailable`` (GitHub could not be asked; try again). When the App is not set up on the server, nothing can be verified
+    and nobody is locked out (``verified`` is false).
+
+    Everything the database knows is read in one statement: this runs on every page load, and each round trip to a far-away database costs about half a second.
+    """
+    try:
+        which = Group.id == uuid.UUID(ref)
+    except ValueError:
+        which = func.upper(Group.code) == ref.strip().upper()
+    leader = aliased(User)
+    row = db.execute(
+        select(Group.id, Group.code, Group.name, Group.leader_id, leader.name, GroupMember.role, TeamGithub.repo_full_name, TeamGithub.installation_id, TeamGithub.account_login,
+               UserGithubAccount.login, TeamGithubAccess.id, TeamGithubAccess.permission, TeamGithubAccess.checked_at)
+        .select_from(Group)
+        .outerjoin(leader, leader.id == Group.leader_id)
+        .outerjoin(GroupMember, and_(GroupMember.group_id == Group.id, GroupMember.user_id == user.id))
+        .outerjoin(TeamGithub, TeamGithub.group_id == Group.id)
+        .outerjoin(UserGithubAccount, UserGithubAccount.user_id == user.id)
+        .outerjoin(TeamGithubAccess, and_(TeamGithubAccess.group_id == Group.id, TeamGithubAccess.user_id == user.id))
+        .where(which)
+    ).first()
+    if row is None:
+        return None
+    gid, code, name, leader_id, leader_name, member_role, repo, installation_id, installed_by, login, access_id, stored, checked_at = row
+    if member_role is None and not is_admin:
+        return None
+    staff = is_admin or member_role is MemberRole.LECTURER
+    is_leader = leader_id == user.id
+    base = {"is_leader": is_leader, "repo": repo, "installed": installation_id is not None, "installed_by": installed_by, "login": None, "permission": None,
+            "verified": True, "staff": staff, "can_link": staff or is_leader, "leader_name": leader_name, "team": code, "team_name": name, "configured": app.config.configured}
+    if staff or not app.config.configured:
+        return {**base, "state": "ok", "verified": False}
+    if not repo:
+        return {**base, "state": "repo_not_linked"}
+    if login is None:
+        return {**base, "state": "account_not_linked"}
+    base["login"] = login
+    try:
+        perm = app.permission(installation_id, repo, login)
+    except GitHubAppError:
+        return {**base, "state": "github_unavailable"}
+    # Written only when the answer changed or the stored one is old: the gate asks on every page load.
+    old = checked_at is not None and now() - checked_at.replace(tzinfo=checked_at.tzinfo or timezone.utc) > timedelta(minutes=10)
+    if access_id is None:
+        db.add(TeamGithubAccess(group_id=gid, user_id=user.id, permission=perm, checked_at=now()))
+        db.commit()
+    elif stored != perm or old:
+        db.execute(update(TeamGithubAccess).where(TeamGithubAccess.id == access_id).values(permission=perm, checked_at=now()))
+        db.commit()
+    return {**base, "permission": perm, "state": "ok" if perm in WRITE else "read_only" if perm == "read" else "no_access"}
+
+
+# ---- what the agent is given ---------------------------------------------------------------------------------------------------------
+
+def member_states(db: Session, group: Group) -> list[dict]:
+    """Every student of the team with the state of their GitHub link: not_connected, no_access, read_only or ready."""
+    students = [m for m in group.members if m.role is MemberRole.MEMBER]
+    accounts = linked_accounts(db, [m.user_id for m in students])
+    access = {a.user_id: a for a in db.scalars(select(TeamGithubAccess).where(TeamGithubAccess.group_id == group.id))}
+    out = []
+    for m in students:
+        acc, perm = accounts.get(m.user_id), access.get(m.user_id)
+        if acc is None:
+            state = "not_connected"
+        elif perm is None:
+            state = "unchecked"
+        elif perm.permission in WRITE:
+            state = "ready"
+        elif perm.permission == "read":
+            state = "read_only"
+        else:
+            state = "no_access"
+        out.append({"user_id": str(m.user_id), "name": m.user.name, "is_leader": group.leader_id == m.user_id, "login": acc.login if acc else None, "avatar_url": acc.avatar_url if acc else None, "picture": avatars.picture_of(m.user),
+                    "permission": perm.permission if perm else None, "checked_at": perm.checked_at if perm else None, "state": state})
+    return out
+
+
+def readiness(db: Session, group: Group) -> dict:
+    """What stands in the way of an assessment: a list of blockers (cannot start) and notes (can start, results will be thinner)."""
+    row = team_link(db, group)
+    states = member_states(db, group)
+    blockers, notes = [], []
+    if row is None:
+        blockers.append("The team leader has not installed the GitHub App.")
+    elif not row.repo_full_name:
+        blockers.append("The team leader has not chosen the repository.")
+    if not states:
+        blockers.append("The team has no student members yet.")
+    ready = [s for s in states if s["state"] == "ready"]
+    if states and not ready:
+        blockers.append("No member has connected a GitHub account that can write to the repository.")
+    for s in states:
+        if s["state"] == "not_connected":
+            notes.append(f"{s['name']} has not connected GitHub: their commits may not be matched to them.")
+        elif s["state"] in ("no_access", "read_only"):
+            notes.append(f"{s['name']}'s GitHub account cannot write to the repository.")
+    return {"ready": not blockers, "blockers": blockers, "notes": notes, "members": states, "repo": row.repo_full_name if row else None}
+
+
+def agent_roster(db: Session, group: Group) -> list[dict]:
+    """The students of the team as the agent wants them: our own user id, the verified GitHub login, GitHub's no-reply commit addresses, the name. Only verified logins are used."""
+    students = [m for m in group.members if m.role is MemberRole.MEMBER]
+    accounts = linked_accounts(db, [m.user_id for m in students])
+    roster = []
+    for m in students:
+        acc = accounts.get(m.user_id)
+        emails = list(noreply_emails(acc.github_id, acc.login)) if acc else []
+        if m.user.email:
+            emails.append(m.user.email.lower())
+        roster.append({"student_id": str(m.user_id), "logins": [acc.login] if acc else [], "emails": emails, "names": [m.user.name] if m.user.name else []})
+    return roster

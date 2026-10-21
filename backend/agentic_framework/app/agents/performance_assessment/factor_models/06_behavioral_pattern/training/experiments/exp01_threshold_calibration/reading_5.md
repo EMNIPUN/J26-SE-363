@@ -1,0 +1,5 @@
+**The modifier adjusts, it does not reorder.** The Spearman correlation between the final scores with and without the modifier is 0.990 for the final calibrated set (0.995 for the proposal's), above the 0.95 target. 40% of student-sprints get a modifier other than 1 (12% with the proposal's), largely the 61 Free riders (19%), who get 0.90 to 0.95 when Collaboration is not available and 0.80 to 0.85 when it is, and the 57 Consistent deep contributors (1.10 to 1.15). The largest single change is 9.2 points out of 100; the mean absolute change is 1.5 points.
+
+The effort-only Free rider adjustment is the one an instructor should look at first: it applies to 41 real student-sprints, students with almost no observable activity whose team did not review, and it takes 5 to 10% off their base score.
+
+The base score here uses the old propagated factor marks for the other factors, since the new Collaboration score is missing for most sprints; it shows the size of the effect, not the final marks of the deployed system.

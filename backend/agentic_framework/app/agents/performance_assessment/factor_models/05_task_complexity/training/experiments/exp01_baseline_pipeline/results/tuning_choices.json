@@ -1,0 +1,506 @@
+{
+ "Gradient Boosting": {
+  "board only (SP, SC)": {
+   "A": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 2,
+     "max_iter": 50,
+     "max_depth": 4,
+     "learning_rate": 0.02,
+     "l2_regularization": 0.1
+    },
+    "label_source": "rated + propagated (real)",
+    "weight": 1.0,
+    "inner_MAE": 0.0967
+   },
+   "B": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 5,
+     "max_iter": 50,
+     "max_depth": 2,
+     "learning_rate": 0.02,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1094
+   },
+   "C": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 5,
+     "max_iter": 50,
+     "max_depth": 2,
+     "learning_rate": 0.02,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.091
+   },
+   "D": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 5,
+     "max_iter": 50,
+     "max_depth": 2,
+     "learning_rate": 0.02,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1525
+   },
+   "E": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 5,
+     "max_iter": 50,
+     "max_depth": 2,
+     "learning_rate": 0.02,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1345
+   }
+  },
+  "chosen in notebook 03: SP only": {
+   "A": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 50,
+     "max_depth": 3,
+     "learning_rate": 0.02,
+     "l2_regularization": 10.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1084
+   },
+   "B": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 5,
+     "max_iter": 50,
+     "max_depth": 2,
+     "learning_rate": 0.02,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.113
+   },
+   "C": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 5,
+     "max_iter": 50,
+     "max_depth": 2,
+     "learning_rate": 0.02,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.091
+   },
+   "D": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 50,
+     "max_depth": 3,
+     "learning_rate": 0.02,
+     "l2_regularization": 10.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.126
+   },
+   "E": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 5,
+     "max_iter": 50,
+     "max_depth": 2,
+     "learning_rate": 0.02,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1256
+   }
+  },
+  "proposal 5 (log counts)": {
+   "A": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 5,
+     "max_iter": 50,
+     "max_depth": 2,
+     "learning_rate": 0.02,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1118
+   },
+   "B": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 5,
+     "max_iter": 50,
+     "max_depth": 2,
+     "learning_rate": 0.02,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1094
+   },
+   "C": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 50,
+     "max_depth": 3,
+     "learning_rate": 0.02,
+     "l2_regularization": 10.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0857
+   },
+   "D": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 1,
+     "max_iter": 50,
+     "max_depth": 3,
+     "learning_rate": 0.02,
+     "l2_regularization": 10.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1297
+   },
+   "E": {
+    "params": {
+     "monotonic": true,
+     "min_samples_leaf": 5,
+     "max_iter": 50,
+     "max_depth": 2,
+     "learning_rate": 0.02,
+     "l2_regularization": 0.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1329
+   }
+  }
+ },
+ "Random Forest": {
+  "board only (SP, SC)": {
+   "A": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1258
+   },
+   "B": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1047
+   },
+   "C": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0865
+   },
+   "D": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1334
+   },
+   "E": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1425
+   }
+  },
+  "chosen in notebook 03: SP only": {
+   "A": {
+    "params": {
+     "n_estimators": 200,
+     "min_samples_leaf": 1,
+     "max_features": 0.5,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1103
+   },
+   "B": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.107
+   },
+   "C": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0815
+   },
+   "D": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1151
+   },
+   "E": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1261
+   }
+  },
+  "proposal 5 (log counts)": {
+   "A": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1132
+   },
+   "B": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1017
+   },
+   "C": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0838
+   },
+   "D": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1347
+   },
+   "E": {
+    "params": {
+     "n_estimators": 100,
+     "min_samples_leaf": 2,
+     "max_features": 1.0,
+     "max_depth": 2
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1162
+   }
+  }
+ },
+ "Ridge": {
+  "board only (SP, SC)": {
+   "A": {
+    "params": {
+     "alpha": 1000.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1187
+   },
+   "B": {
+    "params": {
+     "alpha": 1000.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1193
+   },
+   "C": {
+    "params": {
+     "alpha": 1000.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0911
+   },
+   "D": {
+    "params": {
+     "alpha": 1000.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1339
+   },
+   "E": {
+    "params": {
+     "alpha": 1000.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.122
+   }
+  },
+  "chosen in notebook 03: SP only": {
+   "A": {
+    "params": {
+     "alpha": 316.22776601683796
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.118
+   },
+   "B": {
+    "params": {
+     "alpha": 1000.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1204
+   },
+   "C": {
+    "params": {
+     "alpha": 1000.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.091
+   },
+   "D": {
+    "params": {
+     "alpha": 1000.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1338
+   },
+   "E": {
+    "params": {
+     "alpha": 1000.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1219
+   }
+  },
+  "proposal 5 (log counts)": {
+   "A": {
+    "params": {
+     "alpha": 1000.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1176
+   },
+   "B": {
+    "params": {
+     "alpha": 100.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1075
+   },
+   "C": {
+    "params": {
+     "alpha": 1.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.0528
+   },
+   "D": {
+    "params": {
+     "alpha": 1000.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1336
+   },
+   "E": {
+    "params": {
+     "alpha": 1000.0
+    },
+    "label_source": "rated only",
+    "weight": 1.0,
+    "inner_MAE": 0.1212
+   }
+  }
+ }
+}

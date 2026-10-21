@@ -1,0 +1,462 @@
+{
+  "n_anchors": 20,
+  "factors": {
+    "E": {
+      "features": [
+        "E_CC",
+        "E_LOC_net_capped",
+        "E_FC",
+        "E_CT",
+        "E_RD"
+      ],
+      "criteria": [
+        "E_responsibility_engagement",
+        "E_work_investment",
+        "E_responsibility_fulfillment",
+        "E_initiative",
+        "E_persistence"
+      ],
+      "alpha": 0.6309573444801934,
+      "intercept": 0.3795,
+      "coefficients": {
+        "E_CC": 0.1579,
+        "E_LOC_net_capped": 0.049,
+        "E_FC": 0.0251,
+        "E_CT": 0.1036,
+        "E_RD": 0.0024
+      },
+      "loocv_mae": 0.0476,
+      "loocv_rmse": 0.0618,
+      "loocv_pearson": 0.9702,
+      "loocv_spearman": 0.9617,
+      "baseline_mae_predict_mean": 0.2189,
+      "target_mean": 0.39,
+      "target_sd": 0.2493
+    },
+    "C": {
+      "features": [
+        "C_AWR",
+        "C_DC",
+        "C_LI_norm",
+        "C_CV_norm"
+      ],
+      "criteria": [
+        "C_steady_engagement",
+        "C_early_contribution",
+        "C_continuity",
+        "C_predictable_rhythm"
+      ],
+      "alpha": 2.5118864315095824,
+      "intercept": 0.2106,
+      "coefficients": {
+        "C_AWR": 0.0727,
+        "C_DC": 0.0369,
+        "C_LI_norm": 0.0376,
+        "C_CV_norm": 0.0729
+      },
+      "loocv_mae": 0.0616,
+      "loocv_rmse": 0.0875,
+      "loocv_pearson": 0.9188,
+      "loocv_spearman": 0.8718,
+      "baseline_mae_predict_mean": 0.1918,
+      "target_mean": 0.2281,
+      "target_sd": 0.2185
+    },
+    "RF": {
+      "features": [
+        "RF_llm_score",
+        "RF_completion_rate",
+        "RF_ac_ratio",
+        "RF_untracked_ratio"
+      ],
+      "criteria": [
+        "RF_task_alignment",
+        "RF_acceptance_criteria",
+        "RF_completeness"
+      ],
+      "alpha": 0.01,
+      "intercept": 0.4352,
+      "coefficients": {
+        "RF_llm_score": 0.0288,
+        "RF_completion_rate": -0.0641,
+        "RF_ac_ratio": 0.3346,
+        "RF_untracked_ratio": 0.0
+      },
+      "loocv_mae": 0.0531,
+      "loocv_rmse": 0.0656,
+      "loocv_pearson": 0.9696,
+      "loocv_spearman": 0.9171,
+      "baseline_mae_predict_mean": 0.2386,
+      "target_mean": 0.4708,
+      "target_sd": 0.2678
+    },
+    "Co": {
+      "features": [
+        "Co_PRC_depth",
+        "Co_IC_depth",
+        "Co_MC",
+        "Co_PCount",
+        "Co_CCount",
+        "Co_IR",
+        "Co_shared_file_ratio",
+        "Co_prs_merged_for_others"
+      ],
+      "criteria": [
+        "Co_review_engagement",
+        "Co_discussion_substance",
+        "Co_team_interaction",
+        "Co_follow_through"
+      ],
+      "alpha": 10.0,
+      "intercept": 0.1534,
+      "coefficients": {
+        "Co_PRC_depth": 0.0,
+        "Co_IC_depth": 0.0,
+        "Co_MC": 0.0,
+        "Co_PCount": 0.0215,
+        "Co_CCount": 0.0187,
+        "Co_IR": 0.0,
+        "Co_shared_file_ratio": 0.0415,
+        "Co_prs_merged_for_others": 0.0153
+      },
+      "loocv_mae": 0.0902,
+      "loocv_rmse": 0.1071,
+      "loocv_pearson": 0.6172,
+      "loocv_spearman": 0.6748,
+      "baseline_mae_predict_mean": 0.1283,
+      "target_mean": 0.1844,
+      "target_sd": 0.1362
+    },
+    "TC": {
+      "features": [
+        "TC_SP",
+        "TC_SC",
+        "TC_FI",
+        "TC_DR",
+        "TC_CB"
+      ],
+      "criteria": [
+        "TC_technical_difficulty",
+        "TC_scope_breadth",
+        "TC_dependency_impact",
+        "TC_architectural_impact",
+        "TC_uncertainty"
+      ],
+      "alpha": 2.5118864315095824,
+      "intercept": 0.4255,
+      "coefficients": {
+        "TC_SP": 0.0214,
+        "TC_SC": 0.0324,
+        "TC_FI": 0.0627,
+        "TC_DR": 0.0384,
+        "TC_CB": -0.0587
+      },
+      "loocv_mae": 0.0915,
+      "loocv_rmse": 0.1263,
+      "loocv_pearson": 0.4686,
+      "loocv_spearman": 0.3532,
+      "baseline_mae_predict_mean": 0.1189,
+      "target_mean": 0.415,
+      "target_sd": 0.1415
+    },
+    "KO": {
+      "features": [
+        "KO_survival",
+        "KO_primary_owner_share",
+        "KO_snippet_candidates"
+      ],
+      "criteria": [
+        "KO_authorship_depth",
+        "KO_code_durability",
+        "KO_self_maintenance"
+      ],
+      "alpha": 0.01,
+      "intercept": 0.4221,
+      "coefficients": {
+        "KO_survival": 0.0055,
+        "KO_primary_owner_share": -0.0137,
+        "KO_snippet_candidates": 0.2953
+      },
+      "loocv_mae": 0.1054,
+      "loocv_rmse": 0.1253,
+      "loocv_pearson": 0.8872,
+      "loocv_spearman": 0.875,
+      "baseline_mae_predict_mean": 0.2421,
+      "target_mean": 0.4333,
+      "target_sd": 0.2708
+    }
+  },
+  "behavioral_pattern": {
+    "proposal_fixed_thresholds": {
+      "thresholds": {
+        "high": {
+          "E": 0.7,
+          "C": 0.7,
+          "Co": 0.7
+        },
+        "low": {
+          "E": 0.3,
+          "C": 0.3,
+          "Co": 0.3
+        },
+        "low_e_coordinator": 0.4
+      },
+      "agreement": 0.4,
+      "cohen_kappa": 0.2332,
+      "pairs": [
+        {
+          "record_id": "T08-S1-STU-008",
+          "rule": "no_specific_pattern",
+          "assessor": "burst_worker"
+        },
+        {
+          "record_id": "T09-S1-STU-001",
+          "rule": "no_specific_pattern",
+          "assessor": "consistent_deep_contributor"
+        },
+        {
+          "record_id": "T14-S1-STU-016",
+          "rule": "no_specific_pattern",
+          "assessor": "no_specific_pattern"
+        },
+        {
+          "record_id": "T04-S2-STU-027",
+          "rule": "free_rider",
+          "assessor": "free_rider"
+        },
+        {
+          "record_id": "T03-S3-STU-019",
+          "rule": "no_specific_pattern",
+          "assessor": "no_specific_pattern"
+        },
+        {
+          "record_id": "T04-S3-STU-010",
+          "rule": "free_rider",
+          "assessor": "free_rider"
+        },
+        {
+          "record_id": "T06-S1-STU-004",
+          "rule": "free_rider",
+          "assessor": "free_rider"
+        },
+        {
+          "record_id": "T03-S2-STU-011",
+          "rule": "free_rider",
+          "assessor": "no_specific_pattern"
+        },
+        {
+          "record_id": "T11-S2-STU-017",
+          "rule": "no_specific_pattern",
+          "assessor": "consistent_deep_contributor"
+        },
+        {
+          "record_id": "T13-S2-STU-003",
+          "rule": "no_specific_pattern",
+          "assessor": "last_minute_rusher"
+        },
+        {
+          "record_id": "T09-S1-STU-007",
+          "rule": "no_specific_pattern",
+          "assessor": "consistent_deep_contributor"
+        },
+        {
+          "record_id": "T05-S3-STU-022",
+          "rule": "free_rider",
+          "assessor": "free_rider"
+        },
+        {
+          "record_id": "T01-S2-STU-021",
+          "rule": "free_rider",
+          "assessor": "last_minute_rusher"
+        },
+        {
+          "record_id": "T05-S1-STU-012",
+          "rule": "no_specific_pattern",
+          "assessor": "last_minute_rusher"
+        },
+        {
+          "record_id": "T08-S2-STU-025",
+          "rule": "no_specific_pattern",
+          "assessor": "no_specific_pattern"
+        },
+        {
+          "record_id": "T01-S1-STU-009",
+          "rule": "no_specific_pattern",
+          "assessor": "last_minute_rusher"
+        },
+        {
+          "record_id": "T07-S2-STU-018",
+          "rule": "no_specific_pattern",
+          "assessor": "last_minute_rusher"
+        },
+        {
+          "record_id": "T13-S2-STU-006",
+          "rule": "no_specific_pattern",
+          "assessor": "consistent_deep_contributor"
+        },
+        {
+          "record_id": "T06-S1-STU-029",
+          "rule": "free_rider",
+          "assessor": "free_rider"
+        },
+        {
+          "record_id": "T07-S2-STU-013",
+          "rule": "no_specific_pattern",
+          "assessor": "last_minute_rusher"
+        }
+      ]
+    },
+    "cohort_percentile_thresholds": {
+      "thresholds": {
+        "high": {
+          "E": 0.6316,
+          "C": 0.3669,
+          "Co": 0.35
+        },
+        "low": {
+          "E": 0.3,
+          "C": 0.3,
+          "Co": 0.3
+        },
+        "low_e_coordinator": 0.4
+      },
+      "agreement": 0.5,
+      "cohen_kappa": 0.361,
+      "pairs": [
+        {
+          "record_id": "T08-S1-STU-008",
+          "rule": "no_specific_pattern",
+          "assessor": "burst_worker"
+        },
+        {
+          "record_id": "T09-S1-STU-001",
+          "rule": "consistent_deep_contributor",
+          "assessor": "consistent_deep_contributor"
+        },
+        {
+          "record_id": "T14-S1-STU-016",
+          "rule": "last_minute_rusher",
+          "assessor": "no_specific_pattern"
+        },
+        {
+          "record_id": "T04-S2-STU-027",
+          "rule": "free_rider",
+          "assessor": "free_rider"
+        },
+        {
+          "record_id": "T03-S3-STU-019",
+          "rule": "no_specific_pattern",
+          "assessor": "no_specific_pattern"
+        },
+        {
+          "record_id": "T04-S3-STU-010",
+          "rule": "free_rider",
+          "assessor": "free_rider"
+        },
+        {
+          "record_id": "T06-S1-STU-004",
+          "rule": "free_rider",
+          "assessor": "free_rider"
+        },
+        {
+          "record_id": "T03-S2-STU-011",
+          "rule": "free_rider",
+          "assessor": "no_specific_pattern"
+        },
+        {
+          "record_id": "T11-S2-STU-017",
+          "rule": "consistent_deep_contributor",
+          "assessor": "consistent_deep_contributor"
+        },
+        {
+          "record_id": "T13-S2-STU-003",
+          "rule": "no_specific_pattern",
+          "assessor": "last_minute_rusher"
+        },
+        {
+          "record_id": "T09-S1-STU-007",
+          "rule": "no_specific_pattern",
+          "assessor": "consistent_deep_contributor"
+        },
+        {
+          "record_id": "T05-S3-STU-022",
+          "rule": "free_rider",
+          "assessor": "free_rider"
+        },
+        {
+          "record_id": "T01-S2-STU-021",
+          "rule": "free_rider",
+          "assessor": "last_minute_rusher"
+        },
+        {
+          "record_id": "T05-S1-STU-012",
+          "rule": "no_specific_pattern",
+          "assessor": "last_minute_rusher"
+        },
+        {
+          "record_id": "T08-S2-STU-025",
+          "rule": "reviewer_coordinator",
+          "assessor": "no_specific_pattern"
+        },
+        {
+          "record_id": "T01-S1-STU-009",
+          "rule": "no_specific_pattern",
+          "assessor": "last_minute_rusher"
+        },
+        {
+          "record_id": "T07-S2-STU-018",
+          "rule": "last_minute_rusher",
+          "assessor": "last_minute_rusher"
+        },
+        {
+          "record_id": "T13-S2-STU-006",
+          "rule": "consistent_deep_contributor",
+          "assessor": "consistent_deep_contributor"
+        },
+        {
+          "record_id": "T06-S1-STU-029",
+          "rule": "free_rider",
+          "assessor": "free_rider"
+        },
+        {
+          "record_id": "T07-S2-STU-013",
+          "rule": "no_specific_pattern",
+          "assessor": "last_minute_rusher"
+        }
+      ]
+    },
+    "used_for_marks": "cohort_percentile_thresholds"
+  },
+  "fusion": {
+    "weights": {
+      "E": 0.1823,
+      "C": 0.026,
+      "RF": 0.401,
+      "Co": 0.0699,
+      "TC": 0.1632,
+      "KO": 0.1577
+    },
+    "loocv_mae_learned_weights_0_100": 5.86,
+    "mae_equal_weights_0_100": 11.23,
+    "bp_modifiers": {
+      "consistent_deep_contributor": 1.15,
+      "last_minute_rusher": 0.925,
+      "reviewer_coordinator": 1.025,
+      "burst_worker": 0.975,
+      "free_rider": 0.825,
+      "no_specific_pattern": 1.0
+    }
+  },
+  "final_mark_loocv": {
+    "mae_0_100": 6.74,
+    "rmse_0_100": 8.28,
+    "pearson": 0.9729,
+    "spearman": 0.9127,
+    "mean_bias_0_100": -5.36
+  },
+  "final_mark_vs_assessor_overall": {
+    "mae": 6.24,
+    "pearson": 0.9735,
+    "note": "uses factor models fitted on these same anchors; LOOCV figures above are the honest estimate"
+  }
+}

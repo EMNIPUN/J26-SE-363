@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/reviews/1",
+  "title": "Performance reviews",
+  "type": "object",
+  "required": ["schema", "items", "next"],
+  "properties": {"schema": {"const": "reviews/1"}, "items": {"type": "array"}, "next": {"type": ["string", "null"]}}
+}

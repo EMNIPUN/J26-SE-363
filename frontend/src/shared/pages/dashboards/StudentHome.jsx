@@ -68,7 +68,7 @@ export default function StudentHome() {
     const destinations = {
       planning: '/planning/dashboard',
       tutor: '/tutor/guidance',
-      performance: '/performance/my-progress',
+      performance: '/performance/my-assessment',
       security: '/security/dashboard',
     }
     return {

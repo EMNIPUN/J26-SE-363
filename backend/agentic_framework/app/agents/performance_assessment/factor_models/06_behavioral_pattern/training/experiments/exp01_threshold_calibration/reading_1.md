@@ -1,0 +1,5 @@
+**What the rules will be run on.** 319 student-sprints: 144 real and 175 simulated. Collaboration is available for only 8 of the 144 real sprints (nobody in the team reviewed in the others) and for 125 of the 175 simulated ones, so on real data the two rules that need it (Reviewer or coordinator, Free rider) can almost never be tested. The Consistency package's bimodal flag is 1 in 8 real and 25 simulated sprints.
+
+**The proposal's cut points sit far above the scores.** Only 7.5% of student-sprints have Effort above 0.7, 1.3% have Consistency above 0.7, and of the sprints with a Collaboration score 11% are above 0.7. Both Effort and Consistency are shrunk model outputs (cohort mean about 0.39 and 0.22), so the proposal's absolute numbers describe a scale these scores do not use. This is why the protocol evaluates a quantile-based set next to the proposal's.
+
+**Labels.** The assistant gave a pattern to 299 records (`ref_pattern`), the simulated students carry the class they were written to follow (175) and the 20 anchors have a separate pattern (`gt_pattern`). All are assistant-written.

@@ -1,0 +1,161 @@
+/* The vertical pipeline: each step is a marker on a thin line and a plain card. One cue shows what is running (an accent marker, an accent edge on its card and the spinner); nothing else moves. */
+.pf-flow { --pf-done: oklch(0.6 0.12 160); --pf-active: var(--primary); --pf-wait: oklch(0.7 0.14 75); --pf-fail: oklch(0.6 0.2 27); --pf-line: var(--border); }
+
+.pf-step { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr); column-gap: 12px; width: 100%; max-width: 100%; }
+.pf-rail { position: relative; display: flex; flex-direction: column; align-items: center; }
+.pf-marker {
+  position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; flex: none; margin-top: 8px;
+  border-radius: 999px; background: var(--card); border: 1.5px solid var(--pf-line); color: var(--muted-foreground); transition: border-color .2s, background .2s, color .2s;
+}
+.pf-step.done .pf-marker { border-color: var(--pf-done); background: color-mix(in oklch, var(--card) 88%, var(--pf-done)); color: var(--pf-done); }
+.pf-step.failed .pf-marker { border-color: var(--pf-fail); background: color-mix(in oklch, var(--card) 90%, var(--pf-fail)); color: var(--pf-fail); }
+.pf-step.waiting .pf-marker { border-color: var(--pf-wait); background: color-mix(in oklch, var(--card) 90%, var(--pf-wait)); color: var(--pf-wait); }
+.pf-step.active .pf-marker { border-color: var(--pf-active); background: color-mix(in oklch, var(--card) 90%, var(--pf-active)); color: var(--pf-active); }
+
+/* the line between two steps: it only changes colour */
+.pf-line { position: relative; flex: 1 1 auto; width: 1px; min-height: 14px; background: var(--pf-line); }
+.pf-line.done { background: var(--pf-done); }
+.pf-line.failed { background: var(--pf-fail); }
+.pf-line.flowing { background: linear-gradient(to bottom, var(--pf-done), var(--pf-active)); }
+
+.pf-card {
+  position: relative; margin-bottom: 10px; padding: 9px 12px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); text-align: left; width: 100%; max-width: 100%;
+  transition: border-color .15s, background .15s; cursor: pointer; box-sizing: border-box; overflow: hidden;
+}
+.pf-card:hover { border-color: color-mix(in oklch, var(--foreground) 25%, var(--border)); }
+.pf-card.selected { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.pf-step.idle .pf-card { background: color-mix(in oklch, var(--muted) 40%, var(--card)); }
+.pf-step.active .pf-card { border-color: color-mix(in oklch, var(--pf-active) 45%, var(--border)); box-shadow: inset 3px 0 0 var(--pf-active); }
+.pf-step.active .pf-card.selected { box-shadow: inset 3px 0 0 var(--pf-active), 0 0 0 1px var(--primary); }
+.pf-step.failed .pf-card { border-color: color-mix(in oklch, var(--pf-fail) 55%, var(--border)); }
+.pf-step.waiting .pf-card { border-color: color-mix(in oklch, var(--pf-wait) 60%, var(--border)); }
+
+/* steps that run side by side: wrap properly across all screen widths */
+.pf-parallel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.pf-chip {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  box-sizing: border-box;
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+}
+.pf-chip:hover { border-color: color-mix(in oklch, var(--foreground) 25%, var(--border)); }
+.pf-chip.done { border-color: color-mix(in oklch, var(--pf-done) 45%, var(--border)); }
+.pf-chip.failed { border-color: color-mix(in oklch, var(--pf-fail) 55%, var(--border)); }
+.pf-chip.waiting { border-color: color-mix(in oklch, var(--pf-wait) 60%, var(--border)); }
+.pf-chip.idle { background: color-mix(in oklch, var(--muted) 40%, var(--card)); }
+.pf-chip.wide { grid-column: 1 / -1; width: 100%; }
+.pf-chip.selected { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.pf-chip.active { border-color: color-mix(in oklch, var(--pf-active) 45%, var(--border)); box-shadow: inset 3px 0 0 var(--pf-active); }
+.pf-chip.active.selected { box-shadow: inset 3px 0 0 var(--pf-active), 0 0 0 1px var(--primary); }
+
+/* the student's lane sits inside the "Assess students" step */
+.pf-lane {
+  margin: 4px 0 10px;
+  padding: 12px 12px 2px;
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--muted) 40%, transparent);
+  border: 1px solid var(--border);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.pf-lane .pf-step { grid-template-columns: 20px minmax(0, 1fr); column-gap: 10px; }
+.pf-lane .pf-marker { width: 18px; height: 18px; margin-top: 7px; }
+
+/* Requirement Fulfillment sub-agent: its steps and its log */
+.pf-rf-container {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+.pf-rf-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.pf-rf-graph {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  scrollbar-width: thin;
+}
+.pf-rf-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.pf-rf-node:hover {
+  border-color: color-mix(in oklch, var(--foreground) 25%, var(--border));
+  color: var(--foreground);
+}
+.pf-rf-node.done {
+  border-color: color-mix(in oklch, var(--pf-done) 45%, var(--border));
+  color: var(--foreground);
+}
+.pf-rf-node.active {
+  border-color: var(--pf-active);
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--card) 92%, var(--pf-active));
+}
+.pf-rf-node.failed {
+  border-color: var(--pf-fail);
+  color: var(--pf-fail);
+}
+.pf-rf-node.selected {
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.pf-rf-arrow {
+  display: inline-block;
+  width: 10px;
+  height: 1px;
+  background: var(--border);
+  font-size: 0; /* the arrow character is not drawn; a short line joins the steps */
+  flex-shrink: 0;
+}
+.pf-rf-log-card {
+  margin-top: 8px;
+  border-radius: 6px;
+  background: color-mix(in oklch, var(--muted) 35%, var(--card));
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  word-break: break-all;
+}
