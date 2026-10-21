@@ -19,14 +19,14 @@ class AgentName(str, Enum):
     PROJECT_PLANNING = "project_planning"
     ADAPTIVE_TUTOR = "adaptive_tutor"
     PERFORMANCE_ASSESSMENT = "performance_assessment"
-    AEGIS = "aegis"
+    SECURITY_ASSISTANT = "security_assistant"
 
 
 ACTION_PREFIX_TO_AGENT: dict[str, AgentName] = {
     "planning": AgentName.PROJECT_PLANNING,
     "tutor": AgentName.ADAPTIVE_TUTOR,
     "performance": AgentName.PERFORMANCE_ASSESSMENT,
-    "security": AgentName.AEGIS,
+    "security": AgentName.SECURITY_ASSISTANT,
 }
 
 

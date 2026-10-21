@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import ScanReport from './pages/ScanReport.jsx'
 import Remediation from './pages/Remediation.jsx'
 import RemediationDetail from './pages/RemediationDetail.jsx'
+import AssistantRoutes from './assistant/routes.jsx'
 
 export default function SecurityRoutes() {
   return (
@@ -13,6 +14,7 @@ export default function SecurityRoutes() {
       <Route path="scan-report" element={<ScanReport />} />
       <Route path="remediation" element={<Remediation />} />
       <Route path="remediation/:findingId" element={<RemediationDetail />} />
+      <Route path="assistant/*" element={<AssistantRoutes />} />
     </Routes>
   )
 }

@@ -51,7 +51,7 @@ repository they are `backend/server` and `backend/agentic_framework`.
 | Project Planning | `project_planning/` | `planning.` | `project_planning` |
 | Adaptive Tutor | `adaptive_tutor/` | `tutor.` | `adaptive_tutor` |
 | Performance Assessment | `performance_assessment/` (protected, owner only) | `performance.` | `performance_assessment` |
-| AEGIS (security) | `aegis/` | `security.` | `aegis` |
+| Security Assistant (security) | `security_assistant/` | `security.` | `security_assistant` |
 
 Rules:
 
@@ -160,7 +160,7 @@ Internally an agent can use any structure (its own LangGraph graph, tools, promp
 ## 5. Agents never call each other
 
 - Do not import another agent's code, and do not call another agent over HTTP or through the queue.
-- To involve another agent, return a `NextAction` with `target_agent` set, for example AEGIS
+- To involve another agent, return a `NextAction` with `target_agent` set, for example Security Assistant
   suggesting a security lesson:
 
   ```python

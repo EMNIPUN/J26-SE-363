@@ -1,4 +1,4 @@
-// Frontend-only mock evidence for the AEGIS Security module.
+// Frontend-only mock evidence for the Security Assistant module.
 // Shape mirrors the finding-record schema from the security subsystem's
 // project definition (Section 9): category, evidence, traceability,
 // risk score, fix pattern and probe question. Backend integration will

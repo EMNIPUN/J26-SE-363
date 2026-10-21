@@ -36,7 +36,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 animate-fade-rise">
       <PageHeader
-        title="AEGIS Security Dashboard"
+        title="Security Assistant Dashboard"
         breadcrumb={['Project Security', 'Dashboard']}
         description={`Deterministic-scanner-first vulnerability overview for ${selectedGroup?.projectTitle || teamCode}, classified by OWASP category and project-context risk.`}
         actions={

@@ -1,0 +1,31 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	check_input(check_input)
+	raise_scrutiny(raise_scrutiny)
+	escalate(escalate)
+	allow(allow)
+	block(block)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> check_input;
+	allow -. &nbsp;end&nbsp; .-> __end__;
+	allow -.-> raise_scrutiny;
+	block -. &nbsp;end&nbsp; .-> __end__;
+	block -.-> raise_scrutiny;
+	check_input -. &nbsp;end&nbsp; .-> __end__;
+	check_input -.-> allow;
+	check_input -.-> block;
+	check_input -.-> raise_scrutiny;
+	escalate -. &nbsp;end&nbsp; .-> __end__;
+	escalate -.-> check_input;
+	raise_scrutiny -. &nbsp;end&nbsp; .-> __end__;
+	raise_scrutiny -.-> check_input;
+	raise_scrutiny -.-> escalate;
+	raise_scrutiny -.-> raise_scrutiny;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

@@ -1,0 +1,32 @@
+{
+  "scan": {"source": "vuln_py_repo", "commit_sha": null, "started_at": "2026-10-19 09:00:00 UTC", "languages": ["python"],
+           "complete": true, "skipped_tools": [], "warnings": []},
+  "coverage": {},
+  "runs": [
+    {"tool": "config-scan", "status": "succeeded", "reason": null, "tool_version": "builtin", "rule_pack_version": "security-assistant-cfg-2", "started_at": "2026-10-19T09:00:00Z", "duration_s": 0.1, "exit_code": 0, "raw_output_ref": null, "findings_count": 4},
+    {"tool": "gitleaks", "status": "succeeded", "reason": null, "tool_version": "8.24.0", "rule_pack_version": null, "started_at": "2026-10-19T09:00:01Z", "duration_s": 0.6, "exit_code": 0, "raw_output_ref": null, "findings_count": 1},
+    {"tool": "trufflehog", "status": "succeeded", "reason": null, "tool_version": "trufflehog 3.88.0", "rule_pack_version": null, "started_at": "2026-10-19T09:00:02Z", "duration_s": 4.2, "exit_code": 0, "raw_output_ref": null, "findings_count": 1},
+    {"tool": "osv-scanner", "status": "succeeded", "reason": null, "tool_version": "osv-scanner version: 2.0.0", "rule_pack_version": null, "started_at": "2026-10-19T09:00:07Z", "duration_s": 5.1, "exit_code": 1, "raw_output_ref": null, "findings_count": 1},
+    {"tool": "npm-audit", "status": "not_applicable", "reason": "no javascript/typescript files in repository", "tool_version": null, "rule_pack_version": null, "started_at": "2026-10-19T09:00:12Z", "duration_s": 0.0, "exit_code": null, "raw_output_ref": null, "findings_count": 0},
+    {"tool": "pip-audit", "status": "succeeded", "reason": null, "tool_version": "pip-audit 2.10.1", "rule_pack_version": null, "started_at": "2026-10-19T09:00:12Z", "duration_s": 3.0, "exit_code": 1, "raw_output_ref": null, "findings_count": 1},
+    {"tool": "actionlint", "status": "succeeded", "reason": null, "tool_version": "1.7.7", "rule_pack_version": null, "started_at": "2026-10-19T09:00:15Z", "duration_s": 0.2, "exit_code": 0, "raw_output_ref": null, "findings_count": 0},
+    {"tool": "zizmor", "status": "succeeded", "reason": null, "tool_version": "zizmor 1.5.2", "rule_pack_version": null, "started_at": "2026-10-19T09:00:15Z", "duration_s": 0.4, "exit_code": 13, "raw_output_ref": null, "findings_count": 2},
+    {"tool": "codeql", "status": "succeeded", "reason": null, "tool_version": "CodeQL command-line toolchain release 2.20.0.", "rule_pack_version": "1.3.4", "started_at": "2026-10-19T09:00:16Z", "duration_s": 212.0, "exit_code": 0, "raw_output_ref": null, "findings_count": 2}
+  ],
+  "findings": [
+    {"category": "V1", "tool": "codeql", "rule_id": "security-assistant/py/missing-ownership-check", "cwe": "CWE-639", "file_path": "app.py", "line": 22, "function_or_endpoint": "orders", "severity_tool": "7.5",
+     "message": "Route handler 'orders' uses parameter 'user_id' in a SQL query without checking the authenticated user."},
+    {"category": "V2", "tool": "codeql", "rule_id": "py/sql-injection", "cwe": "CWE-89", "file_path": "app.py", "line": 22, "severity_tool": "8.8", "source": "app.py:21", "sink": "app.py:22",
+     "message": "This SQL query depends on a user-provided value."},
+    {"category": "V3", "tool": "config-scan", "rule_id": "security-assistant-cfg-005", "cwe": "CWE-916", "file_path": "app.py", "line": 13, "message": "Weak or unsalted password hashing / password encoder"},
+    {"category": "V3", "tool": "config-scan", "rule_id": "security-assistant-cfg-001", "cwe": "CWE-613", "file_path": "app.py", "line": 14, "message": "JWT issued without an expiry"},
+    {"category": "V3", "tool": "config-scan", "rule_id": "security-assistant-cfg-003", "cwe": "CWE-614", "file_path": "app.py", "line": 8, "message": "Session cookie sent without the Secure flag"},
+    {"category": "V3", "tool": "config-scan", "rule_id": "security-assistant-cfg-007", "cwe": "CWE-307", "file_path": "app.py", "line": 11, "message": "Login route found but no rate limiting library or middleware in the repository"},
+    {"category": "V4", "tool": "gitleaks", "rule_id": "aws-access-token", "cwe": "CWE-798", "file_path": "settings_old.py", "line": 1, "source": "commit:4f2c9d1", "masked_snippet": "REDACTED", "message": "Identified a pattern that may indicate AWS credentials"},
+    {"category": "V4", "tool": "trufflehog", "rule_id": "AWS", "cwe": "CWE-798", "file_path": "settings_old.py", "line": 1, "source": "commit:4f2c9d1", "masked_snippet": "AK****M2", "message": "AWS candidate"},
+    {"category": "V5", "tool": "osv-scanner", "rule_id": "PYSEC-2018-28", "cwe": "CWE-1104", "file_path": "requirements.txt", "sink": "requests@2.19.0 (PyPI)", "message": "CVE-2018-18074: Authorization header leaked on redirect"},
+    {"category": "V5", "tool": "pip-audit", "rule_id": "PYSEC-2018-28", "cwe": "CWE-1104", "file_path": "requirements.txt", "sink": "requests==2.19.0", "message": "CVE-2018-18074: leak (fix: 2.20.0)"},
+    {"category": "V5", "tool": "zizmor", "rule_id": "zizmor:dangerous-triggers", "cwe": "CWE-829", "file_path": ".github/workflows/ci.yml", "line": 1, "severity_tool": "High", "message": "use of fundamentally insecure workflow trigger"},
+    {"category": "V5", "tool": "zizmor", "rule_id": "zizmor:unpinned-uses", "cwe": "CWE-829", "file_path": ".github/workflows/ci.yml", "line": 6, "severity_tool": "Low", "message": "unpinned action reference"}
+  ]
+}

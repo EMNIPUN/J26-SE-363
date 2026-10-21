@@ -75,6 +75,20 @@ export const ENDPOINTS = {
     SCAN: '/security/scan',
     POLICIES: '/security/policies',
   },
+  // Security Assistant results (read-only), see modules/security/assistant
+  SECURITY_ASSISTANT: {
+    RUNS: (team) => `/security-assistant/teams/${team}/runs`,
+    STUDENTS: (team) => `/security-assistant/teams/${team}/students`,
+    RUN: (team, run) => `/security-assistant/teams/${team}/runs/${run}`,
+    FINDINGS: (team, run) => `/security-assistant/teams/${team}/runs/${run}/findings`,
+    FINDING: (team, run, groupId) => `/security-assistant/teams/${team}/runs/${run}/findings/${groupId}`,
+    LEARNING: (team, run) => `/security-assistant/teams/${team}/runs/${run}/learning`,
+    AGENTS: (team, run) => `/security-assistant/teams/${team}/runs/${run}/agents`,
+    AUDIT: (team, run) => `/security-assistant/teams/${team}/runs/${run}/audit`,
+    WORKFLOW: (team, run) => `/security-assistant/teams/${team}/runs/${run}/workflow`,
+    EVIDENCE: (team) => `/security-assistant/teams/${team}/evidence`,
+    COMPARE: (team) => `/security-assistant/teams/${team}/compare`,
+  },
 }
 
 export default ENDPOINTS

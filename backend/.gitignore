@@ -230,3 +230,8 @@ agentic_framework/app/agents/performance_assessment/com_agent/mock_context/
 **/mock_context/output/
 assessment_result_*.json
 student_feedback_*.json
+# Output of the security scan viewer and the demo copies of the fixtures
+agentic_framework/scan_output/
+
+# Local-only files that map redacted placeholders back to personal data
+*.local.json
