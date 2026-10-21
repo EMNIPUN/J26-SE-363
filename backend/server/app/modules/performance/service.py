@@ -15,6 +15,43 @@ from shared.contracts import UserRole
 from shared.queue import app as procrastinate_app
 
 FINAL_STATES = ("succeeded", "failed", "cancelled")
+FACTORS = (
+    ("effort", "Effort", "Effort", "#10b981", "How much real work was done?", True, 0.20),
+    ("consistency", "Consistency", "Consistency", "#06b6d4", "Was the work spread consistently?", True, 0.15),
+    ("requirement_fulfillment", "Requirement Fulfillment", "Requirements", "#f59e0b", "Were the requirements fulfilled?", True, 0.25),
+    ("collaboration", "Collaboration", "Collaboration", "#ef4444", "How well did the student collaborate?", True, 0.15),
+    ("task_complexity", "Task Complexity", "Complexity", "#3b82f6", "How difficult were the tasks?", True, 0.10),
+    ("code_ownership", "Code Ownership", "Ownership", "#8b5cf6", "Does the student understand their code?", False, 0.15),
+)
+WEIGHTS = {factor[0]: factor[6] for factor in FACTORS}
+
+
+def performance_meta() -> dict:
+    """Stable server-owned vocabulary used by the versioned performance payloads."""
+    return {
+        "schema": "meta/1", "version": "2026-10-20.1",
+        "factors": [
+            {"id": i, "label": label, "short": short, "colour": colour, "question": question,
+             "measures": "", "validation": "", "limits": "", "tracked_by_sprint": tracked,
+             "why_not_tracked": None if tracked else "It is measured by questions at the end of a sprint, so one sprint is not comparable with the next.",
+             "default_weight": weight}
+            for i, label, short, colour, question, tracked, weight in FACTORS
+        ],
+        "bands": {"low_below": 0.34, "medium_below": 0.67},
+        "status": {
+            "result": {"final": {"label": "Final", "tone": "success"}, "provisional": {"label": "Provisional", "tone": "primary"},
+                       "pending_review": {"label": "Needs your review", "tone": "warning"}, "under_review": {"label": "Being checked", "tone": "warning"}},
+            "run": {s: {"label": s.replace("_", " ").title(), "tone": "neutral"} for s in ("queued", "running", "waiting_human", "succeeded", "failed", "cancelled")},
+            "factor_state": {"scored": {"label": "Scored", "short": ""}, "unavailable": {"label": "Cannot be measured", "short": "n/a"},
+                             "pending": {"label": "Waiting for the answer", "short": "pending"}, "failed": {"label": "Did not run", "short": "failed"}, "missing": {"label": "Not run", "short": "-"}},
+            "trend": {"rising": "Rising", "falling": "Falling", "steady": "Steady", "none": "Not enough yet"},
+            "quiz": {"open": "Waiting for the answer", "extended": "Second answer window", "answered": "Answered", "expired": "Not answered: counts as 0"},
+            "review_kind": {"audit": "The agent wants a person to look at this", "identity_mapping": "Some commits could not be matched to a student", "mark_check": "Mark check", "data_question": "A question about the data"},
+            "why_lead": {k: k.replace("_", " ").title() for k in ("strong", "weak", "flag", "out", "override", "range", "pattern", "provisional")},
+        },
+        "limits": {"override_reason_min": 10, "min_cohort_for_average": 5, "questions_per_student_default": 10, "quiz_window_hours": 48, "quiz_extra_hours": 48, "quiz_second_cap": 0.5},
+        "weights": WEIGHTS,
+    }
 SIGNATURE_PREFIX = "sha256="
 
 
@@ -22,7 +59,7 @@ SIGNATURE_PREFIX = "sha256="
 def default_store():
     from shared.performance import PerformanceStore
 
-    return PerformanceStore()
+    return PerformanceStore(max_size=10)
 
 
 class Enqueuer(Protocol):
@@ -55,6 +92,95 @@ def effective_mark(result: dict) -> float | None:
 
 def lecturer_view(result: dict) -> dict:
     return {**result, "effective_mark": effective_mark(result)}
+
+
+def factor_state(factor: dict | None) -> str:
+    if not factor:
+        return "missing"
+    status = factor.get("status")
+    if status == "completed" and factor.get("score") is not None:
+        return "scored"
+    if status in ("not_available", "unavailable"):
+        return "unavailable"
+    if status == "pending":
+        return "pending"
+    if status in ("failed", "error"):
+        return "failed"
+    return "missing"
+
+
+def display_factors(result: dict) -> dict:
+    out = {}
+    for factor, *_ in FACTORS:
+        raw = (result.get("factors") or {}).get(factor)
+        out[factor] = {"status": raw.get("status") if raw else None, "state": factor_state(raw), "score": raw.get("score") if raw else None,
+                       "interval": raw.get("interval") if raw else None, "provisional": bool(raw and raw.get("provisional"))}
+    return out
+
+
+def overall(results: list[dict]) -> dict:
+    """A student's standing over every sprint that has a result so far: the mean of the sprint marks and, for each factor, the mean of its scores in the sprints where it was scored.
+    ``results`` are the student's lecturer views, oldest sprint first. A sprint whose result is still under review is not counted until a person has looked at it."""
+    counted = [r for r in results if not (r["status"] == "pending_review" and not r.get("override"))]
+    marks = [m for m in (effective_mark(r) for r in counted) if m is not None]
+    factors = {}
+    for factor, *_ in FACTORS:
+        shown = [display_factors(r)[factor] for r in counted]
+        scored = [f for f in shown if f["state"] == "scored"]
+        if scored:
+            lows = [f["interval"][0] for f in scored if f["interval"]]
+            highs = [f["interval"][1] for f in scored if f["interval"]]
+            factors[factor] = {"status": "completed", "state": "scored", "score": sum(f["score"] for f in scored) / len(scored), "interval": [sum(lows) / len(lows), sum(highs) / len(highs)] if lows and len(lows) == len(highs) else None,
+                               "provisional": any(f["provisional"] for f in scored), "sprints": len(scored)}
+        else:
+            last = next((f for f in reversed(shown) if f["state"] != "missing"), {"status": None, "state": "missing", "score": None, "interval": None, "provisional": False})
+            factors[factor] = {**last, "sprints": 0}
+    intervals = [r["mark_interval"] for r in counted if r.get("mark_interval") and not r.get("override")]
+    statuses = [r["status"] for r in results]
+    status = "pending_review" if "pending_review" in statuses and counted != results else "provisional" if any(x != "final" for x in statuses) else "final"
+    return {"mark": sum(marks) / len(marks) if marks else None, "mark_interval": [sum(i[0] for i in intervals) / len(intervals), sum(i[1] for i in intervals) / len(intervals)] if intervals and len(intervals) == len(marks) else None,
+            "factors": factors, "status": status, "sprints": len(marks)}
+
+
+def band(score: float | None) -> str | None:
+    if score is None:
+        return None
+    return "low" if score < .34 else "medium" if score < .67 else "high"
+
+
+EVIDENCE_KIND = {"commit": "commit", "task": "task", "criterion": "task", "review": "review", "file": "code", "code": "code"}
+
+
+def report_sections(justification: dict, factors: dict) -> dict:
+    """The parts of the student report that the agent wrote or that are read straight from what it stored: the brief with its evidence, the reasons for the mark, the points each factor adds,
+    the working pattern and what the agent checked. ``factors`` is the report's factor map ({id: {label, state, score, ...}})."""
+    j = justification or {}
+    titles = {f[0]: f[1] for f in FACTORS}
+    groups = []
+    for g in j.get("evidence") or []:
+        lines = [{"kind": EVIDENCE_KIND.get(i.get("kind"), "note"), "text": i["text"]} for i in g.get("items", []) if i.get("text")]
+        if lines:
+            groups.append({"id": g["factor"], "label": titles.get(g["factor"], g["factor"]), "scored": bool(g.get("scored")), "lines": lines})
+    scored = {k: v for k, v in factors.items() if v.get("score") is not None and v.get("status") == "completed"}
+    share = sum(WEIGHTS.get(k, 0) for k in scored) or 1
+    contributions = [{"id": k, "label": v["label"], "score": v["score"], "weight": round(WEIGHTS.get(k, 0) / share, 4), "points": round(WEIGHTS.get(k, 0) / share * v["score"] * 100, 1)}
+                     for k, v in scored.items()]
+    behavioral = (j.get("factors") or {}).get("behavioral_pattern") or {}
+    pattern = {"persona": behavioral.get("persona"), "applied": bool(behavioral.get("applied")), "modifier": behavioral.get("modifier") or 1.0, "reasons": [r for r in behavioral.get("reasons") or [] if r]}
+    return {
+        "brief": {"text": (j.get("brief") or {}).get("text") or j.get("friendly_summary") or j.get("summary") or "", "evidence": groups, "generated": j.get("generated") or {}},
+        "why": {"headline": j.get("headline") or j.get("friendly_summary") or j.get("summary"), "key": j.get("key") or [], "more": j.get("more") or [], "summary": j.get("summary")},
+        "contributions": contributions, "pattern": pattern, "audit": j.get("audit") or {},
+    }
+
+
+def sprint_state(start: str, end: str, today=None) -> str:
+    today = today or datetime.now(timezone.utc).date()
+    try:
+        begin, finish = datetime.fromisoformat(start).date(), datetime.fromisoformat(end).date()
+    except (TypeError, ValueError):
+        return "upcoming"
+    return "upcoming" if today < begin else "finished" if today > finish else "current"
 
 
 def student_view(result: dict) -> dict:

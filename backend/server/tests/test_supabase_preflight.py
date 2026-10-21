@@ -51,6 +51,8 @@ AVATARS_REVISION = "e5b7a1c3d924"
 NOTIFICATIONS_REVISION = "f2a6c4b8d150"
 PERFORMANCE_REVISION = "a7c3d5e91f02"
 GITHUB_REVISION = "b8e1d7c3a9f4"  # head
+QUIZ_BATCH_REVISION = "b3f1c9d8e7a6"
+REVIEW_FORM_REVISION = "c4f8a9b2d761"  # head
 REF = "abcdefghijklmnopqrst"
 PASSWORD = "not-a-real-secret"
 # Nothing connects with it, but it must look like a PEM certificate. Its path must never be printed.
@@ -244,8 +246,10 @@ def test_revisions_come_from_the_repository():
         NOTIFICATIONS_REVISION,
         PERFORMANCE_REVISION,
         GITHUB_REVISION,
+        QUIZ_BATCH_REVISION,
+        REVIEW_FORM_REVISION,
     )
-    assert revisions.heads == (GITHUB_REVISION,)
+    assert revisions.heads == (REVIEW_FORM_REVISION,)
 
 
 def test_queue_expectations_come_from_the_installed_procrastinate():

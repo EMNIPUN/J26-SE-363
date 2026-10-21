@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/team_overview/1",
+  "title": "Team overview",
+  "type": "object",
+  "required": ["schema", "team", "sprints", "sprint", "run_state", "kpis", "rows", "spread"],
+  "properties": {
+    "schema": {"const": "team_overview/1"},
+    "team": {"type": "object", "required": ["ref", "name", "repo"]},
+    "sprints": {"type": "array"},
+    "sprint": {"type": "string"},
+    "run_state": {"type": "object"},
+    "kpis": {"type": "object"},
+    "rows": {"type": "array"},
+    "spread": {"type": "array"}
+  }
+}

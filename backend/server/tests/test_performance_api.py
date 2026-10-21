@@ -62,6 +62,45 @@ def test_lecturer_tracks_a_team_and_only_the_owner_sees_it(perf):
     assert perf.request("PUT", "/performance/teams/T9/tracking", json={"repo_url": "https://github.com/x/y"}).status_code == 404
 
 
+def test_phase_one_meta_and_overview_are_server_computed_without_removing_legacy_route(perf):
+    lecturer(perf, "ada")
+    track(perf)
+    run_id = perf.post("/performance/teams/T9/runs", {"sprint_id": SPRINT}).json()["run_id"]
+    result(perf.store, run_id, "STU-1", 70.0)
+    result(perf.store, run_id, "STU-2", 40.0)
+
+    meta = perf.get("/performance/meta")
+    assert meta.status_code == 200 and meta.json()["schema"] == "meta/1"
+    assert {factor["id"] for factor in meta.json()["factors"]} >= {"effort", "code_ownership"}
+
+    overview = perf.get(f"/performance/teams/T9/overview?sprint={SPRINT}")
+    assert overview.status_code == 200
+    payload = overview.json()
+    assert payload["schema"] == "team_overview/1"
+    assert [row["rank"] for row in payload["rows"]] == [1, 2]
+    assert payload["kpis"]["average_mark"] == 55
+    assert payload["rows"][0]["factors"]["effort"]["state"] == "scored"
+    assert perf.get(f"/performance/teams/T9/sprints/{SPRINT}/results").status_code == 200
+
+
+def test_phase_one_history_computes_factor_deltas(perf):
+    lecturer(perf, "ada")
+    track(perf)
+    run_id = perf.post("/performance/teams/T9/runs", {"sprint_id": SPRINT}).json()["run_id"]
+    result(perf.store, run_id, "STU-1", 70.0)
+    result(perf.store, run_id, "STU-2", 40.0)
+    run_id_s2 = perf.post("/performance/teams/T9/runs", {"sprint_id": "T9-S2"}).json()["run_id"]
+    perf.store.save_assessment_result(run_id_s2, "T9", "T9-S2", "STU-1", mark=80, status="final",
+                                      factors={"effort": {"score": 0.8, "status": "completed"}}, flags=[])
+    perf.store.update_tracked_config("T9", {"roster": ROSTER, "sprints": [
+        {"id": SPRINT, "start": "2026-03-01", "end": "2026-03-14"},
+        {"id": "T9-S2", "start": "2026-03-15", "end": "2026-03-28"}], "release_to_students": True})
+    history = perf.get(f"/performance/teams/T9/students/STU-1/history?sprint={SPRINT}")
+    assert history.status_code == 200
+    effort = next(row for row in history.json()["rows"] if row["factor"] == "effort")
+    assert effort["cells"][1]["delta"] == 20
+
+
 def test_students_cannot_use_the_lecturer_routes(perf):
     lecturer(perf, "ada")
     track(perf)
@@ -85,6 +124,44 @@ def test_starting_a_run_queues_one_job_and_refuses_a_second(perf):
     # stopped tracking: no new runs
     assert perf.delete("/performance/teams/T9/tracking").status_code == 204
     assert perf.post("/performance/teams/T9/runs", {"sprint_id": "T9-S2", "mode": "final"}).status_code == 400
+
+
+def test_a_final_run_also_queues_the_sprints_that_were_never_evaluated(perf):
+    """A sprint being over says nothing about its evaluation: every other sprint without a finished final run is queued after the one asked for."""
+    lecturer(perf, "ada")
+    sprints = [{"id": f"T9-S{n}", "start": f"2026-0{n}-01", "end": f"2026-0{n}-14"} for n in (1, 2, 3)]
+    track(perf, sprints=sprints)
+    done = perf.store.create_run("T9", "T9-S2", "final")
+    perf.store.update_run(done["id"], status="succeeded")  # evaluated already
+    r = perf.post("/performance/teams/T9/runs", {"sprint_id": "T9-S1", "mode": "final"})
+    assert r.status_code == 202
+    assert [q["sprint_id"] for q in r.json()["also_queued"]] == ["T9-S3"]
+    assert len(perf.jobs.sent) == 2 and perf.jobs.sent[1]["lock"] == "T9"
+    assert perf.post("/performance/teams/T9/runs", {"sprint_id": "T9-S1", "mode": "snapshot"}).json().get("also_queued") is None  # a snapshot does not chain
+
+
+def test_report_sections_come_from_what_the_agent_stored():
+    from app.modules.performance import service
+
+    j = {"brief": {"text": "The student made 15 commits."}, "headline": "Provisional mark 37", "key": [{"kind": "strong", "lead": "Strong", "text": "Task Complexity"}], "more": [], "summary": "s",
+         "evidence": [{"factor": "effort", "scored": True, "items": [{"id": "ev_effort_1", "kind": "file", "text": "640 net lines"}, {"id": "ev_effort_2", "kind": "commit", "text": "15 commits"}]}],
+         "factors": {"behavioral_pattern": {"persona": "Balanced contributor", "applied": True, "modifier": 1.0, "reasons": ["steady"]}}}
+    factors = {"effort": {"label": "Effort", "score": 0.5, "status": "completed"}, "consistency": {"label": "Consistency", "score": 0.1, "status": "completed"}, "code_ownership": {"label": "Code Ownership", "score": None, "status": "pending"}}
+    out = service.report_sections(j, factors)
+    assert out["brief"]["text"] == "The student made 15 commits." and [x["kind"] for x in out["brief"]["evidence"][0]["lines"]] == ["code", "commit"]
+    assert out["why"]["headline"] == "Provisional mark 37" and out["why"]["key"][0]["kind"] == "strong"
+    assert [c["id"] for c in out["contributions"]] == ["effort", "consistency"] and round(sum(c["weight"] for c in out["contributions"]), 3) == 1
+    assert out["pattern"]["persona"] == "Balanced contributor"
+
+
+def test_the_day_by_day_marks_of_every_sprint_come_in_one_list(perf):
+    lecturer(perf, "ada")
+    track(perf)
+    for sprint, day in (("T9-S1", 3), ("T9-S2", 5)):
+        perf.store.add_snapshot("T9", sprint, "STU-1", datetime(2026, 3, day, tzinfo=timezone.utc), 0.5, mark=50.0)
+    perf.store.add_snapshot("T9", "T9-S1", "STU-2", datetime(2026, 3, 3, tzinfo=timezone.utc), 0.5, mark=10.0)
+    rows = perf.get("/performance/teams/T9/students/STU-1/trajectory").json()
+    assert [r["sprint_id"] for r in rows] == ["T9-S1", "T9-S2"]
 
 
 def test_cancel_marks_the_run_and_logs_it(perf):
@@ -257,6 +334,44 @@ def test_a_student_answers_their_own_quiz_once(perf):
     assert perf.jobs.sent[-1]["task"] == "performance.refuse_student" and perf.jobs.sent[-1]["payload"]["student_id"] == ann
     assert perf.post(f"/performance/me/quizzes/{quiz_id}/answer", {"answer": "again"}).status_code == 409
     assert perf.post(f"/performance/me/quizzes/{quiz_id}/answer", {"answer": ""}).status_code == 422
+
+
+def test_phase_six_student_contract_is_isolated_and_role_protected(perf):
+    student(perf, "ann")
+    student(perf, "ben")
+    lecturer(perf, "ada")
+    ann, ben = me(perf, "ann"), me(perf, "ben")
+    perf.sign_in("ada", email="ada@example.com", name="Ada")
+    track_with_ids(perf, ann, ben)
+    run_id = perf.post("/performance/teams/T9/runs", {"sprint_id": SPRINT}).json()["run_id"]
+    result(perf.store, run_id, ann, 72.0, justification={
+        "summary": "private summary", "audit": {"student_id": ben, "mark": 31},
+        "factors": {"effort": {"score": .72, "student_id": ben}},
+    })
+    result(perf.store, run_id, ben, 31.0)
+    quiz_id = perf.store.create_quiz(
+        "T9", SPRINT, ann, question="Explain your code", snippet="def mine(): ...",
+        file_path="mine.py", line_range=[1, 2], meta={"reference_criteria": ["secret"]},
+        deadline_at=datetime.now(timezone.utc) + timedelta(hours=48),
+    )["id"]
+
+    me(perf, "ann")
+    reports = perf.get("/performance/me/reports", params={"team": "T9"}).json()
+    assert reports["schema"] == "my_reports/1"
+    report = reports["reports"][0]["report"]
+    encoded = json.dumps(report)
+    assert str(ben) not in encoded and '"audit"' not in encoded
+    assert report["history"]["schema"] == "student_history/1"
+    assert perf.get("/performance/me/quizzes", params={"team": "T9", "status": "open"}).json()["items"][0]["id"] == quiz_id
+    answer = perf.post(f"/performance/me/quizzes/{quiz_id}/answer", {"answer": "my explanation"})
+    assert answer.status_code == 202 and set(answer.json()) >= {"accepted", "in_second_window", "message", "job_id"}
+
+    # Team-scoped student routes do not disclose membership and retain wrong-role 403s.
+    assert perf.get("/performance/me/reports", params={"team": "NOPE"}).status_code == 404
+    assert perf.get("/performance/me/quizzes", params={"team": "NOPE", "status": "open"}).status_code == 404
+    perf.sign_in("ada", email="ada@example.com", name="Ada")
+    assert perf.get("/performance/me/reports", params={"team": "T9"}).status_code == 403
+    assert perf.get("/performance/me/quizzes", params={"team": "T9"}).status_code == 403
 
 
 def sign(secret, body):

@@ -102,6 +102,11 @@ CREATE TABLE IF NOT EXISTS perf_reviews (
     student_id  text,
     kind        text NOT NULL,
     reason      text NOT NULL,
+    title       text NOT NULL DEFAULT '',
+    summary     text NOT NULL DEFAULT '',
+    severity    text NOT NULL DEFAULT 'warn' CHECK (severity IN ('info', 'warn', 'critical')),
+    form        jsonb NOT NULL DEFAULT '{}'::jsonb,
+    answers     jsonb,
     evidence    jsonb NOT NULL DEFAULT '{}'::jsonb,
     status      text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'decided')),
     decision    jsonb,
@@ -117,6 +122,10 @@ CREATE TABLE IF NOT EXISTS perf_quizzes (
     sprint_id       text NOT NULL,
     student_id      text NOT NULL,
     run_id          uuid REFERENCES perf_runs (id) ON DELETE SET NULL,
+    n               integer NOT NULL DEFAULT 1 CHECK (n > 0),
+    of              integer NOT NULL DEFAULT 1 CHECK (of > 0),
+    type            text NOT NULL DEFAULT 'explain_behaviour',
+    batch_id        text,
     question        text NOT NULL,
     snippet         text NOT NULL,
     file_path       text,
@@ -130,7 +139,7 @@ CREATE TABLE IF NOT EXISTS perf_quizzes (
     in_extension    boolean NOT NULL DEFAULT false,
     result          jsonb,
     created_at      timestamptz NOT NULL DEFAULT now(),
-    UNIQUE (team_ref, sprint_id, student_id)
+    UNIQUE (team_ref, sprint_id, student_id, n)
 );
 CREATE INDEX IF NOT EXISTS ix_perf_quizzes_student ON perf_quizzes (student_id, status);
 

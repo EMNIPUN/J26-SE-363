@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/student_history/1",
+  "title": "Student history",
+  "type": "object",
+  "required": ["schema", "current", "sprints", "marks", "rows"],
+  "properties": {"schema": {"const": "student_history/1"}, "current": {"type": "string"}, "sprints": {"type": "array"}, "marks": {"type": "array"}, "rows": {"type": "array"}}
+}

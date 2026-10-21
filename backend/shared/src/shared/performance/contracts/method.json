@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/method/1",
+  "title": "Performance method",
+  "type": "object",
+  "required": ["schema", "run_id", "formula", "weights", "factors", "notice"],
+  "properties": {"schema": {"const": "method/1"}, "run_id": {"type": ["string", "null"]}, "formula": {"type": "object"}, "weights": {"type": "object"}, "factors": {"type": "array"}, "notice": {"type": "string"}}
+}

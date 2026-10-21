@@ -140,8 +140,11 @@ def test_postgres_upgrade_sql_creates_only_application_tables():
     # check would be too strict.)
     for statement in ("DROP TABLE", "DROP COLUMN", "DROP INDEX", "DROP TYPE"):
         assert statement not in sql
-    # The one constraint that is replaced is the team status check, to allow 'pending'.
-    assert sql.count("DROP CONSTRAINT") == 1 and "DROP CONSTRAINT ck_groups_status" in sql
+    # The team status check and the two performance constraints are replaced by
+    # intentional, forward-only revisions.
+    assert sql.count("DROP CONSTRAINT") == 2
+    assert "DROP CONSTRAINT ck_groups_status" in sql
+    assert "DROP CONSTRAINT IF EXISTS perf_quizzes_team_ref_sprint_id_student_id_key" in sql
     assert "JSONB" in sql
     assert sql.count("CHECK (status IN ('queued', 'running', 'succeeded', 'failed'))") == 1
     assert "CREATE TYPE" not in sql

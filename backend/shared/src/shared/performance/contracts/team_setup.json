@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/team_setup/1",
+  "title": "Team setup",
+  "type": "object",
+  "required": ["schema", "ready", "passed", "total", "blockers", "checks", "repo", "members", "notes_count", "policy", "weights", "recent_runs"],
+  "properties": {
+    "schema": {"const": "team_setup/1"}, "ready": {"type": "boolean"}, "passed": {"type": "integer"}, "total": {"type": "integer"},
+    "blockers": {"type": "array"}, "checks": {"type": "array"}, "repo": {"type": ["string", "null"]}, "members": {"type": "array"},
+    "notes_count": {"type": "integer", "minimum": 0}, "policy": {"type": "object"}, "weights": {"type": "object"}, "recent_runs": {"type": "array"}
+  }
+}

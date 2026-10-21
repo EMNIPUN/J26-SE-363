@@ -94,35 +94,61 @@ class MemoryStore:
     def trajectory(self, team_ref, sprint_id, student_id):
         return sorted((s for s in self.snapshots if (s["team_ref"], s["sprint_id"], s["student_id"]) == (team_ref, sprint_id, student_id)), key=lambda s: s["as_of"])
 
+    def trajectory_all(self, team_ref, student_id):
+        return sorted((s for s in self.snapshots if (s["team_ref"], s["student_id"]) == (team_ref, student_id)), key=lambda s: s["as_of"])
+
+    def list_snapshots(self, team_ref, sprint_id):
+        return sorted((s for s in self.snapshots if (s["team_ref"], s["sprint_id"]) == (team_ref, sprint_id)), key=lambda s: s["as_of"])
+
     # reviews
-    def create_review(self, run_id, kind, reason, *, student_id=None, evidence=None):
+    def create_review(self, run_id, kind, reason, *, student_id=None, evidence=None, title=None, summary=None, severity="warn", form=None):
+        from .review_forms import default_review_form, validate_review_form
+        form = validate_review_form(form or default_review_form(kind, evidence), kind)
         rid = str(uuid.uuid4())
-        self.reviews[rid] = {"id": rid, "run_id": run_id, "student_id": student_id, "kind": kind, "reason": reason, "evidence": evidence or {}, "status": "open", "decision": None}
+        self.reviews[rid] = {"id": rid, "run_id": run_id, "student_id": student_id, "kind": kind, "reason": reason, "title": title or "The agent wants a person to look at this", "summary": summary or reason, "severity": severity, "form": form, "answers": None, "evidence": evidence or {}, "status": "open", "decision": None}
         return self.reviews[rid]
 
     def list_reviews(self, status="open", run_id=None):
         return [r for r in self.reviews.values() if (status is None or r["status"] == status) and (run_id is None or r["run_id"] == run_id)]
 
-    def decide_review(self, review_id, decision, decided_by=None):
+    def decide_review(self, review_id, decision, decided_by=None, answers=None):
         r = self.reviews.get(review_id)
         if not r or r["status"] != "open":
             return None
-        r.update({"status": "decided", "decision": decision, "decided_by": decided_by})
+        r.update({"status": "decided", "decision": decision, "answers": answers, "decided_by": decided_by})
         return r
 
     # quizzes
-    def get_quiz(self, team_ref, sprint_id, student_id):
-        return self.quizzes.get((team_ref, sprint_id, student_id))
+    def get_quiz(self, team_ref, sprint_id, student_id, n=1):
+        return self.quizzes.get((team_ref, sprint_id, student_id, n))
 
-    def create_quiz(self, team_ref, sprint_id, student_id, *, question, snippet, file_path, line_range, meta, deadline_at, run_id=None):
-        key = (team_ref, sprint_id, student_id)
+    def create_quiz(self, team_ref, sprint_id, student_id, *, question, snippet, file_path, line_range, meta, deadline_at, run_id=None, n=1, of=1, type="explain_behaviour", batch_id=None):
+        key = (team_ref, sprint_id, student_id, n)
         if key not in self.quizzes:
-            self.quizzes[key] = {"id": str(uuid.uuid4()), "team_ref": team_ref, "sprint_id": sprint_id, "student_id": student_id, "run_id": run_id, "question": question, "snippet": snippet, "file_path": file_path,
+            self.quizzes[key] = {"id": str(uuid.uuid4()), "team_ref": team_ref, "sprint_id": sprint_id, "student_id": student_id, "run_id": run_id, "n": n, "of": of, "type": type, "batch_id": batch_id, "question": question, "snippet": snippet, "file_path": file_path,
                                  "line_range": line_range, "meta": meta, "status": "open", "deadline_at": deadline_at, "extended_until": None, "answer": None, "answered_at": None, "in_extension": False, "result": None}
         return self.quizzes[key]
 
     def list_student_quizzes(self, student_id, status=None):
-        return [q for q in self.quizzes.values() if q["student_id"] == student_id and (status is None or q["status"] == status)]
+        return sorted((q for q in self.quizzes.values() if q["student_id"] == student_id and (status is None or q["status"] == status)), key=lambda q: q["n"])
+
+    def list_quizzes(self, team_ref, sprint_id, student_id):
+        return sorted((q for q in self.quizzes.values() if (q["team_ref"], q["sprint_id"], q["student_id"]) == (team_ref, sprint_id, student_id)), key=lambda q: q["n"])
+
+    def delete_open_quizzes(self, team_ref, sprint_id, student_id):
+        mine = [k for k, q in self.quizzes.items() if (q["team_ref"], q["sprint_id"], q["student_id"]) == (team_ref, sprint_id, student_id)]
+        if any(self.quizzes[k]["status"] != "open" for k in mine):
+            return 0
+        for k in mine:
+            del self.quizzes[k]
+        return len(mine)
+
+    def set_quiz_feedback(self, quiz_id, feedback):
+        for q in self.quizzes.values():
+            if q["id"] == quiz_id:
+                q["result"] = {**(q.get("result") or {}), "feedback": feedback}
+                return q
+        return None
 
     def submit_quiz_answer(self, quiz_id, answer, now=None):
         now = now or _now()

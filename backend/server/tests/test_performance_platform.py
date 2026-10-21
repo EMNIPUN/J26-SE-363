@@ -178,3 +178,6 @@ def test_the_lecturer_sees_each_students_profile_picture(team, perf):
     result(perf.store, run_id, sam, 81.0, team=CODE)
     rows = team.get(f"/performance/teams/{CODE}/sprints/{SPRINT}/results").json()
     assert [r["student"]["picture"] for r in rows] == ["https://img.example/sam.png"]
+    report = team.get(f"/performance/teams/{CODE}/students/{sam}/report", params={"sprint": SPRINT}).json()
+    assert report["student"]["picture"] == report["profile"]["picture"] == "https://img.example/sam.png"
+    assert report["student"]["name"] == "Sam"

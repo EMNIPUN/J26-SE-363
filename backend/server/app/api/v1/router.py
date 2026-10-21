@@ -13,6 +13,7 @@ from app.api.v1.invitations import router as invitations_router
 from app.api.v1.jobs import router as jobs_router
 from app.api.v1.me import router as me_router
 from app.api.v1.notifications import router as notifications_router
+from app.api.v1.performance import internal_router as performance_internal_router
 from app.api.v1.performance import public_router as performance_public_router
 from app.api.v1.performance import router as performance_router
 from app.api.v1.students import router as students_router
@@ -42,4 +43,5 @@ protected_router.include_router(jobs_router)  # additionally admin-only (see job
 
 api_router = APIRouter()
 api_router.include_router(public_router)
+api_router.include_router(performance_internal_router)
 api_router.include_router(protected_router)

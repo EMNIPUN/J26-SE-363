@@ -39,7 +39,7 @@ def _j(value: Any) -> Jsonb | None:
 
 
 class PerformanceStore:
-    def __init__(self, dsn: str | None = None, *, max_size: int = 3):
+    def __init__(self, dsn: str | None = None, *, max_size: int = 10):
         self.dsn = dsn or get_dsn()
         if not self.dsn:
             raise RuntimeError("no database URL configured (SERVER_DIRECT_URL / SERVER_DATABASE_URL)")
@@ -51,7 +51,7 @@ class PerformanceStore:
     def pool(self) -> ConnectionPool:
         with self._guard:
             if self._pool is None:
-                self._pool = ConnectionPool(self.dsn, min_size=1, max_size=self._max, kwargs={"autocommit": True, "row_factory": dict_row}, open=True)
+                self._pool = ConnectionPool(self.dsn, min_size=2, max_size=self._max, max_idle=60.0, timeout=30.0, kwargs={"autocommit": True, "row_factory": dict_row}, open=True)
             return self._pool
 
     def close(self) -> None:
@@ -195,30 +195,61 @@ class PerformanceStore:
         return self._all("SELECT as_of, sprint_elapsed, mark, mark_interval, factors FROM perf_snapshots WHERE team_ref = %s AND sprint_id = %s AND student_id = %s ORDER BY as_of",
                          (team_ref, sprint_id, student_id))
 
+    def trajectory_all(self, team_ref: str, student_id: str) -> list[dict]:
+        """Every snapshot of a student across all sprints, oldest first."""
+        return self._all("SELECT sprint_id, as_of, sprint_elapsed, mark, mark_interval, factors FROM perf_snapshots WHERE team_ref = %s AND student_id = %s ORDER BY as_of",
+                         (team_ref, student_id))
+
+    def list_snapshots(self, team_ref: str, sprint_id: str) -> list[dict]:
+        return self._all("SELECT team_ref, sprint_id, student_id, as_of, sprint_elapsed, mark, mark_interval, factors FROM perf_snapshots WHERE team_ref = %s AND sprint_id = %s ORDER BY as_of",
+                         (team_ref, sprint_id))
+
     # ---- reviews ----------------------------------------------------------------------------------------------------------------------
-    def create_review(self, run_id: str, kind: str, reason: str, *, student_id: str | None = None, evidence: dict | None = None) -> dict:
-        return self._one("INSERT INTO perf_reviews (run_id, student_id, kind, reason, evidence) VALUES (%s, %s, %s, %s, %s) RETURNING *", (run_id, student_id, kind, reason, Jsonb(evidence or {})))
+    def create_review(self, run_id: str, kind: str, reason: str, *, student_id: str | None = None, evidence: dict | None = None,
+                      title: str | None = None, summary: str | None = None, severity: str = "warn", form: dict | None = None) -> dict:
+        from .review_forms import default_review_form, validate_review_form
+        form = validate_review_form(form or default_review_form(kind, evidence), kind)
+        summary = summary or reason
+        title = title or "The agent wants a person to look at this"
+        return self._one("INSERT INTO perf_reviews (run_id, student_id, kind, reason, title, summary, severity, form, evidence) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
+                         (run_id, student_id, kind, reason, title, summary, severity, Jsonb(form), Jsonb(evidence or {})))
 
     def list_reviews(self, status: str | None = "open", run_id: str | None = None) -> list[dict]:
         return self._all("SELECT * FROM perf_reviews WHERE (%s::text IS NULL OR status = %s) AND (%s::uuid IS NULL OR run_id = %s) ORDER BY created_at", (status, status, run_id, run_id))
 
-    def decide_review(self, review_id: str, decision: dict, decided_by: str | None = None) -> dict | None:
-        return self._one("UPDATE perf_reviews SET status = 'decided', decision = %s, decided_by = %s, decided_at = now() WHERE id = %s AND status = 'open' RETURNING *", (Jsonb(decision), decided_by, review_id))
+    def decide_review(self, review_id: str, decision: dict, decided_by: str | None = None, answers: dict | None = None) -> dict | None:
+        return self._one("UPDATE perf_reviews SET status = 'decided', decision = %s, answers = %s, decided_by = %s, decided_at = now() WHERE id = %s AND status = 'open' RETURNING *",
+                         (Jsonb(decision), Jsonb(answers) if answers is not None else None, decided_by, review_id))
 
     # ---- quizzes (Code Ownership) ----------------------------------------------------------------------------------------------------
-    def get_quiz(self, team_ref: str, sprint_id: str, student_id: str) -> dict | None:
-        return self._one("SELECT * FROM perf_quizzes WHERE team_ref = %s AND sprint_id = %s AND student_id = %s", (team_ref, sprint_id, student_id))
+    def get_quiz(self, team_ref: str, sprint_id: str, student_id: str, n: int = 1) -> dict | None:
+        return self._one("SELECT * FROM perf_quizzes WHERE team_ref = %s AND sprint_id = %s AND student_id = %s AND n = %s", (team_ref, sprint_id, student_id, n))
 
-    def create_quiz(self, team_ref: str, sprint_id: str, student_id: str, *, question: str, snippet: str, file_path: str | None, line_range: list | None, meta: dict, deadline_at, run_id: str | None = None) -> dict:
+    def create_quiz(self, team_ref: str, sprint_id: str, student_id: str, *, question: str, snippet: str, file_path: str | None, line_range: list | None, meta: dict, deadline_at, run_id: str | None = None, n: int = 1, of: int = 1, type: str = "explain_behaviour", batch_id: str | None = None) -> dict:
         """The quiz of a student for a sprint; created once (a second call returns the existing one unchanged)."""
         return self._one(
-            """INSERT INTO perf_quizzes (team_ref, sprint_id, student_id, run_id, question, snippet, file_path, line_range, meta, deadline_at)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-               ON CONFLICT (team_ref, sprint_id, student_id) DO UPDATE SET team_ref = EXCLUDED.team_ref RETURNING *""",
-            (team_ref, sprint_id, student_id, run_id, question, snippet, file_path, _j(line_range), Jsonb(meta), deadline_at))
+            """INSERT INTO perf_quizzes (team_ref, sprint_id, student_id, run_id, n, of, type, batch_id, question, snippet, file_path, line_range, meta, deadline_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+               ON CONFLICT (team_ref, sprint_id, student_id, n) DO UPDATE SET team_ref = EXCLUDED.team_ref RETURNING *""",
+            (team_ref, sprint_id, student_id, run_id, n, of, type, batch_id, question, snippet, file_path, _j(line_range), Jsonb(meta), deadline_at))
 
     def list_student_quizzes(self, student_id: str, status: str | None = None) -> list[dict]:
-        return self._all("SELECT * FROM perf_quizzes WHERE student_id = %s AND (%s::text IS NULL OR status = %s) ORDER BY created_at DESC", (student_id, status, status))
+        return self._all("SELECT * FROM perf_quizzes WHERE student_id = %s AND (%s::text IS NULL OR status = %s) ORDER BY created_at DESC, n", (student_id, status, status))
+
+    def list_quizzes(self, team_ref: str, sprint_id: str, student_id: str) -> list[dict]:
+        return self._all("SELECT * FROM perf_quizzes WHERE team_ref = %s AND sprint_id = %s AND student_id = %s ORDER BY n", (team_ref, sprint_id, student_id))
+
+    def delete_open_quizzes(self, team_ref: str, sprint_id: str, student_id: str) -> int:
+        """Remove a batch nobody has touched (every question still open) so a better one can take its place; a batch with any answer or expiry is never removed."""
+        with self.pool().connection() as c:
+            with c.transaction():
+                busy = c.execute("SELECT 1 FROM perf_quizzes WHERE team_ref = %s AND sprint_id = %s AND student_id = %s AND status <> 'open' LIMIT 1", (team_ref, sprint_id, student_id)).fetchone()
+                if busy:
+                    return 0
+                return c.execute("DELETE FROM perf_quizzes WHERE team_ref = %s AND sprint_id = %s AND student_id = %s", (team_ref, sprint_id, student_id)).rowcount
+
+    def set_quiz_feedback(self, quiz_id: str, feedback: str) -> dict | None:
+        return self._one("UPDATE perf_quizzes SET result = jsonb_set(COALESCE(result, '{}'::jsonb), '{feedback}', to_jsonb(%s::text), true) WHERE id = %s RETURNING *", (feedback, quiz_id))
 
     def submit_quiz_answer(self, quiz_id: str, answer: str, now=None) -> dict | None:
         """Record the answer if the quiz is open or extended and its window has not passed; ``in_extension`` is set when it comes in the second window."""
@@ -238,3 +269,24 @@ class PerformanceStore:
                 ext = cur.execute("UPDATE perf_quizzes SET status = 'extended', extended_until = deadline_at + make_interval(hours => %s) WHERE status = 'open' AND deadline_at < COALESCE(%s::timestamptz, now()) RETURNING *", (extra_hours, now)).fetchall()
                 exp = cur.execute("UPDATE perf_quizzes SET status = 'expired' WHERE status = 'extended' AND extended_until < COALESCE(%s::timestamptz, now()) RETURNING *", (now,)).fetchall()
         return ext + exp
+
+    def clear_evaluation_data(self, team_ref: str, sprint_id: str | None = None) -> dict:
+        """Clear all evaluation data (runs, results, events, snapshots, reviews, quizzes) for a team, optionally filtered by sprint."""
+        with self.pool().connection() as c:
+            with c.transaction():
+                cur = c.cursor(row_factory=dict_row)
+                if sprint_id:
+                    cur.execute("DELETE FROM perf_quizzes WHERE team_ref = %s AND sprint_id = %s", (team_ref, sprint_id))
+                    cur.execute("DELETE FROM perf_snapshots WHERE team_ref = %s AND sprint_id = %s", (team_ref, sprint_id))
+                    # Cascades will delete events, factor results, and assessment results linked to runs
+                    cur.execute("DELETE FROM perf_reviews WHERE run_id IN (SELECT id FROM perf_runs WHERE team_ref = %s AND sprint_id = %s)", (team_ref, sprint_id))
+                    cur.execute("DELETE FROM perf_runs WHERE team_ref = %s AND sprint_id = %s", (team_ref, sprint_id))
+                    cur.execute("DELETE FROM perf_assessment_results WHERE team_ref = %s AND sprint_id = %s", (team_ref, sprint_id))
+                else:
+                    cur.execute("DELETE FROM perf_quizzes WHERE team_ref = %s", (team_ref,))
+                    cur.execute("DELETE FROM perf_snapshots WHERE team_ref = %s", (team_ref,))
+                    cur.execute("DELETE FROM perf_reviews WHERE run_id IN (SELECT id FROM perf_runs WHERE team_ref = %s)", (team_ref,))
+                    cur.execute("DELETE FROM perf_runs WHERE team_ref = %s", (team_ref,))
+                    cur.execute("DELETE FROM perf_assessment_results WHERE team_ref = %s", (team_ref,))
+        return {"cleared": True, "team_ref": team_ref, "sprint_id": sprint_id}
+

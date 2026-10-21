@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selvia.dev/schemas/performance/review_form/1",
+  "title": "Performance review form",
+  "type": "object",
+  "required": ["schema", "blocks", "fields", "outcomes"],
+  "properties": {
+    "schema": {"const": "review_form/1"}, "blocks": {"type": "array", "maxItems": 4},
+    "fields": {"type": "array", "maxItems": 8}, "outcomes": {"type": "object"}
+  }
+}
