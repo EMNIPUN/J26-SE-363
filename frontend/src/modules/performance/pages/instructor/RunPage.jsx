@@ -9,40 +9,14 @@ import { showToast } from '@/shared/utils/toast.jsx'
 import { useTeam } from '@/shared/hooks/useTeams.js'
 import { assessmentApi, assessmentKeys } from '../../assessment/assessmentApi.js'
 import { duration, when } from '../../assessment/format.js'
-import IdentityMapForm from '../../assessment/IdentityMapForm.jsx'
+import AgentActivityFeed from '../../assessment/AgentActivityFeed.jsx'
 import PipelineFlow from '../../assessment/PipelineFlow.jsx'
 import { PipelineSkeleton } from '../../assessment/Reveal.jsx'
 import { useFillHeight } from '../../assessment/useFillHeight.js'
 import { useRunEvents } from '../../assessment/useRunEvents.js'
 import { RunPill } from '../../assessment/visuals.jsx'
 
-const LEVEL = { error: 'text-rose-600', warn: 'text-amber-600', info: 'text-foreground' }
 const ACTIVE = ['queued', 'running', 'waiting_human']
-
-function Drawer({ path, events, names, onClose }) {
-  const who = path.startsWith('student:') ? path.slice(8, path.indexOf('/')) : null
-  const mine = events.filter((e) => e.node_path === path || e.node_path.startsWith(`${path}/`))
-  return (
-    <Card className="gap-3 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">{path.split('/').pop().replace(/_/g, ' ')}</p>
-          <p className="truncate text-xs text-muted-foreground">{who ? names?.[who] || who : 'team run'}</p>
-        </div>
-        <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
-      </div>
-      {mine.length === 0 && <p className="text-xs text-muted-foreground">Nothing has happened in this step yet.</p>}
-      <ol className="max-h-[28rem] space-y-1.5 overflow-auto pr-1 font-mono text-[11px] leading-relaxed @5xl:max-h-none @5xl:overflow-visible">
-        {mine.map((e) => (
-          <li key={e.seq} className="flex gap-2">
-            <span className="shrink-0 text-muted-foreground">{String(e.ts).slice(11, 19)}</span>
-            <span className={`min-w-0 break-words ${LEVEL[e.level] || ''}`}>{e.type !== 'log' && <span className="mr-1 rounded bg-muted px-1 text-muted-foreground">{e.type.replace('node_', '')}</span>}{e.message}</span>
-          </li>
-        ))}
-      </ol>
-    </Card>
-  )
-}
 
 /**
  * One run, seen as a flow. A live run lights up as it goes; a finished run opens on its final state and can be replayed from the first event.
@@ -57,7 +31,7 @@ export default function RunPage() {
   const graph = useQuery({ queryKey: assessmentKeys.graph, queryFn: assessmentApi.graph, staleTime: Infinity })
   const { events, status, mode } = useRunEvents(runId)
   const run = useQuery({ queryKey: [...assessmentKeys.run(runId), status], queryFn: () => assessmentApi.run(runId) })
-  const results = useQuery({ queryKey: assessmentKeys.results(teamId, run.data?.sprint_id), queryFn: () => assessmentApi.results(teamId, run.data.sprint_id), enabled: Boolean(run.data) })
+  const results = useQuery({ queryKey: assessmentKeys.overview(teamId, run.data?.sprint_id), queryFn: () => assessmentApi.overview(teamId, run.data.sprint_id), enabled: Boolean(run.data) })
   const reviews = useQuery({ queryKey: [...assessmentKeys.reviews, 'run', runId, status], queryFn: () => assessmentApi.reviews('open'), enabled: status === 'waiting_human' })
   const [student, setStudent] = useState(null)
   const [selected, setSelected] = useState(null)
@@ -69,10 +43,31 @@ export default function RunPage() {
 
   const current = status || run.data?.status
   const active = ACTIVE.includes(current)
-  const names = useMemo(() => Object.fromEntries((results.data || []).map((r) => [r.student_id, r.student?.name])), [results.data])
+  const names = useMemo(() => {
+    const map = {}
+    if (!results.data) return map
+    if (Array.isArray(results.data.roster)) {
+      for (const r of results.data.roster) {
+        const sid = r.student_id || r.id
+        const name = (r.names && r.names[0]) || r.name || (r.logins && r.logins[0]) || sid
+        if (sid) map[sid] = name
+      }
+    }
+    const rows = Array.isArray(results.data.rows)
+      ? results.data.rows
+      : Array.isArray(results.data)
+        ? results.data
+        : []
+    for (const r of rows) {
+      const sid = r.student_id || r.id
+      const name = r.student?.name || r.name || sid
+      if (sid) map[sid] = name
+    }
+    return map
+  }, [results.data])
   const shown = replayAt == null ? events : events.slice(0, replayAt)
   const identityReview = (reviews.data || []).find((r) => r.run_id === runId && r.kind === 'identity_mapping')
-  const sprintUrl = `/teams/${teamId}/performance/team/results?sprint=${encodeURIComponent(run.data?.sprint_id || '')}`
+  const sprintUrl = `/teams/${teamId}/performance/team/results`
 
   useEffect(() => {
     if (!playing) return undefined
@@ -101,7 +96,7 @@ export default function RunPage() {
     }
   }
   const report = async () => {
-    const text = await assessmentApi.report(runId)
+    const text = await assessmentApi.runReport(runId)
     const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown' }))
     Object.assign(document.createElement('a'), { href: url, download: `assessment-${runId}.md` }).click()
     URL.revokeObjectURL(url)
@@ -115,13 +110,13 @@ export default function RunPage() {
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild aria-label="Back to the assessment"><Link to={sprintUrl}><ArrowLeft className="h-4 w-4" /></Link></Button>
           <div>
-            <h1 className="flex items-center gap-3 text-xl font-semibold tracking-tight text-foreground">
+            <h1 className="flex items-center gap-3 text-lg font-semibold text-foreground">
               {run.data ? `${run.data.mode === 'final' ? 'Final assessment' : 'Snapshot'} of sprint ${run.data.sprint_id}` : 'Assessment run'}
               {current && <RunPill status={current} />}
             </h1>
             <p className="text-sm text-muted-foreground">
               {team.data?.name}{run.data && ` · started ${when(run.data.created_at)}`}{took != null && ` · took ${duration(took)}`}
-              {active && <span className="ml-2 text-primary">{mode === 'live' ? '· live' : mode === 'polling' ? '· updating every 2 s' : ''}</span>}
+              {active && <span className="ml-2">{mode === 'live' ? '· live' : mode === 'polling' ? '· updating every 2 s' : ''}</span>}
             </p>
           </div>
         </div>
@@ -132,11 +127,10 @@ export default function RunPage() {
         </div>
       </div>
 
-      {current === 'waiting_human' && identityReview && <IdentityMapForm runId={runId} review={identityReview} onDone={() => qc.invalidateQueries({ queryKey: ['assessment'] })} />}
-      {current === 'failed' && run.data?.error && <p className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900 dark:bg-rose-950/30 dark:text-rose-200">The run failed: {run.data.error.message}</p>}
+      {current === 'failed' && run.data?.error && <p className="shrink-0 rounded-lg border border-l-2 border-l-rose-500 bg-card px-4 py-2.5 text-sm text-foreground"><span className="font-medium">The run failed.</span> <span className="text-muted-foreground">{run.data.error.message}</span></p>}
 
       {!active && events.length > 0 && (
-        <Card className="shrink-0 flex-row flex-wrap items-center gap-3 p-3">
+        <Card className="shrink-0 flex-row flex-wrap items-center gap-3 px-3 py-2 shadow-none">
           <Button size="sm" variant={playing ? 'secondary' : 'outline'} onClick={() => { if (!playing && replayAt == null) setReplayAt(0); setPlaying(!playing) }}>{playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}{playing ? 'Pause' : 'Replay'}</Button>
           <input type="range" min="0" max={events.length} value={replayAt ?? events.length} onChange={(e) => { setPlaying(false); setReplayAt(Number(e.target.value) >= events.length ? null : Number(e.target.value)) }} className="min-w-48 flex-1 accent-primary" aria-label="Replay position" />
           <span className="w-28 text-right text-xs tabular-nums text-muted-foreground">{replayAt == null ? 'final state' : `event ${replayAt} of ${events.length}`}</span>
@@ -145,16 +139,24 @@ export default function RunPage() {
       )}
 
       {graph.data ? (
-        <div className="grid min-h-0 flex-1 gap-5 @5xl:grid-cols-[minmax(0,1fr)_380px] @5xl:grid-rows-[minmax(0,1fr)]">
-          <div className="min-h-0 max-w-3xl @5xl:overflow-y-auto @5xl:pr-2"><PipelineFlow topology={graph.data} events={shown} student={student} onStudent={setStudent} selected={selected} onSelect={setSelected} names={names} /></div>
-          <div className="min-h-0 space-y-4 @5xl:overflow-y-auto @5xl:pr-1">
-            {selected ? <Drawer path={selected} events={shown} names={names} onClose={() => setSelected(null)} /> : <Card className="p-4 text-sm text-muted-foreground">Choose a step to read what it did, line by line.</Card>}
-            <Card className="gap-2 p-4">
-              <h3 className="text-sm font-semibold">Latest</h3>
-              <ol className="max-h-72 space-y-1 overflow-auto font-mono text-[11px] @5xl:max-h-none @5xl:overflow-visible">
-                {shown.filter((e) => e.type === 'log').slice(-12).reverse().map((e) => <li key={e.seq} className="flex gap-2"><span className="shrink-0 text-muted-foreground">{e.node_path.split('/').pop().replace(/_/g, ' ')}</span><span className={`min-w-0 break-words ${LEVEL[e.level] || ''}`}>{e.message}</span></li>)}
-              </ol>
-            </Card>
+        <div className="grid min-h-0 flex-1 gap-5 @4xl:grid-cols-[minmax(0,1fr)_440px] @4xl:grid-rows-[minmax(0,1fr)]">
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-foreground/15 bg-card shadow-sm">
+            <div className="shrink-0 border-b px-4 py-2.5"><h2 className="text-sm font-semibold text-foreground">Pipeline</h2></div>
+            <div className="min-h-0 flex-1 overflow-y-auto bg-muted/40 px-4 py-4">
+              <div className="max-w-3xl">
+                <PipelineFlow topology={graph.data} events={shown} student={student} onStudent={setStudent} selected={selected} onSelect={setSelected} names={names} />
+              </div>
+            </div>
+          </section>
+          <div className="min-h-0 h-full overflow-hidden">
+            <AgentActivityFeed
+              events={shown}
+              current={current}
+              identityReview={identityReview}
+              runId={runId}
+              onReviewDone={() => qc.invalidateQueries({ queryKey: ['assessment'] })}
+              names={names}
+            />
           </div>
         </div>
       ) : <PipelineSkeleton />}

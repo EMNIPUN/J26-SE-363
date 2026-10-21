@@ -184,7 +184,11 @@ export function rfSummary(events, student) {
     if (e.node_path !== path) continue
     const m = e.message || ''
     let t
-    if ((t = /^task_start: judging task (\S+)/.exec(m))) tasks.set(t[1], { id: t[1], state: 'judging' })
+    const p = e.payload || {}
+    if (e.type === 'task' && p.task) {
+      const state = { task_start: 'judging', task_done: 'done', task_skipped: 'skipped', task_error: 'error' }[p.event] || 'judging'
+      tasks.set(p.task, { id: p.task, state, ...(p.fulfilment != null ? { fulfilment: Number(p.fulfilment) } : {}) })
+    } else if ((t = /^task_start: judging task (\S+)/.exec(m))) tasks.set(t[1], { id: t[1], state: 'judging' })
     else if ((t = /^task_done: task (\S+): fulfilment ([\d.]+)/.exec(m))) tasks.set(t[1], { id: t[1], state: 'done', fulfilment: Number(t[2]) })
     else if ((t = /^task_skipped: task (\S+)/.exec(m))) tasks.set(t[1], { id: t[1], state: 'skipped' })
     else if ((t = /^task_error: task (\S+)/.exec(m))) tasks.set(t[1], { id: t[1], state: 'error' })
@@ -194,5 +198,23 @@ export function rfSummary(events, student) {
       if (k) tokens += Number(k[1]) + Number(k[2])
     } else if (/^llm_error:/.test(m)) errors++
   }
+
   return { tasks: [...tasks.values()], calls, errors, tokens }
+}
+
+export function llmSummary(events, path) {
+  const rows = events.filter((e) => e.node_path === path && e.type === 'llm')
+  return {
+    calls: rows.length,
+    tokens: rows.reduce((sum, e) => sum + Number(e.payload?.prompt_tokens || 0) + Number(e.payload?.completion_tokens || 0), 0),
+  }
+}
+
+export function producedFields(events, path) {
+  const out = {}
+  for (const e of events) {
+    if (e.node_path !== path || e.type !== 'produce' || !e.payload?.field) continue
+    out[e.payload.field] = { verified: e.payload.verified === true, fallback: e.payload.fallback === true }
+  }
+  return out
 }

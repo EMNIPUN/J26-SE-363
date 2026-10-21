@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { edgePath, edgeState, laneRows, lastLine, layers, layout, NODE_H, NODE_W, nodeStates, pathOf, rfSummary, rowState, studentsIn, teamSteps } from './pipelineModel.js'
+import { edgePath, edgeState, laneRows, lastLine, layers, layout, llmSummary, NODE_H, NODE_W, nodeStates, pathOf, producedFields, rfSummary, rowState, studentsIn, teamSteps } from './pipelineModel.js'
 
 const nodes = ['check', 'a', 'b', 'join', 'next'].map((id) => ({ id }))
 const edges = [
@@ -116,5 +116,21 @@ describe('the vertical view', () => {
       { node_path: 'student:OTHER/rf_subagent', message: 'task_start: judging task X' },
     ]
     expect(rfSummary(ev, 'S')).toEqual({ tasks: [{ id: 'T1', state: 'done', fulfilment: 0.25 }, { id: 'T2', state: 'judging' }], calls: 2, errors: 1, tokens: 3110 })
+  })
+
+  it('uses typed task, model and produced payloads without parsing messages', () => {
+    const ev = (type, node_path, extra = {}) => ({ type, node_path, ts: 't', payload: {}, message: '', ...extra })
+    const events = [
+      ev('task', 'student:S/rf_subagent', { payload: { event: 'task_done', task: 'T1', fulfilment: 0.75 } }),
+      ev('llm', 'student:S/rf_subagent', { payload: { prompt_tokens: 10, completion_tokens: 4 } }),
+      ev('produce', 'student:S/narrate', { payload: { field: 'brief.text', verified: true, fallback: false } }),
+      ev('produce', 'student:S/narrate', { payload: { field: 'why.key', verified: false, fallback: true } }),
+    ]
+    expect(rfSummary(events, 'S').tasks).toEqual([{ id: 'T1', state: 'done', fulfilment: 0.75 }])
+    expect(llmSummary(events, 'student:S/rf_subagent')).toEqual({ calls: 1, tokens: 14 })
+    expect(producedFields(events, 'student:S/narrate')).toEqual({
+      'brief.text': { verified: true, fallback: false },
+      'why.key': { verified: false, fallback: true },
+    })
   })
 })

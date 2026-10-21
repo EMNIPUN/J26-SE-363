@@ -41,23 +41,29 @@ export default function RunPipeline() {
   const client = useQueryClient()
   const graph = useQuery({ queryKey: ['perf-graph'], queryFn: assessmentApi.graph, staleTime: Infinity })
   const { events, status, mode } = useRunEvents(runId)
-  const run = useQuery({ queryKey: ['perf-run', runId, status], queryFn: () => assessmentApi.run(runId) })
-  const reviews = useQuery({ queryKey: ['perf-reviews-run', runId, status], queryFn: () => assessmentApi.reviews('open'), enabled: status === 'waiting_human' })
+  const run = useQuery({ queryKey: ['perf-run', runId], queryFn: () => assessmentApi.run(runId) })
+  const current = status || run.data?.status
+  const isWaiting = current === 'waiting_human'
+  const reviews = useQuery({
+    queryKey: ['perf-reviews-run', runId],
+    queryFn: () => assessmentApi.reviews('open'),
+    enabled: isWaiting,
+    refetchInterval: isWaiting ? 3000 : false,
+  })
   const [student, setStudent] = useState(null)
   const [selected, setSelected] = useState(null)
 
   const states = useMemo(() => nodeStates(events), [events])
   const students = useMemo(() => studentsIn(events), [events])
   const lane = student || students[0]?.id || null
-  const identityReview = (reviews.data || []).find((r) => r.run_id === runId && r.kind === 'identity_mapping')
-  const current = status || run.data?.status
+  const identityReview = (Array.isArray(reviews.data) ? reviews.data : reviews.data?.data || []).find((r) => String(r.run_id) === String(runId) && r.kind === 'identity_mapping')
 
   const cancel = async () => {
     await assessmentApi.cancelRun(runId)
     client.invalidateQueries({ queryKey: ['perf-run'] })
   }
   const report = async () => {
-    const text = await assessmentApi.report(runId)
+    const text = await assessmentApi.runReport(runId)
     const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown' }))
     Object.assign(document.createElement('a'), { href: url, download: `assessment-${runId}.md` }).click()
     URL.revokeObjectURL(url)
