@@ -24,6 +24,7 @@ export function useRunEvents(runId) {
       const fresh = list.filter((e) => e.seq > last.current)
       if (!fresh.length) return
       last.current = fresh[fresh.length - 1].seq
+      if (fresh.some((e) => ['run_waiting', 'run_resume', 'run_end'].includes(e.type))) refreshStatus()
       setData((prev) => (prev.id === runId ? { id: runId, list: [...prev.list, ...fresh] } : { id: runId, list: fresh }))
     }
     const refreshStatus = async () => {
@@ -76,8 +77,11 @@ export function useRunEvents(runId) {
     }
     refreshStatus()
     open()
+    // The stream keeps flowing while a run waits for a person, so nothing closes it and the status would never be read again: ask for it now and then (and straight away when the run says it is waiting).
+    const watch = setInterval(() => { if (!stop) refreshStatus() }, 4000)
     return () => {
       stop = true
+      clearInterval(watch)
       controller.abort()
     }
   }, [runId])
