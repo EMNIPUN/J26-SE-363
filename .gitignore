@@ -58,3 +58,8 @@ docker/keycloak/providers-src/**/target/
 **/07_code_ownership/training/dataset/cache/
 **/07_code_ownership/training/experiments/*/results/*.pkl
 **/07_code_ownership/training/experiments/*/results/*.log
+
+# Database backups
+docker/backup/
+*.sql
+
