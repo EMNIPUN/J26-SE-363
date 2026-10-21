@@ -53,3 +53,9 @@ def fields_snapshot(report):
 def test_python_demo_frontend_fields_are_identical_to_the_recorded_output(demo, tmp_path):
     report = go(demo, tmp_path, client=Mock(), req=SAMPLES / "requirements.json", tasks=SAMPLES / "tasks.json")
     check(fields_snapshot(report), GOLDEN_FIELDS)
+
+
+def test_the_normaliser_hides_bare_dates_so_the_snapshots_do_not_depend_on_the_day():
+    """Regression: the report's commit-date column holds the day the demo repository was made, so the recorded hash failed the next day."""
+    assert golden.norm("| 2026-10-20 | x |") == golden.norm("| 2031-02-03 | x |") == "| <date> | x |"
+    assert golden.norm("2026-10-20 14:03:09 UTC and 2026-10-20") == "<time> and <date>"

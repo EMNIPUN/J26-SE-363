@@ -1,6 +1,6 @@
 """A normalised snapshot of an `assess` run, used to prove that a refactoring changed no output.
 
-Volatile things are replaced (commit ids, contributor pseudonyms, timestamps, durations, temporary paths); everything else is compared:
+Volatile things are replaced (commit ids, contributor pseudonyms, timestamps, dates, durations, temporary paths); everything else is compared:
 stage statuses and details, the findings with their status, links, risk and probe results, the incomplete reasons, the decision trails,
 the order of audit events, the report's headings and a digest of the whole normalised report.md.
 """
@@ -13,12 +13,13 @@ from pathlib import Path
 _SHA = re.compile(r"\b[0-9a-f]{7,40}\b")
 _PSEUDO = re.compile(r"\bC-[0-9a-f]{8}\b")
 _TIME = re.compile(r"\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}[^\s|]*(?: UTC)?")
+_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")  # a bare date (the commit date column): the demo repository is made today, so it changes every day
 _TMP = re.compile(r"[A-Za-z]:[\\/][^\s|\"')]*|/tmp/[^\s|\"')]*")
 
 
 def norm(text) -> str:
     text = _TMP.sub("<path>", str(text))
-    return _TIME.sub("<time>", _PSEUDO.sub("<pseudonym>", _SHA.sub("<sha>", text)))
+    return _DATE.sub("<date>", _TIME.sub("<time>", _PSEUDO.sub("<pseudonym>", _SHA.sub("<sha>", text))))
 
 
 def trail(entries):
