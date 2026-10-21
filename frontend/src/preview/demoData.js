@@ -106,8 +106,14 @@ function events(upTo = Infinity) {
 export const liveEvents = () => {
   // stop in the middle of the second student's factors
   const all = events()
-  const cut = all.findIndex((e) => e.node_path === `student:${STUDENTS[1].id}/rf_subagent` && e.type === 'node_start') + 3
-  return all.slice(0, cut)
+  const start = all.findIndex((e) => e.node_path === `student:${STUDENTS[1].id}/rf_subagent` && e.type === 'node_start')
+  const cut = (start >= 0 ? start : Math.floor(all.length * 0.55)) + 3
+  const shown = all.slice(0, cut)
+  const lane = topology.nodes.find((n) => n.group === 'student')
+  const activePath = `student:${STUDENTS[1].id}/${topology.nodes.find((n) => n.id === 'factor_effort')?.id || lane?.id || 'effort'}`
+  const seq = shown.length ? shown[shown.length - 1].seq + 1 : 1
+  shown.push({ seq, ts: new Date().toISOString(), type: 'node_start', node_path: activePath, message: 'Effort', level: 'info', payload: {} })
+  return shown
 }
 
 // Ten code questions about one student's functions, in every state, as the final assessment can produce.
@@ -168,6 +174,32 @@ export function respond(p, m, { role = 'instructor', live = false, gate = 'ok' }
     topology = graph
     const json = (body, status = 200) => ({ status, body })
     if (p === '/teams/MC01') return json({ id: 't1', code: 'MC01', name: 'MediCare', term: '2026-S1', status: 'active', my_role: 'lecturer', repo_url: 'https://github.com/acme/app', members: [], invitations: [] })
+    if (p === '/performance/meta') return json({ schema: 'E1', factors: Object.keys(factors(0)).filter((k) => k !== 'behavioral_pattern').map((id) => ({ id, label: id.replaceAll('_', ' '), short: id.split('_')[0] })), bands: [] })
+    if (/^\/performance\/teams\/MC01\/overview$/.test(p)) {
+      const rows = STUDENTS.map((_, i) => { const r = result(i); return { ...r, name: r.student.name, picture: r.student.picture, interval: r.mark_interval, flags: r.justification.flags, overridden: Boolean(r.override) } })
+      const average = rows.reduce((n, r) => n + r.effective_mark, 0) / rows.length
+      return json({ schema: 'E3', team_ref: 'MC01', sprint_id: 'MC01-S3', sprint: 'MC01-S3', sprints: [{ id: 'MC01-S3', start: '2026-04-10', end: '2026-04-15' }, { id: 'MC01-S4', start: '2026-04-16', end: '2026-04-21' }], rows, kpis: { average_mark: Math.round(average), lowest: 14, highest: 78, need_review: 2, waiting_for_answer: 2, provisional: 4 } })
+    }
+    if (/^\/performance\/teams\/MC01\/development$/.test(p)) return json({ schema: 'E4', progress: { state: 'current', day: 4, days: 6, share: 0.67 }, kpis: { team_average: 51, team_change: 8, snapshots: 6, below_40: 1, most_improved: { first_name: 'Sadeesha', change: 40 } }, students: STUDENTS.map((s) => ({ student_id: s.id, name: s.name, picture: FACES[s.id], first: CURVES[s.id][0], latest: CURVES[s.id][5], change: CURVES[s.id][5] - CURVES[s.id][0], trend: 'rising', spark: CURVES[s.id] })), chart: CURVES['u-sam'].map((_, i) => ({ day: `2026-04-${11 + i}`, average: 30 + i * 8, low: 12 + i * 2, high: 55 + i * 7 })), warnings: [] })
+    if (/^\/performance\/teams\/MC01\/setup$/.test(p)) return json({ schema: 'E9', ready: true, repo: 'acme/app', board_ref: 'MC01', blockers: [], notes: [], sprints: [{ id: 'MC01-S3', start: '2026-04-10', end: '2026-04-15' }, { id: 'MC01-S4', start: '2026-04-16', end: '2026-04-21' }], members: [{ user_id: 'u1', name: 'Sadeesha Sathsara', picture: FACES['u-sam'], login: 'sadeesha', state: 'ready', is_leader: true }], weights: { effort: 0.2, consistency: 0.2, requirement_fulfillment: 0.2, collaboration: 0.2, task_complexity: 0.2 }, recent_runs: runsList() })
+    if (/^\/performance\/teams\/MC01\/students\/[^/]+\/report$/.test(p)) {
+      const id = p.match(/students\/([^/]+)\/report/)[1]
+      const r = result(STUDENTS.findIndex((s) => s.id === id))
+      const factorCards = Object.entries(r.justification.factors).filter(([key]) => key !== 'behavioral_pattern').map(([key, value]) => ({ id: key, ...value, explain: value.reasons?.[0] || '' }))
+      const contributions = factorCards.filter((f) => f.score != null).map((f) => ({ factor: f.id, label: f.title, points: Number((f.score * 10).toFixed(1)), weight: 0.2 }))
+      return json({
+        schema: 'E10', ...r, profile: r.student,
+        hero: { mark: r.effective_mark, summary: r.justification.summary, band: r.status },
+        brief: { text: r.justification.friendly_summary || r.justification.summary, evidence: [{ id: 'summary', label: 'Assessment facts', scored: true, lines: [{ kind: 'note', text: 'The agent checked repository contributions and Scrum-board work for this sprint.' }] }] },
+        why: { headline: r.justification.summary, key: [{ kind: 'strength', lead: 'Biggest strength', text: 'Task Complexity contributed most to this prediction.' }, { kind: 'held_back', lead: 'Held back by', text: 'Consistency and unavailable factors limit the certainty of this prediction.' }], more: [] },
+        radar: { axes: factorCards.map((f) => ({ factor: f.title, short: f.title, score: f.score == null ? 0 : f.score * 100, measured: f.score != null, state: f.status, average: f.score == null ? null : 50 })) },
+        factors: factorCards,
+        contributions,
+      })
+    }
+    if (/^\/performance\/teams\/MC01\/students\/[^/]+\/history$/.test(p)) return json({ schema: 'E11', items: trajectoryOf(p.match(/students\/([^/]+)\/history/)[1]) })
+    if (/^\/performance\/teams\/MC01\/students\/[^/]+\/questions\/?$/.test(p)) return json({ schema: 'E13', summary: { total: QUESTIONS.length }, questions: QUESTIONS, items: QUESTIONS })
+    if (p === '/performance/method') return json({ schema: 'E23', formula: 'weighted factors', weights: { effort: 0.2, consistency: 0.2 }, factors: [], notice: '' })
     if (p === '/performance/teams/MC01/tracking') return json({ team_ref: 'MC01', repo_url: 'https://github.com/acme/app', board_ref: 'MC01', status: 'active', config: { sprints: [{ id: 'MC01-S3', start: '2026-04-10', end: '2026-04-15' }, { id: 'MC01-S4', start: '2026-04-16', end: '2026-04-21' }], release_to_students: true } })
     if (p === '/performance/teams/MC01/readiness') return json({ ready: true, blockers: [], notes: ['Lee has not connected GitHub.'], repo: 'acme/app', members: [{ user_id: 'u1', name: 'Sadeesha Sathsara', picture: FACES['u-sam'], login: 'sadeesha', state: 'ready', is_leader: true }, { user_id: 'u2', name: 'Eric Devon', picture: FACES['u-eri'], login: 'eric-devon', state: 'ready' }, { user_id: 'u3', name: 'Chathush Perera', picture: FACES['u-cha'], login: 'chathush', state: 'read_only' }, { user_id: 'u4', name: 'Nipun Dhananjaya', picture: FACES['u-nip'], login: null, state: 'not_connected' }] })
     if (/^\/performance\/teams\/MC01\/runs$/.test(p)) return json(runsList(live ? 'live' : 'done'))
@@ -184,6 +216,6 @@ export function respond(p, m, { role = 'instructor', live = false, gate = 'ok' }
     if (p === '/teams/MC01/github/repos') return json([{ id: 1, full_name: 'sadeesha/medicare', private: false }, { id: 2, full_name: 'sadeesha/medicare-docs', private: true }])
     if (p === '/teams/MC01/github') return json({ repo: 'acme/app', ready: true, blockers: [], notes: [], can_link: role === 'instructor', members: [{ user_id: 'u1', name: 'Sadeesha Sathsara', picture: FACES['u-sam'], login: 'sadeesha', state: 'ready', is_leader: true }, { user_id: 'u2', name: 'Eric Devon', picture: FACES['u-eri'], login: 'eric-devon', state: 'ready' }, { user_id: 'u3', name: 'Chathush Perera', picture: FACES['u-cha'], login: 'chathush', state: 'read_only' }, { user_id: 'u4', name: 'Nipun Dhananjaya', picture: FACES['u-nip'], login: null, state: 'not_connected' }] })
     if (p === '/performance/me/results') return json([{ team_ref: 'MC01', ...ownRow() }])
-    if (p === '/performance/me/quizzes') return json([{ id: 'q1', team_ref: 'MC01', sprint_id: 'MC01-S3', question: 'What does build_report do, and what do rows and threshold control?', snippet: 'def build_report(rows, threshold):\n    total = 0\n    for row in rows:\n        if row > threshold:\n            total += row\n    return total', file_path: 'report.py', line_range: [1, 6], status: 'open', deadline_at: new Date(Date.now() + 40 * 3600e3).toISOString() }])
+    if (p === '/performance/me/quizzes') return json({ schema: 'my_quizzes/1', items: [{ id: 'q1', team_ref: 'MC01', sprint_id: 'MC01-S3', question: 'What does build_report do, and what do rows and threshold control?', snippet: 'def build_report(rows, threshold):\n    total = 0\n    for row in rows:\n        if row > threshold:\n            total += row\n    return total', file_path: 'report.py', line_range: [1, 6], status: 'open', deadline_at: new Date(Date.now() + 40 * 3600e3).toISOString() }] })
     return json({}, 404)
 }

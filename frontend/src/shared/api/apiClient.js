@@ -16,7 +16,7 @@ import { toast } from 'sonner'
  */
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
-  timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 15000,
+  timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 60000,
   withCredentials: true, // Forwards HttpOnly session/refresh cookies automatically
   headers: {
     'Content-Type': 'application/json',
@@ -98,12 +98,17 @@ apiClient.interceptors.response.use(
       case 502:
       case 503:
       case 504:
-        // Server infrastructure errors
-        toast.error('Server Error: Our team has been notified. Please try again shortly.')
+        // Server infrastructure errors - suppressed generic 'developer notified' toast
         break
 
       default:
-        if (apiError.isNetworkError) {
+        // Suppress timeout and canceled error popups
+        if (
+          apiError.isNetworkError &&
+          apiError.code !== 'REQUEST_TIMEOUT' &&
+          error?.name !== 'CanceledError' &&
+          !error?.message?.includes('timeout')
+        ) {
           toast.error(apiError.message)
         }
         break

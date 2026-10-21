@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, ChevronDown, FileCode2, MessageSquareQuote } from 'lucide-react'
 import EmptyState from '@/shared/components/EmptyState.jsx'
@@ -30,7 +30,6 @@ function Rating({ value }) {
     </span>
   )
 }
-
 function Question({ q, open, onToggle }) {
   const status = STATUS[q.status] || { label: q.status, cls: 'bg-muted text-muted-foreground' }
   const id = `question-${q.n}`
@@ -75,10 +74,10 @@ function Question({ q, open, onToggle }) {
 /** All the code questions asked of one student, on a page of their own: there can be ten or more, so they are a list to scan, filter and open one at a time. */
 export default function StudentQuestions() {
   const { teamId, studentId } = useParams()
-  const [params] = useSearchParams()
-  const sprint = params.get('sprint') || ''
-  const results = useQuery({ queryKey: assessmentKeys.results(teamId, sprint), queryFn: () => assessmentApi.results(teamId, sprint), enabled: Boolean(sprint) })
-  const quiz = useQuery({ queryKey: assessmentKeys.quiz(teamId, sprint, studentId), queryFn: () => assessmentApi.quiz(teamId, sprint, studentId), enabled: Boolean(sprint) })
+  const latest = useQuery({ queryKey: assessmentKeys.report(teamId, '', studentId), queryFn: () => assessmentApi.report(teamId, '', studentId) })
+  const sprint = latest.data?.sprint_id || ''
+  const results = useQuery({ queryKey: assessmentKeys.overview(teamId, sprint), queryFn: () => assessmentApi.overview(teamId, sprint), enabled: Boolean(sprint) })
+  const quiz = useQuery({ queryKey: assessmentKeys.questions(teamId, sprint, studentId), queryFn: () => assessmentApi.questions(teamId, sprint, studentId), enabled: Boolean(sprint) })
   const [filter, setFilter] = useState('all')
   const [open, setOpen] = useState({})
   const questions = useMemo(() => questionsOf(quiz.data), [quiz.data])
@@ -86,7 +85,7 @@ export default function StudentQuestions() {
   const shown = questions.filter(FILTERS.find((f) => f.id === filter).test)
   const person = results.data?.find((r) => r.student_id === studentId)?.student
   const name = person?.name
-  const back = `/teams/${teamId}/performance/students/${studentId}?sprint=${encodeURIComponent(sprint)}`
+  const back = `/teams/${teamId}/performance/students/${studentId}`
   const allOpen = shown.length > 0 && shown.every((q) => open[q.n])
 
   return (

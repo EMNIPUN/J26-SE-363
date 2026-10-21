@@ -13,6 +13,7 @@ import { duration, when } from '../../../assessment/format.js'
 import Panel from '../../../assessment/Panel.jsx'
 import { RunPill } from '../../../assessment/visuals.jsx'
 import { ChartSkeleton, ListSkeleton, Stagger, StatRowSkeleton } from '../../../assessment/Reveal.jsx'
+import IdentityMapForm from '../../../assessment/IdentityMapForm.jsx'
 import RunAnalysis from './RunAnalysis.jsx'
 
 export function RunsTab({ runs, loading, base, onRerun, onReport, busy }) {
@@ -49,7 +50,7 @@ export function RunsTab({ runs, loading, base, onRerun, onReport, busy }) {
 }
 RunsTab.propTypes = { runs: PropTypes.array, loading: PropTypes.bool, base: PropTypes.string, onRerun: PropTypes.func, onReport: PropTypes.func, busy: PropTypes.bool }
 
-function ReviewItem({ review, onChanged }) {
+function ReviewItem({ review, onChanged, students = [] }) {
   const [mark, setMark] = useState('')
   const [reason, setReason] = useState('')
   const [open, setOpen] = useState(false)
@@ -65,7 +66,9 @@ function ReviewItem({ review, onChanged }) {
         <Link to={`../runs/${review.run_id}`} className="text-xs text-primary hover:underline">Open the run</Link>
       </div>
       <p className="text-sm text-muted-foreground">{review.reason}</p>
-      {review.kind === 'identity_mapping' ? <p className="text-xs text-muted-foreground">Answer this on the run page; the run is waiting for it.</p> : open ? (
+      {review.kind === 'identity_mapping' ? (
+        <IdentityMapForm runId={review.run_id} review={review} onDone={onChanged} students={students} />
+      ) : open ? (
         <div className="flex flex-wrap items-center gap-2">
           <Input className="w-24" type="number" min="0" max="100" placeholder="Mark" value={mark} onChange={(e) => setMark(e.target.value)} />
           <Input className="min-w-56 flex-1" placeholder="Why (at least 10 characters)" value={reason} onChange={(e) => setReason(e.target.value)} />
@@ -82,15 +85,16 @@ function ReviewItem({ review, onChanged }) {
     </Card>
   )
 }
-ReviewItem.propTypes = { review: PropTypes.object, onChanged: PropTypes.func }
+ReviewItem.propTypes = { review: PropTypes.object, onChanged: PropTypes.func, students: PropTypes.array }
 
-export function ReviewsTab({ team }) {
+export function ReviewsTab({ team, students = [] }) {
   const qc = useQueryClient()
-  const q = useQuery({ queryKey: assessmentKeys.reviews, queryFn: () => assessmentApi.reviews('open') })
-  const list = (q.data || []).filter((r) => r.team_ref.toLowerCase() === String(team).toLowerCase())
+  const q = useQuery({ queryKey: assessmentKeys.reviews, queryFn: () => assessmentApi.reviews('open'), refetchInterval: 5000 })
+  const rawList = Array.isArray(q.data) ? q.data : q.data?.data || []
+  const list = rawList.filter((r) => !team || (r.team_ref && r.team_ref.toLowerCase() === String(team).toLowerCase()))
   if (q.isPending) return <ListSkeleton rows={3} />
   if (!list.length) return <EmptyState icon={CheckCircle2} title="Nothing waiting for you" description="When the agent finds something it cannot settle itself, for example work that looks higher than the student understands, it appears here." />
-  return <Stagger className="space-y-3" step={80}>{list.map((r) => <ReviewItem key={r.id} review={r} onChanged={() => { qc.invalidateQueries({ queryKey: assessmentKeys.reviews }); qc.invalidateQueries({ queryKey: ['assessment'] }) }} />)}</Stagger>
+  return <Stagger className="space-y-3" step={80}>{list.map((r) => <ReviewItem key={r.id} review={r} students={students} onChanged={() => { qc.invalidateQueries({ queryKey: assessmentKeys.reviews }); qc.invalidateQueries({ queryKey: ['assessment'] }) }} />)}</Stagger>
 }
-ReviewsTab.propTypes = { team: PropTypes.string }
+ReviewsTab.propTypes = { team: PropTypes.string, students: PropTypes.array }
 

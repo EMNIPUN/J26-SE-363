@@ -15,13 +15,13 @@ function Delta({ value }) {
 Delta.propTypes = { value: PropTypes.number }
 
 function Cell({ cell, current }) {
-  if (cell.kind === 'loading') return <td className="px-3 py-3"><Skel className="mx-auto h-5 w-10" /></td>
+  if (!cell || cell.kind === 'loading') return <td className="px-3 py-3"><Skel className="mx-auto h-5 w-10" /></td>
   const tone = cell.score == null ? 'text-muted-foreground' : styleOf(band(cell.score / 100)).text
   return (
     <td className={`px-3 py-3 text-center ${current ? 'bg-primary/5' : ''}`}>
       {cell.score == null
         ? <span className="text-xs text-muted-foreground" title={cell.label}>{cell.kind === 'missing' ? '-' : 'n/a'}</span>
-        : <span className="inline-flex flex-col items-center leading-tight"><span className={`text-base font-semibold tabular-nums ${tone}`}>{cell.score}</span><Delta value={cell.delta} /></span>}
+        : <span className="inline-flex flex-col items-center leading-tight"><span className={`text-base font-semibold tabular-nums ${tone}`}>{Math.round(cell.score)}</span><Delta value={cell.delta} /></span>}
     </td>
   )
 }
@@ -32,9 +32,23 @@ Cell.propTypes = { cell: PropTypes.object, current: PropTypes.bool }
  * Code Ownership is not followed sprint by sprint, and says why.
  */
 export default function SprintHistory({ history, current }) {
+  if (!history?.sprints || !history?.rows || !history?.marks) return null
+
   const tracked = history.rows.filter((r) => r.tracked)
   const loose = history.rows.filter((r) => !r.tracked)
-  const chart = history.sprints.map((id, i) => ({ sprint: id, mark: history.marks[i].mark == null ? null : Math.round(history.marks[i].mark), ...Object.fromEntries(tracked.map((r) => [r.id, r.cells[i].score])) }))
+
+  // Build chart data aligned to all sprint IDs — null mark stays null for connectNulls
+  const chart = history.sprints.map((id, i) => {
+    const markEntry = history.marks[i]
+    const mark = markEntry?.mark == null ? null : Math.round(markEntry.mark)
+    const factorScores = Object.fromEntries(
+      tracked.map((r) => {
+        const cell = r.cells?.[i]
+        return [r.id, cell?.score != null ? Math.round(cell.score) : null]
+      })
+    )
+    return { sprint: id, mark, ...factorScores }
+  })
 
   return (
     <div className="space-y-6">
@@ -62,20 +76,25 @@ export default function SprintHistory({ history, current }) {
           <tbody className="divide-y">
             <tr className="bg-muted/30">
               <td className="px-3 py-3 font-semibold text-foreground">Predicted mark</td>
-              {history.marks.map((m) => m.loading ? <td key={m.sprint} className="px-3 py-3"><Skel className="mx-auto h-6 w-10" /></td> : (
-                <td key={m.sprint} className={`px-3 py-3 text-center text-base font-semibold tabular-nums ${styleOf(markBand(m.mark)).text}`}>{markText(m.mark)}</td>
-              ))}
+              {history.sprints.map((sid, i) => {
+                const m = history.marks[i]
+                if (!m) return <td key={sid} className="px-3 py-3 text-center text-xs text-muted-foreground">-</td>
+                if (m.loading) return <td key={sid} className="px-3 py-3"><Skel className="mx-auto h-6 w-10" /></td>
+                return (
+                  <td key={sid} className={`px-3 py-3 text-center text-base font-semibold tabular-nums ${styleOf(markBand(m.mark)).text}`}>{markText(m.mark)}</td>
+                )
+              })}
             </tr>
             {tracked.map((r) => (
               <tr key={r.id}>
                 <td className="px-3 py-3 text-foreground"><span className="mr-2 inline-block h-2 w-2 rounded-full" style={{ background: COLORS[r.id] }} />{r.label}</td>
-                {r.cells.map((c) => <Cell key={c.sprint} cell={c} current={c.sprint === current} />)}
+                {history.sprints.map((sid, i) => <Cell key={sid} cell={r.cells?.[i]} current={sid === current} />)}
               </tr>
             ))}
             {loose.map((r) => (
               <tr key={r.id} className="bg-muted/20">
                 <td className="px-3 py-3 text-foreground">{r.label}</td>
-                <td colSpan={history.sprints.length} className="px-3 py-3 text-xs leading-relaxed text-muted-foreground"><span className="inline-flex items-start gap-1.5"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />Not followed sprint by sprint. {r.why}</span></td>
+                <td colSpan={history.sprints.length} className="px-3 py-3 text-xs leading-relaxed text-muted-foreground"><span className="inline-flex items-start gap-1.5"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />Not followed sprint by sprint. {r.why || r.why_not_tracked}</span></td>
               </tr>
             ))}
           </tbody>

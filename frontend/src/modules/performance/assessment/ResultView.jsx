@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import PropTypes from 'prop-types'
 import { Link } from 'react-router-dom'
-import { CartesianGrid, Area, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Area, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { AlertTriangle, ArrowRight, BarChart3, Bot, ChevronDown, FileCode2, Gauge, GitBranch, History, Info, Layers, LineChart, ListChecks, MessageSquare, MessageSquareQuote, MinusCircle, PenLine, Radar, ShieldCheck, Sparkles, TrendingDown, TrendingUp } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { briefOf, contributions, evidenceOf, explainFactor, explainMark, FACTORS, factorState, markBand, markText, questionsOf, quizSummary, score100, styleOf, when } from './format.js'
+import { factorState, markBand, markText, radarData, score100, styleOf, when } from './format.js'
 import FactorRadar from './FactorRadar.jsx'
 import Panel, { InfoTip } from './Panel.jsx'
 import Reveal, { PanelSkeleton } from './Reveal.jsx'
@@ -58,13 +58,13 @@ function Masonry({ items }) {
 Masonry.propTypes = { items: PropTypes.array }
 
 /** One factor, short when closed (the score and one line) and full when open (why, what it is based on, what it measures, how far to trust it). */
-function FactorCard({ meta, result, block, part, index, open, onToggle }) {
+function FactorCard({ meta, result, block, index, open, onToggle }) {
   const state = factorState(result)
   const reasons = (block?.reasons || []).filter(Boolean)
   const warnings = block?.warnings || []
   const id = `factor-${meta.id}`
   return (
-    <Card className="animate-fade-rise gap-3.5 p-5" style={{ animationDelay: `${index * 90}ms` }}>
+    <Card className="animate-fade-rise gap-3.5 gap-4 p-5" style={{ animationDelay: `${index * 90}ms` }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -82,19 +82,21 @@ function FactorCard({ meta, result, block, part, index, open, onToggle }) {
       </div>
 
       <FactorBar result={result} />
-      {reasons[0] && <p className="line-clamp-2 text-sm leading-snug text-foreground/85">{reasons[0]}</p>}
-      {warnings[0] && <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span className="line-clamp-1">{warnings[0]}{warnings.length > 1 ? ` (+${warnings.length - 1})` : ''}</span></p>}
+      {reasons[0] && <p className="text-sm leading-snug text-foreground/85">{reasons[0]}</p>}
+      {(block?.anomalies || []).length > 0 && <p className="flex items-start gap-1.5 rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs text-rose-800 dark:bg-rose-950/30 dark:text-rose-300"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span>{block.anomalies[0]}{block.anomalies.length > 1 ? ` (+${block.anomalies.length - 1})` : ''}</span></p>}
+      {warnings[0] && <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span>{warnings[0]}{warnings.length > 1 ? ` (+${warnings.length - 1})` : ''}</span></p>}
 
       <div id={id}>
         <Collapse open={open}>
           <dl className="space-y-3.5 border-t pt-4 text-sm">
-            <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">In short</dt><dd className="mt-1 leading-relaxed text-foreground">{explainFactor(meta, result, part)}</dd></div>
+            <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">In short</dt><dd className="mt-1 leading-relaxed text-foreground">{block?.explain || block?.summary || meta.explain || meta.question}</dd></div>
             {reasons.length > 1 && (
               <div>
                 <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Based on</dt>
                 <dd className="mt-1"><ul className="space-y-1">{reasons.slice(1).map((r, i) => <li key={i} className="flex gap-2 text-foreground/90"><span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/60" />{r}</li>)}</ul></dd>
               </div>
             )}
+            {(block?.anomalies || []).length > 0 && <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">Checked for gaming</dt><dd className="mt-1 space-y-1 text-rose-800 dark:text-rose-300">{block.anomalies.map((a, i) => <p key={i}>{a}</p>)}</dd></div>}
             {warnings.length > 1 && <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Notes</dt><dd className="mt-1 space-y-1 text-amber-800 dark:text-amber-300">{warnings.slice(1).map((w, i) => <p key={i}>{w}</p>)}</dd></div>}
             <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Measures</dt><dd className="mt-1 leading-relaxed text-muted-foreground">{meta.measures}</dd></div>
             {block?.how_much_to_trust && <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">How far to trust it</dt><dd className="mt-1 leading-relaxed text-muted-foreground">{block.how_much_to_trust}</dd></div>}
@@ -107,24 +109,34 @@ function FactorCard({ meta, result, block, part, index, open, onToggle }) {
 FactorCard.propTypes = { meta: PropTypes.object, result: PropTypes.object, block: PropTypes.object, part: PropTypes.object, index: PropTypes.number, open: PropTypes.bool, onToggle: PropTypes.func }
 
 function Trajectory({ points }) {
-  const rows = (points || []).map((p) => ({
+  // Every day of every sprint in one line; the first day of each sprint is marked.
+  const rows = (points || []).map((p, i, all) => ({
     day: new Date(p.as_of).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+    sprint: p.sprint_id,
+    first: !all[i - 1] || all[i - 1].sprint_id !== p.sprint_id,
     mark: p.mark, range: p.mark_interval ? [p.mark_interval[0], p.mark_interval[1]] : null,
     ...Object.fromEntries(Object.entries(p.factors || {}).filter(([, f]) => f?.score != null).map(([k, f]) => [k, Math.round(f.score * 100)])),
   }))
-  if (rows.length < 2) return <p className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">Needs at least two snapshots. One is taken every night while the sprint runs.</p>
+  if (rows.length < 2) return <p className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">The agent works out a mark for every day of a sprint when it evaluates the sprint. Nothing has been worked out for this student yet.</p>
+  const starts = rows.map((r, i) => (r.first ? i : null)).filter((i) => i != null)
   return (
-    <div className="h-72">
-      <ResponsiveContainer>
-        <ComposedChart data={rows}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-          <XAxis dataKey="day" fontSize={11} /><YAxis domain={[0, 100]} fontSize={11} /><Tooltip /><Legend />
-          <Area dataKey="range" name="Likely range" stroke="none" fill="#6366f1" fillOpacity={0.15} />
-          <Line dataKey="mark" name="Predicted mark" stroke="#4f46e5" strokeWidth={2.5} dot />
-          <Line dataKey="effort" name="Effort" stroke="#10b981" dot={false} />
-          <Line dataKey="consistency" name="Consistency" stroke="#f59e0b" dot={false} />
-        </ComposedChart>
-      </ResponsiveContainer>
+    <div className="space-y-2">
+      <div className="h-72">
+        <ResponsiveContainer>
+          <ComposedChart data={rows}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+            <XAxis dataKey="day" fontSize={11} minTickGap={24} /><YAxis domain={[0, 100]} fontSize={11} />
+            <Tooltip labelFormatter={(label, items) => `${label}${items?.[0]?.payload?.sprint ? ` · ${items[0].payload.sprint}` : ''}`} /><Legend />
+            {starts.map((i) => <ReferenceLine key={i} x={rows[i].day} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: rows[i].sprint, position: 'insideTopLeft', fontSize: 10, fill: '#64748b' }} />)}
+            <Area dataKey="range" name="Likely range" stroke="none" fill="#6366f1" fillOpacity={0.15} />
+            <Line dataKey="mark" name="Predicted mark" stroke="#4f46e5" strokeWidth={2.5} dot={false} connectNulls />
+            <Line dataKey="effort" name="Effort" stroke="#10b981" dot={false} connectNulls />
+            <Line dataKey="consistency" name="Consistency" stroke="#f59e0b" dot={false} connectNulls />
+            <Line dataKey="task_complexity" name="Task complexity" stroke="#3b82f6" dot={false} connectNulls />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="text-xs text-muted-foreground">Worked out by the agent for the end of each day, from the work in the repository up to then. Requirement fulfilment and the code questions are added in each sprint's final mark, so the last day of a sprint can step up or down.</p>
     </div>
   )
 }
@@ -153,10 +165,13 @@ function Line2({ line }) {
 Line2.propTypes = { line: PropTypes.object }
 
 /** Why this student got this mark: the headline and the three things that matter most; everything else is one click away. */
-function WhyThisMark({ result, weights }) {
+function WhyThisMark({ result }) {
   const [more, setMore] = useState(false)
-  const { headline, key, more: rest } = explainMark(result, weights)
-  const summary = result.justification?.summary
+  const why = result.why || {}
+  const headline = why.headline || result.hero?.summary || result.justification?.summary
+  const key = why.key || []
+  const rest = why.more || []
+  const summary = why.summary
   if (!key.length && !summary) return null
   return (
     <div className="space-y-4">
@@ -182,16 +197,16 @@ WhyThisMark.propTypes = { result: PropTypes.object, weights: PropTypes.object }
 
 /** The code check in a card: how it went in five numbers, and a way into the full list of questions, which has its own page. */
 function QuestionsCard({ quiz, href, loading }) {
-  const questions = questionsOf(quiz)
+  const questions = quiz?.questions || []
   if (loading) return <div className="h-24 animate-pulse rounded-xl bg-muted" aria-busy="true" />
   if (!questions.length) return <p className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">Not asked yet. It is asked in the final assessment.</p>
-  const s = quizSummary(questions)
+  const s = quiz.summary || {}
   const stats = [
-    { label: 'Questions', value: s.total },
-    { label: 'Answered', value: s.answered },
-    { label: 'Waiting', value: s.open },
-    { label: 'Missed', value: s.expired },
-    { label: 'Average', value: s.average == null ? '-' : `${s.average.toFixed(1)}/5` },
+    { label: 'Questions', value: s.total ?? questions.length },
+    { label: 'Answered', value: s.answered ?? 0 },
+    { label: 'Waiting', value: s.open ?? 0 },
+    { label: 'Missed', value: s.expired ?? 0 },
+    { label: 'Average', value: s.average == null ? '-' : `${Number(s.average).toFixed(1)}/5` },
   ]
   return (
     <div className="space-y-4">
@@ -211,14 +226,79 @@ function QuestionsCard({ quiz, href, loading }) {
 }
 QuestionsCard.propTypes = { quiz: PropTypes.object, href: PropTypes.string, loading: PropTypes.bool }
 
-const EVIDENCE_ICON = { commit: GitBranch, task: ListChecks, review: MessageSquare, code: FileCode2, note: Info }
+const QUESTION_STATUS = {
+  answered: { label: 'Answered', color: '#10b981' },
+  open: { label: 'Waiting', color: '#f59e0b' },
+  extended: { label: 'Waiting', color: '#f59e0b' },
+  expired: { label: 'Missed', color: '#f43f5e' },
+}
+
+/** Where each code question stands: one stacked bar for the whole check, and a chip per question (with its rating once answered). */
+function QuestionProgress({ quiz }) {
+  const questions = quiz?.questions || []
+  if (!questions.length) return null
+  const groups = ['answered', 'open', 'expired'].map((key) => ({
+    key,
+    ...QUESTION_STATUS[key],
+    count: questions.filter((q) => (key === 'open' ? q.status === 'open' || q.status === 'extended' : q.status === key)).length,
+  })).filter((g) => g.count > 0)
+  return (
+    <div className="space-y-4">
+      <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted" role="img" aria-label={groups.map((g) => `${g.count} ${g.label.toLowerCase()}`).join(', ')}>
+        {groups.map((g) => <div key={g.key} style={{ width: `${(g.count / questions.length) * 100}%`, background: g.color }} title={`${g.label}: ${g.count}`} />)}
+      </div>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        {groups.map((g) => <li key={g.key} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: g.color }} />{g.label} {g.count}</li>)}
+      </ul>
+      <ol className="grid grid-cols-5 gap-2 @2xl:grid-cols-10">
+        {questions.map((q, i) => {
+          const s = QUESTION_STATUS[q.status] || { label: q.status, color: '#94a3b8' }
+          return (
+            <li key={q.id ?? i} className="rounded-lg border px-1 py-1.5 text-center" style={{ borderColor: `${s.color}66`, background: `${s.color}14` }} title={`Question ${i + 1}: ${s.label}${q.rating != null ? `, rated ${Number(q.rating).toFixed(1)} of 5` : ''}`}>
+              <span className="block text-[10px] text-muted-foreground">Q{i + 1}</span>
+              <span className="block text-sm font-semibold tabular-nums text-foreground">{q.rating != null ? Number(q.rating).toFixed(1) : '-'}</span>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+}
+QuestionProgress.propTypes = { quiz: PropTypes.object }
+
+/** Each measured factor's score as a bar, with the team average beside it, so the strongest and weakest factors read at a glance. */
+function FactorsVsTeam({ result, average }) {
+  const data = radarData(result, average).filter((d) => d.measured)
+  if (!data.length) return null
+  const hasAverage = data.some((d) => d.average != null)
+  return (
+    <div className="space-y-3">
+      <div style={{ height: 56 + data.length * (hasAverage ? 46 : 32) }} role="img" aria-label={`Factor scores: ${data.map((d) => `${d.factor} ${d.score}`).join(', ')}`}>
+        <ResponsiveContainer>
+          <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 8 }} barCategoryGap={hasAverage ? '22%' : '30%'}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.3} horizontal={false} />
+            <XAxis type="number" domain={[0, 100]} fontSize={11} />
+            <YAxis type="category" dataKey="short" width={92} fontSize={11} tickLine={false} />
+            <Tooltip cursor={{ opacity: 0.08 }} />
+            <Bar dataKey="score" name="This student" fill="#6366f1" radius={[0, 4, 4, 0]} />
+            {hasAverage && <Bar dataKey="average" name="Team average" fill="#94a3b8" radius={[0, 4, 4, 0]} />}
+            {hasAverage && <Legend />}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+FactorsVsTeam.propTypes = { result: PropTypes.object, average: PropTypes.object }
+
+const EVIDENCE_ICON ={ commit: GitBranch, task: ListChecks, review: MessageSquare, code: FileCode2, note: Info }
 const SHOWN_EVIDENCE = 5
 
 /** The agent's own short explanation of the mark, and the evidence it rests on, grouped by factor. The first few lines show; the rest are one click away. */
 function AgentBrief({ result }) {
   const [all, setAll] = useState(false)
-  const text = briefOf(result)
-  const groups = evidenceOf(result)
+  const text = result.brief?.text || ''
+  const groups = result.brief?.evidence || []
   const total = groups.reduce((n, g) => n + g.lines.length, 0)
   const audit = result.justification?.audit || {}
   // The first few lines across all the groups, in order, unless everything is asked for.
@@ -374,19 +454,23 @@ const column = (id, node) => <div key={id} className="mb-6 break-inside-avoid">{
  * The parts come in one after another with a skeleton in their place, and the later ones only when they are about to be seen (`onSeen` tells the page, so it asks the server for their data then).
  * Columns follow the width of the workspace (container queries), so the page holds together when the AI chat opens beside it.
  */
-export default function ResultView({ result, weights, mode = 'lecturer', trajectory, quiz, quizLoading, questionsHref, history, average, currentSprint, onSetMark, onSeen }) {
+export default function ResultView({ result, mode = 'lecturer', trajectory, quiz, quizLoading, questionsHref, history, average, currentSprint, onSetMark, onSeen }) {
   const [open, setOpen] = useState({})
   if (!result) return null
   const j = result.justification || {}
+  const factorCards = Array.isArray(result.factors)
+    ? result.factors
+    : Object.entries(result.factors || {}).filter(([id]) => id !== 'behavioral_pattern').map(([id, value]) => ({ id, ...value }))
+  const factorById = Object.fromEntries(factorCards.map((f) => [f.id, f]))
   const lecturer = mode === 'lecturer'
   const mark = result.effective_mark ?? result.mark
   const overridden = Boolean(result.override?.mark != null || result.overridden)
-  const parts = contributions(result.factors, weights)
-  const pattern = result.factors?.behavioral_pattern
-  const audit = j.audit || {}
-  const flags = j.flags || []
-  const allOpen = FACTORS.every((f) => open[f.id])
-  const setAll = (v) => setOpen(Object.fromEntries(FACTORS.map((f) => [f.id, v])))
+  const parts = result.contributions || result.hero?.contributions || []
+  const pattern = factorById.behavioral_pattern || result.pattern
+  const audit = result.audit || j.audit || {}
+  const flags = result.flags || j.flags || []
+  const allOpen = factorCards.length > 0 && factorCards.every((f) => open[f.id])
+  const setAll = (v) => setOpen(Object.fromEntries(factorCards.map((f) => [f.id, v])))
   const hasAudit = audit.actions?.length > 0 || audit.checked?.length > 0 || audit.summary
   const showHistory = lecturer && Boolean(history)
   const jump = [
@@ -410,8 +494,8 @@ export default function ResultView({ result, weights, mode = 'lecturer', traject
               {overridden && <span className="inline-flex items-center gap-1 rounded-md bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950 dark:text-violet-300"><PenLine className="h-3 w-3" />Set by the lecturer</span>}
               <InfoTip label="this mark">{lecturer ? 'A prediction to support your decision, not a grade. ' : 'A prediction from your repository and board, to be checked by your lecturer. '}{(j.caveats || [])[0]}</InfoTip>
             </div>
-            {j.friendly_summary && <p className="max-w-prose text-base leading-snug text-foreground">{j.friendly_summary}</p>}
-            <AtAGlance parts={parts} flags={flags.length} outCount={FACTORS.length - parts.length} />
+            {(result.hero?.summary || j.friendly_summary) && <p className="max-w-prose text-base leading-snug text-foreground">{result.hero?.summary || j.friendly_summary}</p>}
+            <AtAGlance parts={parts} flags={flags.length} outCount={Math.max(0, factorCards.length - parts.length)} />
             {overridden && lecturer && result.override?.mark != null && (
               <p className="rounded-lg bg-violet-50 p-3 text-sm dark:bg-violet-950/30">
                 <span className="font-semibold">Your mark: {markText(result.override.mark)}</span> <span className="text-muted-foreground">(the agent predicted {markText(result.mark)})</span>. {result.override.reason}
@@ -462,6 +546,13 @@ export default function ResultView({ result, weights, mode = 'lecturer', traject
             </Panel>
           </Reveal>
         ))}
+        {column('compare', (
+          <Reveal delay={420} height={260}>
+            <Panel title="Factor scores" icon={BarChart3} hint={average ? 'Against the team average' : 'Strongest to weakest'} info="Each measured factor's score from 0 to 100, with the team average beside it when there is one. A factor with no score is left out, not drawn as zero.">
+              <FactorsVsTeam result={result} average={average} />
+            </Panel>
+          </Reveal>
+        ))}
         {showHistory && column('history', (
           <Reveal id="sec-history" lazy name="history" onSeen={onSeen} delay={80} height={420}>
             <Panel title="Sprint by sprint" icon={History} hint="Each factor, every sprint" info="Each factor's score in every sprint, and how much it moved since the sprint before. Code Ownership is not followed this way: it is a few questions at the end of a sprint.">
@@ -472,7 +563,7 @@ export default function ResultView({ result, weights, mode = 'lecturer', traject
         {column('why', (
           <Reveal id="sec-why" delay={400} height={260}>
             <Panel title="Why this mark" icon={Sparkles} hint="In plain words" info="Taken from the factors below. Nothing here is guessed.">
-              <WhyThisMark result={result} weights={weights} />
+              <WhyThisMark result={result} />
             </Panel>
           </Reveal>
         ))}
@@ -486,21 +577,22 @@ export default function ResultView({ result, weights, mode = 'lecturer', traject
         >
           <Masonry
             items={[
-              ...FACTORS.map((m, i) => {
-                const reasons = (j.factors?.[m.id]?.reasons || []).filter(Boolean)
+              ...factorCards.map((m, i) => {
+                const block = m
+                const reasons = (block.reasons || []).filter(Boolean)
                 return {
                   key: m.id,
-                  weight: 170 + (reasons[0] ? 40 : 0) + ((j.factors?.[m.id]?.warnings || []).length ? 44 : 0),
-                  node: <FactorCard key={m.id} index={i} meta={m} result={result.factors?.[m.id]} block={j.factors?.[m.id]} part={parts.find((p) => p.id === m.id)} open={Boolean(open[m.id])} onToggle={() => setOpen((o) => ({ ...o, [m.id]: !o[m.id] }))} />,
+                  weight: 170 + (reasons[0] ? 40 : 0) + ((block.warnings || []).length ? 44 : 0),
+                  node: <FactorCard key={m.id} index={i} meta={m} result={block.result || block} block={block} open={Boolean(open[m.id])} onToggle={() => setOpen((o) => ({ ...o, [m.id]: !o[m.id] }))} />,
                 }
               }),
               {
                 key: 'pattern', weight: 120,
                 node: (
-                  <Card key="pattern" className="animate-fade-rise gap-2 p-5" style={{ animationDelay: `${FACTORS.length * 90}ms` }}>
+                  <Card key="pattern" className="animate-fade-rise gap-2 p-5" style={{ animationDelay: `${factorCards.length * 90}ms` }}>
                     <h4 className="text-base font-semibold text-foreground">Working pattern</h4>
                     <p className="text-sm">{pattern?.persona ? <span className="font-medium">{pattern.persona}</span> : <span className="text-muted-foreground">Not classified</span>}{pattern && !pattern.applied && <span className="mt-1 block text-xs text-muted-foreground">A tendency for now. It counts once the sprint is final.</span>}</p>
-                    {(j.factors?.behavioral_pattern?.reasons || []).filter(Boolean).slice(0, 1).map((r, i) => <p key={i} className="line-clamp-2 text-xs text-muted-foreground">{r}</p>)}
+                    {(pattern?.reasons || []).filter(Boolean).slice(0, 1).map((r, i) => <p key={i} className="line-clamp-2 text-xs text-muted-foreground">{r}</p>)}
                   </Card>
                 ),
               },
@@ -515,6 +607,13 @@ export default function ResultView({ result, weights, mode = 'lecturer', traject
             <Reveal id="sec-questions" lazy name="quiz" onSeen={onSeen} delay={80} height={220}>
               <Panel title="The code questions" icon={MessageSquareQuote} hint="About code the student wrote" info="Questions about functions this student wrote, to check they understand code with their name on it. The answers are rated by the answer scorer, which was checked on assistant-written answers only.">
                 <QuestionsCard quiz={quiz} href={questionsHref} loading={quizLoading} />
+              </Panel>
+            </Reveal>
+          ))}
+          {!hasAudit && quiz?.questions?.length > 0 && column('quiz-progress', (
+            <Reveal delay={120} height={220}>
+              <Panel title="Question by question" icon={ListChecks} hint="Where each question stands">
+                <QuestionProgress quiz={quiz} />
               </Panel>
             </Reveal>
           ))}

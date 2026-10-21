@@ -12,11 +12,15 @@ const KEY = 'selvia-demo'
 function mode() {
   try {
     const q = new URLSearchParams(window.location.search).get('demo')
-    if (q !== null) {
-      if (q === '0' || q === 'off') sessionStorage.removeItem(KEY)
-      else sessionStorage.setItem(KEY, q === 'live' ? 'live' : 'on')
+    // Demo mode is scoped to the current URL. Do not let a previous preview
+    // session replace real API responses on a normal application page.
+    if (q === null || q === '0' || q === 'off') {
+      sessionStorage.removeItem(KEY)
+      return null
     }
-    return sessionStorage.getItem(KEY)
+    const current = q === 'live' ? 'live' : 'on'
+    sessionStorage.setItem(KEY, current)
+    return current
   } catch {
     return null
   }

@@ -56,14 +56,17 @@ function Quiz({ quiz, onDone }) {
 export default function MyAssessment() {
   const { teamId } = useParams()
   const qc = useQueryClient()
-  const results = useQuery({ queryKey: ['assessment', 'mine'], queryFn: assessmentApi.myResults })
-  const quizzes = useQuery({ queryKey: ['assessment', 'mine', 'quizzes'], queryFn: assessmentApi.myQuizzes })
+  const reports = useQuery({ queryKey: ['assessment', 'mine', 'reports', teamId], queryFn: () => assessmentApi.myReports(teamId), enabled: Boolean(teamId) })
+  const quizzes = useQuery({ queryKey: ['assessment', 'mine', 'quizzes', teamId], queryFn: () => assessmentApi.myQuizzes(teamId, 'open'), enabled: Boolean(teamId) })
   const config = useQuery({ queryKey: githubKeys.config, queryFn: githubService.config })
   const github = useQuery({ queryKey: githubKeys.team(teamId), queryFn: () => githubService.team(teamId), enabled: Boolean(config.data?.configured) })
-  const open = (quizzes.data || []).filter((q) => q.status === 'open' || q.status === 'extended')
+  const open = (quizzes.data?.items || []).filter((q) => q.status === 'open' || q.status === 'extended')
   const mine = github.data?.members?.[0]
   const needsConnect = github.data?.repo && mine && !mine.login
-  const refresh = () => qc.invalidateQueries({ queryKey: ['assessment', 'mine'] })
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['assessment', 'mine', 'reports', teamId] })
+    qc.invalidateQueries({ queryKey: ['assessment', 'mine', 'quizzes', teamId] })
+  }
 
   return (
     <div className="space-y-6">
@@ -75,12 +78,12 @@ export default function MyAssessment() {
         </Card>
       )}
       {open.map((q) => <Quiz key={q.id} quiz={q} onDone={refresh} />)}
-      {results.isPending ? <div className="space-y-6" aria-busy="true"><PanelSkeleton height={190} title={false} /><PanelSkeleton height={380} /></div> : (results.data || []).length === 0 ? (
+      {reports.isPending ? <div className="space-y-6" aria-busy="true"><PanelSkeleton height={190} title={false} /><PanelSkeleton height={380} /></div> : (reports.data?.reports || []).length === 0 ? (
         <EmptyState icon={Hourglass} title="No assessment yet" description="It appears here after your lecturer runs the first snapshot of your team's sprint." />
-      ) : (results.data || []).map((r) => (
+      ) : (reports.data?.reports || []).map((r) => (
         <section key={`${r.team_ref}-${r.sprint_id}`} className="space-y-3">
           <h2 className="text-base font-semibold text-foreground">Sprint {r.sprint_id}</h2>
-          {r.status === 'under_review' ? <Card className="p-5 text-sm">Your lecturer is checking this result before it is shown to you.</Card> : <ResultView result={r} mode="student" />}
+          {r.status === 'under_review' || !r.report ? <Card className="p-5 text-sm">Your lecturer is checking this result before it is shown to you.</Card> : <ResultView result={r.report} mode="student" />}
         </section>
       ))}
     </div>

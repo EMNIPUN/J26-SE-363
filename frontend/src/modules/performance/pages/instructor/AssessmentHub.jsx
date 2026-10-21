@@ -23,7 +23,7 @@ function cell(f) {
 }
 
 function Results({ team, sprint }) {
-  const results = useQuery({ queryKey: ['perf-results', team, sprint], queryFn: () => assessmentApi.results(team, sprint), refetchInterval: 15000 })
+  const results = useQuery({ queryKey: ['perf-overview', team, sprint], queryFn: () => assessmentApi.overview(team, sprint), refetchInterval: 15000 })
   const [open, setOpen] = useState(null)
   const traj = useQuery({ queryKey: ['perf-traj', team, sprint, open], queryFn: () => assessmentApi.trajectory(team, sprint, open), enabled: Boolean(open) })
   if (!results.data?.length) return <p className="text-sm text-muted-foreground">No results yet for this sprint. Start a snapshot or a final run.</p>
@@ -59,7 +59,7 @@ function Results({ team, sprint }) {
 
 function Team({ team, onStopped }) {
   const client = useQueryClient()
-  const info = useQuery({ queryKey: ['perf-tracking', team], queryFn: () => assessmentApi.tracking(team) })
+  const info = useQuery({ queryKey: ['perf-setup', team], queryFn: () => assessmentApi.setup(team) })
   const sprints = info.data?.config?.sprints || []
   const [sprint, setSprint] = useState('')
   const [editing, setEditing] = useState(false)
@@ -74,7 +74,7 @@ function Team({ team, onStopped }) {
     return r
   }
   if (info.isLoading) return null
-  if (editing) return <TrackingForm initial={info.data} onSaved={() => { setEditing(false); client.invalidateQueries({ queryKey: ['perf-tracking'] }) }} />
+  if (editing) return <TrackingForm initial={info.data} onSaved={() => { setEditing(false); client.invalidateQueries({ queryKey: ['perf-setup'] }) }} />
 
   return (
     <div className="space-y-6">

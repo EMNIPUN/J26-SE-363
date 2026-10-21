@@ -34,8 +34,9 @@ export function FactorBar({ result, height = 8, compact = false }) {
   if (state.kind !== 'scored') {
     return (
       <div className="flex items-center gap-2 text-xs text-muted-foreground" title={state.label}>
+        {compact && <span className="shrink-0">{SHORT[state.kind]}</span>}
         <span className="h-2 w-full rounded-full border border-dashed border-muted-foreground/30" />
-        <span className="shrink-0">{compact ? SHORT[state.kind] : state.label}</span>
+        {!compact && <span className="shrink-0">{state.label}</span>}
       </div>
     )
   }
@@ -44,11 +45,12 @@ export function FactorBar({ result, height = 8, compact = false }) {
   const [lo, hi] = result.interval || [s, s]
   return (
     <div className="flex items-center gap-3">
+      {compact && <span className={`w-7 shrink-0 text-left text-sm font-semibold tabular-nums ${st.text}`}>{score100(s)}</span>}
       <div className="relative w-full rounded-full bg-muted" style={{ height }} title={result.interval ? `likely between ${score100(lo)} and ${score100(hi)}` : undefined}>
         {result.interval && <div className={`absolute top-0 h-full rounded-full opacity-25 ${st.bar}`} style={{ left: `${lo * 100}%`, width: `${Math.max(1, (hi - lo) * 100)}%` }} />}
         <div className={`absolute left-0 top-0 h-full rounded-full ${st.bar}`} style={{ width: `${Math.max(2, s * 100)}%`, backgroundImage: result.provisional ? 'repeating-linear-gradient(45deg, rgba(255,255,255,.35) 0 4px, transparent 4px 8px)' : undefined }} />
       </div>
-      <span className={`w-8 shrink-0 text-right text-sm font-semibold tabular-nums ${st.text}`}>{score100(s)}</span>
+      {!compact && <span className={`w-8 shrink-0 text-right text-sm font-semibold tabular-nums ${st.text}`}>{score100(s)}</span>}
     </div>
   )
 }

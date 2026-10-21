@@ -49,11 +49,11 @@ export const styleOf = (b) => BAND_STYLE[b] || BAND_STYLE.none
 /** What a factor result is called when it has no score. */
 export function factorState(f) {
   if (!f) return { kind: 'missing', label: 'Not run' }
-  if (f.status === 'completed' && f.score != null) return { kind: 'scored', label: f.provisional ? 'To date' : 'Scored' }
-  if (f.status === 'pending') return { kind: 'pending', label: 'Waiting for the answer' }
-  if (f.status === 'not_available') return { kind: 'unavailable', label: 'Cannot be measured' }
-  if (f.status === 'fallback') return { kind: 'failed', label: 'Did not run' }
-  return { kind: 'missing', label: f.status || 'Not run' }
+  if ((f.status === 'completed' || f.state === 'scored') && f.score != null) return { kind: 'scored', label: f.provisional ? 'To date' : 'Scored' }
+  if (f.status === 'pending' || f.state === 'pending') return { kind: 'pending', label: 'Waiting for the answer' }
+  if (f.status === 'not_available' || f.state === 'unavailable') return { kind: 'unavailable', label: 'Cannot be measured' }
+  if (f.status === 'fallback' || f.state === 'failed') return { kind: 'failed', label: 'Did not run' }
+  return { kind: 'missing', label: f.status || f.state || 'Not run' }
 }
 
 export const score100 = (s) => (s == null ? '-' : String(Math.round(s * 100)))
@@ -163,7 +163,7 @@ export function explainFactor(meta, result, part) {
 /** The questions of a student's code check as a list, whether the API sent one question or several. */
 export function questionsOf(quiz) {
   if (!quiz) return []
-  const list = Array.isArray(quiz.questions) ? quiz.questions : [quiz]
+  const list = Array.isArray(quiz.questions) ? quiz.questions : Array.isArray(quiz.items) ? quiz.items : [quiz]
   return list.map((q, i) => ({ ...q, n: q.n ?? i + 1 }))
 }
 

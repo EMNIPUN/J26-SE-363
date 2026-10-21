@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { assessmentApi } from './assessmentApi.js'
+import ReviewForm from './ReviewForm.jsx'
 
 function Item({ review, onChanged }) {
   const [mark, setMark] = useState('')
@@ -23,6 +24,7 @@ function Item({ review, onChanged }) {
         <Link className="text-xs text-primary underline" to={`../runs/${review.run_id}`}>Open the run</Link>
       </div>
       <p className="text-sm">{review.reason}</p>
+      {review.form && <ReviewForm review={review} onChanged={onChanged} />}
       {review.kind === 'identity_mapping' ? (
         <p className="text-xs text-muted-foreground">Answer this on the run page (the run is waiting for it).</p>
       ) : open ? (

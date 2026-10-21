@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import Badge from '@/shared/components/Badge.jsx'
 import GithubIcon from '@/shared/github/GithubIcon.jsx'
 import { MEMBER_STATE } from '@/shared/github/githubService.js'
-import { FACTOR_LABEL, when } from '../../../assessment/format.js'
+import { when } from '../../../assessment/format.js'
 import Panel from '../../../assessment/Panel.jsx'
 import { PanelSkeleton, Stagger } from '../../../assessment/Reveal.jsx'
 import { Avatar, RunPill } from '../../../assessment/visuals.jsx'
@@ -40,18 +40,18 @@ const STEPS = [
  * The team's assessment setup, read only: whether everything the agent needs is in place, who is connected, what it reads, how a sprint is assessed, the weights in use and the latest runs.
  * The repository and the people come from GitHub (the team leader links them); the sprints and tasks come from the team's Scrum board.
  */
-export default function SetupTab({ tracking, readiness, runs, loading, membersPath, base }) {
+export default function SetupTab({ setup, loading, membersPath, base }) {
   if (loading) return <div className="space-y-6" aria-busy="true"><PanelSkeleton height={230} /><PanelSkeleton height={260} /><PanelSkeleton height={190} /></div>
-  const members = readiness?.members || []
+  const members = setup?.members || []
   const ready = members.filter((m) => m.state === 'ready').length
-  const sprints = tracking?.config?.sprints || []
-  const finished = (runs || []).some((r) => DONE.includes(r.status))
-  const weights = (runs || []).find((r) => r.summary?.method)?.summary.method.weights
+  const sprints = setup?.sprints || []
+  const finished = (setup?.recent_runs || []).some((r) => DONE.includes(r.status))
+  const weights = setup?.weights
   const link = <Button size="sm" variant="outline" asChild><Link to={membersPath}>Open</Link></Button>
   const checks = [
-    { label: 'Repository linked', ok: Boolean(readiness?.repo), detail: readiness?.repo || 'The team leader links it through GitHub', action: link },
+    { label: 'Repository linked', ok: Boolean(setup?.repo), detail: setup?.repo || 'The team leader links it through GitHub', action: link },
     { label: 'Students connected to GitHub', ok: members.length > 0 && ready === members.length, partial: ready > 0, detail: members.length ? `${ready} of ${members.length} can write to the repository` : 'No students in the team yet', action: link },
-    { label: 'Scrum board linked', ok: Boolean(tracking?.board_ref), detail: tracking?.board_ref ? `Board ${tracking.board_ref}: tasks and acceptance criteria are read from it` : 'Tasks and acceptance criteria are read from the team\'s Scrum board' },
+    { label: 'Scrum board linked', ok: Boolean(setup?.board_ref), detail: setup?.board_ref ? `Board ${setup.board_ref}: tasks and acceptance criteria are read from it` : 'Tasks and acceptance criteria are read from the team\'s Scrum board' },
     { label: 'Sprints known', ok: sprints.length > 0, detail: sprints.length ? `${sprints.length} sprint${sprints.length === 1 ? '' : 's'} from the Scrum board` : 'They come from the Scrum board once it has sprints' },
     { label: 'Assessed at least once', ok: finished, detail: finished ? 'A run has finished for this team' : 'Start a snapshot from the page header' },
   ]
@@ -61,13 +61,13 @@ export default function SetupTab({ tracking, readiness, runs, loading, membersPa
     <Stagger className="space-y-6" step={110}>
       <Panel
         title="Ready to assess?" icon={BookOpenCheck} hint="What the agent needs before it can assess this team."
-        aside={<Badge tone={readiness?.ready ? 'success' : 'warning'}>{readiness?.ready ? 'Ready to assess' : 'Not ready'}</Badge>}
+        aside={<Badge tone={setup?.ready ? 'success' : 'warning'}>{setup?.ready ? 'Ready to assess' : 'Not ready'}</Badge>}
       >
         <div className="mb-4 flex items-center gap-3">
           <div className="flex h-2.5 flex-1 gap-1" aria-hidden="true">{checks.map((c, i) => <span key={i} className={`flex-1 rounded-full transition-colors ${c.ok ? 'bg-emerald-500' : c.partial ? 'bg-amber-400' : 'bg-muted'}`} />)}</div>
           <span className="text-sm font-medium tabular-nums text-foreground">{passed} of {checks.length}</span>
         </div>
-        {(readiness?.blockers || []).map((b) => <p key={b} className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">{b}</p>)}
+        {(setup?.blockers || []).map((b) => <p key={b} className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">{b}</p>)}
         <ul className="grid gap-3 @2xl:grid-cols-2">{checks.map((c) => <Check key={c.label} {...c} />)}</ul>
       </Panel>
 
@@ -75,7 +75,7 @@ export default function SetupTab({ tracking, readiness, runs, loading, membersPa
         title="Repository and people" icon={GitBranch} hint="Linked by the team leader through GitHub. Nobody types a roster."
         aside={<Button variant="outline" size="sm" asChild><Link to={membersPath}>Manage the GitHub link</Link></Button>}
       >
-        {readiness?.repo && <p className="mb-4 inline-flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-1.5 font-mono text-sm"><GithubIcon className="h-4 w-4" />{readiness.repo}</p>}
+        {setup?.repo && <p className="mb-4 inline-flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-1.5 font-mono text-sm"><GithubIcon className="h-4 w-4" />{setup.repo}</p>}
         <ul className="grid gap-3 @2xl:grid-cols-2">
           {members.map((m) => {
             const s = MEMBER_STATE[m.state] || MEMBER_STATE.not_connected
@@ -93,7 +93,7 @@ export default function SetupTab({ tracking, readiness, runs, loading, membersPa
           })}
           {members.length === 0 && <li className="text-sm text-muted-foreground">No students in the team yet.</li>}
         </ul>
-        {(readiness?.notes || []).length > 0 && <p className="mt-4 text-xs text-muted-foreground">{readiness.notes.length} member{readiness.notes.length > 1 ? 's' : ''} can still be assessed, but commits that cannot be matched to them will be sent to you to map.</p>}
+        {(setup?.notes || []).length > 0 && <p className="mt-4 text-xs text-muted-foreground">{setup.notes.length} member{setup.notes.length > 1 ? 's' : ''} can still be assessed, but commits that cannot be matched to them will be sent to you to map.</p>}
       </Panel>
 
       <Panel title="What the agent reads" icon={KanbanSquare} hint="Only these. It never runs a student's code.">
@@ -129,7 +129,7 @@ export default function SetupTab({ tracking, readiness, runs, loading, membersPa
             <ul className="space-y-3">
               {Object.entries(weights).sort((a, b) => b[1] - a[1]).map(([k, w]) => (
                 <li key={k} className="space-y-1">
-                  <div className="flex justify-between text-sm"><span className="text-foreground">{FACTOR_LABEL[k] || k}</span><span className="tabular-nums text-muted-foreground">{Math.round(w * 100)}%</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-foreground">{k}</span><span className="tabular-nums text-muted-foreground">{Math.round(w * 100)}%</span></div>
                   <div className="h-2 rounded-full bg-muted"><div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" style={{ width: `${w * 100 / Math.max(...Object.values(weights))}%` }} /></div>
                 </li>
               ))}
@@ -138,9 +138,9 @@ export default function SetupTab({ tracking, readiness, runs, loading, membersPa
         </Panel>
 
         <Panel title="Recent runs" icon={History} hint="The latest assessments of this team.">
-          {(runs || []).length === 0 ? <p className="text-sm text-muted-foreground">No assessment has run for this team yet.</p> : (
+          {(setup?.recent_runs || []).length === 0 ? <p className="text-sm text-muted-foreground">No assessment has run for this team yet.</p> : (
             <ul className="space-y-2">
-              {runs.slice(0, 4).map((r) => (
+              {setup.recent_runs.slice(0, 4).map((r) => (
                 <li key={r.id} className="flex items-center gap-3 rounded-xl border p-3">
                   <RunPill status={r.status} />
                   <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-foreground">{r.mode === 'final' ? 'Final assessment' : 'Snapshot'} <span className="font-normal text-muted-foreground">of {r.sprint_id}</span></p><p className="text-xs text-muted-foreground">{when(r.created_at)}</p></div>
@@ -154,4 +154,4 @@ export default function SetupTab({ tracking, readiness, runs, loading, membersPa
     </Stagger>
   )
 }
-SetupTab.propTypes = { tracking: PropTypes.object, readiness: PropTypes.object, runs: PropTypes.array, loading: PropTypes.bool, membersPath: PropTypes.string, base: PropTypes.string }
+SetupTab.propTypes = { setup: PropTypes.object, loading: PropTypes.bool, membersPath: PropTypes.string, base: PropTypes.string }

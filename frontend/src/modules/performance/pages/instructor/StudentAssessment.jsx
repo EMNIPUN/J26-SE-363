@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import PropTypes from 'prop-types'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useParams } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CalendarRange, Medal, RefreshCw, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -12,7 +12,7 @@ import { showToast } from '@/shared/utils/toast.jsx'
 import GithubIcon from '@/shared/github/GithubIcon.jsx'
 import { useTeam } from '@/shared/hooks/useTeams.js'
 import { assessmentApi, assessmentKeys } from '../../assessment/assessmentApi.js'
-import { factorHistory, markBand, markText, styleOf, teamAverage } from '../../assessment/format.js'
+import { markBand, markText, styleOf } from '../../assessment/format.js'
 import ResultView from '../../assessment/ResultView.jsx'
 import { PanelSkeleton, ProfileSkeleton } from '../../assessment/Reveal.jsx'
 import { Avatar } from '../../assessment/visuals.jsx'
@@ -46,15 +46,15 @@ const day = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString(undef
 const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : Math.min(n % 10, 4) % 4] || 'th'}`
 
 /** The student as a person in this team: a large photo and name, which team and sprint this report is about, their GitHub account, and where they stand in the team. */
-function Profile({ result, rows, teamName, sprint, sprintInfo, login, back, action }) {
-  const marks = (rows || []).map((r) => ({ id: r.student_id, mark: r.effective_mark ?? r.mark })).filter((r) => r.mark != null).sort((a, b) => b.mark - a.mark)
+/** The student as a person in this team: a large photo and name, which team and sprint this report is about, their GitHub account, and where they stand in the team. */
+function Profile({ result, rows, teamName, sprint, sprintInfo, sprints = [], onSprintChange, login, back, action }) {
+  const marks = (rows || []).map((r) => ({ id: r.student_id || r.id, mark: r.effective_mark ?? r.mark })).filter((r) => r.mark != null).sort((a, b) => b.mark - a.mark)
   const mine = result.effective_mark ?? result.mark
   const rank = mine == null ? null : marks.findIndex((r) => r.id === result.student_id) + 1
   const average = marks.length ? marks.reduce((a, r) => a + r.mark, 0) / marks.length : null
   const gap = mine != null && average != null ? Math.round(mine - average) : null
   const chips = [
     teamName && { Icon: Users, text: teamName },
-    { Icon: CalendarRange, text: `Sprint ${sprint}${sprintInfo ? ` · ${day(sprintInfo.start)} to ${day(sprintInfo.end)}` : ''}` },
     login && { Icon: GithubIcon, text: `@${login}` },
     rank > 0 && { Icon: Medal, text: `${ordinal(rank)} of ${marks.length} in the team${gap != null && marks.length > 1 ? ` · ${gap > 0 ? '+' : ''}${gap} vs the average` : ''}` },
   ].filter(Boolean)
@@ -72,7 +72,31 @@ function Profile({ result, rows, teamName, sprint, sprintInfo, login, back, acti
             <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground @xl:text-3xl">{result.student?.name}</h1>
             <p className="mt-1 text-sm text-muted-foreground">Assessment report</p>
           </div>
-          <ul className="flex flex-wrap gap-2">
+          <ul className="flex flex-wrap items-center gap-2">
+            {sprints.length > 0 ? (
+              <li className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium text-foreground">
+                <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                <span className="text-muted-foreground">Sprint:</span>
+                <select
+                  value={sprint}
+                  onChange={(e) => onSprintChange?.(e.target.value)}
+                  className="bg-transparent font-semibold cursor-pointer border-none outline-none text-foreground py-0"
+                  aria-label="Select sprint"
+                >
+                  {sprints.map((s) => (
+                    <option key={s.id} value={s.id} className="bg-popover text-popover-foreground">
+                      {s.id}
+                    </option>
+                  ))}
+                </select>
+                {sprintInfo && <span className="text-muted-foreground text-[11px] ml-1">· {day(sprintInfo.start)} to {day(sprintInfo.end)}</span>}
+              </li>
+            ) : (
+              <li className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium text-foreground">
+                <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                Sprint {sprint}{sprintInfo ? ` · ${day(sprintInfo.start)} to ${day(sprintInfo.end)}` : ''}
+              </li>
+            )}
             {chips.map((c) => <li key={c.text} className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium text-foreground"><c.Icon className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />{c.text}</li>)}
           </ul>
         </div>
@@ -84,38 +108,44 @@ function Profile({ result, rows, teamName, sprint, sprintInfo, login, back, acti
     </section>
   )
 }
-Profile.propTypes = { result: PropTypes.object, rows: PropTypes.array, teamName: PropTypes.string, sprint: PropTypes.string, sprintInfo: PropTypes.object, login: PropTypes.string, back: PropTypes.string, action: PropTypes.node }
+Profile.propTypes = { result: PropTypes.object, rows: PropTypes.array, teamName: PropTypes.string, sprint: PropTypes.string, sprintInfo: PropTypes.object, sprints: PropTypes.array, onSprintChange: PropTypes.func, login: PropTypes.string, back: PropTypes.string, action: PropTypes.node }
 
 /** One student for the lecturer: the mark and why, the evidence behind each factor, what the agent checked, and the lecturer's own mark. */
 export default function StudentAssessment() {
   const { teamId, studentId } = useParams()
-  const [params] = useSearchParams()
-  const sprint = params.get('sprint') || ''
+  const [sprintParam, setSprintParam] = useState('')  // the sprint on screen is kept here, not in the address; empty means the latest one with a result
   const qc = useQueryClient()
   const confirm = useConfirm()
   const [dialog, setDialog] = useState(false)
-  // The day by day view and the code questions are only asked for when their part of the page is about to be seen.
   const [seen, setSeen] = useState({})
   const onSeen = useCallback((name) => { if (name) setSeen((s) => (s[name] ? s : { ...s, [name]: true })) }, [])
-  const results = useQuery({ queryKey: assessmentKeys.results(teamId, sprint), queryFn: () => assessmentApi.results(teamId, sprint), enabled: Boolean(sprint) })
-  const result = results.data?.find((r) => r.student_id === studentId)
-  const traj = useQuery({ queryKey: assessmentKeys.trajectory(teamId, sprint, studentId), queryFn: () => assessmentApi.trajectory(teamId, sprint, studentId), enabled: Boolean(result) && Boolean(seen.trajectory) })
-  const quiz = useQuery({ queryKey: assessmentKeys.quiz(teamId, sprint, studentId), queryFn: () => assessmentApi.quiz(teamId, sprint, studentId), enabled: Boolean(result) && Boolean(seen.quiz) })
+
+  const report = useQuery({
+    queryKey: assessmentKeys.report(teamId, sprintParam, studentId),
+    queryFn: () => assessmentApi.report(teamId, sprintParam, studentId),
+    enabled: Boolean(studentId),
+  })
+  const result = report.data
+  const sprint = sprintParam || result?.sprint_id || ''
+
+  const overview = useQuery({ queryKey: assessmentKeys.overview(teamId, sprint), queryFn: () => assessmentApi.overview(teamId, sprint), enabled: Boolean(sprint) })
+  // day by day over every sprint, not only the one on screen
+  const traj = useQuery({ queryKey: assessmentKeys.trajectoryAll(teamId, studentId), queryFn: () => assessmentApi.trajectoryAll(teamId, studentId), enabled: Boolean(result) && Boolean(seen.trajectory) })
+  const histQuery = useQuery({ queryKey: assessmentKeys.history(teamId, studentId), queryFn: () => assessmentApi.history(teamId, studentId), enabled: Boolean(result) })
+  const quiz = useQuery({ queryKey: assessmentKeys.questions(teamId, sprint, studentId), queryFn: () => assessmentApi.questions(teamId, sprint, studentId), enabled: Boolean(result) && Boolean(seen.quiz) })
   const runs = useQuery({ queryKey: assessmentKeys.runs(teamId, sprint), queryFn: () => assessmentApi.runs(teamId, sprint), enabled: Boolean(sprint) })
   const team = useTeam(teamId)
-  const tracking = useQuery({ queryKey: assessmentKeys.tracking(teamId), queryFn: () => assessmentApi.tracking(teamId), retry: false })
-  const readiness = useQuery({ queryKey: assessmentKeys.readiness(teamId), queryFn: () => assessmentApi.readiness(teamId) })
-  // Every sprint of the team, to follow the student from one to the next. They are only asked for when that part of the page is about to be seen.
-  const sprintList = [...(tracking.data?.config?.sprints ?? [])].sort((a, b) => String(a.start).localeCompare(String(b.start)))
-  const sprintResults = useQueries({ queries: sprintList.map((sp) => ({ queryKey: assessmentKeys.results(teamId, sp.id), queryFn: () => assessmentApi.results(teamId, sp.id), enabled: Boolean(seen.history) })) })
-  const history = sprintList.length ? factorHistory(sprintList, (id) => {
-    const q = sprintResults[sprintList.findIndex((sp) => sp.id === id)]
-    if (!q || (q.isPending && q.fetchStatus !== 'idle')) return undefined
-    return q.data?.find((r) => r.student_id === studentId) ?? null
-  }) : null
-  const weights = runs.data?.find((r) => r.summary?.method)?.summary.method.weights
+  const tracking = useQuery({ queryKey: assessmentKeys.setup(teamId, sprint), queryFn: () => assessmentApi.setup(teamId, sprint), retry: false })
+  const readiness = tracking
+
+  const sprints = tracking.data?.sprints || result?.all_sprints || overview.data?.sprints || []
+  const history = result?.history || histQuery.data || null
   const latest = runs.data?.[0]
-  const back = `/teams/${teamId}/performance/team/results?sprint=${encodeURIComponent(sprint)}`
+  const back = `/teams/${teamId}/performance/team/results`
+
+  const onSprintChange = (newSprint) => {
+    setSprintParam(newSprint)
+  }
 
   const save = async (mark, reason) => {
     try {
@@ -139,7 +169,7 @@ export default function StudentAssessment() {
     }
   }
 
-  if (results.isPending) {
+  if (report.isPending || (sprint && overview.isPending)) {
     return (
       <div className="space-y-6" aria-busy="true">
         <ProfileSkeleton />
@@ -153,11 +183,18 @@ export default function StudentAssessment() {
   return (
     <div className="space-y-6">
       <Profile
-        result={result} rows={results.data} teamName={team.data?.name} sprint={sprint} sprintInfo={tracking.data?.config?.sprints?.find((x) => x.id === sprint)}
-        login={readiness.data?.members?.find((m) => m.user_id === studentId)?.login} back={back}
+        result={result}
+        rows={overview.data?.rows || []}
+        teamName={team.data?.name}
+        sprint={sprint}
+        sprintInfo={sprints.find((x) => x.id === sprint)}
+        sprints={sprints}
+        onSprintChange={onSprintChange}
+        login={readiness.data?.members?.find((m) => m.user_id === studentId)?.login}
+        back={back}
         action={latest && !['queued', 'running', 'waiting_human'].includes(latest.status) ? <Button variant="secondary" onClick={evaluateAgain}><RefreshCw className="h-4 w-4" />Re-evaluate</Button> : null}
       />
-      <ResultView result={result} weights={weights} mode="lecturer" trajectory={traj.data} quiz={quiz.data} quizLoading={quiz.isPending} history={history} average={teamAverage(results.data)} currentSprint={sprint} questionsHref={`/teams/${teamId}/performance/students/${studentId}/questions?sprint=${encodeURIComponent(sprint)}`} onSetMark={() => setDialog(true)} onSeen={onSeen} />
+      <ResultView result={result} mode="lecturer" trajectory={Array.isArray(traj.data) ? traj.data : null} quiz={quiz.data} quizLoading={quiz.isPending} history={history} currentSprint={sprint} questionsHref={`/teams/${teamId}/performance/students/${studentId}/questions`} onSetMark={() => setDialog(true)} onSeen={onSeen} />
       {dialog && <MarkDialog open onClose={() => setDialog(false)} result={result} onSave={save} />}
     </div>
   )

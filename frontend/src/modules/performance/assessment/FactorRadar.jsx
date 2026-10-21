@@ -6,8 +6,8 @@ import { radarData } from './format.js'
  * The student's factors on one chart, one spoke each, from 0 (centre) to 100 (edge), with the team average drawn over it to compare.
  * A factor that could not be measured has no score: it sits at the centre and is listed under the chart, never drawn as a bad score.
  */
-export default function FactorRadar({ result, average }) {
-  const data = radarData(result, average)
+export default function FactorRadar({ result, radar, average }) {
+  const data = (result?.factors ? radarData(result, average) : null) || radar?.axes || result?.radar?.axes || []
   const missing = data.filter((d) => !d.measured)
   const hasAverage = data.some((d) => d.average != null)
   return (
@@ -27,10 +27,10 @@ export default function FactorRadar({ result, average }) {
       </div>
       {missing.length > 0 && (
         <p className="rounded-lg bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
-          Not on the chart because there is no score for it yet: {missing.map((d) => `${d.factor} (${d.state.toLowerCase()})`).join(', ')}. It is left out of the mark, not counted as zero.
+          Not on the chart because there is no score for it yet: {missing.map((d) => `${d.factor} (${(d.state || d.status || 'not measured').toLowerCase()})`).join(', ')}. It is left out of the mark, not counted as zero.
         </p>
       )}
     </div>
   )
 }
-FactorRadar.propTypes = { result: PropTypes.object, average: PropTypes.object }
+FactorRadar.propTypes = { result: PropTypes.object, average: PropTypes.object, radar: PropTypes.object }
