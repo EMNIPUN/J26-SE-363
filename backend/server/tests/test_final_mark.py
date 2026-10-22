@@ -72,6 +72,13 @@ def test_the_team_results_and_the_student_page_agree_on_the_final_mark(perf):
     mine = perf.get("/performance/me/reports", params={"team": "T9"}).json()
     assert mine["overall"]["scope"] == "overall" and mine["overall"]["mark"] == 60.0 and mine["overall"]["sprints_counted"] == 3
     assert [r["sprint"]["id"] for r in mine["reports"]] == ["T9-S1", "T9-S2", "T9-S3"]      # the sprint by sprint reports are still there
+    assert [x["id"] for x in mine["sprints"]] == ["T9-S1", "T9-S2", "T9-S3"]                # every sprint of the team, for the page's sprint tabs
     assert abs(mine["overall"]["factors"]["effort"]["score"] - 0.6) < 1e-9
     assert list(mine["overall"]["sprint_factors"]) == ["T9-S1", "T9-S2", "T9-S3"]
     assert mine["overall"]["sprint_factors"]["T9-S2"]["factors"]["effort"]["score"] == 0.3
+    # the student's factor cards carry their names, what they measure and the agent's reasons for that sprint, but never what was checked for gaming
+    first = mine["reports"][0]["report"]["factors"]["effort"]
+    assert first["label"] == "Effort" and first["measures"] and first["explain"] == "Effort in T9-S1" and first["reasons"] == ["effort in T9-S1"] and "anomalies" not in first
+    final = mine["overall"]["factors"]["effort"]
+    assert final["label"] == "Effort" and final["measures"] and final["explain"] is None and "anomalies" not in final
+    assert mine["overall"]["sprint_factors"]["T9-S2"]["factors"]["effort"]["label"] == "Effort" and "pattern" in mine["reports"][0]["report"]

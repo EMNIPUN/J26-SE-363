@@ -89,7 +89,7 @@ function FactorCard({ meta, result, block, index, open, onToggle }) {
       <div id={id}>
         <Collapse open={open}>
           <dl className="space-y-3.5 border-t pt-4 text-sm">
-            <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">In short</dt><dd className="mt-1 leading-relaxed text-foreground">{block?.explain || block?.summary || meta.explain || meta.question}</dd></div>
+            <div><dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">In short</dt><dd className="mt-1 leading-relaxed text-foreground">{block?.explain || block?.summary || meta.explain || meta.question || meta.measures}</dd></div>
             {reasons.length > 1 && (
               <div>
                 <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Based on</dt>

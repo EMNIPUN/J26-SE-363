@@ -3,6 +3,7 @@ import RequireRole from '@/shared/auth/RequireRole'
 import { useAuth } from '@/shared/auth/useAuth'
 
 import MyAssessment from './pages/student/MyAssessment.jsx'
+import MyQuestions from './pages/student/MyQuestions.jsx'
 import TeamAssessment from './pages/instructor/TeamAssessment.jsx'
 import StudentAssessment from './pages/instructor/StudentAssessment.jsx'
 import StudentQuestions from './pages/instructor/StudentQuestions.jsx'
@@ -32,6 +33,7 @@ export default function PerformanceRoutes() {
     <Routes>
       <Route index element={<PerformanceIndex />} />
       <Route path="my-assessment" element={<MyAssessment />} />
+      <Route path="my-assessment/questions" element={<MyQuestions />} />
 
       <Route element={<RequireRole allowedRoles={['instructor', 'admin']} />}>
         <Route path="team" element={<Navigate to="results" replace />} />

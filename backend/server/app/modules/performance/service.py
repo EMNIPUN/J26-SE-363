@@ -147,6 +147,64 @@ def overall(results: list[dict]) -> dict:
             "factors": factors, "status": status, "sprints": len(marks)}
 
 
+def _iso_day(at) -> str:
+    return (at.date() if hasattr(at, "date") else datetime.fromisoformat(str(at)).date()).isoformat()
+
+
+def development(rows: list[dict], snapshots: list[dict], sprint_ids: list[str]) -> dict:
+    """What the Development page shows, worked out from the day-by-day snapshots of one sprint and the final marks of every sprint.
+
+    ``rows`` are the team overview rows (one per student: id, name, href, by_sprint); ``snapshots`` are the sprint's snapshots (student_id, as_of, mark).
+    Returns the students' movement, the team's day-by-day chart (average, lowest to highest, and every student's mark), the headline numbers, the students worth a look,
+    and the final mark of every student in every sprint (for the graph across sprints).
+    """
+    names = {r["student_id"]: " ".join(str(r.get("name") or r["student_id"]).split()) for r in rows}
+    per_day: dict[str, dict[str, float]] = {}
+    for p in sorted(snapshots, key=lambda p: p["as_of"]):
+        if p.get("mark") is not None:
+            per_day.setdefault(_iso_day(p["as_of"]), {})[p["student_id"]] = round(p["mark"], 1)  # the last snapshot of a day is the one that counts
+    days = sorted(per_day)
+    chart = [{"day": d, "average": round(sum(per_day[d].values()) / len(per_day[d]), 1), "low": min(per_day[d].values()), "high": max(per_day[d].values()), "marks": per_day[d]} for d in days]
+
+    students, warnings, changes = [], [], []
+    for r in rows:
+        sid = r["student_id"]
+        points = [(d, per_day[d][sid]) for d in days if sid in per_day[d]]
+        marks = [m for _, m in points]
+        first, latest = (marks[0], marks[-1]) if marks else (None, None)
+        change = round(latest - first, 1) if len(marks) > 1 else 0
+        trend = "none" if not marks else "rising" if len(marks) > 1 and change >= 5 else "falling" if len(marks) > 1 and change <= -5 else "steady"
+        students.append({"student_id": sid, "name": names[sid], "picture": r.get("picture"), "spark": marks, "first": first, "latest": latest, "change": change, "trend": trend, "href": r.get("href")})
+        if latest is not None and len(marks) > 1:
+            changes.append((change, sid))
+        if latest is not None and latest < 40:
+            warnings.append({"student_id": sid, "kind": "below_40", "text": f"{names[sid]} is at {round(latest)} now, below 40."})
+        if len(marks) > 1 and change <= -10:
+            warnings.append({"student_id": sid, "kind": "falling", "text": f"{names[sid]} has fallen {abs(round(change))} points since the first snapshot ({round(first)} to {round(latest)})."})
+        drops = [(a[1] - b[1], b[0]) for a, b in zip(points, points[1:]) if a[1] - b[1] >= 10]
+        if drops:
+            size, at = max(drops)
+            warnings.append({"student_id": sid, "kind": "sudden_drop", "text": f"{names[sid]} dropped {round(size)} points in one day ({at})."})
+
+    best = max(changes, default=None)
+    improved = next((s for s in students if best and s["student_id"] == best[1]), None) if best and best[0] > 0 else None
+    latest_marks = [s["latest"] for s in students if s["latest"] is not None]
+    kpis = {"team_average": round(sum(latest_marks) / len(latest_marks)) if latest_marks else None,
+            "team_change": round(chart[-1]["average"] - chart[0]["average"], 1) if len(chart) > 1 else None,
+            "last_snapshot_at": max((p["as_of"].isoformat() if hasattr(p["as_of"], "isoformat") else str(p["as_of"]) for p in snapshots), default=None),
+            "most_improved": {"student_id": improved["student_id"], "name": improved["name"], "first_name": improved["name"].split()[0], "change": round(improved["change"])} if improved else None,
+            "below_40": sum(1 for m in latest_marks if m < 40)}
+
+    final_marks = {r["student_id"]: {b["sprint"]: b.get("mark") for b in r.get("by_sprint") or []} for r in rows}
+    team_by_sprint = []
+    for sp in sprint_ids:
+        vals = [m for per in final_marks.values() if (m := per.get(sp)) is not None]
+        team_by_sprint.append(round(sum(vals) / len(vals), 1) if vals else None)
+    sprint_series = {"sprints": sprint_ids, "team": team_by_sprint,
+                     "students": [{"student_id": sid, "name": names[sid], "marks": [None if per.get(sp) is None else round(per[sp], 1) for sp in sprint_ids]} for sid, per in final_marks.items()]}
+    return {"students": students, "chart": chart, "kpis": kpis, "warnings": warnings, "sprint_series": sprint_series}
+
+
 def band(score: float | None) -> str | None:
     if score is None:
         return None
@@ -179,13 +237,43 @@ def report_sections(justification: dict, factors: dict) -> dict:
     }
 
 
-def sprint_state(start: str, end: str, today=None) -> str:
+# What the Scrum board calls a sprint's state, in the words of the three states the pages use.
+BOARD_SPRINT_STATE = {"completed": "finished", "complete": "finished", "done": "finished", "closed": "finished", "finished": "finished",
+                      "active": "current", "in_progress": "current", "in progress": "current", "current": "current",
+                      "planned": "upcoming", "upcoming": "upcoming", "not_started": "upcoming", "future": "upcoming"}
+
+
+def sprint_state(start: str, end: str, today=None, board_status: str | None = None) -> str:
+    """finished, current or upcoming. The Scrum board's own status wins when it gives one (the agent reads the same status); otherwise the dates decide."""
+    reported = BOARD_SPRINT_STATE.get(str(board_status or "").strip().lower())
+    if reported:
+        return reported
     today = today or datetime.now(timezone.utc).date()
     try:
         begin, finish = datetime.fromisoformat(start).date(), datetime.fromisoformat(end).date()
     except (TypeError, ValueError):
         return "upcoming"
     return "upcoming" if today < begin else "finished" if today > finish else "current"
+
+
+def sprint_progress(sprint: dict, snapshot_times: list, today=None) -> dict:
+    """Where a sprint stands, for the Development page: its state, the day it is on, how far through it is (0 to 1), and where each snapshot falls along it."""
+    state = sprint.get("state") or "upcoming"
+    try:
+        begin, finish = datetime.fromisoformat(str(sprint["start"])).date(), datetime.fromisoformat(str(sprint["end"])).date()
+    except (KeyError, TypeError, ValueError):
+        return {"state": state, "day": 0, "days": 0, "share": 1.0 if state == "finished" else 0.0, "snapshots": []}
+    days = max(1, (finish - begin).days + 1)
+    today = today or datetime.now(timezone.utc).date()
+    day = days if state == "finished" else 0 if state == "upcoming" else min(max((today - begin).days + 1, 1), days)
+    positions = []
+    for at in snapshot_times:
+        try:
+            moment = at.date() if hasattr(at, "date") else datetime.fromisoformat(str(at)).date()
+        except (TypeError, ValueError):
+            continue
+        positions.append(round(min(max((moment - begin).days / days, 0.0), 1.0), 4))
+    return {"state": state, "day": day, "days": days, "share": round(day / days, 4), "snapshots": sorted(set(positions))}
 
 
 def student_view(result: dict) -> dict:

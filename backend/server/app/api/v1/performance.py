@@ -509,21 +509,24 @@ async def performance_meta(account: SignedInAccount):
 
 def _sprints(team: dict) -> list[dict]:
     configured = (team.get("config") or {}).get("sprints", [])
-    if not configured and team.get("repo_url"):
+    board_status: dict[str, str] = {}   # what the Scrum board says about each sprint: the pages and the agent must agree on it
+    if team.get("repo_url"):
         try:
             simulator = ScrumSimulator()
-            matched = simulator.match(team["repo_url"])
-            if matched:
+            if simulator.match(team["repo_url"]):
                 sprints_raw = simulator.payload("list_sprints", team["repo_url"])
-                configured = [
-                    {"id": s["sprint_id"], "start": s["start_date"], "end": s["end_date"]}
-                    for s in sprints_raw
-                ]
+                board_status = {s["sprint_id"]: s.get("status") for s in sprints_raw if s.get("status")}
+                if not configured:
+                    configured = [{"id": s["sprint_id"], "start": s["start_date"], "end": s["end_date"]} for s in sprints_raw]
         except Exception:
             pass
     latest = configured[-1]["id"] if configured else None
-    return [{**s, "state": service.sprint_state(s.get("start"), s.get("end")),
-             "is_latest": s.get("id") == latest} for s in configured]
+    out = []
+    for s in configured:
+        reported = s.get("board_status") or board_status.get(s.get("id"))
+        out.append({**s, "board_status": reported, "state": service.sprint_state(s.get("start"), s.get("end"), board_status=reported),
+                    "is_latest": s.get("id") == latest})
+    return out
 
 
 async def _overview(store, account: Account, team_ref: str, sprint_id: str | None) -> dict:
@@ -591,21 +594,13 @@ async def team_overview(team_ref: str, account: Staff, store: Store, sprint: str
 async def team_development(team_ref: str, account: Staff, store: Store, sprint: str | None = None):
     overview = await _overview(store, account, team_ref, sprint)
     snapshots = await db(store.list_snapshots, team_ref, overview["sprint"])
-    by_student = {}
-    for point in snapshots:
-        by_student.setdefault(point["student_id"], []).append(point)
-    students = []
-    for row in overview["rows"]:
-        points = sorted(by_student.get(row["student_id"], []), key=lambda p: p["as_of"])
-        marks = [p["mark"] for p in points if p.get("mark") is not None]
-        students.append({"student_id": row["student_id"], "name": row["name"], "picture": row["picture"],
-                         "spark": marks, "first": marks[0] if marks else None, "latest": marks[-1] if marks else None,
-                         "change": marks[-1] - marks[0] if len(marks) > 1 else 0,
-                         "trend": "rising" if len(marks) > 1 and marks[-1] - marks[0] >= 5 else "falling" if len(marks) > 1 and marks[-1] - marks[0] <= -5 else "steady" if marks else "none",
-                         "href": row["href"]})
+    sprint_row = next((s for s in overview["sprints"] if s["id"] == overview["sprint"]), {})
+    view = service.development(overview["rows"], snapshots, [s["id"] for s in overview["sprints"]])
     return {"schema": "team_development/1", "sprint": overview["sprint"],
-            "progress": {"share": 0, "snapshots": []}, "kpis": {"team_average": None, "team_change": None, "snapshots": len(snapshots), "last_snapshot_at": None, "most_improved": None, "below_40": sum((s["latest"] or 0) < 40 for s in students)},
-            "students": students, "chart": [], "factor_series": {"options": [], "team": [], "by_student": {}}, "warnings": []}
+            "progress": service.sprint_progress(sprint_row, [p["as_of"] for p in snapshots]),
+            "kpis": {**view["kpis"], "snapshots": len(snapshots)},
+            "students": view["students"], "chart": view["chart"], "sprint_series": view["sprint_series"],
+            "factor_series": {"options": [], "team": [], "by_student": {}}, "warnings": view["warnings"]}
 
 
 @router.get("/teams/{team_ref}/runs/summary")
@@ -1295,9 +1290,16 @@ async def _student_history(store, team_ref: str, student_id: str, sprint: str | 
 
 
 def _student_factors(result: dict) -> dict:
-    """The factor fields a student may read for one sprint."""
-    allowed = ("status", "score", "interval", "provisional", "band", "headline", "reasons", "warnings", "explain", "measures", "how_much_to_trust")
-    return {factor: {key: raw[key] for key in allowed if key in raw} for factor, raw in (result.get("factors") or {}).items() if isinstance(raw, dict)}
+    """The factors of one sprint as a student may read them: the same cards as the lecturer's (name, score, range, what it measures, the reasons), without what the agent
+    checked for gaming, which is for the lecturer."""
+    stored = result.get("factors") or {}
+    cards = {}
+    for name, card in _factor_cards(result.get("justification") or {}, stored, []).items():
+        card = {k: v for k, v in card.items() if k != "anomalies"}
+        raw = stored.get(name) or {}
+        card.update({k: raw[k] for k in ("band", "headline", "how_much_to_trust") if k in raw})
+        cards[name] = card
+    return cards
 
 
 def _student_report(result: dict, team: dict, sprint: dict, account: Account, cohort: list[dict], history: dict) -> dict:
@@ -1329,6 +1331,7 @@ def _student_report(result: dict, team: dict, sprint: dict, account: Account, co
         "radar": {"axes": [{"factor": factor[0], "score": ((result.get("factors") or {}).get(factor[0]) or {}).get("score"),
                             **({"team_average": average} if average is not None else {})} for factor in service.FACTORS]},
         "justification": {k: j[k] for k in ("summary", "friendly_summary", "headline", "key", "more", "brief", "factors", "pattern", "how_computed", "caveats") if k in j},
+        "pattern": _pattern_of(j),
         "can_override": False,
     }
     report["generated"]["mode"] = "final" if status == "final" else "snapshot"
@@ -1347,9 +1350,12 @@ async def _overall_student_report(store, m: dict, tracked: dict, configured: lis
     span = {"id": "overall", "start": configured[0].get("start") if configured else None, "end": configured[-1].get("end") if configured else None}
     history = await _student_history(store, m["team_ref"], m["student_id"], latest["sprint_id"])
     report = _student_report(latest, tracked, span, account, [{"mark": o["mark"], "override": None} for o in overalls.values()], history)
-    allowed = ("status", "score", "interval", "provisional")
     report.update(scope="overall", sprints_counted=total["sprints"], mark=total["mark"], mark_interval=total["mark_interval"], status=total["status"], overridden=False, can_override=False)
-    report["factors"] = {f: {k: v[k] for k in allowed if k in v} for f, v in total["factors"].items()}
+    cards = _student_factors(latest)   # the final result keeps the names and what each factor measures; the explanations belong to one sprint
+    for name, f in total["factors"].items():
+        if name in cards:
+            cards[name].update(status=f["status"], state=f["state"], score=f["score"], interval=f["interval"], provisional=f["provisional"], warnings=[], reasons=[], explain=None)
+    report["factors"] = cards
     report["hero"] = {"mark": total["mark"], "summary": _final_summary(counted, total["mark"]), "override": None}
     report["flags"] = [{"message": f"{r['sprint_id']}: {f.get('message', f) if isinstance(f, dict) else str(f)}"} for r in counted for f in (r.get("flags") or [])]
     average = _team_factor_average({sid: o["factors"] for sid, o in overalls.items()})
@@ -1379,12 +1385,14 @@ async def my_reports(account: StudentAccount, store: Store, team: str | None = N
     matches = [m for m in await db(_mine, store, account) if team is None or m["team_ref"].lower() == team.strip().lower()]
     if team is not None and not matches:
         raise not_found("Team is not available")
-    reports, overall = [], None
+    reports, overall, sprint_list = [], None, []
     for m in matches:
         if not m["release"]:
             continue
         tracked = await db(store.get_tracked_team, m["team_ref"]) or {}
         configured = _sprints(tracked)
+        if not sprint_list:  # every sprint of the team, so the page shows the real sprint count, also for a sprint with no result yet
+            sprint_list = [{"id": sp["id"], "start": sp.get("start"), "end": sp.get("end"), "state": sp.get("state")} for sp in configured]
         for sprint in configured:
             current = next((r for r in await db(store.latest_results, m["team_ref"], sprint["id"]) if r["student_id"] == m["student_id"]), None)
             if current is None:
@@ -1399,7 +1407,7 @@ async def my_reports(account: StudentAccount, store: Store, team: str | None = N
         if overall is None:
             overall = await _overall_student_report(store, m, tracked, configured, account)
     needs_connect = any(team is not None and m["team_ref"].lower() == team.strip().lower() and not (account.user.github_username or "") for m in matches)
-    return {"schema": "my_reports/1", "github": {"needs_connect": needs_connect}, "overall": overall, "reports": reports}
+    return {"schema": "my_reports/1", "github": {"needs_connect": needs_connect}, "sprints": sprint_list, "overall": overall, "reports": reports}
 
 
 @router.get("/me/quizzes")

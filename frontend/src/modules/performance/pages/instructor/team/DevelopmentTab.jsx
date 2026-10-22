@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types'
 import { Link } from 'react-router-dom'
-import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, CartesianGrid, ComposedChart, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, Camera, CheckCircle2, Minus, TrendingUp, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -16,6 +16,9 @@ const TREND = {
   none: { text: 'Not enough yet', cls: 'bg-muted text-muted-foreground', Icon: Minus },
 }
 const label = (day) => new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+const sprintLabel = (id) => (/^sprint[-_ ]?\d+$/i.test(id) ? `Sprint ${id.match(/\d+/)[0]}` : String(id).replace(/[-_]/g, ' '))
+const PALETTE = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#0ea5e9', '#8b5cf6', '#ef4444', '#14b8a6']
+const round = (v) => (v == null ? '-' : Array.isArray(v) ? `${Math.round(v[0])} to ${Math.round(v[1])}` : Math.round(v))  // the shaded band is a pair: lowest and highest
 
 function Stat({ icon: Icon, label: name, value, sub }) {
   return <Card className="flex-row items-center gap-4 p-4"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></span><div><p className="text-xs text-muted-foreground">{name}</p><p className="text-xl font-semibold tabular-nums">{value}</p>{sub && <p className="text-xs text-muted-foreground">{sub}</p>}</div></Card>
@@ -28,6 +31,9 @@ export default function DevelopmentTab({ development, loading, base, canRun, onS
   const students = d.students || []
   const chart = (d.chart || []).map((p) => ({ ...p, band: p.low != null && p.high != null ? [p.low, p.high] : null, ...Object.fromEntries(Object.entries(p.marks || {}).map(([id, mark]) => [id, mark])) }))
   const enough = chart.length > 1
+  const series = d.sprint_series || {}
+  const bySprint = (series.sprints || []).map((id, i) => ({ sprint: id, team: series.team?.[i] ?? null, ...Object.fromEntries((series.students || []).map((x) => [x.student_id, x.marks?.[i] ?? null])) }))
+  const enoughSprints = bySprint.filter((p) => p.team != null).length > 1
   const href = (id) => `${base}/students/${id}`
   return (
     <Stagger className="space-y-6" step={100}>
@@ -37,12 +43,44 @@ export default function DevelopmentTab({ development, loading, base, canRun, onS
         <Stat icon={TrendingUp} label="Most improved" value={d.kpis?.most_improved?.first_name || '-'} sub={d.kpis?.most_improved ? `+${d.kpis.most_improved.change} points` : 'Nobody has risen yet'} />
         <Stat icon={AlertTriangle} label="Below 40" value={d.kpis?.below_40 ?? 0} sub={d.kpis?.below_40 ? 'Worth a conversation' : 'Nobody is at risk'} />
       </div>
-      <Panel title="Where the sprint is" hint="The server supplies the sprint progress and snapshot positions.">
+      <Panel title="Where the sprint is" hint="How far through the sprint we are. The ticks are the days with a snapshot.">
         <p className="text-sm font-medium">{d.progress?.state === 'current' ? `Day ${d.progress.day} of ${d.progress.days}.` : d.progress?.state === 'finished' ? 'The sprint is over.' : 'The sprint has not started.'}</p>
-        <div className="relative mt-3 h-3 rounded-full bg-muted"><div className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${Math.max(2, (d.progress?.share || 0) * 100)}%` }} /></div>
+        <div className="relative mt-3 h-3 rounded-full bg-muted"><div className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${Math.max(2, (d.progress?.share || 0) * 100)}%` }} />{(d.progress?.snapshots || []).map((p) => <span key={p} className="absolute inset-y-0 w-px bg-foreground/25" style={{ left: `${p * 100}%` }} />)}</div>
       </Panel>
-      <Panel title="Predicted mark, day by day" icon={TrendingUp} hint="The server computes averages, ranges and student series.">
-        {!enough ? <p className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">At least two snapshots are needed to draw a line.</p> : <div className="h-80"><ResponsiveContainer><ComposedChart data={chart}><CartesianGrid strokeDasharray="3 3" opacity={0.3} /><XAxis dataKey="day" tickFormatter={label} fontSize={11} /><YAxis domain={[0, 100]} fontSize={11} /><Tooltip /><Area dataKey="band" name="Lowest to highest" stroke="none" fill="#6366f1" fillOpacity={0.12} /><Line dataKey="average" name="Team average" stroke="#111827" strokeWidth={3} dot /></ComposedChart></ResponsiveContainer></div>}
+      <Panel title="Each student, day by day" icon={TrendingUp} hint="Predicted mark at the end of each day. The shaded band runs from the lowest to the highest student; the dashed line is the team average.">
+        {!enough ? <p className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">At least two days with a snapshot are needed to draw a line.</p> : (
+          <div className="h-80" role="img" aria-label="Predicted mark of each student, day by day">
+            <ResponsiveContainer>
+              <ComposedChart data={chart} margin={{ top: 8, right: 16, bottom: 0, left: -8 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="day" tickFormatter={label} fontSize={11} />
+                <YAxis domain={[0, 100]} fontSize={11} />
+                <Tooltip labelFormatter={label} formatter={(v) => round(v)} />
+                <Legend />
+                <Area dataKey="band" name="Lowest to highest" stroke="none" fill="#6366f1" fillOpacity={0.1} />
+                {students.map((st, i) => <Line key={st.student_id} dataKey={st.student_id} name={st.name} stroke={PALETTE[i % PALETTE.length]} strokeWidth={2} dot={false} connectNulls />)}
+                <Line dataKey="average" name="Team average" stroke="#111827" strokeWidth={3} strokeDasharray="6 4" dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </Panel>
+      <Panel title="Across the sprints" icon={TrendingUp} hint="Each student's mark at the end of every sprint, and the team average.">
+        {!enoughSprints ? <p className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">At least two sprints with a result are needed to draw a line.</p> : (
+          <div className="h-80" role="img" aria-label="Final mark of each student in every sprint">
+            <ResponsiveContainer>
+              <LineChart data={bySprint} margin={{ top: 8, right: 16, bottom: 0, left: -8 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="sprint" tickFormatter={sprintLabel} fontSize={11} />
+                <YAxis domain={[0, 100]} fontSize={11} />
+                <Tooltip labelFormatter={sprintLabel} formatter={(v) => round(v)} />
+                <Legend />
+                {(series.students || []).map((st, i) => <Line key={st.student_id} dataKey={st.student_id} name={st.name} stroke={PALETTE[i % PALETTE.length]} strokeWidth={2} dot={{ r: 3 }} connectNulls />)}
+                <Line dataKey="team" name="Team average" stroke="#111827" strokeWidth={3} strokeDasharray="6 4" dot={{ r: 3 }} connectNulls />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </Panel>
       <Panel title="Each student's movement" icon={Users}>
         <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead><tr className="text-left text-xs text-muted-foreground"><th className="p-2">Student</th><th className="p-2">Over the sprint</th><th className="p-2 text-right">First</th><th className="p-2 text-right">Latest</th><th className="p-2 text-right">Change</th><th className="p-2">Trend</th><th /></tr></thead><tbody className="divide-y">{students.map((s) => { const tr = TREND[s.trend] || TREND.none; return <tr key={s.student_id}><td className="p-2"><div className="flex items-center gap-3"><Avatar name={s.name} picture={s.picture} size={32} /><span>{s.name}</span></div></td><td className="p-2 text-xs text-muted-foreground">{(s.spark || []).join(' → ') || '-'}</td><td className="p-2 text-right">{s.first ?? '-'}</td><td className={`p-2 text-right font-semibold ${styleOf(markBand(s.latest)).text}`}>{s.latest ?? '-'}</td><td className="p-2 text-right">{s.change > 0 ? '+' : ''}{s.change ?? '-'}</td><td className="p-2"><span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${tr.cls}`}><tr.Icon className="h-3 w-3" />{tr.text}</span></td><td className="p-2 text-right"><Link to={s.href || href(s.student_id)} className="text-xs text-primary"><ArrowRight className="h-4 w-4" /></Link></td></tr> })}</tbody></table></div>
