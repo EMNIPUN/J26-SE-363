@@ -6,7 +6,7 @@ import EmptyState from '../../../shared/components/EmptyState.jsx'
 import PageHeader from '../../../shared/components/PageHeader.jsx'
 import { useTeamPath } from '../../../shared/hooks/useTeamPath.js'
 import { CONCEPTS, TASKS } from '../data/tutorWorkspace.js'
-import SampleBanner from '../components/SampleBanner.jsx'
+import LivePipelineBanner from '../components/LivePipelineBanner.jsx'
 import { tutorWorkspaceService } from '../services/tutorWorkspaceService.js'
 
 export default function Assessments() {
@@ -85,7 +85,7 @@ export default function Assessments() {
             </Button>
           }
         />
-        <SampleBanner />
+        <LivePipelineBanner mode="upcoming" />
         {!ready && !error && <p className="text-sm text-muted-foreground">Loading the assessment…</p>}
         {error && (
           <EmptyState title="Assessment unavailable" description={error} actionLabel="Back" onAction={() => navigate(team('/tutor/assessments'))} />
@@ -185,7 +185,7 @@ export default function Assessments() {
         title="Assessments"
         description="Diagnostics, concept quizzes, and reassessments. A score stays a score until the tutor service returns a new estimate."
       />
-      <SampleBanner />
+      <LivePipelineBanner mode="upcoming" />
       {!ready && !error && <p className="text-sm text-muted-foreground">Loading assessments…</p>}
       {error && (
         <EmptyState title="Assessments unavailable" description={error} actionLabel="Try again" onAction={() => setReloadKey((value) => value + 1)} />

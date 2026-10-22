@@ -37,38 +37,51 @@ def _request(**overrides) -> AgentRequest:
     return AgentRequest(**fields)
 
 
-def test_stu001_receives_two_assigned_tasks():
+def test_stu001_receives_assigned_sprint_tasks():
     context = build_student_project_context(_request(), CAMPUS_SPRINT_SNAPSHOT)
 
     assert context.student_id == STUDENT_ID
     assert context.project_id == PROJECT_ID
     assert context.sprint_id == SPRINT_ID
     assert [task.task_id for task in context.assigned_tasks] == [
-        "task-jwt",
-        "task-profile",
+        "task-s1-initial-repo",
+        "task-s1-architecture",
+        "task-s1-lifecycle-apis",
+        "task-s1-common-models",
     ]
 
 
-def test_stu002_tasks_are_excluded_for_stu001():
-    context = build_student_project_context(_request(), CAMPUS_SPRINT_SNAPSHOT)
+def test_peer_student_has_no_assigned_tasks():
+    context = build_student_project_context(
+        _request(student_id=PEER_STUDENT_ID),
+        CAMPUS_SPRINT_SNAPSHOT,
+    )
 
-    assert "task-dashboard" not in {task.task_id for task in context.assigned_tasks}
+    assert context.assigned_tasks == []
 
 
 def test_nested_dataset_exposes_project_sprint_and_students():
     assert CAMPUS_SPRINT_DATASET.project.project_id == PROJECT_ID
     assert CAMPUS_SPRINT_DATASET.project.course_id == COURSE_ID
     assert CAMPUS_SPRINT_DATASET.project.technology_stack == [
-        "Python",
-        "FastAPI",
-        "React",
-        "PostgreSQL",
+        "Node.js",
+        "Express",
+        "MongoDB",
+        "Mongoose",
+        "JWT",
+        "Swagger",
+        "SerpAPI",
+        "SendGrid",
+        "Jest",
+        "Vercel",
     ]
     assert CAMPUS_SPRINT_SNAPSHOT.course_id == CAMPUS_SPRINT_DATASET.project.course_id
     assert CAMPUS_SPRINT_DATASET.sprint.goal is not None
     assert [student.student_id for student in CAMPUS_SPRINT_DATASET.students] == [
         STUDENT_ID,
         PEER_STUDENT_ID,
+        "STU-003",
+        "STU-004",
     ]
 
 
@@ -137,13 +150,15 @@ def test_conflicting_nested_task_id_is_rejected_by_shared_rules():
 
 def test_task_metadata_from_nested_dataset_is_preserved():
     context = build_student_project_context(_request(), CAMPUS_SPRINT_SNAPSHOT)
-    jwt_task = next(task for task in context.assigned_tasks if task.task_id == "task-jwt")
+    repo_task = next(
+        task for task in context.assigned_tasks if task.task_id == "task-s1-initial-repo"
+    )
 
-    assert jwt_task.description is not None
-    assert jwt_task.priority == "high"
-    assert jwt_task.story_points == 5
-    assert jwt_task.labels == ["backend", "authentication"]
-    assert jwt_task.acceptance_criteria is not None
+    assert repo_task.description is not None
+    assert repo_task.priority == "high"
+    assert repo_task.story_points == 2
+    assert repo_task.labels == ["backend", "infrastructure"]
+    assert repo_task.acceptance_criteria is not None
 
 
 def test_unknown_project_sprint_is_rejected_by_fixture_provider():
@@ -172,11 +187,11 @@ def test_optional_snapshot_metadata_is_not_fabricated():
                 student=StudentContext(student_id=STUDENT_ID),
                 project=ProjectContext(
                     project_id=PROJECT_ID,
-                    title="SELVIA Campus Portal",
+                    title="Ethical Tourism Certification System Backend",
                 ),
                 sprint=SprintContext(
                     sprint_id=SPRINT_ID,
-                    name="Authentication and Profile Management",
+                    name="Foundation and Backend Architecture",
                 ),
             )
         ),
@@ -184,9 +199,18 @@ def test_optional_snapshot_metadata_is_not_fabricated():
     )
 
     assert context.group_id is None
-    assert context.project_title == "SELVIA Campus Portal"
-    assert context.project_description == "A campus portal for student services"
-    assert context.sprint_goal == "Implement secure authentication and student profiles"
-    assert context.sprint_status == "active"
-    profile = next(task for task in context.assigned_tasks if task.task_id == "task-profile")
-    assert profile.description is not None
+    assert context.project_title == "Ethical Tourism Certification System Backend"
+    assert context.project_description == (
+        "Node.js/Express backend for ethical tourism hotel certification: "
+        "JWT auth, certification applications, audit workflows, public search/"
+        "discovery, and certificate lifecycle management."
+    )
+    assert context.sprint_goal == (
+        "Establish the Express/Mongo feature-module architecture, shared "
+        "common utilities, and initial certificate lifecycle API surface."
+    )
+    assert context.sprint_status == "completed"
+    repo_task = next(
+        task for task in context.assigned_tasks if task.task_id == "task-s1-initial-repo"
+    )
+    assert repo_task.description is not None

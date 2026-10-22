@@ -21,7 +21,7 @@ export const tutorService = {
    * @param {{ message: string, context?: Object }} payload
    */
   sendMessage: (sessionId, payload) => {
-    return apiClient.post(ENDPOINTS.TUTOR.CHAT(sessionId), payload)
+    return apiClient.post(ENDPOINTS.TUTOR.SESSION_CHAT(sessionId), payload)
   },
 
   /**
@@ -29,7 +29,7 @@ export const tutorService = {
    * @param {string|number} sessionId
    */
   getSessionHistory: (sessionId) => {
-    return apiClient.get(ENDPOINTS.TUTOR.CHAT(sessionId))
+    return apiClient.get(ENDPOINTS.TUTOR.SESSION_CHAT(sessionId))
   },
 
   /**

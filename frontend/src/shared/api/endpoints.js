@@ -59,8 +59,12 @@ export const ENDPOINTS = {
     TIMELINE: (projectId) => `/planning/projects/${projectId}/timeline`,
   },
   TUTOR: {
+    // Live Core API (PP1)
+    CHAT: '/tutor/chat',
+    COMPETENCY: '/tutor/competency',
+    // Legacy mock-oriented paths (unused by PP1 live pages)
     SESSIONS: '/tutor/sessions',
-    CHAT: (sessionId) => `/tutor/sessions/${sessionId}/chat`,
+    SESSION_CHAT: (sessionId) => `/tutor/sessions/${sessionId}/chat`,
     FEEDBACK: (sessionId) => `/tutor/sessions/${sessionId}/feedback`,
     REVIEWS: '/tutor/reviews',
   },

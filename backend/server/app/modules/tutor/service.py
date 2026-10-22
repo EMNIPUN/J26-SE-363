@@ -28,10 +28,20 @@ from app.clients.slap_tutor_mint import (
 )
 from app.core.config import settings
 from app.core.security import CurrentUser
-from app.modules.tutor.schemas import TutorChatRequest, TutorChatResponse
+from app.modules.tutor.schemas import (
+    PP1_DEFAULT_PROJECT_ID,
+    PP1_DEFAULT_SPRINT_ID,
+    PP1_DEFAULT_STUDENT_ID,
+    TutorChatRequest,
+    TutorChatResponse,
+    TutorCompetencyRequest,
+    TutorCompetencyResponse,
+)
 
 TUTOR_ACTION = "tutor.chat"
+TUTOR_COMPETENCY_ACTION = "tutor.estimate_competency"
 TUTOR_UNAVAILABLE_DETAIL = "Tutor chat execution is not yet configured"
+TUTOR_COMPETENCY_UNAVAILABLE_DETAIL = "Tutor competency execution is not yet configured"
 
 
 class TutorExecutionUnavailable(Exception):
@@ -76,6 +86,31 @@ def build_tutor_orchestration_request(
         "requester": user.to_requester(),
         "action": TUTOR_ACTION,
         "input": {"message": body.message},
+        # PP1 fixture student so chat evidence normalizer has a stable student_id.
+        "student_id": PP1_DEFAULT_STUDENT_ID,
+        "project_id": PP1_DEFAULT_PROJECT_ID,
+        "sprint_id": PP1_DEFAULT_SPRINT_ID,
+    }
+    if body.request_id is not None:
+        kwargs["request_id"] = str(body.request_id)
+    return OrchestrationRequest(**kwargs)
+
+
+def build_competency_orchestration_request(
+    user: CurrentUser,
+    body: TutorCompetencyRequest,
+) -> OrchestrationRequest:
+    """Build estimate_competency orchestration from trusted Core + PP1 sprint defaults."""
+    payload_input: dict = {}
+    if body.concept_ids:
+        payload_input["concept_ids"] = list(body.concept_ids)
+    kwargs: dict = {
+        "requester": user.to_requester(),
+        "action": TUTOR_COMPETENCY_ACTION,
+        "student_id": PP1_DEFAULT_STUDENT_ID,
+        "project_id": (body.project_id or PP1_DEFAULT_PROJECT_ID),
+        "sprint_id": (body.sprint_id or PP1_DEFAULT_SPRINT_ID),
+        "input": payload_input,
     }
     if body.request_id is not None:
         kwargs["request_id"] = str(body.request_id)
@@ -112,6 +147,47 @@ class TutorChatService:
         )
         return orchestration_to_tutor_response(response)
 
+    async def estimate_competency(
+        self,
+        user: CurrentUser,
+        body: TutorCompetencyRequest,
+    ) -> TutorCompetencyResponse:
+        if not self._handoff_available():
+            raise TutorExecutionUnavailable(TUTOR_COMPETENCY_UNAVAILABLE_DETAIL)
+
+        print(
+            f"[tutor.estimate_competency] Core handoff start "
+            f"user_id={user.user_id} project_id={body.project_id!r} "
+            f"sprint_id={body.sprint_id!r}",
+            flush=True,
+        )
+
+        mint_client = self._mint_client_factory()
+        minted = await mint_client.mint_tutor_access_token(
+            issuer=settings.keycloak_issuer,
+            subject=user.user_id,
+        )
+        request = build_competency_orchestration_request(user, body)
+        self._assert_token_not_in_orchestration(request, minted)
+
+        ai_client = self._ai_client_factory()
+        response = await ai_client.orchestrate(
+            request,
+            tutor_access_token=minted.access_token,
+        )
+        result = orchestration_to_competency_response(response)
+        evidence_count = (
+            result.result.get("performance_evidence_count")
+            if isinstance(result.result, dict)
+            else None
+        )
+        print(
+            f"[tutor.estimate_competency] Core handoff done "
+            f"status={result.status} performance_evidence_count={evidence_count}",
+            flush=True,
+        )
+        return result
+
     @staticmethod
     def _assert_token_not_in_orchestration(
         request: OrchestrationRequest,
@@ -130,7 +206,8 @@ def get_tutor_chat_service() -> TutorChatService:
 def map_tutor_service_error(exc: Exception) -> tuple[int, str]:
     """Map service/mint errors to sanitized (status_code, detail) pairs."""
     if isinstance(exc, TutorExecutionUnavailable):
-        return 503, TUTOR_UNAVAILABLE_DETAIL
+        detail = str(exc) if str(exc) else TUTOR_UNAVAILABLE_DETAIL
+        return 503, detail
     if isinstance(exc, SlapTutorMintIdentityNotFoundError):
         return 409, "Tutor identity is not linked"
     if isinstance(
@@ -160,5 +237,16 @@ def orchestration_to_tutor_response(response: OrchestrationResponse) -> TutorCha
         result=response.result,
         evidence=response.evidence,
         next_action=response.next_action,
+        error=response.error,
+    )
+
+
+def orchestration_to_competency_response(
+    response: OrchestrationResponse,
+) -> TutorCompetencyResponse:
+    return TutorCompetencyResponse(
+        request_id=response.request_id,
+        status=response.status,
+        result=response.result or {},
         error=response.error,
     )

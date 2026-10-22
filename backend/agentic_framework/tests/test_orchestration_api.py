@@ -34,6 +34,16 @@ VALID_REQUEST = {
     "input": {"message": "Explain JWT"},
 }
 
+COMPETENCY_REQUEST = {
+    "request_id": "req-003",
+    "requester": {"user_id": "kc-123", "role": "student"},
+    "action": "tutor.estimate_competency",
+    "student_id": "ST001",
+    "project_id": "P-CAMPUS",
+    "sprint_id": "sprint-02",
+    "input": {},
+}
+
 
 class EchoTutor:
     name = AgentName.ADAPTIVE_TUTOR
@@ -166,6 +176,36 @@ def test_tutor_token_header_bound_for_tutor_chat_only(client):
     response = client.post(
         "/api/v1/orchestration",
         json=VALID_REQUEST,
+        headers=auth_headers(**{TUTOR_ACCESS_TOKEN_HEADER: TUTOR_TOKEN}),
+    )
+
+    assert response.status_code == 200
+    body = OrchestrationResponse.model_validate(response.json())
+    assert body.status is ResultStatus.COMPLETED
+    assert TUTOR_TOKEN not in response.text
+    assert get_request_tutor_access_token() is None
+
+
+def test_tutor_token_header_bound_for_estimate_competency(client):
+    class EchoCompetencyTutor:
+        name = AgentName.ADAPTIVE_TUTOR
+
+        async def handle(self, request: AgentRequest) -> AgentResponse:
+            assert get_request_tutor_access_token() == TUTOR_TOKEN
+            return AgentResponse(
+                request_id=request.request_id,
+                agent_name=self.name,
+                status=ResultStatus.COMPLETED,
+                result={"estimates": []},
+            )
+
+    app.dependency_overrides[get_orchestrator] = lambda: Orchestrator(
+        AgentExecutor({AgentName.ADAPTIVE_TUTOR: EchoCompetencyTutor()})
+    )
+
+    response = client.post(
+        "/api/v1/orchestration",
+        json=COMPETENCY_REQUEST,
         headers=auth_headers(**{TUTOR_ACCESS_TOKEN_HEADER: TUTOR_TOKEN}),
     )
 

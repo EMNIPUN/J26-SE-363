@@ -61,11 +61,11 @@ export function getNavForRole(role, teamCode = "J26-SE-363") {
         icon: Bot,
         color: '#5146C7',
         children: [
-          { label: 'Tutor Chat', icon: MessageCircle, to: t('/tutor/chat') },
           { label: 'Sprint Guidance', icon: Route, to: t('/tutor/guidance') },
-          { label: 'Practice Exercises', icon: Code2, to: t('/tutor/practice') },
-          { label: 'Assessments', icon: ClipboardCheck, to: t('/tutor/assessments') },
           { label: 'Progress & Results', icon: ChartColumn, to: t('/tutor/progress') },
+          { label: 'Tutor Chat', icon: MessageCircle, to: t('/tutor/chat') },
+          { label: 'Practice (upcoming)', icon: Code2, to: t('/tutor/practice') },
+          { label: 'Assessments (upcoming)', icon: ClipboardCheck, to: t('/tutor/assessments') },
         ],
       },
     ]

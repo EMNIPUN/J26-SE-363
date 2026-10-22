@@ -1,51 +1,80 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Bot, MessageSquarePlus, RotateCcw, SendHorizontal } from 'lucide-react'
+import { Bot, ChevronDown, ChevronRight, RotateCcw, SendHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '../../../shared/auth/useAuth.js'
 import Avatar from '../../../shared/components/Avatar.jsx'
 import { useTeamPath } from '../../../shared/hooks/useTeamPath.js'
-import { CHAT_PROMPTS, CHAT_SESSIONS, CHAT_TRANSCRIPTS, CONCEPTS } from '../data/tutorWorkspace.js'
-import SampleBanner from '../components/SampleBanner.jsx'
+import LivePipelineBanner from '../components/LivePipelineBanner.jsx'
 import TutorMessage from '../components/TutorMessage.jsx'
-import { tutorWorkspaceService } from '../services/tutorWorkspaceService.js'
+import { tutorApi } from '../services/tutorApi.js'
 
 let idCounter = 0
 const nextId = () => `msg-${++idCounter}`
+
+const WELCOME =
+  'Live Adaptive Tutor chat (PP1).\n\nMessages go to Core → AI Backend → SLAP MCP for performance evidence. No adaptive decision is produced yet — replies summarize retrieved evidence.'
 
 export default function Chat() {
   const team = useTeamPath()
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialPrompt = searchParams.get('prompt')
-  const initialSession = searchParams.get('session') || 'new'
 
-  const [sessionId, setSessionId] = useState(initialSession)
-  const [messages, setMessages] = useState(() => seedMessages(initialSession, initialPrompt))
+  const [messages, setMessages] = useState(() => {
+    const base = [{ id: 'welcome', role: 'assistant', content: WELCOME }]
+    if (initialPrompt) base.push({ id: 'prompt', role: 'user', content: initialPrompt })
+    return base
+  })
   const [input, setInput] = useState('')
-  const [pending, setPending] = useState(initialPrompt)
+  const [pending, setPending] = useState(initialPrompt || null)
   const [failed, setFailed] = useState(null)
-  const [context, setContext] = useState(null)
-  const [showContext, setShowContext] = useState(false)
+  const [lastEvidence, setLastEvidence] = useState([])
+  const [showEvidence, setShowEvidence] = useState(true)
   const endRef = useRef(null)
   const inputRef = useRef(null)
 
   useEffect(() => {
-    tutorWorkspaceService.getRecommendation().then(setContext).catch(() => setContext(null))
-  }, [])
-
-  useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [messages, pending, failed])
+  }, [messages, pending, failed, lastEvidence])
 
   useEffect(() => {
     if (!pending) return
     let live = true
-    tutorWorkspaceService
-      .sendTutorMessage(pending)
-      .then((reply) => {
+    tutorApi
+      .chat({ message: pending })
+      .then((body) => {
         if (!live) return
-        setMessages((prev) => [...prev, { id: nextId(), ...reply }])
+        // apiClient already unwraps axios response.data
+        const result = body?.result || {}
+        const evidence = result.performance_evidence || []
+        const normalized = result.normalized_evidence || []
+        setLastEvidence(evidence)
+
+        const lines = [
+          body?.status === 'completed'
+            ? 'Tutor MCP retrieval completed.'
+            : `Tutor response status: ${body?.status || 'unknown'}.`,
+          '',
+          `Performance evidence records: ${evidence.length}`,
+          `Normalized evidence items: ${normalized.length}`,
+          `Learning activities: ${(result.learning_activities || []).length}`,
+          '',
+          result.adaptive_decision == null
+            ? 'adaptive_decision: null (decision engine not in PP1).'
+            : `adaptive_decision: ${JSON.stringify(result.adaptive_decision)}`,
+        ]
+        if (body?.error?.message) {
+          lines.push('', `Error: ${body.error.message}`)
+        }
+        if (result.detail) {
+          lines.push('', String(result.detail))
+        }
+
+        setMessages((prev) => [
+          ...prev,
+          { id: nextId(), role: 'assistant', content: lines.join('\n') },
+        ])
         setPending(null)
         setSearchParams(
           (params) => {
@@ -57,7 +86,7 @@ export default function Chat() {
       })
       .catch((err) => {
         if (!live) return
-        setFailed({ text: pending, message: err.message || 'The sample reply failed.' })
+        setFailed({ text: pending, message: err.message || 'Tutor chat failed.' })
         setPending(null)
       })
     return () => {
@@ -75,77 +104,21 @@ export default function Chat() {
     inputRef.current?.focus()
   }
 
-  const openSession = (nextIdValue) => {
-    setSessionId(nextIdValue)
-    setMessages(seedMessages(nextIdValue, null))
-    setPending(null)
-    setFailed(null)
-    setInput('')
-    setSearchParams(nextIdValue === 'new' ? {} : { session: nextIdValue }, { replace: true })
-  }
-
-  const concept = context ? CONCEPTS[context.recommendation.conceptId] : null
-  const task = context?.tasks.find((item) => item.id === context.recommendation.taskId)
-  const gaps = (context?.estimates || []).filter(
-    (item) => item.status === 'Needs Attention' || item.status === 'Developing' || item.status === 'Insufficient Evidence',
-  )
-
   return (
     <div className="space-y-3">
-      <SampleBanner />
+      <LivePipelineBanner mode="live" />
       <div className="flex h-[calc(100svh-12rem)] min-h-[520px] flex-col overflow-hidden rounded-xl border border-border bg-card xl:flex-row">
-        <aside className="hidden w-56 shrink-0 flex-col border-r border-border bg-muted/20 md:flex">
-          <div className="p-3">
-            <Button className="w-full" onClick={() => openSession('new')}>
-              <MessageSquarePlus className="h-4 w-4" />
-              New conversation
-            </Button>
-          </div>
-          <ul className="flex-1 space-y-1 overflow-y-auto px-2 pb-3">
-            {CHAT_SESSIONS.filter((item) => item.id !== 'new').map((session) => (
-              <li key={session.id}>
-                <button
-                  type="button"
-                  onClick={() => openSession(session.id)}
-                  aria-current={sessionId === session.id ? 'page' : undefined}
-                  className={`w-full rounded-lg px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    sessionId === session.id ? 'bg-primary/10 text-foreground' : 'hover:bg-muted'
-                  }`}
-                >
-                  <span className="block truncate text-sm font-medium">{session.title}</span>
-                  <span className="text-xs text-muted-foreground">{session.when}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </aside>
-
         <section className="flex min-h-0 min-w-0 flex-1 flex-col" aria-label="Tutor conversation">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
               <h1 className="text-sm font-semibold">Tutor chat</h1>
-              <p className="text-xs text-muted-foreground">One Adaptive Tutor. Replies on this page are sample text.</p>
+              <p className="text-xs text-muted-foreground">
+                Live MCP evidence path. Adaptive decisions are not produced yet.
+              </p>
             </div>
-            <div className="flex items-center gap-2">
-              <label htmlFor="tutor-session" className="sr-only">
-                Conversation
-              </label>
-              <select
-                id="tutor-session"
-                value={sessionId}
-                onChange={(event) => openSession(event.target.value)}
-                className="h-8 rounded-lg border border-input bg-background px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
-              >
-                {CHAT_SESSIONS.map((session) => (
-                  <option key={session.id} value={session.id}>
-                    {session.title}
-                  </option>
-                ))}
-              </select>
-              <Button type="button" variant="outline" size="sm" className="xl:hidden" onClick={() => setShowContext((value) => !value)}>
-                {showContext ? 'Hide context' : 'Task context'}
-              </Button>
-            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link to={team('/tutor/guidance')}>Sprint guidance</Link>
+            </Button>
           </header>
 
           <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4" aria-live="polite">
@@ -170,7 +143,7 @@ export default function Chat() {
             )}
             {pending && (
               <p className="pl-11 text-sm text-muted-foreground" role="status">
-                Preparing a sample reply…
+                Calling Core tutor chat (mint + MCP)…
               </p>
             )}
             {failed && (
@@ -196,19 +169,6 @@ export default function Chat() {
           </div>
 
           <div className="border-t border-border p-3">
-            <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
-              {CHAT_PROMPTS.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => send(prompt)}
-                  disabled={Boolean(pending)}
-                  className="shrink-0 disabled:pointer-events-none disabled:opacity-50 rounded-full border border-border px-3 py-1 text-xs hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
             <form
               onSubmit={(event) => {
                 event.preventDefault()
@@ -231,7 +191,7 @@ export default function Chat() {
                     send(input)
                   }
                 }}
-                placeholder="Ask a software engineering question, or ask about the sample task."
+                placeholder="Ask anything — the reply will report MCP evidence retrieval for PP1."
                 className="min-h-11 flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               <Button
@@ -247,58 +207,38 @@ export default function Chat() {
           </div>
         </section>
 
-        <aside className={`${showContext ? 'flex' : 'hidden'} max-h-64 shrink-0 flex-col gap-3 overflow-y-auto border-t border-border p-4 xl:flex xl:max-h-none xl:w-72 xl:border-t-0 xl:border-l`}>
-          <h2 className="text-sm font-semibold">Current sample context</h2>
-          {context ? (
-            <>
-              <p className="text-sm">{context.project.name}</p>
-              <p className="text-xs text-muted-foreground">{context.project.sprintName}</p>
-              <div>
-                <p className="text-xs font-medium">Selected task</p>
-                <p className="text-sm">{task?.title}</p>
-                <p className="text-xs text-muted-foreground">{task?.status}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium">Related concept</p>
-                <p className="text-sm">{concept?.label}</p>
-                <p className="text-xs text-muted-foreground">{concept?.status}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium">Knowledge gaps in the snapshot</p>
-                <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
-                  {gaps.map((item) => (
-                    <li key={item.conceptId}>
-                      {CONCEPTS[item.conceptId]?.label}: {item.status}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <Button asChild variant="outline" size="sm">
-                <Link to={team('/tutor/guidance')}>Open sprint guidance</Link>
-              </Button>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">Context will appear when the sample workspace loads.</p>
-          )}
+        <aside className="flex max-h-64 shrink-0 flex-col gap-3 overflow-y-auto border-t border-border p-4 xl:max-h-none xl:w-80 xl:border-t-0 xl:border-l">
+          <button
+            type="button"
+            className="flex items-center gap-1 text-left text-sm font-semibold"
+            onClick={() => setShowEvidence((value) => !value)}
+          >
+            {showEvidence ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            Evidence retrieved
+          </button>
+          {showEvidence ? (
+            lastEvidence.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Send a message to fetch live MCP performance evidence for the linked student.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {lastEvidence.map((row) => (
+                  <li key={row.id} className="rounded-lg border border-border px-3 py-2 text-xs">
+                    <p className="font-medium">{row.sourceType || row.source_type}</p>
+                    <p className="text-muted-foreground">
+                      status={row.status} · score={row.score ?? 'null'}/{row.maxScore ?? row.max_score ?? '—'}
+                    </p>
+                    <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
+                      concept={row.conceptId || row.concept_id || 'null'}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : null}
         </aside>
       </div>
     </div>
   )
-}
-
-function seedMessages(sessionId, prompt) {
-  const stored = CHAT_TRANSCRIPTS[sessionId] || []
-  const base =
-    stored.length > 0
-      ? stored.map((message) => ({ ...message }))
-      : [
-          {
-            id: 'welcome',
-            role: 'assistant',
-            content:
-              'Sample reply, not from the tutor service.\n\nAsk about the campus portal task, a concept such as JWT, or a general software engineering question. I will answer from the sample project context.',
-          },
-        ]
-  if (prompt) base.push({ id: 'prompt', role: 'user', content: prompt })
-  return base
 }

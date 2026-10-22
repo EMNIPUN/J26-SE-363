@@ -24,11 +24,20 @@ from app.clients.slap_tutor_mint import (
 )
 from app.core.security import CurrentUser, TokenVerifier, get_token_verifier
 from app.main import app
-from app.modules.tutor.schemas import TutorChatRequest
+from app.modules.tutor.schemas import (
+    PP1_DEFAULT_PROJECT_ID,
+    PP1_DEFAULT_SPRINT_ID,
+    PP1_DEFAULT_STUDENT_ID,
+    TutorChatRequest,
+    TutorCompetencyRequest,
+)
 from app.modules.tutor.service import (
     TUTOR_ACTION,
+    TUTOR_COMPETENCY_ACTION,
+    TUTOR_COMPETENCY_UNAVAILABLE_DETAIL,
     TUTOR_UNAVAILABLE_DETAIL,
     TutorChatService,
+    build_competency_orchestration_request,
     build_tutor_orchestration_request,
     get_tutor_chat_service,
     is_adaptive_tutor_execution_ready,
@@ -210,8 +219,98 @@ def test_build_orchestration_uses_trusted_requester_and_fixed_action():
     assert request.action == "tutor.chat"
     assert request.requester == user.to_requester()
     assert request.input == {"message": "Explain JWT"}
-    assert request.student_id is None
+    assert request.student_id == PP1_DEFAULT_STUDENT_ID
+    assert request.project_id == PP1_DEFAULT_PROJECT_ID
+    assert request.sprint_id == PP1_DEFAULT_SPRINT_ID
     assert "accessToken" not in request.model_dump(mode="json")
+
+
+def test_build_competency_orchestration_uses_pp1_defaults():
+    user = CurrentUser(user_id="kc-student-1", role=UserRole.STUDENT)
+    body = TutorCompetencyRequest()
+    request = build_competency_orchestration_request(user, body)
+
+    assert request.action == TUTOR_COMPETENCY_ACTION
+    assert request.student_id == PP1_DEFAULT_STUDENT_ID
+    assert request.project_id == PP1_DEFAULT_PROJECT_ID
+    assert request.sprint_id == PP1_DEFAULT_SPRINT_ID
+    assert request.input == {}
+    assert request.requester == user.to_requester()
+
+
+def test_unauthenticated_competency_returns_401(client):
+    response = client.post("/api/v1/tutor/competency", json={})
+    assert response.status_code == 401
+
+
+def test_competency_fails_closed_without_handoff(client):
+    mint = MagicMock()
+    mint.mint_tutor_access_token = AsyncMock()
+    ai = MagicMock()
+    ai.orchestrate = AsyncMock()
+    service = TutorChatService(
+        mint_client_factory=lambda: mint,
+        ai_client_factory=lambda: ai,
+        handoff_available=lambda: False,
+    )
+    app.dependency_overrides[get_tutor_chat_service] = lambda: service
+
+    response = client.post(
+        "/api/v1/tutor/competency",
+        json={},
+        headers=auth_header(make_token()),
+    )
+    assert response.status_code == 503
+    assert response.json()["detail"] == TUTOR_COMPETENCY_UNAVAILABLE_DETAIL
+    mint.mint_tutor_access_token.assert_not_called()
+    ai.orchestrate.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_competency_mints_and_orchestrates(monkeypatch):
+    from app.modules.tutor import service as tutor_service
+
+    monkeypatch.setattr(tutor_service.settings, "KEYCLOAK_SERVER_URL", "http://localhost:8000/auth")
+    monkeypatch.setattr(tutor_service.settings, "KEYCLOAK_REALM", "mentor")
+
+    class FakeMint:
+        async def mint_tutor_access_token(self, *, issuer, subject):
+            return TutorAccessToken(
+                access_token=FAKE_TOKEN,
+                token_type="Bearer",
+                expires_in=300,
+                expires_at=1,
+                resource="http://slap.test/mcp",
+            )
+
+    ai = MagicMock()
+    ai.orchestrate = AsyncMock(
+        return_value=OrchestrationResponse(
+            request_id="req-comp-1",
+            status=ResultStatus.COMPLETED,
+            result={
+                "estimates": [],
+                "performance_evidence_count": 1,
+                "required_knowledge": {"tasks": []},
+            },
+        )
+    )
+    service = TutorChatService(
+        mint_client_factory=FakeMint,
+        ai_client_factory=lambda: ai,
+        handoff_available=lambda: True,
+    )
+    user = CurrentUser(user_id="kc-student-1", role=UserRole.STUDENT)
+    result = await service.estimate_competency(user, TutorCompetencyRequest())
+
+    ai.orchestrate.assert_awaited_once()
+    args, kwargs = ai.orchestrate.await_args
+    assert args[0].action == TUTOR_COMPETENCY_ACTION
+    assert args[0].student_id == PP1_DEFAULT_STUDENT_ID
+    assert FAKE_TOKEN not in str(args[0].model_dump(mode="json"))
+    assert kwargs == {"tutor_access_token": FAKE_TOKEN}
+    assert result.status is ResultStatus.COMPLETED
+    assert result.result["performance_evidence_count"] == 1
 
 
 @pytest.mark.asyncio

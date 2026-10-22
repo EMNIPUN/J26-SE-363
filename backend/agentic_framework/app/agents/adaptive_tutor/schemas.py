@@ -49,6 +49,119 @@ class InterventionType(StrEnum):
     NO_INTERVENTION = "no_intervention"
 
 
+class DecisionAction(StrEnum):
+    """Baseline Adaptive Decision Engine actions (Step 7).
+
+    Maps onto existing ``InterventionType`` values where applicable:
+    ``PRACTICE_CONCEPT`` → ``GUIDED_PRACTICE``,
+    ``STUDY_PREREQUISITE`` → ``PREREQUISITE_REVIEW``,
+    ``PROCEED_TO_TASK`` → ``PROJECT_GUIDANCE``.
+    """
+
+    REVIEW_CONCEPT = "review_concept"
+    PRACTICE_CONCEPT = "practice_concept"
+    STUDY_PREREQUISITE = "study_prerequisite"
+    PROCEED_TO_TASK = "proceed_to_task"
+
+
+class DecisionPolicyConfig(TutorModel):
+    """Configurable provisional thresholds for the baseline decision policy.
+
+    These values are research defaults for evaluation, not validated mastery cutoffs.
+    """
+
+    policy_id: str = Field(default="baseline_v1_provisional", min_length=1)
+    # Provisional: treat mastery at/above this as sufficient for the task concept.
+    mastery_sufficient: float = Field(default=0.75, ge=0.0, le=1.0)
+    # Provisional: below this (with evidence) → review; between this and sufficient → practice.
+    mastery_practice_min: float = Field(default=0.45, ge=0.0, le=1.0)
+    # Provisional: prerequisite mastery below this triggers STUDY_PREREQUISITE.
+    prerequisite_sufficient: float = Field(default=0.60, ge=0.0, le=1.0)
+
+    @field_validator("mastery_practice_min")
+    @classmethod
+    def practice_min_must_not_exceed_sufficient(cls, value: float, info) -> float:
+        sufficient = info.data.get("mastery_sufficient")
+        if sufficient is not None and value > sufficient:
+            raise ValueError("mastery_practice_min must be <= mastery_sufficient")
+        return value
+
+
+class DecisionConceptRef(TutorModel):
+    """A required concept considered by the decision engine."""
+
+    concept_id: str = Field(min_length=1)
+    concept_name: str | None = None
+    prerequisite_concept_ids: list[str] = Field(default_factory=list)
+    learning_resource_ids: list[str] = Field(default_factory=list)
+    selection_role: str | None = None
+
+
+class LearnerStateEstimate(TutorModel):
+    """Learner-model estimate for one concept (BKT or generic competency interface).
+
+    ``mastery_probability`` / ``estimated_competency`` may be ``None`` when evidence
+    is missing — never invent zero mastery.
+    """
+
+    concept_id: str = Field(min_length=1)
+    mastery_probability: float | None = Field(default=None, ge=0.0, le=1.0)
+    estimated_competency: float | None = Field(default=None, ge=0.0, le=1.0)
+    observation_count: int = Field(default=0, ge=0)
+    evidence_count: int = Field(default=0, ge=0)
+    model: str | None = None
+    explanation: str | None = None
+
+    def resolved_mastery(self) -> float | None:
+        """Prefer BKT mastery; fall back to generic competency estimate."""
+        if self.mastery_probability is not None:
+            return self.mastery_probability
+        return self.estimated_competency
+
+    def has_usable_evidence(self) -> bool:
+        if self.resolved_mastery() is not None:
+            return True
+        return self.observation_count > 0 or self.evidence_count > 0
+
+
+class DecisionEvidenceRef(TutorModel):
+    """Supporting evidence reference for an explainable decision."""
+
+    evidence_id: str = Field(min_length=1)
+    concept_id: str | None = None
+    source_reference: str | None = None
+
+
+class AdaptiveDecisionInput(TutorModel):
+    """Typed input for the Adaptive Decision Engine (consumes upstream module outputs)."""
+
+    student_id: str = Field(min_length=1)
+    task_id: str = Field(min_length=1)
+    task_title: str | None = None
+    required_concepts: list[DecisionConceptRef] = Field(default_factory=list)
+    learner_states: list[LearnerStateEstimate] = Field(default_factory=list)
+    evidence_refs: list[DecisionEvidenceRef] = Field(default_factory=list)
+    # Optional explicit prerequisite mastery map (concept_id → estimate); otherwise
+    # prerequisites are resolved from ``learner_states`` when present.
+    prerequisite_states: list[LearnerStateEstimate] = Field(default_factory=list)
+    policy: DecisionPolicyConfig = Field(default_factory=DecisionPolicyConfig)
+
+
+class AdaptiveDecisionResult(TutorModel):
+    """Explainable next-action decision produced by the baseline policy."""
+
+    action: DecisionAction
+    intervention_type: InterventionType
+    target_concept_id: str | None = None
+    target_concept_name: str | None = None
+    learning_resource_id: str | None = None
+    reasons: list[str] = Field(min_length=1)
+    evidence_refs: list[DecisionEvidenceRef] = Field(default_factory=list)
+    policy_id: str = Field(min_length=1)
+    priority: int = Field(ge=1, le=5)
+    thresholds_provisional: bool = True
+
+
 class PerformanceSourceType(StrEnum):
     ASSESSMENT_ANSWER = "ASSESSMENT_ANSWER"
     EXERCISE_SUBMISSION = "EXERCISE_SUBMISSION"
@@ -207,6 +320,88 @@ class BktCompetencyEstimate(TutorModel):
     observation_count: int = Field(ge=0)
     model: str = Field(default="BKT", min_length=1)
     parameters: BktParameters
+    explanation: str = Field(min_length=1)
+
+
+class BktFitResult(TutorModel):
+    """Result of estimating BKT parameters from observation sequences."""
+
+    fitted: bool
+    parameters: BktParameters | None = None
+    total_observations: int = Field(ge=0)
+    sequence_count: int = Field(ge=0)
+    log_likelihood: float | None = None
+    method: str = Field(default="grid_search_pooled", min_length=1)
+    explanation: str = Field(min_length=1)
+
+
+class BktConceptComparison(TutorModel):
+    """Side-by-side baseline vs fitted mastery for one concept."""
+
+    concept_id: str = Field(min_length=1)
+    observation_count: int = Field(ge=0)
+    baseline_mastery: float | None = Field(default=None, ge=0.0, le=1.0)
+    fitted_mastery: float | None = Field(default=None, ge=0.0, le=1.0)
+    mastery_delta: float | None = None
+    baseline_parameters: BktParameters
+    fitted_parameters: BktParameters | None = None
+
+
+class BktComparisonReport(TutorModel):
+    """Option C: compare predefined baseline BKT with data-fitted BKT."""
+
+    student_id: str = Field(min_length=1)
+    course_id: str = Field(min_length=1)
+    baseline_parameters: BktParameters
+    fit: BktFitResult
+    concepts: list[BktConceptComparison] = Field(default_factory=list)
+    baseline_log_likelihood: float | None = None
+    fitted_log_likelihood: float | None = None
+    preferred_model: str = Field(min_length=1)
+    comparison_scope: str = Field(
+        default="in_sample_provisional",
+        min_length=1,
+        description="Honest label: comparison uses the same evidence used for fitting.",
+    )
+    explanation: str = Field(min_length=1)
+
+
+class BktHoldoutSplitSummary(TutorModel):
+    """Counts for chronological train/test participation."""
+
+    sequences_used: int = Field(ge=0)
+    sequences_skipped: int = Field(ge=0)
+    train_observations: int = Field(ge=0)
+    test_observations: int = Field(ge=0)
+    skipped_concept_ids: list[str] = Field(default_factory=list)
+
+
+class BktHoldoutModelMetrics(TutorModel):
+    """Hold-out next-step prediction metrics for one parameter set."""
+
+    log_likelihood: float | None = None
+    accuracy: float | None = Field(default=None, ge=0.0, le=1.0)
+    brier_score: float | None = Field(default=None, ge=0.0)
+    n_test_steps: int = Field(ge=0)
+
+
+class BktHoldoutEvaluationReport(TutorModel):
+    """Step 4: fit on earlier answers; score baseline vs fitted on unseen later answers."""
+
+    student_id: str = Field(min_length=1)
+    course_id: str = Field(min_length=1)
+    evaluated: bool
+    baseline_parameters: BktParameters
+    fit: BktFitResult
+    split: BktHoldoutSplitSummary
+    baseline_metrics: BktHoldoutModelMetrics | None = None
+    fitted_metrics: BktHoldoutModelMetrics | None = None
+    preferred_model: str = Field(min_length=1)
+    evaluation_scope: str = Field(
+        default="holdout_chronological",
+        min_length=1,
+        description="Honest label: params fitted on train only; metrics on held-out steps.",
+    )
     explanation: str = Field(min_length=1)
 
 

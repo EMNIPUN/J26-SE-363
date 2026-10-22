@@ -9,7 +9,7 @@ from app.api.dependencies import get_orchestrator
 from app.core.security import require_internal_token
 from app.core.tutor_token_context import (
     TUTOR_ACCESS_TOKEN_HEADER,
-    TUTOR_CHAT_ACTION,
+    TUTOR_TOKEN_ALLOWED_ACTIONS,
     reset_request_tutor_access_token,
     set_request_tutor_access_token,
 )
@@ -32,8 +32,10 @@ async def orchestrate(
 ) -> OrchestrationResponse:
     """Run orchestration for an authenticated Core API caller.
 
-    Optional ``X-SELVIA-Tutor-Token`` is accepted only when ``action`` is ``tutor.chat``.
-    The token is bound to request-scoped context and cleared when the handler returns.
+    Optional ``X-SELVIA-Tutor-Token`` is accepted for Adaptive Tutor MCP actions
+    (``tutor.chat``, ``tutor.estimate_competency``, ``tutor.compare_bkt``,
+    ``tutor.evaluate_bkt``). The token
+    is bound to request-scoped context and cleared when the handler returns.
     """
     tutor_header = http_request.headers.get(TUTOR_ACCESS_TOKEN_HEADER)
     reset_token = None
@@ -43,7 +45,7 @@ async def orchestrate(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Tutor token header must not be empty",
             )
-        if request.action != TUTOR_CHAT_ACTION:
+        if request.action not in TUTOR_TOKEN_ALLOWED_ACTIONS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Tutor token is not allowed for this action",

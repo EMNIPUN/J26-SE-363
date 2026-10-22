@@ -88,8 +88,9 @@ class Settings(BaseSettings):
     AGENT_JOB_RETENTION_HOURS: int = 24
 
     # AI Backend (internal service that runs the Main Orchestrator)
-    AI_BACKEND_URL: str = "http://localhost:8003"
-    AI_BACKEND_TIMEOUT_SECONDS: float = 60.0
+    AI_BACKEND_URL: str = "http://127.0.0.1:8003"
+    # Competency can run Neo4j + OpenAI + MCP; keep above the FE wait budget.
+    AI_BACKEND_TIMEOUT_SECONDS: float = 120.0
     # Shared secret sent to the AI Backend as `X-Internal-Token`; must equal the value in
     # backend/agentic_framework/.env (AI_BACKEND_INTERNAL_TOKEN). No default; fail closed.
     AI_BACKEND_INTERNAL_TOKEN: Optional[str] = None
@@ -98,7 +99,8 @@ class Settings(BaseSettings):
     # No default URL or credential: minting fails closed until both are set.
     SLAP_BASE_URL: Optional[str] = None
     INTERNAL_TUTOR_MINT_TOKEN: Optional[str] = None
-    SLAP_TUTOR_MINT_TIMEOUT_SECONDS: float = 8.0
+    # Mint can stall while SLAP is busy serving MCP for an in-flight competency run.
+    SLAP_TUTOR_MINT_TIMEOUT_SECONDS: float = 30.0
 
     model_config = SettingsConfigDict(
         env_file=SERVER_ENV_FILE,

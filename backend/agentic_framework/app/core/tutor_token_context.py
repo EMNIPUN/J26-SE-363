@@ -10,6 +10,18 @@ from contextvars import ContextVar, Token
 
 TUTOR_ACCESS_TOKEN_HEADER = "X-SELVIA-Tutor-Token"
 TUTOR_CHAT_ACTION = "tutor.chat"
+TUTOR_COMPETENCY_ACTION = "tutor.estimate_competency"
+TUTOR_COMPARE_BKT_ACTION = "tutor.compare_bkt"
+TUTOR_EVALUATE_BKT_ACTION = "tutor.evaluate_bkt"
+# Actions that may bind X-SELVIA-Tutor-Token for SLAP MCP evidence retrieval.
+TUTOR_TOKEN_ALLOWED_ACTIONS = frozenset(
+    {
+        TUTOR_CHAT_ACTION,
+        TUTOR_COMPETENCY_ACTION,
+        TUTOR_COMPARE_BKT_ACTION,
+        TUTOR_EVALUATE_BKT_ACTION,
+    }
+)
 
 _tutor_access_token: ContextVar[str | None] = ContextVar("selvia_tutor_access_token", default=None)
 

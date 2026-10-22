@@ -6,7 +6,7 @@ import EmptyState from '../../../shared/components/EmptyState.jsx'
 import PageHeader from '../../../shared/components/PageHeader.jsx'
 import { useTeamPath } from '../../../shared/hooks/useTeamPath.js'
 import { CONCEPTS, TASKS } from '../data/tutorWorkspace.js'
-import SampleBanner from '../components/SampleBanner.jsx'
+import LivePipelineBanner from '../components/LivePipelineBanner.jsx'
 import { tutorWorkspaceService } from '../services/tutorWorkspaceService.js'
 
 export default function Practice() {
@@ -83,7 +83,7 @@ export default function Practice() {
             </Button>
           }
         />
-        <SampleBanner />
+        <LivePipelineBanner mode="upcoming" />
         {!ready && !error && <p className="text-sm text-muted-foreground">Loading the exercise…</p>}
         {error && !exercise && (
           <EmptyState title="Exercise unavailable" description={error} actionLabel="Back" onAction={() => navigate(team('/tutor/practice'))} />
@@ -182,7 +182,7 @@ export default function Practice() {
         title="Practice exercises"
         description="Targeted practice from the sample learning set. A submission is evidence of an attempt, not a new competency percentage."
       />
-      <SampleBanner />
+      <LivePipelineBanner mode="upcoming" />
       {!ready && !error && <p className="text-sm text-muted-foreground">Loading exercises…</p>}
       {error && <EmptyState title="Exercises unavailable" description={error} actionLabel="Try again" onAction={() => setReloadKey((value) => value + 1)} />}
       {ready && workspace && exercises.length === 0 && (

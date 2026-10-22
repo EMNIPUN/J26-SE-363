@@ -30,7 +30,10 @@ def test_valid_performance_record_maps_identifiers_and_type():
 
 
 def test_score_four_out_of_ten_normalizes_to_zero_point_four():
-    item = normalize_performance_evidence(_record(0), STUDENT_ID)
+    item = normalize_performance_evidence(
+        _record(0, score=4, maxScore=10, percentage=40),
+        STUDENT_ID,
+    )
 
     assert item.score == 0.4
 

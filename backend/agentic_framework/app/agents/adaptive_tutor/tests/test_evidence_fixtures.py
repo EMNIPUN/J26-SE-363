@@ -17,8 +17,8 @@ def test_performance_fixtures_load_into_schema():
 
     assert len(records) == 4
     assert records[0].concept_id == records[1].concept_id
-    assert records[0].percentage == 40
-    assert records[1].percentage == 80
+    assert records[0].percentage == 0
+    assert records[1].percentage == 100
 
 
 def test_missing_score_remains_none():

@@ -23,7 +23,7 @@ def test_observations_from_mock_evidence_match_expected_sequence():
         course_id=COURSE_ID,
         concept_ids=[CONCEPT_ID],
     )
-    # evidence-001 (0.4) → False; evidence-002 (0.8) → True; evidence-003 (0.6) → True
+    # evidence-001 is_correct False; evidence-002 True; evidence-003 assessment True;
     # evidence-004 skipped (missing conceptId)
     assert observations == {CONCEPT_ID: [False, True, True]}
 

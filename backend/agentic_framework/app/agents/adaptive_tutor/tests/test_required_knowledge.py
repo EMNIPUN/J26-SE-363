@@ -60,14 +60,14 @@ def _repo(bundle=None):
 async def test_student_context_filters_assigned_tasks_only():
     selector = StaticConceptSelector(
         {
-            "task-jwt": [
+            "task-s1-initial-repo": [
                 {
                     "concept_id": JWT_CONCEPT_ID,
                     "selection_role": "directly_required",
                     "reason": "Task implements JWT authentication.",
                 }
             ],
-            "task-profile": [],
+            "task-s1-architecture": [],
         }
     )
 
@@ -78,26 +78,30 @@ async def test_student_context_filters_assigned_tasks_only():
         concept_selector=selector,
     )
 
-    assert [task.task_id for task in result.tasks] == ["task-jwt", "task-profile"]
-    assert "task-dashboard" not in {task.task_id for task in result.tasks}
+    assert [task.task_id for task in result.tasks] == [
+        "task-s1-initial-repo",
+        "task-s1-architecture",
+        "task-s1-lifecycle-apis",
+        "task-s1-common-models",
+    ]
 
 
 @pytest.mark.asyncio
 async def test_same_concept_can_be_required_by_multiple_tasks():
     selector = StaticConceptSelector(
         {
-            "task-jwt": [
+            "task-s1-initial-repo": [
                 {
                     "concept_id": AUTH_CONCEPT_ID,
                     "selection_role": "directly_required",
-                    "reason": "JWT task needs authentication fundamentals.",
+                    "reason": "Repository task needs authentication fundamentals.",
                 }
             ],
-            "task-profile": [
+            "task-s1-architecture": [
                 {
                     "concept_id": AUTH_CONCEPT_ID,
                     "selection_role": "directly_required",
-                    "reason": "Profile API requires authenticated access.",
+                    "reason": "Architecture task needs authentication fundamentals.",
                 }
             ],
         }
@@ -147,7 +151,9 @@ def test_missing_concept_descriptions_do_not_crash_candidate_selection():
 
 def test_graph_prerequisites_are_expanded_within_candidate_set():
     bundle = make_course_bundle()
-    jwt_task = next(t for t in CAMPUS_SPRINT_SNAPSHOT.tasks if t.task_id == "task-jwt")
+    jwt_task = next(
+        t for t in CAMPUS_SPRINT_SNAPSHOT.tasks if t.task_id == "task-s1-initial-repo"
+    )
     candidates = select_candidates_for_task(
         jwt_task,
         bundle,
@@ -164,7 +170,7 @@ def test_graph_prerequisites_are_expanded_within_candidate_set():
 async def test_llm_selects_relevant_concepts_from_candidates():
     selector = StaticConceptSelector(
         {
-            "task-jwt": [
+            "task-s1-initial-repo": [
                 {
                     "concept_id": JWT_CONCEPT_ID,
                     "selection_role": "directly_required",
@@ -197,7 +203,7 @@ async def test_llm_selects_relevant_concepts_from_candidates():
 async def test_unrelated_concepts_can_be_excluded_by_selector():
     selector = StaticConceptSelector(
         {
-            "task-jwt": [
+            "task-s1-initial-repo": [
                 {
                     "concept_id": JWT_CONCEPT_ID,
                     "selection_role": "directly_required",
@@ -282,7 +288,7 @@ def test_duplicate_concepts_are_deduplicated_per_task():
 
 @pytest.mark.asyncio
 async def test_empty_valid_llm_results_are_supported():
-    selector = StaticConceptSelector({"task-jwt": [], "task-profile": []})
+    selector = StaticConceptSelector({"task-s1-initial-repo": []})
     result = await identify_required_knowledge(
         _request(),
         sprint_provider=make_fixture_sprint_provider(),
@@ -298,8 +304,7 @@ async def test_malformed_llm_response_fails_closed():
     class BrokenSelector:
         async def select_for_tasks(self, **kwargs):
             return {
-                "task-jwt": [{"concept_id": JWT_CONCEPT_ID}],  # missing reason
-                "task-profile": [],
+                "task-s1-initial-repo": [{"concept_id": JWT_CONCEPT_ID}],  # missing reason
             }
 
     with pytest.raises(KnowledgeValidationError):
@@ -334,7 +339,7 @@ async def test_openai_service_failure_is_surfaced_by_agent():
 async def test_agent_identify_required_knowledge_success_path():
     selector = StaticConceptSelector(
         {
-            "task-jwt": [
+            "task-s1-initial-repo": [
                 {
                     "concept_id": JWT_CONCEPT_ID,
                     "selection_role": "directly_required",
@@ -363,7 +368,7 @@ async def test_course_id_resolved_from_sprint_project_when_input_omitted():
     provider = FixtureSprintDataProvider({(PROJECT_ID, SPRINT_ID): snapshot})
     selector = StaticConceptSelector(
         {
-            "task-jwt": [
+            "task-s1-initial-repo": [
                 {
                     "concept_id": JWT_CONCEPT_ID,
                     "selection_role": "directly_required",

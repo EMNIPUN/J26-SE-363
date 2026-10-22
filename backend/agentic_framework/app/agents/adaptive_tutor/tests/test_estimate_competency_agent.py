@@ -58,6 +58,9 @@ async def test_estimate_competency_with_fixture_evidence_and_explicit_concepts()
     assert estimates[0]["student_id"] == STUDENT_ID
     assert estimates[1]["mastery_probability"] is None
     assert "required_knowledge" not in response.result
+    normalized = response.result["normalized_evidence"]
+    assert [row["correct"] for row in normalized] == [False, True, True]
+    assert all(row["used_for_bkt"] is True for row in normalized)
 
 
 @pytest.mark.asyncio

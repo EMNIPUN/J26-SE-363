@@ -75,6 +75,7 @@ class AIBackendClient:
                 base_url=self._base_url,
                 timeout=self._timeout,
                 transport=self._transport,
+                trust_env=False,
             ) as client:
                 response = await client.post(
                     ORCHESTRATION_PATH, json=body, headers=headers

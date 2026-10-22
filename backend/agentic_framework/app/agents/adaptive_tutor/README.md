@@ -83,8 +83,12 @@ Project task -> required knowledge -> evidence -> competency and gaps -> decisio
 
 Implemented so far: `schemas.py`, `context/` (Student & Project Context), `evidence/` (normalizer
 and fixtures), `knowledge/` (Required Knowledge Identification via Neo4j + OpenAI), `competency/`
-(classic BKT mastery from chronological performance evidence; baseline params, not trained),
-`agent.py` (`tutor.chat` + `tutor.identify_required_knowledge`), and unit tests for those pieces.
+(classic BKT mastery from chronological performance evidence; baseline params plus optional
+grid-fitted params, in-sample baseline-vs-fitted comparison, and chronological hold-out
+evaluation),
+`decision/` (deterministic Adaptive Decision Engine baseline policy; provisional thresholds),
+`agent.py` (`tutor.chat`, `tutor.identify_required_knowledge`, `tutor.estimate_competency`,
+`tutor.compare_bkt`, `tutor.evaluate_bkt`, `tutor.decide_next_action`), and unit tests for those pieces.
 
 `tutor.identify_required_knowledge` resolves `course_id` from request input or the sprint project's
 `course_id`, loads assigned tasks from the sprint provider, retrieves course-scoped concepts from
@@ -96,10 +100,20 @@ records) plus a trusted `student_id`. Missing usable evidence returns `mastery_p
 (not zero). Learning-behaviour activities are excluded from BKT.
 
 `tutor.estimate_competency` integrates required-knowledge (when `concept_ids` omitted), MCP or
-inline `performance_evidence`, and BKT. Sprint fixtures use the live SLAP student/course IDs for
-end-to-end smoke (`scripts/smoke_tutor_pipeline.py`).
+inline `performance_evidence`, and baseline BKT. Sprint fixtures use the live SLAP student/course
+IDs for end-to-end smoke (`scripts/smoke_tutor_pipeline.py`).
 
-Decision, intervention, assessment, and adaptation modules remain unimplemented.
+`tutor.compare_bkt` (option C) keeps predefined baseline BKT, fits provisional parameters from the
+same observation sequences via constrained grid search, and reports per-concept mastery plus
+in-sample log-likelihood comparison (`comparison_scope=in_sample_provisional`).
+
+`tutor.evaluate_bkt` (Step 4) fits parameters on earlier chronological train observations only,
+then scores baseline vs fitted on held-out later answers (log-likelihood, accuracy, Brier;
+`evaluation_scope=holdout_chronological`). Sequences shorter than 3 observations are skipped;
+sparse live evidence may correctly report `evaluated=false`.
+
+`tutor.decide_next_action` runs the baseline decision policy on typed input only (no network).
+Intervention content generation, assessment, and the adaptation loop remain unimplemented.
 The Core API public tutor route stays fail-closed until end-to-end readiness is reviewed separately.
 
 External learning-platform MCP access belongs in

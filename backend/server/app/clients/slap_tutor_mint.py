@@ -134,6 +134,7 @@ class SlapTutorMintClient:
                 base_url=self._base_url,
                 timeout=self._timeout,
                 transport=self._transport,
+                trust_env=False,
             ) as client:
                 response = await client.post(MINT_PATH, json=body, headers=headers)
         except httpx.TimeoutException as exc:
