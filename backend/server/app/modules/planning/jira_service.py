@@ -220,23 +220,20 @@ async def sync_backlog_to_jira(
             or (hasattr(s, "status") and s.status in ("in_backlog", "estimated"))
         ]
 
-    # Filter candidates through Backlog Readiness Passport: only ready items can be pushed to Jira
-    from app.modules.planning.passport_service import get_passport_for_story
-    stories = []
-    blocked_stories = []
-    for s in candidate_stories:
-        passport = get_passport_for_story(db, session_id, s.id)
-        status_val = passport.overall_status.value if hasattr(passport.overall_status, "value") else str(passport.overall_status)
-        if status_val in ("ready", "ready_with_warnings"):
-            stories.append(s)
-        else:
-            blocked_stories.append({
-                "story_ref": s.story_ref,
-                "title": s.title,
-                "status": status_val,
-                "readiness_gap": passport.readiness_gap,
-                "student_action_required": passport.student_action_required,
-            })
+    # The Backlog Readiness Passport is informational only (shown to the
+    # student on the Decomposition/Sprint pages) — it is NOT a push gate.
+    # candidate_stories is already scoped to stories that reached effort
+    # estimation (has an estimate, student-assigned points, or an
+    # in_backlog/estimated status), which can only happen after the student
+    # passed SRS Quality and finalized Decomposition, so that's the real,
+    # non-blocking gate: if a story got this far, it can be pushed. The
+    # Passport previously re-derived its own stricter pass/fail gate here
+    # (e.g. requiring coverage_score >= 75 with zero missing elements),
+    # which could disagree with the non-blocking decomposition/estimation
+    # workflow and leave an already-estimated story stuck with no way
+    # forward or back.
+    stories = candidate_stories
+    blocked_stories: list[dict[str, Any]] = []
 
     # 2. Fetch requirements and only create Epics for requirements that have active backlog stories
     all_requirements = requirement_service.list_requirements(db, session_id)
